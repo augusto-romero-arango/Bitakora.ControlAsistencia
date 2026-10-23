@@ -34,12 +34,19 @@ module "service_bus" {
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   sku                 = "Standard"
+
+  # Issue #1174 (MEF-ADR-0026): queue de fan-in por colaborador, vacio hasta #1175.
+  queues_config = {
+    "actualizar-control-diario" = { requires_session = true }
+  }
+
   topics_config = {
     "programacion-turno-diario-solicitada" = {
       subscriptions = [
         {
           name               = "control-horas-escucha-programacion"
           correlation_filter = null
+          forward_to         = "actualizar-control-diario"
         },
         {
           name                = "smoke-tests"
@@ -56,6 +63,7 @@ module "service_bus" {
         {
           name               = "control-horas-escucha-cancelacion"
           correlation_filter = null
+          forward_to         = "actualizar-control-diario"
         },
         {
           name                = "smoke-tests"
@@ -74,6 +82,7 @@ module "service_bus" {
         {
           name               = "control-horas-escucha-ausencia"
           correlation_filter = null
+          forward_to         = "actualizar-control-diario"
         },
         {
           name                = "smoke-tests"
@@ -87,6 +96,7 @@ module "service_bus" {
         {
           name               = "control-horas-escucha-cancelacion-ausencia"
           correlation_filter = null
+          forward_to         = "actualizar-control-diario"
         },
         {
           name                = "smoke-tests"
@@ -100,6 +110,11 @@ module "service_bus" {
         {
           name               = "control-horas-escucha-dia-depurado"
           correlation_filter = null
+        },
+        {
+          name               = "control-horas-reparte-marcaciones"
+          correlation_filter = null
+          forward_to         = "actualizar-control-diario"
         },
         {
           name                = "smoke-tests"
@@ -118,6 +133,7 @@ module "service_bus" {
         {
           name               = "control-horas-escucha-registro-de-marcacion"
           correlation_filter = null
+          forward_to         = "actualizar-control-diario"
         },
         {
           # Issue #467: Sedes (dueno del dato dispositivo->sede->CC, MEF-ADR-0046) se suscribe al
@@ -138,11 +154,11 @@ module "service_bus" {
       subscriptions = [
         {
           # Issue #463 (MEF-ADR-0026, carrera B "dentro del topic"): dos resoluciones del mismo
-          # colaborador convergen sobre el mismo cd: -- session-enabled serializa el fan-in. El
-          # productor (Sedes) publica con PublishOptions.GroupId = CodigoColaborador (#467).
+          # colaborador convergen sobre el mismo cd:; el forward al queue con sesion serializa el
+          # fan-in (#1175). El productor (Sedes) publica con PublishOptions.GroupId = CodigoColaborador (#467).
           name               = "control-horas-escucha-sede-de-marcacion-resuelta"
           correlation_filter = null
-          requires_session   = true
+          forward_to         = "actualizar-control-diario"
         },
         {
           name                = "smoke-tests"

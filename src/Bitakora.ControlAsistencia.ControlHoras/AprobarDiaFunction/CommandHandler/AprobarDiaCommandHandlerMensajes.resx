@@ -32,4 +32,7 @@
   <data name="DiaYaAprobado" xml:space="preserve">
     <value>El dia ya fue aprobado; las aprobaciones son definitivas</value>
   </data>
+  <data name="MarcacionesAmbiguasSinResolver" xml:space="preserve">
+    <value>El dia tiene marcaciones ambiguas sin resolver; resuelvelas antes de aprobar</value>
+  </data>
 </root>

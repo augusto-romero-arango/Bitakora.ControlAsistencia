@@ -51,8 +51,9 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         new(new TimeOnly(6, 0), new TimeOnly(12, 0), 0, [], [], "");
     private static readonly FranjaProgramada Franja14_18 =
         new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
+    private static readonly FranjaProgramada Franja07_16 =
+        new(new TimeOnly(7, 0), new TimeOnly(16, 0), 0, [], [], "");
 
-    // Timestamps de marcaciones (fuera de ventana nocturna: >= 04:00)
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
     private static readonly DateTime Timestamp05_50 = new(2026, 3, 15, 5, 50, 0);
     private static readonly DateTime Timestamp12_05 = new(2026, 3, 15, 12, 5, 0);
@@ -70,6 +71,13 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
 
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario detalleTurno) =>
         new(StreamId, ColaboradorPersistido, Fecha, detalleTurno, SolicitudId);
+
+    private static DateTime En(int hora, int minuto) => Fecha.ToDateTime(new TimeOnly(hora, minuto));
+
+    // And<>() compara con BeEquivalentTo, que ignora el orden: el string fija ademas que cada
+    // pertenencia queda junto a su marcacion.
+    private static string PertenenciasPorHora(DiaDepurado dia) =>
+        string.Join(" ", dia.Marcaciones.Select(m => $"{m.Timestamp:HH:mm}={m.Pertenencia}"));
 
     // Issue #184: oraculo independiente de una linea de trazabilidad (memoria de calculo). Se arma a
     // mano desde IntervaloTemporal.ToString() (primitiva ya probada) y la etiqueta traducida del recurso
@@ -103,13 +111,13 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         // La franja quedo anomala (Salida null): no aporta horas calculables y no hay retardo, asi
         // que HorasPorConcepto viaja vacio. Nota del issue (riesgo aceptado): el contrato plano no
         // distingue "franja anomala" de "dia sin horas"; ambos publican el mismo diccionario vacio.
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador }, new DiaDepurado(
             CodigoColaborador,
             Fecha,
             ColaboradorResumen,
             "Turno Manana",
             [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, Timestamp07_00, null, true)],
-            [new MarcacionDelDia(Timestamp07_00, "ENTRADA")],
+            [new MarcacionDelDia(Timestamp07_00, "ENTRADA", Pertenencia: "DelTurno")],
             new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
     }
 
@@ -134,7 +142,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         // HU-108 CA-4: se publica DiaDepurado aunque no haya turno. Colaborador es null porque el
         // ControlDiario nacio solo por marcacion; CodigoColaborador top-level sigue presente.
         // Issue #183 CA-6: sin turno no hay nada que consolidar -> HorasPorConcepto viaja vacio.
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador }, new DiaDepurado(
             CodigoColaborador,
             Fecha,
             null,
@@ -186,7 +194,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
         // conceptos -> dos lineas, en orden cronologico (ordinaria antes que excedente), cada una armada
         // con LineaConcepto desde su intervalo y la etiqueta traducida. F2 es anomala (Salida null): no
         // aporta intervalos ni lineas.
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador }, new DiaDepurado(
             CodigoColaborador,
             Fecha,
             ColaboradorResumen,
@@ -196,9 +204,9 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
                 new FranjaDepurada(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, Timestamp14_10, null, true)
             ],
             [
-                new MarcacionDelDia(Timestamp05_50, "ENTRADA"),
-                new MarcacionDelDia(Timestamp12_05, "ENTRADA"),
-                new MarcacionDelDia(Timestamp14_10, "ENTRADA")
+                new MarcacionDelDia(Timestamp05_50, "ENTRADA", Pertenencia: "DelTurno"),
+                new MarcacionDelDia(Timestamp12_05, "ENTRADA", Pertenencia: "DelTurno"),
+                new MarcacionDelDia(Timestamp14_10, "ENTRADA", Pertenencia: "DelTurno")
             ],
             new HorasDiscriminadas(
                 new Dictionary<string, decimal>
@@ -212,42 +220,61 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
                 ])));
     }
 
-    // CA-5 (HU-108): marcacion a las 02:00 cae en ventana nocturna [00:00, 04:00).
-    // El handler procesa dos fechas-destino: dia calendario (2026-03-15) y dia anterior (2026-03-14).
-    // Publica dos DiaDepurado - uno por cada fecha, en el orden de procesamiento del handler.
-    // Verifica con ThenIsPublishedPrivately(evento1, evento2): count exacto + orden exacto.
+    // La marcacion de madrugada se guarda solo en su dia calendario; el reparto la lleva a la vispera.
     [Fact]
-    public async Task RegistroDeMarcacionCreado_PublicaDosDiaDepurado_CuandoMarcacionEstaEnVentanaNocturna()
+    public async Task RegistroDeMarcacionCreado_PublicaUnSoloDiaDepurado_CuandoMarcacionEstaEnMadrugada()
     {
-        // Sin Given - ninguno de los dos streams existe
         var timestampNocturno = new DateTime(2026, 3, 15, 2, 0, 0);
-        var fechaDiaCal = Fecha;                        // 2026-03-15 (dia calendario)
-        var fechaDiaAnt = Fecha.AddDays(-1);            // 2026-03-14 (dia anterior)
 
         await WhenAsync(CrearRegistroDeMarcacionCreado(timestampNocturno));
 
-        // Verificar que cada stream tiene exactamente un MarcacionAdicionada
         Then(StreamId,
             new MarcacionAdicionada(StreamId, CodigoColaborador, timestampNocturno, "ENTRADA", "DEV-001"));
-        Then(StreamIdDiaAnterior,
-            new MarcacionAdicionada(StreamIdDiaAnterior, CodigoColaborador, timestampNocturno, "ENTRADA", "DEV-001"));
+        Then(StreamIdDiaAnterior);
 
-        // CA-5: dos DiaDepurado publicados, en orden: dia calendario primero, dia anterior segundo.
-        // Ambos sin turno previo (Colaborador=null, NombreTurno=null, Franjas vacia), pero con
-        // CodigoColaborador top-level y la marcacion cruda en Marcaciones.
-        // Issue #183 CA-6: sin turno en ninguno de los dos streams, HorasPorConcepto viaja vacio en ambos.
         var marcacionNocturna = new MarcacionDelDia(timestampNocturno, "ENTRADA");
         ThenIsPublishedPrivately(
+            new PublishOptions { GroupId = CodigoColaborador },
             new DiaDepurado(
-                CodigoColaborador, fechaDiaCal, null, null, [], [marcacionNocturna],
-                new HorasDiscriminadas(new Dictionary<string, decimal>(), [])),
-            new DiaDepurado(
-                CodigoColaborador, fechaDiaAnt, null, null, [], [marcacionNocturna],
+                CodigoColaborador, Fecha, null, null, [], [marcacionNocturna],
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
 
         And<ControlDiarioAggregateRoot, int>(
             StreamId, c => c.ControlesDeFranja.Count, 0);
-        And<ControlDiarioAggregateRoot, int>(
-            StreamIdDiaAnterior, c => c.ControlesDeFranja.Count, 0);
+    }
+
+    [Fact]
+    public async Task RegistroDeMarcacionCreado_ClasificaFueraDeCobertura_CuandoLaMarcacionPasaDeFinMasCuatroHoras()
+    {
+        Given(StreamId,
+            CrearTurnoDiarioAsignado(new TurnoDiario("Turno Dia", [Franja07_16], "")),
+            CrearMarcacionAdicionada(En(7, 10)),
+            CrearMarcacionAdicionada(En(12, 0)),
+            CrearMarcacionAdicionada(En(16, 5)));
+
+        await WhenAsync(CrearRegistroDeMarcacionCreado(En(20, 15)));
+
+        Then(StreamId, CrearMarcacionAdicionada(En(20, 15)));
+        And<ControlDiarioAggregateRoot, string>(
+            StreamId,
+            c => PertenenciasPorHora(c.CrearDiaDepurado()),
+            "07:10=DelTurno 12:00=DelTurno 16:05=DelTurno 20:15=FueraDeCobertura");
+    }
+
+    [Fact]
+    public async Task RegistroDeMarcacionCreado_ClasificaAmbigua_CuandoLaMarcacionCaeTambienEnLaCoberturaDeLaVispera()
+    {
+        Given(StreamId,
+            CrearTurnoDiarioAsignado(new TurnoDiario("Turno Manana", [Franja06_14], "")),
+            CoberturaVecinaActualizada.Crear(StreamId, DiaVecino.Vispera, En(5, 0)),
+            CrearMarcacionAdicionada(En(6, 20)));
+
+        await WhenAsync(CrearRegistroDeMarcacionCreado(En(4, 30)));
+
+        Then(StreamId, CrearMarcacionAdicionada(En(4, 30)));
+        And<ControlDiarioAggregateRoot, string>(
+            StreamId,
+            c => PertenenciasPorHora(c.CrearDiaDepurado()),
+            "04:30=Ambigua 06:20=DelTurno");
     }
 }

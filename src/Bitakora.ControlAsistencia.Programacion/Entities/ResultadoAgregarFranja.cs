@@ -8,6 +8,5 @@ internal enum ResultadoAgregarFranja
     TurnoRetirado,
     TurnoEsDescanso,
     SeSolapaConOtraFranja,
-    InicioAntesDeHoraCorte,
     CierrePasaMedianoche
 }

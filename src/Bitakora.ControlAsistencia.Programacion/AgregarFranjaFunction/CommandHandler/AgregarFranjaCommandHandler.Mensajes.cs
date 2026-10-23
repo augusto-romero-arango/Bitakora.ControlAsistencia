@@ -23,9 +23,6 @@ public partial class AgregarFranjaCommandHandler
         public static string FranjaSeSolapa =>
             ResourceManager.GetString(nameof(FranjaSeSolapa))!;
 
-        public static string InicioAntesDeHoraCorte =>
-            ResourceManager.GetString(nameof(InicioAntesDeHoraCorte))!;
-
         public static string CierrePasaMedianoche =>
             ResourceManager.GetString(nameof(CierrePasaMedianoche))!;
     }

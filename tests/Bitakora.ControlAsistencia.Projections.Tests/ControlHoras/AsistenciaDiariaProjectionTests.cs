@@ -531,4 +531,252 @@ public class AsistenciaDiariaProjectionTests
         vista.MotivoAusencia.Should().BeNull();
         vista.VinoEnAusencia.Should().BeFalse();
     }
+
+    private static EventoMarcacionDelDia MarcacionConPertenencia(DateTime timestamp, string? pertenencia) =>
+        new(timestamp, "ENTRADA", Pertenencia: pertenencia);
+
+    [Fact]
+    public void Create_MarcaMarcacionAmbiguaPendiente_CuandoAlgunaMarcacionEsAmbigua()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), "DelTurno"),
+             MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "Ambigua")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_DejaMarcacionAmbiguaPendienteEnFalse_CuandoNingunaMarcacionEsAmbigua()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), "DelTurno"),
+             MarcacionConPertenencia(new DateTime(2026, 8, 24, 20, 0, 0), "FueraDeCobertura")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaMarcacionAmbiguaPendienteEnFalse_CuandoLasMarcacionesNoTraenPertenencia()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()], [MarcacionDePrueba()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaMarcacionAmbiguaPendienteEnFalse_CuandoElDiaNoTieneJornada()
+    {
+        var evento = CrearEvento(null, [], [MarcacionDePrueba()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_ApagaMarcacionAmbiguaPendiente_CuandoLaFotoNuevaYaNoTraeAmbiguas()
+    {
+        var primero = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "Ambigua")], SinHoras());
+        var vistaPrevia = AsistenciaDiariaProjection.Create(primero) with { MarcacionAmbiguaPendiente = true };
+        var segundo = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), "DelTurno")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(segundo, vistaPrevia);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_EnciendeMarcacionAmbiguaPendiente_CuandoLaFotoNuevaTraeUnaAmbigua()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", false, false, false, false, false, new Dictionary<string, decimal>());
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "Ambigua")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_MarcaNoSePresento_CuandoLaUnicaMarcacionEsFueraDeCobertura()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 1, 0, 0), "FueraDeCobertura")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.NoSePresento.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_MarcaNoSePresentoYAmbiguaPendiente_CuandoLaUnicaMarcacionEsAmbigua()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "Ambigua")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.NoSePresento.Should().BeTrue();
+        vista.MarcacionAmbiguaPendiente.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_DejaNoSePresentoEnFalse_CuandoHayUnaMarcacionDelTurnoYOtraFueraDeCobertura()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 1, 0, 0), "FueraDeCobertura"),
+             MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), "DelTurno")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.NoSePresento.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaNoSePresentoEnFalse_CuandoLasMarcacionesNoTraenPertenenciaOEsDesconocida()
+    {
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), null)], SinHoras());
+        var eventoDesconocido = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 6, 0, 0), "ValorNuevo")], SinHoras());
+
+        AsistenciaDiariaProjection.Create(evento).NoSePresento.Should().BeFalse();
+        AsistenciaDiariaProjection.Create(eventoDesconocido).NoSePresento.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_ApagaNoSePresento_CuandoLaMarcacionAmbiguaPasaASerDelTurno()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", NoSePresento: true, FranjasIncompletas: false, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: false,
+            HorasPorConcepto: new Dictionary<string, decimal>(), MarcacionAmbiguaPendiente: true);
+        var evento = CrearEvento("Turno Manana", [FranjaValida()],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 4, 30, 0), "DelTurno")], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.NoSePresento.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_ApagaMarcacionAmbiguaPendiente_CuandoLlegaDiaAprobado()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.ConJornada,
+            "Turno Manana", false, false, false, false, false, new Dictionary<string, decimal>(),
+            MarcacionAmbiguaPendiente: true);
+        var evento = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_NaceConMarcacionAmbiguaPendienteEnFalse_CuandoElStreamNaceConDiaAprobado()
+    {
+        var evento = DiaAprobado.Crear(StreamKey, CodigoColaborador, Fecha, []);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.MarcacionAmbiguaPendiente.Should().BeFalse();
+    }
+
+    private static EventoMarcacionDelDia MadrugadaDeTurnoVecino() =>
+        MarcacionConPertenencia(new DateTime(2026, 8, 24, 1, 0, 0), "DeTurnoVecino");
+
+    private static EventoMarcacionDelDia MarcacionPropiaDeLas10() =>
+        MarcacionConPertenencia(new DateTime(2026, 8, 24, 10, 0, 0), null);
+
+    [Fact]
+    public void Create_DejaVinoEnDescansoEnFalse_CuandoLaUnicaMarcacionEsDeTurnoVecino()
+    {
+        var evento = CrearEvento("Descanso", [], [MadrugadaDeTurnoVecino()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Plan.Should().Be(PlanDelDia.Descanso);
+        vista.VinoEnDescanso.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaTrabajoSinProgramacionEnFalse_CuandoLaUnicaMarcacionEsDeTurnoVecino()
+    {
+        var evento = CrearEvento(null, [], [MadrugadaDeTurnoVecino()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Plan.Should().Be(PlanDelDia.SinProgramar);
+        vista.TrabajoSinProgramacion.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_DejaVinoEnAusenciaEnFalse_CuandoLaUnicaMarcacionEsDeTurnoVecino()
+    {
+        var evento = CrearEventoDeAusencia("IncapacidadMedica", null, [], [MadrugadaDeTurnoVecino()]);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.Plan.Should().Be(PlanDelDia.Ausencia);
+        vista.VinoEnAusencia.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_MarcaVinoEnDescanso_CuandoHayMarcacionPropiaJuntoALaDeTurnoVecino()
+    {
+        var evento = CrearEvento("Descanso", [], [MadrugadaDeTurnoVecino(), MarcacionPropiaDeLas10()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.VinoEnDescanso.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_MarcaTrabajoSinProgramacion_CuandoHayMarcacionPropiaJuntoALaDeTurnoVecino()
+    {
+        var evento = CrearEvento(null, [], [MadrugadaDeTurnoVecino(), MarcacionPropiaDeLas10()], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.TrabajoSinProgramacion.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_MarcaVinoEnAusencia_CuandoHayMarcacionPropiaJuntoALaDeTurnoVecino()
+    {
+        var evento = CrearEventoDeAusencia(
+            "IncapacidadMedica", null, [], [MadrugadaDeTurnoVecino(), MarcacionPropiaDeLas10()]);
+
+        var vista = AsistenciaDiariaProjection.Create(evento);
+
+        vista.VinoEnAusencia.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_ReDerivaVinoEnDescansoEnTrue_CuandoLaMadrugadaDejaDeSerDeTurnoVecino()
+    {
+        var vistaPrevia = new AsistenciaDiaria(
+            StreamKey, CodigoColaborador, Fecha, EstadoAsistencia.Provisional, PlanDelDia.Descanso,
+            "Descanso", NoSePresento: false, FranjasIncompletas: false, VinoEnDescanso: false,
+            TrabajoSinProgramacion: false, ConflictoDeSedePendiente: false,
+            HorasPorConcepto: new Dictionary<string, decimal>());
+        var evento = CrearEvento("Descanso", [],
+            [MarcacionConPertenencia(new DateTime(2026, 8, 24, 1, 0, 0), null)], SinHoras());
+
+        var vista = AsistenciaDiariaProjection.Apply(evento, vistaPrevia);
+
+        vista.VinoEnDescanso.Should().BeTrue();
+    }
 }

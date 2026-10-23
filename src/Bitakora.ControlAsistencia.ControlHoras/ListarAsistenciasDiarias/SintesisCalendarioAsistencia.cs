@@ -44,7 +44,8 @@ public static class SintesisCalendarioAsistencia
             documento.ConflictoDeSedePendiente,
             documento.HorasPorConcepto,
             documento.MotivoAusencia,
-            documento.VinoEnAusencia);
+            documento.VinoEnAusencia,
+            documento.MarcacionAmbiguaPendiente);
 
     // Un dia sin documento no es una anomalia: no hubo programacion NI marcaciones, asi que las
     // banderas van en false y no hay motivo de ausencia -- el vacio se avala, no se aprueba.

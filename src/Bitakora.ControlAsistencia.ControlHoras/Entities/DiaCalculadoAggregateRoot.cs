@@ -8,6 +8,7 @@ using DepuracionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.Depu
 using VistaFranjaDepurada = Bitakora.ControlAsistencia.ReadModels.ControlHoras.FranjaDepurada;
 using VistaMarcacionDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.MarcacionDelDia;
 using EstadoAsistencia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.EstadoAsistencia;
+using VistaPertenencia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.PertenenciaMarcacion;
 using PlanDelDia = Bitakora.ControlAsistencia.ReadModels.ControlHoras.PlanDelDia;
 using SedeDeFranja = Bitakora.ControlAsistencia.ReadModels.ControlHoras.SedeDeFranja;
 
@@ -104,7 +105,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     // encuentre via GetMethods().
     public void Apply(DepuracionPosAprobacionRecibida e) { }
 
-    // Issue #489. MEF-ADR-0004: Apply no lanza -- reemplaza la foto completa sin comparar contra
+    // MEF-ADR-0004: Apply no lanza -- reemplaza la foto completa sin comparar contra
     // el estado previo. public: requerido para que TestStore.ApplyEvent lo encuentre via
     // GetMethods(). Es tambien el primer evento del aval del vacio (CA-7): fija Id, colaborador y
     // fecha aunque nunca haya llegado una DepuracionDiaRecibida.
@@ -117,7 +118,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         Estado = EstadoDiaCalculado.Aprobado;
     }
 
-    // Issue #489: cierre del acto de aprobar. CA-ADR-0030 -- declina con resultado, nunca lanza; el
+    // Cierre del acto de aprobar. CA-ADR-0030 -- declina con resultado, nunca lanza; el
     // handler traduce cada valor distinto de Aprobado a InvalidOperationException. streamId,
     // codigoColaborador y fecha viajan como parametros (no se leen de _codigoColaborador/_fecha)
     // porque el aval del vacio (CA-7) llama este mismo metodo sobre un aggregate recien construido,
@@ -128,6 +129,11 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     {
         if (Estado == EstadoDiaCalculado.Aprobado)
             return ResultadoAprobacion.DiaYaAprobado;
+
+        // Misma regla (Pertenencia == Ambigua) que AsistenciaDiariaProjection.EsMarcacionAmbiguaPendiente;
+        // se duplica a proposito (MEF-ADR-0018). Va antes de las sedes: la foto cambia al resolver.
+        if (_marcaciones.Any(m => m.Pertenencia == nameof(PertenenciaMarcacion.Ambigua)))
+            return ResultadoAprobacion.MarcacionesAmbiguasSinResolver;
 
         var sedesDecididas = new List<SedeDecidida>();
         var horasDecididas = new HashSet<TimeOnly>();
@@ -184,7 +190,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
                 {
                     var (efectiva, enConflicto, candidatas) = DerivarSedeDeFranja(franja, _marcaciones);
 
-                    // Issue #489 CA-2: el expediente aprobado se lee resuelto -- la sede que el
+                    // El expediente aprobado se lee resuelto -- la sede que el
                     // Aprobador decidio reemplaza la derivacion de conflicto de esa franja.
                     var decidida = _sedesDecididas.FirstOrDefault(
                         sd => sd.HoraInicioProgramada == franja.HoraInicioProgramada);
@@ -214,12 +220,22 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
                     EsUsada(marcacion, _franjas),
                     marcacion.CodigoSede,
                     marcacion.NombreSede,
-                    marcacion.CentroDeCostos))
+                    marcacion.CentroDeCostos,
+                    LeerPertenenciaDelPlan(plan, marcacion.Pertenencia)))
                 .ToList(),
             horas?.HorasPorConcepto ?? new Dictionary<string, decimal>(),
             horas?.Trazabilidad ?? [],
             _motivoAusencia);
     }
+
+    private static VistaPertenencia? LeerPertenenciaDelPlan(PlanDelDia plan, string? pertenencia) =>
+        plan == PlanDelDia.ConJornada ? LeerPertenencia(pertenencia)
+        : pertenencia == nameof(VistaPertenencia.DeTurnoVecino) ? VistaPertenencia.DeTurnoVecino
+        : null;
+
+    // Lectura legada: sin la clave, toda marcacion de un dia con jornada era del turno.
+    private static VistaPertenencia LeerPertenencia(string? pertenencia) =>
+        Enum.TryParse<VistaPertenencia>(pertenencia, out var valor) ? valor : VistaPertenencia.DelTurno;
 
     private static PlanDelDia ClasificarPlan(
         string? nombreTurno, IReadOnlyList<FranjaDepurada> franjas, string? motivoAusencia) =>
@@ -244,6 +260,12 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     // vista y las candidatas de sede.
     private static bool PerteneceA(MarcacionDelDia marcacion, FranjaDepurada franja) =>
         marcacion.Timestamp == franja.Entrada || marcacion.Timestamp == franja.Salida;
+
+    // null = el dia no esta aprobado; si lo esta, si su foto aprobada uso la marcacion.
+    internal bool? UsoAprobadoDe(DateTime timestamp) =>
+        Estado == EstadoDiaCalculado.Aprobado
+            ? _marcaciones.Where(m => m.Timestamp == timestamp).Any(m => EsUsada(m, _franjas))
+            : null;
 
     // Derivada una sola vez aqui: ningun cliente la recalcula.
     private static bool EsUsada(MarcacionDelDia marcacion, IReadOnlyList<FranjaDepurada> franjas) =>

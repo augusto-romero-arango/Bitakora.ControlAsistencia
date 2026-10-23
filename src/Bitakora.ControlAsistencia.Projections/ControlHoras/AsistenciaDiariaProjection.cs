@@ -40,7 +40,8 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             ConflictoDeSedePendiente: EsConflictoDeSedePendiente(evento.Franjas, evento.Marcaciones),
             evento.HorasDiscriminadas.HorasPorConcepto,
             evento.MotivoAusencia,
-            EsVinoEnAusencia(plan, evento.Marcaciones));
+            EsVinoEnAusencia(plan, evento.Marcaciones),
+            EsMarcacionAmbiguaPendiente(evento.Marcaciones));
     }
 
     // "El ultimo gana": cada foto reemplaza plan, banderas y horas. Id/CodigoColaborador/Fecha se
@@ -61,7 +62,8 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             ConflictoDeSedePendiente = EsConflictoDeSedePendiente(evento.Franjas, evento.Marcaciones),
             HorasPorConcepto = evento.HorasDiscriminadas.HorasPorConcepto,
             MotivoAusencia = evento.MotivoAusencia,
-            VinoEnAusencia = EsVinoEnAusencia(plan, evento.Marcaciones)
+            VinoEnAusencia = EsVinoEnAusencia(plan, evento.Marcaciones),
+            MarcacionAmbiguaPendiente = EsMarcacionAmbiguaPendiente(evento.Marcaciones)
         };
     }
 
@@ -81,17 +83,19 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             VinoEnDescanso: false,
             TrabajoSinProgramacion: false,
             ConflictoDeSedePendiente: false,
-            HorasPorConcepto: new Dictionary<string, decimal>());
+            HorasPorConcepto: new Dictionary<string, decimal>(),
+            MarcacionAmbiguaPendiente: false);
 
-    // ConflictoDeSedePendiente se apaga porque las decisiones de sede se tomaron dentro del acto de
-    // aprobar (viajan en DiaAprobado.SedesDecididas). Plan, banderas de anomalia, NombreTurno y
-    // HorasPorConcepto NO se re-derivan a proposito: la aprobacion no reescribe la historia, la
-    // pone en firme.
+    // Se apagan las dos banderas de lo pendiente de decidir: las decisiones de sede viajan en
+    // DiaAprobado.SedesDecididas, y en un dia en firme no queda marcacion ambigua por asignar. Plan,
+    // el resto de banderas de anomalia, NombreTurno y HorasPorConcepto NO se re-derivan a proposito:
+    // la aprobacion no reescribe la historia, la pone en firme.
     public static AsistenciaDiaria Apply(DiaAprobado evento, AsistenciaDiaria vista) =>
         vista with
         {
             Estado = EstadoAsistencia.Aprobado,
-            ConflictoDeSedePendiente = false
+            ConflictoDeSedePendiente = false,
+            MarcacionAmbiguaPendiente = false
         };
 
     // DepuracionPosAprobacionRecibida se omite a proposito: sin un metodo Create/Apply que lo tipe,
@@ -110,20 +114,34 @@ public sealed partial class AsistenciaDiariaProjection : SingleStreamProjection<
             _ => PlanDelDia.ConJornada
         };
 
+    // Foto anterior a la pertenencia por marcacion trae null, que no es Ambigua -> false.
+    // Misma regla en DiaCalculadoAggregateRoot.Aprobar (duplicada a proposito, MEF-ADR-0018).
+    private static bool EsMarcacionAmbiguaPendiente(IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
+        marcaciones.Any(marcacion => marcacion.Pertenencia == nameof(PertenenciaMarcacion.Ambigua));
+
+    // Una marcacion de turno vecino no es presencia del dia; null (foto legada) cuenta como propia.
+    private static bool EsPropiaDelDia(EventoMarcacionDelDia marcacion) =>
+        marcacion.Pertenencia != nameof(PertenenciaMarcacion.DeTurnoVecino);
+
     private static bool EsVinoEnAusencia(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
-        plan == PlanDelDia.Ausencia && marcaciones.Count > 0;
+        plan == PlanDelDia.Ausencia && marcaciones.Any(EsPropiaDelDia);
 
     private static bool EsNoSePresento(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
-        plan == PlanDelDia.ConJornada && marcaciones.Count == 0;
+        plan == PlanDelDia.ConJornada && !marcaciones.Any(EsDelTurno);
+
+    // Replica de DiaCalculadoAggregateRoot.LeerPertenencia: sin clave o valor desconocido cuenta como DelTurno.
+    private static bool EsDelTurno(EventoMarcacionDelDia marcacion) =>
+        marcacion.Pertenencia != nameof(PertenenciaMarcacion.Ambigua)
+        && marcacion.Pertenencia != nameof(PertenenciaMarcacion.FueraDeCobertura);
 
     private static bool EsFranjasIncompletas(PlanDelDia plan, IReadOnlyList<EventoFranjaDepurada> franjas) =>
         plan == PlanDelDia.ConJornada && franjas.Any(franja => franja.EsAnomala);
 
     private static bool EsVinoEnDescanso(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
-        plan == PlanDelDia.Descanso && marcaciones.Count > 0;
+        plan == PlanDelDia.Descanso && marcaciones.Any(EsPropiaDelDia);
 
     private static bool EsTrabajoSinProgramacion(PlanDelDia plan, IReadOnlyList<EventoMarcacionDelDia> marcaciones) =>
-        plan == PlanDelDia.SinProgramar && marcaciones.Count > 0;
+        plan == PlanDelDia.SinProgramar && marcaciones.Any(EsPropiaDelDia);
 
     // Re-derivacion de la politica de DiaCalculadoAggregateRoot.DerivarSedeDeFranja, duplicada a
     // proposito (MEF-ADR-0018): si cambia alla, cambia aqui. Solo el booleano -- sede efectiva, CC y

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -38,13 +39,183 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // ignora al llegar. Por eso el dia recuerda toda AusenciaId cancelada, este o no vigente.
     private readonly HashSet<Guid> _ausenciasCanceladas = [];
 
-    // Recalculo reactivo al final de cada Apply. Sin DetalleTurno el depurador retorna lista vacia.
+    // Limites de cobertura informados por los vecinos; null = el vecino no tiene cobertura.
+    private DateTime? _finCoberturaVispera;
+    private DateTime? _inicioCoberturaDiaSiguiente;
+    private DateTime? _finCoberturaEfectiva;
+    private IReadOnlyDictionary<DateTime, PertenenciaMarcacion> _pertenencias =
+        ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
+
+    // Recalculo reactivo al final de cada Apply.
     private void Depurar()
     {
         _controlesDeFranja.Clear();
-        if (_ausenciaId is not null) return;
-        var resultado = DepuradorDeMarcaciones.Depurar(DetalleTurno, Fecha, _marcaciones);
+        _pertenencias = ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
+        var vecinas = new CoberturasVecinas(
+            _finCoberturaVispera, _inicioCoberturaDiaSiguiente, Fecha, ResolucionesVigentes());
+        if (SinJornada)
+        {
+            _finCoberturaEfectiva = null;
+            _pertenencias = _marcaciones
+                .Select(m => m.TimestampNormalizado)
+                .Distinct()
+                .Where(vecinas.Excluye)
+                .ToDictionary(i => i, _ => PertenenciaMarcacion.DeTurnoVecino);
+            return;
+        }
+        var resultado = DepuradorDeMarcaciones.Depurar(DetalleTurno, Fecha, _marcaciones, vecinas);
         _controlesDeFranja.AddRange(resultado);
+        _pertenencias = DepuradorDeMarcaciones.Clasificar(DetalleTurno, Fecha, _marcaciones, vecinas);
+        _finCoberturaEfectiva = DepuradorDeMarcaciones
+            .CoberturaEfectiva(DetalleTurno, Fecha, _marcaciones, vecinas)?.Fin;
+    }
+
+    // Descanso, sin programar o con ausencia: no depura horas, solo clasifica marcaciones de vecinos.
+    private bool SinJornada => _ausenciaId is not null || DetalleTurno?.CoberturaPosible(Fecha) is null;
+
+    // true si emitio el evento.
+    internal bool ActualizarCoberturaVecina(ControlDiarioAggregateRoot vecino)
+    {
+        var lado = LadoDe(vecino);
+        var (limite, actual) = lado == DiaVecino.Vispera
+            ? (vecino.FinDeSuCobertura(), _finCoberturaVispera)
+            : (vecino.InicioDeSuCobertura(), _inicioCoberturaDiaSiguiente);
+        if (actual == limite) return false;
+        // El primer limite solo se informa si el vecino invade de verdad la cobertura de este dia (o, sin
+        // jornada, su dia calendario); un limite ya informado siempre se actualiza.
+        if (actual is null && !RegistraPrimerLimite(lado, limite, vecino)) return false;
+
+        var evento = CoberturaVecinaActualizada.Crear(Id, lado, limite);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return true;
+    }
+
+    private bool RegistraPrimerLimite(DiaVecino lado, DateTime? limite, ControlDiarioAggregateRoot vecino) =>
+        SinJornada ? AlcanzaSuDiaCalendario(lado, limite) : Invade(DetalleTurno!, lado, limite, vecino);
+
+    // Sin jornada, el dia solo clasifica sus propias marcaciones: un limite fuera de su dia calendario no excluye ninguna.
+    private bool AlcanzaSuDiaCalendario(DiaVecino lado, DateTime? limite)
+    {
+        if (limite is not { } instante) return false;
+
+        var inicioDelDia = Fecha.ToDateTime(TimeOnly.MinValue);
+        return lado == DiaVecino.Vispera ? instante > inicioDelDia : instante < inicioDelDia.AddDays(1);
+    }
+
+    private bool Invade(TurnoDiario turno, DiaVecino lado, DateTime? limite, ControlDiarioAggregateRoot vecino)
+    {
+        if (limite is not { } instante || turno.CoberturaPosible(Fecha) is not { } propia) return false;
+        if (vecino.DetalleTurno?.SeSolapaCon(vecino.Fecha, turno, Fecha) != false) return false;
+
+        return lado == DiaVecino.Vispera ? instante > propia.Inicio : instante < propia.Fin;
+    }
+
+    private DateTime? InicioDeSuCobertura() =>
+        _ausenciaId is null ? DetalleTurno?.Cobertura(Fecha)?.Inicio : null;
+
+    private DateTime? FinDeSuCobertura() => _ausenciaId is null ? _finCoberturaEfectiva : null;
+
+    private readonly Dictionary<DiaVecino, IReadOnlyList<MarcacionDecidida>> _resoluciones = [];
+
+    private IReadOnlyDictionary<DateTime, DateOnly> ResolucionesVigentes() =>
+        _resoluciones.Values
+            .SelectMany(r => r)
+            .GroupBy(m => m.Timestamp)
+            .ToDictionary(g => g.Key, g => g.Last().Fecha);
+
+    public void Apply(AmbiguedadDeMarcacionesResuelta e)
+    {
+        Id = e.Id;
+        _resoluciones[e.Vecino] = e.Marcaciones;
+        Depurar();
+        RecalcularDesgloseHoras();
+    }
+
+    // Sin resoluciones: repetir un reparto debe seguir viendo el solape.
+    internal IReadOnlyDictionary<DateTime, DiaVecino> MarcacionesEnDisputa()
+    {
+        if (SinJornada) return new Dictionary<DateTime, DiaVecino>();
+        var naturales = new CoberturasVecinas(_finCoberturaVispera, _inicioCoberturaDiaSiguiente);
+        return DepuradorDeMarcaciones.Clasificar(DetalleTurno, Fecha, _marcaciones, naturales)
+            .Where(p => p.Value == PertenenciaMarcacion.Ambigua)
+            .ToDictionary(
+                p => p.Key,
+                p => p.Key < _finCoberturaVispera ? DiaVecino.Vispera : DiaVecino.DiaSiguiente);
+    }
+
+    internal DateOnly FechaDe(DiaVecino vecino) =>
+        Fecha.AddDays(vecino == DiaVecino.Vispera ? -1 : 1);
+
+    internal ResultadoResolucionAmbiguedad ValidarReparto(IReadOnlyList<DecisionDeMarcacion> decisiones)
+    {
+        var disputas = MarcacionesEnDisputa();
+        if (decisiones.Any(d => !disputas.ContainsKey(d.Marcacion)))
+            return ResultadoResolucionAmbiguedad.MarcacionNoAmbigua;
+        if (disputas.Keys.Any(m => decisiones.All(d => d.Marcacion != m)))
+            return ResultadoResolucionAmbiguedad.RepartoIncompleto;
+
+        var fechaValida = decisiones.All(d => d.Fecha == Fecha || d.Fecha == FechaDe(disputas[d.Marcacion]));
+        var sinContradiccion = decisiones.GroupBy(d => d.Marcacion).All(g => g.Select(d => d.Fecha).Distinct().Count() == 1);
+        return fechaValida && sinContradiccion
+            ? ResultadoResolucionAmbiguedad.Valido
+            : ResultadoResolucionAmbiguedad.FechaNoValida;
+    }
+
+    // true si emitio el evento; el mismo reparto ya vigente es un no-op sin evento.
+    internal bool Resolver(DiaVecino vecino, IReadOnlyList<MarcacionDecidida> marcaciones)
+    {
+        if (_resoluciones.TryGetValue(vecino, out var vigente) && vigente.SequenceEqual(marcaciones))
+            return false;
+
+        var evento = AmbiguedadDeMarcacionesResuelta.Crear(Id, vecino, marcaciones);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return true;
+    }
+
+    public void Apply(ResolucionDeAmbiguedadDescartada e)
+    {
+        Id = e.Id;
+        _resoluciones.Remove(e.Vecino);
+        Depurar();
+        RecalcularDesgloseHoras();
+    }
+
+    // Un cambio real de plan propio descarta las resoluciones con todos los vecinos.
+    private void DescartarResoluciones()
+    {
+        foreach (var vecino in _resoluciones.Keys.ToList())
+            Descartar(vecino);
+    }
+
+    private void Descartar(DiaVecino vecino)
+    {
+        var evento = ResolucionDeAmbiguedadDescartada.Crear(Id, vecino);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
+
+    // El vecino que cambio de plan ya descarto su mitad del par; este dia descarta la suya.
+    // true si emitio el evento.
+    internal bool AlinearResolucionCon(ControlDiarioAggregateRoot vecino)
+    {
+        var lado = LadoDe(vecino);
+        if (!_resoluciones.ContainsKey(lado) || vecino._resoluciones.ContainsKey(vecino.LadoDe(this))) return false;
+
+        Descartar(lado);
+        return true;
+    }
+
+    private DiaVecino LadoDe(ControlDiarioAggregateRoot vecino) =>
+        vecino.Fecha < Fecha ? DiaVecino.Vispera : DiaVecino.DiaSiguiente;
+
+    public void Apply(CoberturaVecinaActualizada e)
+    {
+        if (e.Vecino == DiaVecino.Vispera) _finCoberturaVispera = e.Limite;
+        else _inicioCoberturaDiaSiguiente = e.Limite;
+        Depurar();
+        RecalcularDesgloseHoras();
     }
 
     // Orden obligatorio: va despues de Depurar(), que puebla _controlesDeFranja.
@@ -102,8 +273,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     internal void AsignarTurno(TurnoDiarioAsignado evento)
     {
+        var cambiaElPlan = !Equals(DetalleTurno, evento.DetalleTurno);
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        if (cambiaElPlan) DescartarResoluciones();
     }
 
     // Fecha sale del stream ID: el ControlDiario puede nacer solo por marcacion, sin turno que la traiga.
@@ -112,6 +285,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     {
         Id = e.Id;
         Fecha = ExtraerFechaDeStreamId(e.Id);
+        // Dos repartos concurrentes pueden persistir la misma copia: el replay conserva una sola.
+        if (TieneMarcacionEn(e.TimestampNormalizado)) return;
         _marcaciones.Add(new MarcacionNormalizada(e.TimestampNormalizado, e.TipoMarcacion, e.DispositivoId));
         Depurar();
         RecalcularDesgloseHoras();
@@ -141,12 +316,42 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Duplicado por minuto normalizado: no-op silencioso, sin evento ni excepcion.
     internal void AdicionarMarcacion(MarcacionAdicionada evento)
     {
-        var yaExiste = _marcaciones.Any(m => m.TimestampNormalizado == evento.TimestampNormalizado);
-        if (yaExiste) return;
+        if (TieneMarcacionEn(evento.TimestampNormalizado)) return;
 
         _uncommittedEvents.Add(evento);
         Apply(evento);
     }
+
+    private bool TieneMarcacionEn(DateTime timestampNormalizado) =>
+        _marcaciones.Any(m => m.TimestampNormalizado == timestampNormalizado);
+
+    // Copia (con su sede) las marcaciones del vecino que caen en la cobertura posible del turno de
+    // este dia. true si emitio eventos.
+    internal bool RecogerDe(ControlDiarioAggregateRoot vecino)
+    {
+        var cobertura = DetalleTurno?.CoberturaPosible(Fecha);
+        if (cobertura is null) return false;
+
+        var eventosAntes = _uncommittedEvents.Count;
+        foreach (var origen in vecino.MarcacionesDeSuDiaCalendario()
+                     .Where(m => cobertura.Contiene(m.TimestampNormalizado)))
+        {
+            AdicionarMarcacion(new MarcacionAdicionada(
+                Id, ExtraerCodigoColaboradorDeStreamId(Id), origen.TimestampNormalizado,
+                origen.TipoMarcacion, origen.DispositivoId));
+
+            if (origen is { CodigoSede: { } codigoSede, NombreSede: { } nombreSede })
+                EstamparSede(new SedeDeMarcacionIdentificada(
+                    Id, origen.TimestampNormalizado, origen.DispositivoId,
+                    codigoSede, nombreSede, origen.CentroDeCostos));
+        }
+
+        return _uncommittedEvents.Count > eventosAntes;
+    }
+
+    // Las copias recibidas de otro dia quedan fuera: nunca se re-reparten.
+    private IEnumerable<MarcacionNormalizada> MarcacionesDeSuDiaCalendario() =>
+        _marcaciones.Where(m => DateOnly.FromDateTime(m.TimestampNormalizado) == Fecha);
 
     // Proyecta el estampado sobre la marcacion correlacionada. Sin coincidencia no lanza
     // (MEF-ADR-0004): Apply solo proyecta estado.
@@ -209,6 +414,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        DescartarResoluciones();
         return ResultadoCancelacionTurno.Cancelado;
     }
 
@@ -240,6 +446,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        DescartarResoluciones();
         return ResultadoAsignarAusencia.Asignada;
     }
 
@@ -273,6 +480,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         var libera = _ausenciaId == evento.AusenciaId;
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        if (libera) DescartarResoluciones();
         return libera ? ResultadoCancelarAusencia.Liberado : ResultadoCancelarAusencia.CancelacionRecordada;
     }
 
@@ -300,7 +508,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
                 m.TipoMarcacion,
                 m.CodigoSede,
                 m.NombreSede,
-                m.CentroDeCostos))
+                m.CentroDeCostos,
+                _pertenencias.TryGetValue(m.TimestampNormalizado, out var pertenencia)
+                    ? pertenencia.ToString()
+                    : null))
             .ToList();
 
     private static FranjaDepurada CrearFranjaDepurada(ControlFranja controlFranja) =>

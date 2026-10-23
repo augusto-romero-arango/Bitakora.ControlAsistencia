@@ -111,13 +111,13 @@ public class DepurarAlAsignarTurnoTests
         // Issue #184: el DiaDepurado ahora viaja con la Trazabilidad (memoria de calculo) poblada. El
         // unico concepto del dia (ordinaria 07:00-14:00, DominicalFestivaDiurna) genera una sola linea,
         // construida con LineaConcepto desde el intervalo 07:00-14:00 y la etiqueta traducida del recurso.
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, new DiaDepurado(
             Colaborador.CodigoColaborador,
             Fecha,
             ColaboradorResumen,
             "Turno Manana",
             [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, Timestamp07_00, Timestamp15_00, false)],
-            [new MarcacionDelDia(Timestamp07_00, "ENTRADA"), new MarcacionDelDia(Timestamp15_00, "ENTRADA")],
+            [new MarcacionDelDia(Timestamp07_00, "ENTRADA", Pertenencia: "DelTurno"), new MarcacionDelDia(Timestamp15_00, "ENTRADA", Pertenencia: "DelTurno")],
             new HorasDiscriminadas(
                 new Dictionary<string, decimal> { ["DominicalFestivaDiurna"] = 7.00m },
                 [LineaConcepto(new TimeOnly(7, 0), new TimeOnly(14, 0), Concepto.DominicalFestivaDiurna)])));
@@ -146,7 +146,7 @@ public class DepurarAlAsignarTurnoTests
         // HU-131 CA-2: DiaDepurado se publica aunque la franja sea anomala (Entrada y Salida null).
         // Issue #183 CA-6: la franja anomala no aporta horas calculables y no hay retardo, asi que
         // HorasPorConcepto viaja vacio. El contrato plano no lleva senal de anomalia (riesgo aceptado).
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, new DiaDepurado(
             Colaborador.CodigoColaborador,
             Fecha,
             ColaboradorResumen,
@@ -179,7 +179,7 @@ public class DepurarAlAsignarTurnoTests
         // Issue #183 CA-6: sin franjas que consolidar ni retardo, HorasPorConcepto viaja vacio.
         // Issue #424 CA-6: NombreTurno = "Turno Sin Franjas" (presente) con Franjas vacia -- la senal
         // estructural del plan (nombre + cero franjas) que #423 hara ocurrir en runtime.
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, new DiaDepurado(
             Colaborador.CodigoColaborador,
             Fecha,
             ColaboradorResumen,

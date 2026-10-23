@@ -35,7 +35,6 @@ public partial class AgregarFranjaCommandHandler : ICommandHandlerAsync<AgregarF
             ResultadoAgregarFranja.TurnoRetirado => Mensajes.TurnoRetirado,
             ResultadoAgregarFranja.TurnoEsDescanso => Mensajes.TurnoEsDescanso,
             ResultadoAgregarFranja.SeSolapaConOtraFranja => Mensajes.FranjaSeSolapa,
-            ResultadoAgregarFranja.InicioAntesDeHoraCorte => Mensajes.InicioAntesDeHoraCorte,
             ResultadoAgregarFranja.CierrePasaMedianoche => Mensajes.CierrePasaMedianoche,
             var otro => throw new NotSupportedException($"Resultado de AgregarFranja no mapeado: {otro}")
         };
