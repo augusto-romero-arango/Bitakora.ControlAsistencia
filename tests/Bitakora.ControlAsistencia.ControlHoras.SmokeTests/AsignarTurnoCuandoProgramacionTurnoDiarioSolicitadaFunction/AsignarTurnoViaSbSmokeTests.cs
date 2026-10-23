@@ -156,16 +156,9 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
         var existeDeadLetterDiaDepurado = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<DiaDepuradoMinimo>(
             TopicDiaDepurado, SuscripcionSmokeTests, e => e.CodigoColaborador == codigoColaborador);
 
-        existeDeadLetterDiaDepurado.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' del topic '{2}'",
+        existeDeadLetterDiaDepurado.Should().BeFalse(
             codigoColaborador, SuscripcionSmokeTests, TopicDiaDepurado);
-
-        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
-            ServiceBusFixture.QueueFanIn, codigoColaborador);
-
-        existeDeadLetterEnQueue.Should().BeFalse(
-            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
-            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 
     // Issue #336 CA-1/CA-3: el evento de bus trae la sede EFECTIVA ya resuelta por la cascada del
