@@ -126,5 +126,12 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
         existeDeadLetter.Should().BeFalse(
             "no deberia haber un dead letter de esta corrida (CodigoColaborador {0}) en '{1}' - si lo hay, el reparto fallo",
             codigoColaborador, SuscripcionReparto);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 }

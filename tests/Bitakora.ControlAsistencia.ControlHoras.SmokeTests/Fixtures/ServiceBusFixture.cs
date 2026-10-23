@@ -163,6 +163,8 @@ public class ServiceBusFixture : IAsyncLifetime
             $"del topic {topicName} en {timeout.TotalSeconds}s ({descartados} mensajes ajenos descartados)");
     }
 
+    public const string QueueFanIn = "actualizar-control-diario";
+
     private const int TamanoPaginaDeadLetter = 100;
 
     // Issue #223 CA-1: recorre el DLQ completo con peek iterativo (patron oficial de Microsoft Learn,
@@ -218,6 +220,33 @@ public class ServiceBusFixture : IAsyncLifetime
         }
 
         return false;
+    }
+
+    // Issue #1185 CA-1: peek no destructivo del DLQ del queue de fan-in (el DLQ de una entidad con
+    // sesion se lee con un receptor normal). Detecta cualquier mensaje del colaborador por SessionId,
+    // sin depender de la forma del payload.
+    public async Task<bool> ExisteDeadLetterEnQueueDeColaboradorAsync(string queueName, string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(queueName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        var options = new ServiceBusReceiverOptions { SubQueue = SubQueue.DeadLetter };
+        await using var receiver = _client!.CreateReceiver(queueName, options);
+
+        long? desdeSecuencia = null;
+
+        while (true)
+        {
+            var pagina = await receiver.PeekMessagesAsync(
+                maxMessages: TamanoPaginaDeadLetter, fromSequenceNumber: desdeSecuencia);
+            if (pagina.Count == 0)
+                return false;
+
+            if (pagina.Any(m => m.SessionId == sessionId))
+                return true;
+
+            desdeSecuencia = pagina[^1].SequenceNumber + 1;
+        }
     }
 
     public async ValueTask DisposeAsync()
