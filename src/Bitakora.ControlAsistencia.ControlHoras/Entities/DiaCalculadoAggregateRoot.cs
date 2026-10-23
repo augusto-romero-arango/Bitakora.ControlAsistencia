@@ -251,6 +251,12 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     private static bool PerteneceA(MarcacionDelDia marcacion, FranjaDepurada franja) =>
         marcacion.Timestamp == franja.Entrada || marcacion.Timestamp == franja.Salida;
 
+    // null = el dia no esta aprobado; si lo esta, si su foto aprobada uso la marcacion.
+    internal bool? UsoAprobadoDe(DateTime timestamp) =>
+        Estado == EstadoDiaCalculado.Aprobado
+            ? _marcaciones.Where(m => m.Timestamp == timestamp).Any(m => EsUsada(m, _franjas))
+            : null;
+
     // Derivada una sola vez aqui: ningun cliente la recalcula.
     private static bool EsUsada(MarcacionDelDia marcacion, IReadOnlyList<FranjaDepurada> franjas) =>
         franjas.Any(franja => PerteneceA(marcacion, franja));

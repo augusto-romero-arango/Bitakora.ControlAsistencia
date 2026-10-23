@@ -51,6 +51,60 @@ public class DepuradorDeMarcacionesCoberturaVecinaTests
         resultado[0].EsAnomala.Should().BeTrue();
     }
 
+    // Issue #1130: la resolucion del Aprobador decide a que dia pertenece la marcacion del solape.
+    private static CoberturasVecinas ConResolucion(
+        DateTime? finDeLaVispera, DateTime? inicioDelDiaSiguiente, DateOnly dia, DateTime marcacion, DateOnly ganador) =>
+        new(finDeLaVispera, inicioDelDiaSiguiente, dia, new Dictionary<DateTime, DateOnly> { [marcacion] = ganador });
+
+    [Fact]
+    public void Depurar_TomaLa0430ComoSalida_CuandoLaResolucionLaDaALaVispera()
+    {
+        var turno = new TurnoDiario("Noche", [Franja17_01], "");
+        var vecinas = ConResolucion(null, En(Dia, 4, 0), Vispera, En(Dia, 4, 30), Vispera);
+        var marcaciones = new[] { M(Vispera, 16, 55), M(Dia, 4, 30) };
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, Vispera, marcaciones, vecinas);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja17_01, En(Vispera, 16, 55), En(Dia, 4, 30)) },
+            options => options.WithStrictOrdering());
+        DepuradorDeMarcaciones.Clasificar(turno, Vispera, marcaciones, vecinas)[En(Dia, 4, 30)]
+            .Should().Be(PertenenciaMarcacion.DelTurno);
+    }
+
+    [Fact]
+    public void Depurar_IgnoraLa0430YLaClasificaFueraDeCobertura_CuandoLaResolucionLaCedeALaVispera()
+    {
+        var turno = new TurnoDiario("Dia", [Franja06_14], "");
+        var vecinas = ConResolucion(En(Dia, 5, 0), null, Dia, En(Dia, 4, 30), Vispera);
+        var marcaciones = new[] { M(Dia, 4, 30), M(Dia, 6, 20), M(Dia, 14, 5) };
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, Dia, marcaciones, vecinas);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja06_14, En(Dia, 6, 20), En(Dia, 14, 5)) },
+            options => options.WithStrictOrdering());
+        DepuradorDeMarcaciones.Clasificar(turno, Dia, marcaciones, vecinas)[En(Dia, 4, 30)]
+            .Should().Be(PertenenciaMarcacion.FueraDeCobertura);
+    }
+
+    // Decision 6 del issue #1130: fuera del solape la resolucion no pesa y rige la regla normal.
+    [Fact]
+    public void Depurar_AplicaLaReglaNormal_CuandoLaMarcacionResueltaYaNoEstaEnElSolape()
+    {
+        var turno = new TurnoDiario("Dia", [Franja06_14], "");
+        var vecinas = ConResolucion(En(Dia, 4, 0), null, Dia, En(Dia, 4, 30), Vispera);
+        var marcaciones = new[] { M(Dia, 4, 30), M(Dia, 14, 5) };
+
+        var resultado = DepuradorDeMarcaciones.Depurar(turno, Dia, marcaciones, vecinas);
+
+        resultado.Should().BeEquivalentTo(
+            new[] { new ControlFranja(Franja06_14, En(Dia, 4, 30), En(Dia, 14, 5)) },
+            options => options.WithStrictOrdering());
+        DepuradorDeMarcaciones.Clasificar(turno, Dia, marcaciones, vecinas)[En(Dia, 4, 30)]
+            .Should().Be(PertenenciaMarcacion.DelTurno);
+    }
+
     // CA-2 (lado depurador): con el inicio del dia siguiente en 06:00 la vispera toma la 04:30.
     [Fact]
     public void Depurar_TomaLa0430ComoSalida_CuandoElDiaSiguienteEmpiezaSuCoberturaAlas0600()

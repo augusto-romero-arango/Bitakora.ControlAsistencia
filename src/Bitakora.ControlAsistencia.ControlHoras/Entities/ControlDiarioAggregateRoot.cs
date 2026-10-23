@@ -52,7 +52,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         _controlesDeFranja.Clear();
         _pertenencias = ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
         if (_ausenciaId is not null) return;
-        var vecinas = new CoberturasVecinas(_finCoberturaVispera, _inicioCoberturaDiaSiguiente);
+        var vecinas = new CoberturasVecinas(
+            _finCoberturaVispera, _inicioCoberturaDiaSiguiente, Fecha, ResolucionesVigentes());
         var resultado = DepuradorDeMarcaciones.Depurar(DetalleTurno, Fecha, _marcaciones, vecinas);
         _controlesDeFranja.AddRange(resultado);
         _pertenencias = DepuradorDeMarcaciones.Clasificar(DetalleTurno, Fecha, _marcaciones, vecinas);
@@ -93,6 +94,64 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         _ausenciaId is null ? DetalleTurno?.Cobertura(Fecha)?.Inicio : null;
 
     private DateTime? FinDeSuCobertura() => _ausenciaId is null ? _finCoberturaEfectiva : null;
+
+    private readonly Dictionary<DiaVecino, IReadOnlyList<MarcacionDecidida>> _resoluciones = [];
+
+    private IReadOnlyDictionary<DateTime, DateOnly> ResolucionesVigentes() =>
+        _resoluciones.Values
+            .SelectMany(r => r)
+            .GroupBy(m => m.Timestamp)
+            .ToDictionary(g => g.Key, g => g.Last().Fecha);
+
+    public void Apply(AmbiguedadDeMarcacionesResuelta e)
+    {
+        Id = e.Id;
+        _resoluciones[e.Vecino] = e.Marcaciones;
+        Depurar();
+        RecalcularDesgloseHoras();
+    }
+
+    // Sin resoluciones: repetir un reparto debe seguir viendo el solape.
+    internal IReadOnlyDictionary<DateTime, DiaVecino> MarcacionesEnDisputa()
+    {
+        if (_ausenciaId is not null) return new Dictionary<DateTime, DiaVecino>();
+        var naturales = new CoberturasVecinas(_finCoberturaVispera, _inicioCoberturaDiaSiguiente);
+        return DepuradorDeMarcaciones.Clasificar(DetalleTurno, Fecha, _marcaciones, naturales)
+            .Where(p => p.Value == PertenenciaMarcacion.Ambigua)
+            .ToDictionary(
+                p => p.Key,
+                p => p.Key < _finCoberturaVispera ? DiaVecino.Vispera : DiaVecino.DiaSiguiente);
+    }
+
+    internal DateOnly FechaDe(DiaVecino vecino) =>
+        Fecha.AddDays(vecino == DiaVecino.Vispera ? -1 : 1);
+
+    internal ResultadoResolucionAmbiguedad ValidarReparto(IReadOnlyList<DecisionDeMarcacion> decisiones)
+    {
+        var disputas = MarcacionesEnDisputa();
+        if (decisiones.Any(d => !disputas.ContainsKey(d.Marcacion)))
+            return ResultadoResolucionAmbiguedad.MarcacionNoAmbigua;
+        if (disputas.Keys.Any(m => decisiones.All(d => d.Marcacion != m)))
+            return ResultadoResolucionAmbiguedad.RepartoIncompleto;
+
+        var fechaValida = decisiones.All(d => d.Fecha == Fecha || d.Fecha == FechaDe(disputas[d.Marcacion]));
+        var sinContradiccion = decisiones.GroupBy(d => d.Marcacion).All(g => g.Select(d => d.Fecha).Distinct().Count() == 1);
+        return fechaValida && sinContradiccion
+            ? ResultadoResolucionAmbiguedad.Valido
+            : ResultadoResolucionAmbiguedad.FechaNoValida;
+    }
+
+    // true si emitio el evento; el mismo reparto ya vigente es un no-op sin evento.
+    internal bool Resolver(DiaVecino vecino, IReadOnlyList<MarcacionDecidida> marcaciones)
+    {
+        if (_resoluciones.TryGetValue(vecino, out var vigente) && vigente.SequenceEqual(marcaciones))
+            return false;
+
+        var evento = AmbiguedadDeMarcacionesResuelta.Crear(Id, vecino, marcaciones);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return true;
+    }
 
     public void Apply(CoberturaVecinaActualizada e)
     {
