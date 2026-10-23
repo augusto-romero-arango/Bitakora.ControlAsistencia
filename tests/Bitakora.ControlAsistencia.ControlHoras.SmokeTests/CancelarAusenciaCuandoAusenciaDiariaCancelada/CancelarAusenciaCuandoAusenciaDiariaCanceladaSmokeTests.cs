@@ -47,7 +47,7 @@ public class CancelarAusenciaCuandoAusenciaDiariaCanceladaSmokeTests(
 
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
-        await serviceBus.PublishAsync(TopicAusenciaProgramada, new
+        await serviceBus.PublishAsync(colaborador.CodigoColaborador, TopicAusenciaProgramada, new
         {
             AusenciaId = ausenciaId,
             Colaborador = colaborador,
@@ -61,7 +61,7 @@ public class CancelarAusenciaCuandoAusenciaDiariaCanceladaSmokeTests(
             Timeout);
         conMotivo.Fecha.Should().Be(fecha);
 
-        await serviceBus.PublishAsync(TopicAusenciaCancelada, new
+        await serviceBus.PublishAsync(colaborador.CodigoColaborador, TopicAusenciaCancelada, new
         {
             AusenciaId = ausenciaId,
             Colaborador = colaborador,

@@ -92,7 +92,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
             }
         };
 
-        await serviceBus.PublishAsync(TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
+        await serviceBus.PublishAsync(colaborador.CodigoColaborador, TopicProgramacionEntrada, programacionPayload, solicitudId.ToString());
 
         var turnoAsignado = await postgres.ExisteEventoAsync(
             SchemaControlHoras, streamId, TipoEventoTurnoDiarioAsignado, Timeout,
@@ -139,6 +139,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
 
         var solicitudCancelacionId = Guid.CreateVersion7();
         await serviceBus.PublishAsync(
+            colaborador.CodigoColaborador,
             TopicCancelacionEntrada,
             CrearEventoCancelacion(solicitudCancelacionId, colaborador, fecha),
             solicitudCancelacionId.ToString());
@@ -204,6 +205,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
 
         var solicitudCancelacionId = Guid.CreateVersion7();
         await serviceBus.PublishAsync(
+            colaborador.CodigoColaborador,
             TopicCancelacionEntrada,
             CrearEventoCancelacion(solicitudCancelacionId, colaborador, fecha),
             solicitudCancelacionId.ToString());
@@ -246,6 +248,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         var solicitudCancelacionId = Guid.CreateVersion7();
 
         await serviceBus.PublishAsync(
+            colaborador.CodigoColaborador,
             TopicCancelacionEntrada,
             CrearEventoCancelacion(solicitudCancelacionId, colaborador, fecha),
             solicitudCancelacionId.ToString());
@@ -296,6 +299,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         var solicitudCancelacionId = Guid.CreateVersion7();
 
         await serviceBus.PublishAsync(
+            colaborador.CodigoColaborador,
             TopicCancelacionEntrada,
             CrearEventoCancelacion(solicitudCancelacionId, colaborador, fecha),
             solicitudCancelacionId.ToString());

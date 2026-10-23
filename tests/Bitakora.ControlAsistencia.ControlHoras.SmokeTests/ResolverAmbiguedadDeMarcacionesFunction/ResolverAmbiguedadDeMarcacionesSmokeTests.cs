@@ -109,9 +109,9 @@ public class ResolverAmbiguedadDeMarcacionesSmokeTests(ApiFixture api, ServiceBu
         var entradaDia = dia.ToDateTime(new TimeOnly(6, 20));
         var salidaDia = dia.ToDateTime(new TimeOnly(14, 5));
 
-        await serviceBus.PublishAsync(TopicProgramacionEntrada,
+        await serviceBus.PublishAsync(codigoColaborador, TopicProgramacionEntrada,
             Turno(codigoColaborador, vispera, "17:00:00", "01:00:00", 1), Guid.CreateVersion7().ToString());
-        await serviceBus.PublishAsync(TopicProgramacionEntrada,
+        await serviceBus.PublishAsync(codigoColaborador, TopicProgramacionEntrada,
             Turno(codigoColaborador, dia, "06:00:00", "14:00:00", 0), Guid.CreateVersion7().ToString());
 
         foreach (var tipoEvento in new[] { TipoEventoTurnoDiarioAsignado, TipoEventoCoberturaVecinaActualizada })
