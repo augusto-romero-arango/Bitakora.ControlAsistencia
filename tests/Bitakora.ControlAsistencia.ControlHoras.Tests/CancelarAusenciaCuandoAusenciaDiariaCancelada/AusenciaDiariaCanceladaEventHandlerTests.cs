@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.CancelarAusenciaCuandoAusenciaDiariaCancelada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -64,7 +65,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
         Then(StreamId, CrearCancelacion(AusenciaId));
         And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, "Turno Manana");
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.ControlesDeFranja.Count, 1);
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador },new DiaDepurado(
             Colaborador.CodigoColaborador,
             Fecha,
             ColaboradorResumen,
@@ -90,7 +91,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
 
         Then(StreamId, CrearCancelacion(AusenciaId));
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.ControlesDeFranja.Count, 1);
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador },new DiaDepurado(
             Colaborador.CodigoColaborador,
             Fecha,
             ColaboradorResumen,
@@ -115,7 +116,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
 
         Then(StreamId, CrearCancelacion(AusenciaId));
         And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador },new DiaDepurado(
             Colaborador.CodigoColaborador, Fecha, ColaboradorResumen, null, [], [], SinHoras()));
     }
 
@@ -129,6 +130,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
         And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
         And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     // CA-5
@@ -142,6 +144,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
         Then(StreamId, CrearCancelacion(AusenciaId));
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.ControlesDeFranja.Count, 0);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     [Fact]
@@ -154,6 +157,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
         Then(StreamId, CrearCancelacion(AusenciaId));
         And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, "Turno Manana");
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     // CA-6
@@ -167,6 +171,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
         Then(StreamId);
         And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     [Fact]
@@ -179,5 +184,6 @@ public class AusenciaDiariaCanceladaEventHandlerTests
         Then(StreamId);
         And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 }

@@ -1,3 +1,5 @@
+using AwesomeAssertions;
+using Cosmos.EventDriven.Abstractions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RepartirMarcacionesCuandoDiaDepuradoFunction;
@@ -131,6 +133,7 @@ public class RepartirDescarteDeResolucionTests : CommandHandlerAsyncTest<Reparti
         Then(StreamV);
         Then(StreamD);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, int>(StreamD, c => c.Marcaciones.Count, 1);
     }
 }

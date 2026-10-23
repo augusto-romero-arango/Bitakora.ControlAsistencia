@@ -1,3 +1,5 @@
+using AwesomeAssertions;
+using Cosmos.EventDriven.Abstractions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RepartirMarcacionesCuandoDiaDepuradoFunction;
@@ -76,6 +78,25 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
+    // CA-2/CA-3: cada DiaDepurado del reparto (dia y vecinos) sale con GroupId del colaborador, nunca sin opciones.
+    [Fact]
+    public async Task RepartirMarcaciones_PublicaDiaDepuradoConGroupIdDelColaborador_CuandoRecogeLaMarcacionDelVecino()
+    {
+        var salida = new DateTime(2026, 4, 21, 6, 5, 0);
+        Given(Stream20, TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(22, 0), new TimeOnly(6, 0), 1))));
+        Given(Stream21, Marcacion(Stream21, salida, "SALIDA"));
+
+        await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia20));
+
+        Then(Stream20, Marcacion(Stream20, salida, "SALIDA"));
+        Then(Stream21, Cobertura(Stream21, DiaVecino.Vispera, new DateTime(2026, 4, 21, 10, 0, 0)));
+        PrivateEventSender.Events.Should().BeEmpty();
+        PrivateEventSender.PublishedWithOptions.Should().NotBeEmpty();
+        PrivateEventSender.PublishedWithOptions.Should().OnlyContain(p => p.Options.GroupId == CodigoColaborador);
+        PrivateEventSender.PublishedWithOptions.SelectMany(p => p.Events).Should().AllBeOfType<Bitakora.ControlAsistencia.PrivateEvents.ControlHoras.DiaDepurado>();
+        And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
+    }
+
     // CA-2 (convergencia): con la copia ya entregada, un reparto adicional no emite eventos ni publica.
     [Fact]
     public async Task RepartirMarcaciones_NoEmiteEventosNiPublica_CuandoLaCopiaYaFueEntregada()
@@ -91,6 +112,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         Then(Stream20);
         Then(Stream21);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
@@ -184,6 +206,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
 
         Then(Stream20);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
@@ -198,6 +221,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         Then(Stream20);
         Then(Stream22);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, int>(Stream21, c => c.Marcaciones.Count, 1);
     }
 
@@ -285,6 +309,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         Then(Stream20);
         Then(Stream21);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
@@ -304,6 +329,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         Then(Stream19);
         Then(Stream20);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, int>(Stream19, c => c.Marcaciones.Count, 0);
     }
 
@@ -380,6 +406,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         Then(Stream20);
         Then(Stream21);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 0);
     }
 

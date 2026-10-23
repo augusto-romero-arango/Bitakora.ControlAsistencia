@@ -63,7 +63,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             c => c.Marcaciones.Single(m => m.TimestampNormalizado == TimestampDiurno).CodigoSede,
             CodigoSede);
 
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = CodigoColaborador },new DiaDepurado(
             CodigoColaborador,
             new DateOnly(2026, 3, 15),
             null,
@@ -114,6 +114,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
         var marcacionNocturna =
             new MarcacionDelDia(TimestampDeMadrugada, "ENTRADA", CodigoSede, NombreSede, CentroDeCostos);
         ThenIsPublishedPrivately(
+            new PublishOptions { GroupId = CodigoColaborador },
             new DiaDepurado(
                 CodigoColaborador, new DateOnly(2026, 3, 15), null, null, [], [marcacionNocturna],
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
@@ -132,6 +133,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
 
         Then(StreamIdDia15);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     // CA-3, segunda precondicion: el ControlDiario existe pero la marcacion aun no fue adicionada.
@@ -148,6 +150,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
 
         Then(StreamIdDia15);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, string?>(
             StreamIdDia15,
             c => c.Marcaciones.Single().CodigoSede,
@@ -185,6 +188,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
 
         Then(StreamIdDia15);
         ThenIsPublishedPrivately();
+        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
         And<ControlDiarioAggregateRoot, string?>(
             StreamIdDia15,
             c => c.Marcaciones.Single(m => m.TimestampNormalizado == TimestampDiurno).CodigoSede,
