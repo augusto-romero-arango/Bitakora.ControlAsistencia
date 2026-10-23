@@ -47,6 +47,8 @@ public partial class AusenciaDiariaProgramadaEventHandler : IPrivateEventHandler
             _eventStore.StartStream(control);
         }
 
-        await _privateEventSender.PublishAsync(control.CrearDiaDepurado());
+        var diaDepurado = control.CrearDiaDepurado();
+
+        await _privateEventSender.PublishAsync(new PublishOptions { GroupId = diaDepurado.CodigoColaborador }, diaDepurado);
     }
 }

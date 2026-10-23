@@ -69,7 +69,7 @@ public class ListarDiasSinProgramarSmokeTests(ApiFixture api, ServiceBusFixture 
             }
         };
 
-        await serviceBus.PublishAsync(TopicEntrada, evento, solicitudId.ToString());
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, solicitudId.ToString());
     }
 
     [Fact]

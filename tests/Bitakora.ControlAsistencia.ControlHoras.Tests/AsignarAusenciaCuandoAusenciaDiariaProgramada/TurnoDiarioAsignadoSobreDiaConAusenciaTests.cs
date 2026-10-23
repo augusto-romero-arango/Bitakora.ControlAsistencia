@@ -41,7 +41,7 @@ public class TurnoDiarioAsignadoSobreDiaConAusenciaTests
             SolicitudId));
         And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, "Turno Manana");
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.ControlesDeFranja.Count, 0);
-        ThenIsPublishedPrivately(new DiaDepurado(
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, new DiaDepurado(
             Colaborador.CodigoColaborador, Fecha, ColaboradorResumen, null, [], [],
             new HorasDiscriminadas(new Dictionary<string, decimal>(), []), "Vacaciones"));
     }
