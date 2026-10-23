@@ -4,8 +4,8 @@
 using AwesomeAssertions;
 using Azure.Messaging.ServiceBus;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
-using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using JasperFx.Events;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -51,7 +51,7 @@ public class ServiceBusEndpointBaseTests
     }
 
     [Fact]
-    public async Task DebeAbandonarMensaje_CuandoOcurreErrorGenerico()
+    public async Task ProcesarMensaje_AbandonaElMensaje_CuandoElHandlerFalla()
     {
         var router = new FakeCommandRouter(
             excepcion: new InvalidOperationException("Error inesperado"));
@@ -66,10 +66,10 @@ public class ServiceBusEndpointBaseTests
     }
 
     [Fact]
-    public async Task DebeAbandonarMensaje_CuandoHayConflictoDeConcurrencia()
+    public async Task ProcesarMensaje_AbandonaElMensaje_CuandoHayConflictoDeConcurrencia()
     {
         var router = new FakeCommandRouter(
-            excepcion: new InvalidOperationException("23505 pk_mt_events_stream_and_version: conflicto de concurrencia"));
+            excepcion: new EventStreamUnexpectedMaxEventIdException("cd:stream", typeof(object), 2, 3));
         var actions = new FakeServiceBusMessageActions();
         var endpoint = new StubEndpoint(router, new FakeLogger());
 
@@ -80,7 +80,7 @@ public class ServiceBusEndpointBaseTests
     }
 
     [Fact]
-    public async Task DebeLoguearMessageIdYDeliveryCount_CuandoAbandonaMensaje()
+    public async Task ProcesarMensaje_RegistraMessageIdYDeliveryCount_CuandoAbandonaElMensaje()
     {
         var router = new FakeCommandRouter(excepcion: new InvalidOperationException("Error"));
         var actions = new FakeServiceBusMessageActions();
@@ -96,7 +96,7 @@ public class ServiceBusEndpointBaseTests
     }
 
     [Fact]
-    public async Task DebeEnviarADeadLetterSinInvocarHandler_CuandoElCuerpoDeserializaANull()
+    public async Task ProcesarMensaje_EnviaADeadLetterSinInvocarElHandler_CuandoElCuerpoDeserializaANull()
     {
         var router = new FakeCommandRouter();
         var actions = new FakeServiceBusMessageActions();
@@ -107,67 +107,6 @@ public class ServiceBusEndpointBaseTests
         actions.MensajeEnDeadLetter.Should().BeTrue();
         actions.MensajeAbandonado.Should().BeFalse();
         router.Invocaciones.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PrivateEvent_DebeAbandonarMensaje_CuandoElHandlerFalla()
-    {
-        var router = new FakePrivateRouter(new InvalidOperationException("Error"));
-        var actions = new FakeServiceBusMessageActions();
-        var logger = new FakeLogger();
-        var endpoint = new StubPrivateEndpoint(router, logger);
-        var mensaje = ServiceBusModelFactory.ServiceBusReceivedMessage(
-            body: BinaryData.FromString(JsonValido), messageId: "msg-priv", deliveryCount: 4);
-
-        await endpoint.Procesar(mensaje, actions, CancellationToken.None);
-
-        actions.MensajeAbandonado.Should().BeTrue();
-        actions.MensajeEnDeadLetter.Should().BeFalse();
-        logger.MensajesError.Should().ContainSingle()
-            .Which.Should().Contain("msg-priv").And.Contain("4");
-    }
-
-    [Fact]
-    public async Task PrivateEvent_DebeEnviarADeadLetterSinInvocarHandler_CuandoJsonEsInvalido()
-    {
-        var router = new FakePrivateRouter();
-        var actions = new FakeServiceBusMessageActions();
-        var endpoint = new StubPrivateEndpoint(router, new FakeLogger());
-
-        await endpoint.Procesar(CrearMensaje("no-es-json"), actions, CancellationToken.None);
-
-        actions.MensajeEnDeadLetter.Should().BeTrue();
-        actions.MensajeAbandonado.Should().BeFalse();
-        router.Invocaciones.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PrivateEvent_DebeEnviarADeadLetter_CuandoElCuerpoDeserializaANull()
-    {
-        var router = new FakePrivateRouter();
-        var actions = new FakeServiceBusMessageActions();
-        var endpoint = new StubPrivateEndpoint(router, new FakeLogger());
-
-        await endpoint.Procesar(CrearMensaje("null"), actions, CancellationToken.None);
-
-        actions.MensajeEnDeadLetter.Should().BeTrue();
-        actions.MensajeAbandonado.Should().BeFalse();
-        router.Invocaciones.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task PrivateEvent_SoloLoguea_CuandoSePierdeLock()
-    {
-        var lockLost = new ServiceBusException("Lock expirado", ServiceBusFailureReason.MessageLockLost);
-        var actions = new FakeServiceBusMessageActions(excepcionAlCompletar: lockLost);
-        var logger = new FakeLogger();
-        var endpoint = new StubPrivateEndpoint(new FakePrivateRouter(), logger);
-
-        await endpoint.Procesar(CrearMensaje(), actions, CancellationToken.None);
-
-        actions.MensajeAbandonado.Should().BeFalse();
-        actions.MensajeEnDeadLetter.Should().BeFalse();
-        logger.WarningLogueado.Should().BeTrue();
     }
 
     // JSON invalido -> dead-letter (error de deserializacion)
@@ -289,27 +228,3 @@ internal class FakeLogger : ILogger
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 }
 
-internal record EventoPrivadoStub(string? Nombre) : IPrivateEvent;
-
-internal class StubPrivateEndpoint(IPrivateEventRouter router, ILogger logger)
-    : PrivateEventEndpointBase<EventoPrivadoStub>(router, logger)
-{
-    public Task Procesar(
-        ServiceBusReceivedMessage message,
-        ServiceBusMessageActions actions,
-        CancellationToken ct)
-        => ProcesarMensaje(message, actions, ct);
-}
-
-internal class FakePrivateRouter(Exception? excepcion = null) : IPrivateEventRouter
-{
-    public int Invocaciones { get; private set; }
-
-    public Task InvokeAsync<TEvent>(TEvent @event, CancellationToken cancellationToken)
-        where TEvent : class, IPrivateEvent
-    {
-        Invocaciones++;
-        if (excepcion is not null) throw excepcion;
-        return Task.CompletedTask;
-    }
-}

@@ -71,7 +71,7 @@ public class FunctionEndpointTests
         logger.WarningLogueado.Should().BeTrue();
     }
 
-    // CA-5: error generico durante el procesamiento -> dead-letter el mensaje para inspeccion
+    // CA-5: error generico durante el procesamiento -> abandona el mensaje para que el bus lo reintente
     [Fact]
     public async Task AdicionarMarcacionCuandoRegistroDeMarcacionCreado_AbandonaMensaje_CuandoOcurreErrorGenerico()
     {
@@ -114,7 +114,7 @@ internal class FakePrivateEventRouter : IPrivateEventRouter
 }
 
 /// <summary>
-/// Fake de ServiceBusMessageActions. Registra si el mensaje fue completado o enviado a dead-letter.
+/// Fake de ServiceBusMessageActions. Registra si el mensaje fue completado, abandonado o enviado a dead-letter.
 /// Puede configurarse para lanzar una excepcion al completar (simulando lock perdido).
 /// </summary>
 internal class FakeServiceBusMessageActions : ServiceBusMessageActions

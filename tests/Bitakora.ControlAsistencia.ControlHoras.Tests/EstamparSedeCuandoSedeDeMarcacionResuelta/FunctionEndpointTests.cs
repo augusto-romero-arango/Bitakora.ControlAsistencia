@@ -58,8 +58,7 @@ public class FunctionEndpointTests
         logger.WarningLogueado.Should().BeTrue();
     }
 
-    // CA-3: el retry por reentrega lo gobierna max_delivery_count de la suscripcion, no este
-    // endpoint; aqui solo se fija que un error del handler no se traga en silencio.
+    // El tope de reintentos lo gobierna max_delivery_count de la suscripcion, no este endpoint.
     [Fact]
     public async Task EstamparSedeCuandoSedeDeMarcacionResuelta_AbandonaMensaje_CuandoOcurreErrorGenerico()
     {
