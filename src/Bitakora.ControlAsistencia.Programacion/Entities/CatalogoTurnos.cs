@@ -6,7 +6,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 // El diseno del turno vive en el VO Turno; el aggregate conserva el ciclo de vida (_estaActivo)
 // y las decisiones, preguntandole al turno.
-public class CatalogoTurnos : AggregateRoot
+public partial class CatalogoTurnos : AggregateRoot
 {
     private Turno _turno = Turno.Crear(string.Empty, false, []);
     private bool _estaActivo;
@@ -29,6 +29,9 @@ public class CatalogoTurnos : AggregateRoot
         };
 
     internal Turno Turno => _turno;
+
+    internal static CatalogoTurnos IniciarDeHorarioAbierto(Guid turnoId, string nombre, HorasYMinutos duracion)
+        => throw new NotImplementedException();
 
     public void Apply(TurnoCreado evento)
     {
