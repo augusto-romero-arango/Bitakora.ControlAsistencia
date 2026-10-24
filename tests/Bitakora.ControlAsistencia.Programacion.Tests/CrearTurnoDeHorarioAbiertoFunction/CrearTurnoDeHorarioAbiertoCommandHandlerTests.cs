@@ -70,7 +70,7 @@ public class CrearTurnoDeHorarioAbiertoCommandHandlerTests : CommandHandlerAsync
 
         Then(TurnoCreadoEsperado(new TimeOnly(0, 0), diaOffsetFin: 1));
         And<CatalogoTurnos, int>(c => c.ObtenerDetalle().AmplitudVentanaEntradaEnMinutos, 0);
-        And<CatalogoTurnos, string>(c => c.ToString(), $"{Nombre} (04:00-00:00)");
+        And<CatalogoTurnos, string>(c => c.ToString(), $"{Nombre} (04:00-00:00+1)");
     }
 
     [Fact]

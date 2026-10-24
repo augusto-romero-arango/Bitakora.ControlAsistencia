@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using HorasYMinutosSolicitadas = Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction.HorasYMinutosSolicitadas;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoDeHorarioAbiertoFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoDeHorarioAbiertoFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
@@ -12,7 +13,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoDeHorarioAbier
 public class FunctionEndpointTests
 {
     private static CrearTurnoDeHorarioAbierto ComandoValido() =>
-        new(Guid.NewGuid(), "Turno Abierto", new Programacion.CrearJornadaFunction.HorasYMinutosSolicitadas(6, 0));
+        new(Guid.NewGuid(), "Turno Abierto", new HorasYMinutosSolicitadas(6, 0));
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 

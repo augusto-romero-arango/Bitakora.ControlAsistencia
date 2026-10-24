@@ -24,10 +24,7 @@ public partial class CrearTurnoCommandHandler : ICommandHandlerAsync<ComandoCrea
             throw new RecursoYaExisteException(Mensajes.TurnoYaExiste);
 
         var nombresVigentes = await _lectorNombres.ObtenerNombresAsync(ct);
-        var nombreNormalizado = NombreDeCatalogo.Normalizar(command.Nombre);
-        var duplicado = nombresVigentes.Any(nombre =>
-            string.Equals(NombreDeCatalogo.Normalizar(nombre), nombreNormalizado, StringComparison.Ordinal));
-        if (duplicado)
+        if (NombreDeCatalogo.EstaRepetido(command.Nombre, nombresVigentes))
             throw new ReglaDeNegocioDeclinadaException(Mensajes.NombreDuplicado);
 
         var evento = command.EsDescanso

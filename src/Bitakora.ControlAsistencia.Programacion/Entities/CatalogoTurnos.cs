@@ -31,9 +31,10 @@ public partial class CatalogoTurnos : AggregateRoot
     internal Turno Turno => _turno;
 
     private static readonly TimeOnly AperturaHorarioAbierto = new(4, 0);
-    private const int MinutosPorDia = 1440;
-    private const int MinutosApertura = 4 * 60;
-    private static readonly HorasYMinutos DuracionMaximaHorarioAbierto = HorasYMinutos.Crear(24 - 4, 0);
+
+    // La salida mas tardia es la medianoche: la duracion maxima es lo que queda del dia tras la apertura.
+    private static readonly HorasYMinutos DuracionMaximaHorarioAbierto =
+        HorasYMinutos.Crear(24 - AperturaHorarioAbierto.Hour, 0);
 
     // Atajo de creacion: franja 04:00 + duracion y ventana de 20 h - duracion, en un solo stream.
     internal static CatalogoTurnos IniciarDeHorarioAbierto(Guid turnoId, string nombre, HorasYMinutos duracion)
@@ -42,9 +43,8 @@ public partial class CatalogoTurnos : AggregateRoot
         if (minutos <= 0 || duracion.CompareTo(DuracionMaximaHorarioAbierto) > 0)
             throw new AggregateException(new ArgumentException(Mensajes.DuracionHorarioAbiertoFueraDeRango));
 
-        var finEnMinutos = MinutosApertura + minutos;
-        var fin = TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(finEnMinutos % MinutosPorDia));
-        var franja = new DatosFranja(AperturaHorarioAbierto, fin, [], [], null, finEnMinutos / MinutosPorDia);
+        var fin = AperturaHorarioAbierto.Add(TimeSpan.FromMinutes(minutos), out var diaOffsetFin);
+        var franja = new DatosFranja(AperturaHorarioAbierto, fin, [], [], null, diaOffsetFin);
         var catalogo = Iniciar(TurnoCreado.Crear(turnoId, nombre, [franja]));
 
         var amplitud = DuracionMaximaHorarioAbierto.TotalMinutos() - minutos;

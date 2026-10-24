@@ -26,10 +26,7 @@ public partial class CrearPlantillaSemanalCommandHandler : ICommandHandlerAsync<
             throw new RecursoYaExisteException(Mensajes.PlantillaYaExiste);
 
         var nombresVigentes = await _lectorNombres.ObtenerNombresAsync(ct);
-        var nombreNormalizado = NombreDeCatalogo.Normalizar(command.Nombre);
-        var duplicado = nombresVigentes.Any(nombre =>
-            string.Equals(NombreDeCatalogo.Normalizar(nombre), nombreNormalizado, StringComparison.Ordinal));
-        if (duplicado)
+        if (NombreDeCatalogo.EstaRepetido(command.Nombre, nombresVigentes))
             throw new ReglaDeNegocioDeclinadaException(Mensajes.NombreDuplicado);
 
         Jornada? jornada = null;
