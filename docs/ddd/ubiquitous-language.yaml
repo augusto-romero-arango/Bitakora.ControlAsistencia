@@ -4,7 +4,11 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-22 (sesion planner, refinamiento de #1130: el Aprobador RESUELVE LA
+# Ultima actualizacion: 2026-10-23 (sesion planner, refinamiento de #1202: con Ventana de entrada el
+#   ancla se busca en la cobertura POSIBLE del turno (la de referencia extendida en la amplitud), no
+#   solo en la de referencia; una entrada tardia que la ventana admite ya no se pierde. Tocados:
+#   Cobertura de marcacion, Ventana de entrada. Issue #1202; enmienda CA-ADR-0042 decision 2.)
+# Actualizacion previa: 2026-10-22 (sesion planner, refinamiento de #1130: el Aprobador RESUELVE LA
 #   AMBIGUEDAD de marcaciones entre dos dias con un comando propio, antes de aprobar y del lado del
 #   calculo (ResolverAmbiguedadDeMarcaciones -> AmbiguedadDeMarcacionesResuelta); el principio de
 #   "Aprobado" queda acotado a las decisiones que no alteran el calculo. Rechazado "asignar la
@@ -380,7 +384,9 @@ terms:
       futuro). Decide la pertenencia (el depurador solo usa marcaciones dentro de la cobertura: la
       primera franja captura desde su inicio y la ultima hasta su fin) y el ruteo (una marcacion llega
       siempre a su dia calendario y ademas a la vispera o al dia siguiente si la cobertura de su turno
-      la contiene). Con Ventana de entrada, el ancla es la primera marcacion desde apertura - 2 h.
+      la contiene). Con Ventana de entrada, el ancla es la primera marcacion de la cobertura posible
+      (la de referencia extendida en la amplitud: desde apertura - 2 h hasta fin + amplitud + 4 h,
+      #1202), sin las del solape con un vecino.
     context: ControlHoras
     date_added: 2026-10-21
     rejected_synonyms: [tolerancia de marcacion, ventana de captura, alcance del turno]
@@ -496,7 +502,7 @@ terms:
       Rango dentro del cual la entrada de un colaborador desplaza su turno. TODO turno tiene una:
       abre en el inicio de su primera franja ordinaria (horario de referencia) y dura una AMPLITUD;
       amplitud 0 = turno fijo (el comportamiento de siempre). Al depurar, el ancla es la primera
-      marcacion desde el inicio de la Cobertura de marcacion (apertura - 2 h, #1124; antes la hora de corte 04:00), acotada a la ventana: antes de
+      marcacion de la Cobertura de marcacion posible (desde apertura - 2 h, #1124, hasta fin + amplitud + 4 h, #1202; antes la hora de corte 04:00), acotada a la ventana: antes de
       la apertura se ancla a la apertura (los minutos previos no se pagan), despues del cierre se
       ancla al cierre (la diferencia es Retardo). El desplazamiento (ancla - inicio de referencia)
       corre TODAS las franjas con sus descansos y extras. Sin marcacion no hay desplazamiento.
