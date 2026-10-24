@@ -51,8 +51,8 @@ public partial class CrearTurnoDeHorarioAbiertoTool(ProgramacionApi programacion
             Mensajes.NotaVisibilidadEventual));
     }
 
-    // Replica como texto la regla del dominio (#1203): la franja abre a las 04:00 y la salida mas
-    // tardia es 24:00 (MEF-ADR-0047 decision 3). Si el dominio la cambia, cambia aqui y en la descripcion.
+    // Replica la regla del dominio solo para el eco (MEF-ADR-0047 decision 3): si el dominio cambia la
+    // apertura o la salida mas tardia, cambian aqui y en la descripcion de la tool.
     private static readonly TimeSpan Apertura = TimeSpan.FromHours(4);
     private static readonly TimeSpan CierreMasTardio = TimeSpan.FromHours(24);
 

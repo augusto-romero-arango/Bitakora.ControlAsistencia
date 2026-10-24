@@ -22,7 +22,7 @@ public class CrearTurnoDeHorarioAbiertoToolTests
         tool.Run(null!, nombre, duracion, TestContext.Current.CancellationToken);
 
     [Fact]
-    public async Task CrearTurnoDeHorarioAbierto_EnviaElPostConGuidV7YResponderEcoConVentana_CuandoLaDuracionEsSeisHoras()
+    public async Task CrearTurnoDeHorarioAbierto_EnviaElPostConGuidV7YRespondeEcoConVentana_CuandoLaDuracionEsSeisHoras()
     {
         var (tool, handler) = CrearTool();
 
@@ -58,6 +58,20 @@ public class CrearTurnoDeHorarioAbiertoToolTests
         var turno = JsonNode.Parse(resultado)!["turno"]!;
         turno["franja"]!.GetValue<string>().Should().Be("04:00-00:00");
         turno["entrada"]!.GetValue<string>().Should().Be("turno fijo (entrada a las 04:00)");
+    }
+
+    [Fact]
+    public async Task CrearTurnoDeHorarioAbierto_EnviaYDescribeLosMinutos_CuandoLaDuracionNoEsHoraExacta()
+    {
+        var (tool, handler) = CrearTool();
+
+        var resultado = await Ejecutar(tool, "Turno 6 y media", "6:30");
+
+        JsonNode.Parse(handler.UltimoCuerpoEnviado!)!["duracion"]!["minutos"]!.GetValue<int>().Should().Be(30);
+        var turno = JsonNode.Parse(resultado)!["turno"]!;
+        turno["duracion"]!.GetValue<string>().Should().Be("6:30");
+        turno["franja"]!.GetValue<string>().Should().Be("04:00-10:30");
+        turno["entrada"]!.GetValue<string>().Should().Be("entre 04:00 y 17:30");
     }
 
     [Fact]

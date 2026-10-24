@@ -58,6 +58,17 @@ public class ComposicionDelServidorTests
     private static IEnumerable<ParameterInfo> ParametrosDeTool(string nombreTool) =>
         MetodoDe(nombreTool).GetParameters().Where(p => p.GetCustomAttribute<McpToolPropertyAttribute>() is not null);
 
+    private static string LeerHostJson()
+    {
+        var relativo = Path.Combine("src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json");
+        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directorio is not null && !File.Exists(Path.Combine(directorio.FullName, relativo)))
+            directorio = directorio.Parent;
+
+        directorio.Should().NotBeNull("host.json del servidor debe ser localizable desde el repo");
+        return File.ReadAllText(Path.Combine(directorio!.FullName, relativo));
+    }
+
     [Fact]
     public void ListarJornadas_DeclaraSoloElCursorComoOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("listar_jornadas").Should().BeEquivalentTo([("cursor", false)]);
@@ -344,17 +355,8 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
-    public void HostJson_MencionaLaToolDeHorarioAbierto_CuandoSeLeenLasInstructions()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null
-            && !File.Exists(Path.Combine(directorio.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json")))
-            directorio = directorio.Parent;
-
-        directorio.Should().NotBeNull("host.json del servidor debe ser localizable desde el repo");
-        File.ReadAllText(Path.Combine(directorio!.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json"))
-            .Should().Contain("crear_turno_de_horario_abierto");
-    }
+    public void HostJson_MencionaLaToolDeHorarioAbierto_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("crear_turno_de_horario_abierto");
 
     [Fact]
     public void RetirarTurno_DeclaraElTurnoComoObligatorio_CuandoSeInspeccionaLaTool() =>
@@ -567,17 +569,8 @@ public class ComposicionDelServidorTests
         AsegurarSedeDeProgramacionOpcional("aplicar_plantilla_semanal_por_grupo");
 
     [Fact]
-    public void HostJson_MencionaLaToolDePlantillaPorGrupo_CuandoSeLeenLasInstructions()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null
-            && !File.Exists(Path.Combine(directorio.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json")))
-            directorio = directorio.Parent;
-
-        directorio.Should().NotBeNull("host.json del servidor debe ser localizable desde el repo");
-        File.ReadAllText(Path.Combine(directorio!.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json"))
-            .Should().Contain("aplicar_plantilla_semanal_por_grupo");
-    }
+    public void HostJson_MencionaLaToolDePlantillaPorGrupo_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("aplicar_plantilla_semanal_por_grupo");
 
     [Fact]
     public void SolicitarProgramacionTurno_RemiteALaToolDeGrupo_CuandoSeInspeccionaSuDescripcion() =>
@@ -586,17 +579,8 @@ public class ComposicionDelServidorTests
             .Description.Should().Contain("solicitar_programacion_turno_por_grupo");
 
     [Fact]
-    public void HostJson_MencionaLaToolDeGrupo_CuandoSeLeenLasInstructions()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null
-            && !File.Exists(Path.Combine(directorio.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json")))
-            directorio = directorio.Parent;
-
-        directorio.Should().NotBeNull("host.json del servidor debe ser localizable desde el repo");
-        File.ReadAllText(Path.Combine(directorio!.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json"))
-            .Should().Contain("solicitar_programacion_turno_por_grupo");
-    }
+    public void HostJson_MencionaLaToolDeGrupo_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("solicitar_programacion_turno_por_grupo");
 
     [Fact]
     public void SolicitarProgramacionTurno_DescribeLaSedeDeProgramacionComoOpcionalYSugerida_CuandoSeInspeccionanLasDescripciones() =>
