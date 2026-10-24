@@ -9,9 +9,36 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoDeHorarioAbiertoFunc
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CrearTurnoDeHorarioAbierto")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/turnos/horario-abierto")]
         HttpRequest req,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        var (comando, error) = await requestValidator.ValidarAsync<CrearTurnoDeHorarioAbierto>(req, ct);
+        if (error is not null)
+            return error;
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando!, ct);
+        }
+        catch (PrecondicionComandoException ex)
+        {
+            switch (ex)
+            {
+                case RecursoYaExisteException:
+                case ReglaDeNegocioDeclinadaException:
+                    return new ConflictObjectResult(ex.Message);
+                default:
+                    throw;
+            }
+        }
+        catch (AggregateException ex)
+        {
+            return new BadRequestObjectResult(
+                ex.InnerExceptions.Select(e => e.Message));
+        }
+
+        return new CreatedResult($"/api/programacion/turnos/{comando!.TurnoId}", null);
+    }
 }

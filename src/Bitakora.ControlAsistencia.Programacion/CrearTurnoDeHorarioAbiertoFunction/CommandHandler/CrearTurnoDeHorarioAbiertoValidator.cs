@@ -5,4 +5,10 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoDeHorarioAbiertoFunc
 
 public class CrearTurnoDeHorarioAbiertoValidator : AbstractValidator<Comando>
 {
+    public CrearTurnoDeHorarioAbiertoValidator()
+    {
+        RuleFor(x => x.TurnoId).NotEmpty();
+        RuleFor(x => x.Nombre).NotEmpty();
+        RuleFor(x => x.Duracion).NotNull();
+    }
 }

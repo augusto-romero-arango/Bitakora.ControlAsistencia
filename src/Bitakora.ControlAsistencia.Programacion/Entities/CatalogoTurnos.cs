@@ -30,8 +30,28 @@ public partial class CatalogoTurnos : AggregateRoot
 
     internal Turno Turno => _turno;
 
+    private static readonly TimeOnly AperturaHorarioAbierto = new(4, 0);
+    private const int MinutosPorDia = 1440;
+    private const int MinutosApertura = 4 * 60;
+    private static readonly HorasYMinutos DuracionMaximaHorarioAbierto = HorasYMinutos.Crear(24 - 4, 0);
+
+    // Atajo de creacion: franja 04:00 + duracion y ventana de 20 h - duracion, en un solo stream.
     internal static CatalogoTurnos IniciarDeHorarioAbierto(Guid turnoId, string nombre, HorasYMinutos duracion)
-        => throw new NotImplementedException();
+    {
+        var minutos = duracion.TotalMinutos();
+        if (minutos <= 0 || duracion.CompareTo(DuracionMaximaHorarioAbierto) > 0)
+            throw new AggregateException(new ArgumentException(Mensajes.DuracionHorarioAbiertoFueraDeRango));
+
+        var finEnMinutos = MinutosApertura + minutos;
+        var fin = TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(finEnMinutos % MinutosPorDia));
+        var franja = new DatosFranja(AperturaHorarioAbierto, fin, [], [], null, finEnMinutos / MinutosPorDia);
+        var catalogo = Iniciar(TurnoCreado.Crear(turnoId, nombre, [franja]));
+
+        var amplitud = DuracionMaximaHorarioAbierto.TotalMinutos() - minutos;
+        if (amplitud > 0)
+            catalogo.ModificarVentanaDeEntrada(HorasYMinutos.Crear(amplitud / 60, amplitud % 60));
+        return catalogo;
+    }
 
     public void Apply(TurnoCreado evento)
     {
