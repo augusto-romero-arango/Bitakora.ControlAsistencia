@@ -51,7 +51,7 @@ public class ComposicionDelServidorTests
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
                 "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
                 "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
-                "modificar_ventana_de_entrada"
+                "modificar_ventana_de_entrada", "crear_turno_de_horario_abierto"
             ]);
     }
 
@@ -325,6 +325,36 @@ public class ComposicionDelServidorTests
     [Fact]
     public void CrearTurno_DeclaraElNombreComoObligatorio_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("crear_turno").Should().BeEquivalentTo([("nombre", true), ("es_descanso", false)]);
+
+    [Fact]
+    public void CrearTurnoDeHorarioAbierto_DeclaraNombreYDuracionComoObligatoriosDeTipoString_CuandoSeInspeccionaLaTool()
+    {
+        PropiedadesDe("crear_turno_de_horario_abierto").Should().BeEquivalentTo([("nombre", true), ("duracion", true)]);
+        ParametrosDeTool("crear_turno_de_horario_abierto").Should().OnlyContain(p => p.ParameterType == typeof(string));
+    }
+
+    [Fact]
+    public void CrearTurnoDeHorarioAbierto_PublicaHintsDeEscrituraNoIdempotente_CuandoSeInspeccionaLaTool()
+    {
+        var hints = ParametroTrigger(MetodoDe("crear_turno_de_horario_abierto"))!
+            .GetCustomAttribute<McpMetadataAttribute>()!.Json;
+
+        hints.Should().Contain("\"readOnlyHint\": false, \"destructiveHint\": false");
+        hints.Should().NotContain("idempotentHint");
+    }
+
+    [Fact]
+    public void HostJson_MencionaLaToolDeHorarioAbierto_CuandoSeLeenLasInstructions()
+    {
+        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directorio is not null
+            && !File.Exists(Path.Combine(directorio.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json")))
+            directorio = directorio.Parent;
+
+        directorio.Should().NotBeNull("host.json del servidor debe ser localizable desde el repo");
+        File.ReadAllText(Path.Combine(directorio!.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json"))
+            .Should().Contain("crear_turno_de_horario_abierto");
+    }
 
     [Fact]
     public void RetirarTurno_DeclaraElTurnoComoObligatorio_CuandoSeInspeccionaLaTool() =>
