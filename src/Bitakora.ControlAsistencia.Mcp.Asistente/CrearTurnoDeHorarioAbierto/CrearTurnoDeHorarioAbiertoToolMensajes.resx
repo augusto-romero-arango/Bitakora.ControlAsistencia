@@ -35,4 +35,10 @@
   <data name="NotaVisibilidadEventual" xml:space="preserve">
     <value>El turno aparece en listar_turnos unos segundos despues.</value>
   </data>
+  <data name="EntraEntre" xml:space="preserve">
+    <value>entre {0} y {1}</value>
+  </data>
+  <data name="TurnoFijo" xml:space="preserve">
+    <value>turno fijo (entrada a las {0})</value>
+  </data>
 </root>

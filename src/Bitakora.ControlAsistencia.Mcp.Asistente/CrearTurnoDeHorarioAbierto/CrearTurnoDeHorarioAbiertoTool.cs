@@ -6,12 +6,10 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.CrearTurnoDeHorarioAbierto;
 
 public partial class CrearTurnoDeHorarioAbiertoTool(ProgramacionApi programacion)
 {
-    internal ProgramacionApi Programacion { get; } = programacion;
-
     internal const string NombreTool = "crear_turno_de_horario_abierto";
 
     [Function("CrearTurnoDeHorarioAbierto")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Crea un turno de horario abierto: el usuario solo dice cuantas horas se trabajan y el colaborador "
@@ -30,5 +28,47 @@ public partial class CrearTurnoDeHorarioAbiertoTool(ProgramacionApi programacion
             isRequired: true)]
         string duracion,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return string.Format(Mensajes.CampoObligatorio, "nombre");
+        if (!ValidadorDuracion.TryParsear(duracion, out var horasYMinutos))
+            return string.Format(Mensajes.DuracionInvalida, duracion);
+
+        var turnoId = Guid.CreateVersion7();
+        var respuesta = await programacion.CrearTurnoDeHorarioAbierto(turnoId, nombre, horasYMinutos, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+
+        var tiempo = new TimeSpan(horasYMinutos.Horas, horasYMinutos.Minutos, 0);
+        return RespuestaJson.Serializar(new TurnoDeHorarioAbiertoCreadoResumen(
+            Mensajes.ResultadoTurnoCreado,
+            new TurnoDeHorarioAbiertoCreadoEco(
+                turnoId.ToString(),
+                nombre,
+                $"{horasYMinutos.Horas}:{horasYMinutos.Minutos:00}",
+                $"{Hora(Apertura)}-{Hora(Apertura + tiempo)}",
+                DescribirEntrada(tiempo)),
+            Mensajes.NotaVisibilidadEventual));
+    }
+
+    // Replica como texto la regla del dominio (#1203): la franja abre a las 04:00 y la salida mas
+    // tardia es 24:00 (MEF-ADR-0047 decision 3). Si el dominio la cambia, cambia aqui y en la descripcion.
+    private static readonly TimeSpan Apertura = TimeSpan.FromHours(4);
+    private static readonly TimeSpan CierreMasTardio = TimeSpan.FromHours(24);
+
+    private static string DescribirEntrada(TimeSpan duracion)
+    {
+        var entradaMasTardia = CierreMasTardio - duracion;
+        return entradaMasTardia == Apertura
+            ? string.Format(Mensajes.TurnoFijo, Hora(Apertura))
+            : string.Format(Mensajes.EntraEntre, Hora(Apertura), Hora(entradaMasTardia));
+    }
+
+    private static string Hora(TimeSpan momento) =>
+        TimeSpan.FromTicks(momento.Ticks % TimeSpan.TicksPerDay).ToString(@"hh\:mm");
 }
+
+/// <summary>Eco de crear_turno_de_horario_abierto: el 201 no trae body, se reconstruye con lo enviado y la regla de apertura.</summary>
+public sealed record TurnoDeHorarioAbiertoCreadoResumen(string Resultado, TurnoDeHorarioAbiertoCreadoEco Turno, string Nota);
+
+public sealed record TurnoDeHorarioAbiertoCreadoEco(string Id, string Nombre, string Duracion, string Franja, string Entrada);

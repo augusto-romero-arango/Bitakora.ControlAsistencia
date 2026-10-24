@@ -18,6 +18,10 @@ public partial class CrearTurnoDeHorarioAbiertoTool
 
         public static string ResultadoTurnoCreado => ResourceManager.GetString(nameof(ResultadoTurnoCreado))!;
 
+        public static string EntraEntre => ResourceManager.GetString(nameof(EntraEntre))!;
+
+        public static string TurnoFijo => ResourceManager.GetString(nameof(TurnoFijo))!;
+
         public static string NotaVisibilidadEventual => ResourceManager.GetString(nameof(NotaVisibilidadEventual))!;
     }
 }
