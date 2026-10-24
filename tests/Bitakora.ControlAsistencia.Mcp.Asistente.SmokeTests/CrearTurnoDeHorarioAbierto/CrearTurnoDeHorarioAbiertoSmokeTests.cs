@@ -27,4 +27,19 @@ public class CrearTurnoDeHorarioAbiertoSmokeTests(McpFixture mcp, ProgramacionAp
             "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
         retirado.IsError.Should().NotBeTrue();
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurnoDeHorarioAbierto_RespondeElMensajeDeValidacion_CuandoLaDuracionNoTieneFormato()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "crear_turno_de_horario_abierto",
+            new Dictionary<string, object?> { ["nombre"] = "[TEST] Horario abierto invalido", ["duracion"] = "6h" },
+            cancellationToken: ct);
+
+        resultado.Content.OfType<TextContentBlock>().Single().Text
+            .Should().Be("'duracion' no es una duracion valida: '6h'. Usa el formato H:mm, por ejemplo 6:00.");
+    }
 }
