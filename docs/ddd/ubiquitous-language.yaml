@@ -519,6 +519,11 @@ terms:
       la ventana existe siempre). Se estampa al programar como las franjas; los streams legados leen
       amplitud 0. La amplitud es del turno, no de cada franja (por franja haria circular el reparto
       de marcaciones por puntos medios del depurador). Issues #1106-#1111.
+      Refinamiento de #1229 (2026-10-25, decisiones del experto): en Advertencias de la programacion
+      semanal, un turno con ventana se juzga contra el CIERRE DE LA VENTANA (apertura + amplitud), no
+      contra la apertura de referencia: hora minima de entrada = cierre de la vispera + 6 h; si se
+      cumple entrando mas tarde no hay advertencia (la hora minima no se comunica); si no,
+      PorDebajoDelDescansoEntreTurnos o SeSolapaConTurnoDeLaVispera contra el cierre de la ventana.
 
   - name: Horario de referencia
     definition: >
