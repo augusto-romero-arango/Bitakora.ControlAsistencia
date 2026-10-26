@@ -104,26 +104,6 @@ public class AgregarFranjaToolTests
         JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("08:00-08:00+1");
     }
 
-    [Fact]
-    public async Task AgregarFranja_EcoSinOffset_CuandoElFinEsMayorQueElInicio()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(fakes.Tool, inicio: "08:00", fin: "16:00", ct: TestContext.Current.CancellationToken);
-
-        JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("08:00-16:00");
-    }
-
-    [Fact]
-    public async Task AgregarFranja_EcoConMasUno_CuandoInicioIgualAlFin()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(fakes.Tool, inicio: "08:00", fin: "08:00", ct: TestContext.Current.CancellationToken);
-
-        JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("08:00-08:00+1");
-    }
-
     // CA-2: con codigo_sede, el body agrega sede {id, nombre, centroDeCostos} y el eco la incluye.
     [Fact]
     public async Task AgregarFranja_EnviaLaSedePrearmada_CuandoLlegaCodigoSede()
