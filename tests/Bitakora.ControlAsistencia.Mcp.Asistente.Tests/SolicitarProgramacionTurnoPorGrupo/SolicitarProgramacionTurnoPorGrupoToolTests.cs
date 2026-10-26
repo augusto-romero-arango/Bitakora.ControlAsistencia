@@ -12,11 +12,11 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.SolicitarProgramacionTu
 
 public class SolicitarProgramacionTurnoPorGrupoToolTests
 {
-    private const string Turno = "Cocina Manana";
+    private const string TurnoId = "8f14e45f-ceea-4b3c-8f0a-000000000001";
+    private const string TurnoInexistenteId = "8f14e45f-ceea-4b3c-8f0a-0000000000ff";
     private const string SedeProgramacion = "SUBA";
     private const string VentanaDesde = "2026-09-01";
     private const string VentanaHasta = "2026-09-30";
-    private const string RutaTurnos = "/api/programacion/turnos";
     private const string RutaSolicitudes = "/api/programacion/solicitudes";
     private const string RutaFichas = "/api/colaboradores/fichas";
 
@@ -67,7 +67,7 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         var cursoresVistos = 0;
 
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
-        programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, turnosJson ?? TurnosJson);
+        programacion.RespondeDetalleDeTurno(turnosJson ?? TurnosJson, TurnoId);
         programacion.Responde(
             HttpMethod.Post, RutaSolicitudes,
             (_, cuerpo) => respuestaPost?.Invoke(cuerpo) ?? Respuesta(HttpStatusCode.Created, ""));
@@ -101,7 +101,7 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         {
             Tool = new SolicitarProgramacionTurnoPorGrupoTool(
                 new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-                new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+                new ResolutorTurnoPorId(new ProgramacionApi(clienteProgramacion)),
                 new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
                 new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores))),
             Programacion = programacion,
@@ -118,7 +118,7 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         Entorno entorno,
         string desde = VentanaDesde,
         string hasta = VentanaHasta,
-        string turno = Turno,
+        string turnoId = TurnoId,
         string sedeDeProgramacion = SedeProgramacion,
         string? sede = null,
         string? etiquetas = "area:cocina") =>
@@ -126,7 +126,7 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
             context: null!,
             desde: desde,
             hasta: hasta,
-            turno: turno,
+            turnoId: turnoId,
             sedeDeProgramacion: sedeDeProgramacion,
             sede: sede,
             etiquetas: etiquetas,
@@ -144,7 +144,7 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         var entorno = CrearEntorno(turnosJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(
-            entorno, turno: "[TEST] Turno que no existe", sedeDeProgramacion: "FANTASMA",
+            entorno, turnoId: TurnoInexistenteId, sedeDeProgramacion: "FANTASMA",
             sede: "OTRA-FANTASMA", etiquetas: "area");
 
         resultado.Should().Be(string.Format(
@@ -160,7 +160,7 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         var entorno = CrearEntorno(turnosJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(
-            entorno, turno: "[TEST] Turno que no existe", sede: null, etiquetas: null);
+            entorno, turnoId: TurnoInexistenteId, sede: null, etiquetas: null);
 
         resultado.Should().Be(SolicitarProgramacionTurnoPorGrupoTool.Mensajes.SelectorObligatorio);
         entorno.Programacion.Requests.Should().BeEmpty();
@@ -294,10 +294,39 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
     {
         var entorno = CrearEntorno();
 
-        var resultado = await Ejecutar(entorno, turno: "Turno Fantasma");
+        var resultado = await Ejecutar(entorno, turnoId: TurnoInexistenteId);
 
-        resultado.Should().StartWith("No existe un turno con el nombre 'Turno Fantasma'");
+        resultado.Should().Be(string.Format(
+            SolicitarProgramacionTurnoPorGrupoTool.Mensajes.TurnoNoExiste, TurnoInexistenteId));
+        resultado.Should().Contain("buscar_turnos").And.NotContain("disponibles");
         AsegurarSinEscrituras(entorno);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurnoPorGrupo_RechazaSinLlamarAlBackend_CuandoTurnoIdNoEsUnGuid()
+    {
+        var entorno = CrearEntorno();
+
+        var resultado = await Ejecutar(entorno, turnoId: "Cocina Manana");
+
+        resultado.Should().Be(string.Format(
+            SolicitarProgramacionTurnoPorGrupoTool.Mensajes.TurnoIdInvalido, "Cocina Manana"));
+        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.Sedes.Requests.Should().BeEmpty();
+        entorno.Colaboradores.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurnoPorGrupo_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
+    {
+        var entorno = CrearEntorno();
+
+        await Ejecutar(entorno);
+
+        entorno.Programacion.Requests.Should().Contain(r =>
+            r.Metodo == HttpMethod.Get && r.Ruta == DetalleDeTurnoFalso.RutaDetalle(TurnoId));
+        entorno.Programacion.Requests.Should().NotContain(r =>
+            r.Metodo == HttpMethod.Get && r.Ruta == DetalleDeTurnoFalso.RutaCatalogo);
     }
 
     [Fact]
@@ -523,17 +552,17 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
     public async Task SolicitarProgramacionTurnoPorGrupo_RechazaConElDominio_CuandoLaConsultaDeFichasFalla()
     {
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
-        programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, TurnosJson);
+        programacion.RespondeDetalleDeTurno(TurnosJson, TurnoId);
         var (clienteSedes, _) = ClienteFalso.Con(SedeJson);
         var (clienteColaboradores, _) = ClienteFalso.Con("boom", HttpStatusCode.InternalServerError);
         var tool = new SolicitarProgramacionTurnoPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorTurnoPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)));
 
         var resultado = await tool.Run(
-            null!, VentanaDesde, VentanaHasta, Turno, SedeProgramacion, null, "area:cocina",
+            null!, VentanaDesde, VentanaHasta, TurnoId, SedeProgramacion, null, "area:cocina",
             TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(

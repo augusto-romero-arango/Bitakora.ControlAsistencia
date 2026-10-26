@@ -25,6 +25,8 @@ public partial class ModificarVentanaDeEntradaTool
 
         public static string CampoObligatorio => ResourceManager.GetString(nameof(CampoObligatorio))!;
 
+        public static string TurnoIdInvalido => ResourceManager.GetString(nameof(TurnoIdInvalido))!;
+
         public static string TurnoNoExiste => ResourceManager.GetString(nameof(TurnoNoExiste))!;
 
         public static string AmplitudInvalida => ResourceManager.GetString(nameof(AmplitudInvalida))!;

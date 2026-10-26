@@ -105,7 +105,7 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
             cancellationToken: ct);
         await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombreTurno }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
     }
 
     // CA-2/CA-4: plantilla inexistente -> PlantillaNoExiste con el catalogo real de dev, sin PUT.

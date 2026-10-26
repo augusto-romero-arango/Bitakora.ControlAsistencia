@@ -8,7 +8,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.RetirarTurno;
 // ResolutorTurnoPorNombre) + DELETE programacion/turnos/{id} (paso 3 MEF-ADR-0043): referencia
 // por nombre, mismo resolutor que solicitar_programacion_turno (MEF-ADR-0018). El 404/409 del
 // DELETE se devuelve como texto, nunca como excepcion (CA-ADR-0030).
-public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
+public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
 {
     internal const string NombreTool = "retirar_turno";
 
@@ -16,30 +16,24 @@ public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTur
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Retira un turno del catalogo por su nombre exacto (miralo con buscar_turnos): deja "
+            "Retira un turno del catalogo por su id (ubicalo con buscar_turnos): deja "
             + "de poder programarse y su nombre queda libre para reutilizarse. Los dias ya "
             + "programados con ese turno no cambian. Usalo tambien para descartar un turno "
             + "incompleto o un diseno a medias.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno",
-            "Nombre exacto del turno del catalogo (miralo con buscar_turnos).",
-            isRequired: true)]
-        string turno,
+            "turno_id", "Id del turno, tal como lo da buscar_turnos.", isRequired: true)]
+        string turnoId,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turno))
-            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (string.IsNullOrWhiteSpace(turnoId))
+            return string.Format(Mensajes.CampoObligatorio, "turno_id");
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
-        if (resolucion.FalloDeLectura is { } fallo)
-            return string.Format(Mensajes.RechazoDelDominio, fallo);
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+        var resolucion = await resolutor.ResolverAsync(Guid.Empty, ct);
+        if (resolucion.Ficha is not { } ficha)
+            throw new NotImplementedException();
 
-        var ficha = resolucion.Ficha;
         var respuesta = await programacion.RetirarTurno(ficha.Id, ct);
 
         if (!respuesta.IsSuccessStatusCode)

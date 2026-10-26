@@ -66,7 +66,7 @@ public class BuscarPlantillasSemanalesSmokeTests(McpFixture mcp, ProgramacionApi
                 "retirar_plantilla_semanal", new Dictionary<string, object?> { ["plantilla"] = plantilla },
                 cancellationToken: ct);
             await mcp.Cliente.CallToolAsync(
-                "retirar_turno", new Dictionary<string, object?> { ["turno"] = turno }, cancellationToken: ct);
+                "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
         }
     }
 }

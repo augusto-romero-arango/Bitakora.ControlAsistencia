@@ -13,9 +13,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.SolicitarProgramacionTu
 public class EjecucionSolicitudProgramacionTests
 {
     private const string NombreEvento = "EjecucionSolicitudProgramacion";
-    private const string Turno = "Cocina Manana";
+    private const string TurnoId = "8f14e45f-ceea-4b3c-8f0a-000000000001";
     private const string SedeProgramacion = "SUBA";
-    private const string RutaTurnos = "/api/programacion/turnos";
     private const string RutaSolicitudes = "/api/programacion/solicitudes";
 
     private static string TurnosJson => Fixtures.Leer("SolicitarProgramacionTurno", "turnos.json");
@@ -46,7 +45,7 @@ public class EjecucionSolicitudProgramacionTests
         Func<string?, HttpResponseMessage>? respuestaPost = null, TimeProvider? reloj = null)
     {
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
-        programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, TurnosJson);
+        programacion.RespondeDetalleDeTurno(TurnosJson, TurnoId);
         programacion.Responde(
             HttpMethod.Post, RutaSolicitudes,
             (_, cuerpo) => respuestaPost?.Invoke(cuerpo) ?? Respuesta(HttpStatusCode.Created, ""));
@@ -56,7 +55,7 @@ public class EjecucionSolicitudProgramacionTests
         var logger = new LoggerDeCaptura<SolicitarProgramacionTurnoTool>();
         var tool = new SolicitarProgramacionTurnoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorTurnoPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)),
             logger, reloj ?? TimeProvider.System);
@@ -69,7 +68,7 @@ public class EjecucionSolicitudProgramacionTests
         string hasta = "2026-09-30",
         string identificaciones = "CC-1111,CC-2222,CC-3333",
         CancellationToken ct = default) =>
-        tool.Run(null!, desde, hasta, Turno, SedeProgramacion, identificaciones, ct);
+        tool.Run(null!, desde, hasta, TurnoId, SedeProgramacion, identificaciones, ct);
 
     private sealed record EntornoGrupo(
         SolicitarProgramacionTurnoPorGrupoTool Tool, LoggerDeCaptura<SolicitarProgramacionTurnoPorGrupoTool> Logger);
@@ -80,7 +79,7 @@ public class EjecucionSolicitudProgramacionTests
         TimeProvider? reloj = null)
     {
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
-        programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, TurnosJson);
+        programacion.RespondeDetalleDeTurno(TurnosJson, TurnoId);
         programacion.Responde(
             HttpMethod.Post, RutaSolicitudes,
             (_, cuerpo) => respuestaPost?.Invoke(cuerpo) ?? Respuesta(HttpStatusCode.Created, ""));
@@ -92,7 +91,7 @@ public class EjecucionSolicitudProgramacionTests
         var logger = new LoggerDeCaptura<SolicitarProgramacionTurnoPorGrupoTool>();
         var tool = new SolicitarProgramacionTurnoPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorTurnoPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)),
             logger, reloj ?? TimeProvider.System);
@@ -106,7 +105,7 @@ public class EjecucionSolicitudProgramacionTests
         string desde = "2026-09-01",
         string hasta = "2026-09-30",
         CancellationToken ct = default) =>
-        tool.Run(null!, desde, hasta, Turno, SedeProgramacion, sede, etiquetas, ct);
+        tool.Run(null!, desde, hasta, TurnoId, SedeProgramacion, sede, etiquetas, ct);
 
     [Fact]
     public async Task SolicitarProgramacionTurno_EmiteUnRegistroConModalidadLista_CuandoLlegaALaFaseDeEjecucion()

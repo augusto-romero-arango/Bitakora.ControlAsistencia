@@ -38,7 +38,7 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
         TextoDe(resultado).Should().StartWith("El dominio rechazo la solicitud:");
 
         await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombreTurno }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
     }
 
     // Error path que no toca el dominio: campo en blanco corta en el worker (mensaje .resx), prueba

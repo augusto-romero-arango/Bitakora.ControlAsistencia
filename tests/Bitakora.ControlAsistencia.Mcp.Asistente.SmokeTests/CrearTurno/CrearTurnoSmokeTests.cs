@@ -28,7 +28,7 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
         ficha.RootElement.GetProperty("esDescanso").GetBoolean().Should().BeFalse();
 
         var retirado = await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()! }, cancellationToken: ct);
         retirado.IsError.Should().NotBeTrue();
         retirado.Content.OfType<TextContentBlock>().Single().Text.Should().Contain(nombre);
 
@@ -61,7 +61,7 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
         ficha.RootElement.GetProperty("esDescanso").GetBoolean().Should().BeTrue();
 
         await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()! }, cancellationToken: ct);
     }
 
     // CA-6: turno completo en una sola llamada; obtener_turno con el id del eco lo muestra con
@@ -97,7 +97,7 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
         texto.Should().Contain("06:00").And.Contain("10:15");
 
         await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
     }
 
     // Error path que no toca el dominio: nombre en blanco corta en el worker (mensaje .resx),

@@ -87,8 +87,8 @@ public class ComposicionDelServidorTests
              ("dias_descanso_por_semana", true)]);
 
     [Fact]
-    public void ModificarVentanaDeEntrada_DeclaraTurnoYAmplitudComoObligatorios_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("modificar_ventana_de_entrada").Should().BeEquivalentTo([("turno", true), ("amplitud", true)]);
+    public void ModificarVentanaDeEntrada_DeclaraTurnoIdYAmplitudComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("modificar_ventana_de_entrada").Should().BeEquivalentTo([("turno_id", true), ("amplitud", true)]);
 
     [Fact]
     public void ModificarVentanaDeEntrada_PublicaHintsIdempotentes_CuandoSeInspeccionaLaTool()
@@ -191,7 +191,7 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": true"),
         ("crear_turno", "Crea un turno nuevo del catalogo. Por defecto nace vacio (turno incompleto)",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
-        ("retirar_turno", "Retira un turno del catalogo por su nombre exacto",
+        ("retirar_turno", "Retira un turno del catalogo por su id",
             "\"readOnlyHint\": false, \"destructiveHint\": true"),
         ("agregar_franja", "Agrega una franja ordinaria (segmento continuo de trabajo) a un turno del catalogo",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
@@ -377,8 +377,8 @@ public class ComposicionDelServidorTests
         LeerHostJson().Should().Contain("crear_turno_de_horario_abierto");
 
     [Fact]
-    public void RetirarTurno_DeclaraElTurnoComoObligatorio_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("retirar_turno").Should().BeEquivalentTo([("turno", true)]);
+    public void RetirarTurno_DeclaraElTurnoIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("retirar_turno").Should().BeEquivalentTo([("turno_id", true)]);
 
     [Fact]
     public void AgregarFranja_DeclaraSusObligatoriosYOpcionales_CuandoSeInspeccionaLaTool() =>
@@ -564,7 +564,7 @@ public class ComposicionDelServidorTests
     [Fact]
     public void SolicitarProgramacionTurno_DeclaraLaSedeDeProgramacionComoOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("solicitar_programacion_turno").Should().BeEquivalentTo(
-            [("desde", true), ("hasta", true), ("turno", true), ("sede_de_programacion", false), ("identificaciones", true)]);
+            [("desde", true), ("hasta", true), ("turno_id", true), ("sede_de_programacion", false), ("identificaciones", true)]);
 
     [Fact]
     public void AplicarPlantillaSemanal_DeclaraLaVentanaLaPlantillaYLasIdentificacionesObligatoriasYLaSedeOpcional_CuandoSeInspeccionaLaTool() =>
@@ -585,7 +585,7 @@ public class ComposicionDelServidorTests
     [Fact]
     public void SolicitarProgramacionTurnoPorGrupo_DeclaraLaVentanaYElTurnoObligatoriosYLaSedeDeProgramacionOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("solicitar_programacion_turno_por_grupo").Should().BeEquivalentTo(
-            [("desde", true), ("hasta", true), ("turno", true), ("sede_de_programacion", false),
+            [("desde", true), ("hasta", true), ("turno_id", true), ("sede_de_programacion", false),
              ("sede", false), ("etiquetas", false)]);
 
     [Fact]

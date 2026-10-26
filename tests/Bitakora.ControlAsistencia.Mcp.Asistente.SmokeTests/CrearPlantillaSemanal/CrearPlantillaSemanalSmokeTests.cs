@@ -94,7 +94,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
         foreach (var turno in new[] { turnoLunes, turnoMartes })
             await mcp.Cliente.CallToolAsync(
-                "retirar_turno", new Dictionary<string, object?> { ["turno"] = turno }, cancellationToken: ct);
+                "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = idsDeTurnos[turno] }, cancellationToken: ct);
     }
 
     // CA-2: un turno inexistente en el catalogo no crea nada -- el mensaje TurnosNoExisten llega
@@ -223,6 +223,6 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
             new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
             cancellationToken: ct);
         await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = turno }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()! }, cancellationToken: ct);
     }
 }

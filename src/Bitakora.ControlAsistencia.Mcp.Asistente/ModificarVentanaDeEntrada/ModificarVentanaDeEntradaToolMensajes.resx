@@ -41,8 +41,11 @@
   <data name="CampoObligatorio" xml:space="preserve">
     <value>'{0}' es obligatorio.</value>
   </data>
+  <data name="TurnoIdInvalido" xml:space="preserve">
+    <value>turno_id debe ser el id del turno (un GUID), tal como lo da buscar_turnos; se recibio: {0}</value>
+  </data>
   <data name="TurnoNoExiste" xml:space="preserve">
-    <value>No existe un turno con el nombre '{0}'. Turnos disponibles: {1}.</value>
+    <value>No existe un turno con id '{0}'. Ubicalo con buscar_turnos.</value>
   </data>
   <data name="AmplitudInvalida" xml:space="preserve">
     <value>'amplitud' no es una duracion valida: '{0}'. Usa el formato H:mm, por ejemplo 3:00.</value>
