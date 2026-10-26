@@ -8,17 +8,17 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.ObtenerPlantillaSemanal
 
 public class ObtenerPlantillaSemanalJornadaToolTests
 {
-    private const string RutaListado = "/api/programacion/plantillas-semanales";
+    private const string PlantillaId = "01a07000-1000-7000-9000-000000000001";
 
     private static async Task<JsonObject> Obtener(string fixtureDetalle)
     {
-        var (cliente, _) = ClienteFalso.ConFuncion(req => req.RequestUri!.AbsolutePath == RutaListado
-            ? ClienteFalso.JsonOk(Fixtures.Leer("ObtenerPlantillaSemanal", "listar-plantillas-semanales.json"))
-            : ClienteFalso.JsonOk(Fixtures.Leer("ObtenerPlantillaSemanal", fixtureDetalle)));
-        var api = new ProgramacionApi(cliente);
-        var tool = new ObtenerPlantillaSemanalTool(api, new ResolutorPlantillaPorNombre(api));
+        var (cliente, handler) = ClienteFalso.ConRutas();
+        handler.Responde(
+            HttpMethod.Get, DetalleDePlantillaFalso.RutaDetalle(PlantillaId), System.Net.HttpStatusCode.OK,
+            Fixtures.Leer("ObtenerPlantillaSemanal", fixtureDetalle));
+        var tool = new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente));
 
-        var resultado = await tool.Run(null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
+        var resultado = await tool.Run(null!, PlantillaId, TestContext.Current.CancellationToken);
 
         return JsonNode.Parse(resultado)!.AsObject();
     }
