@@ -60,20 +60,35 @@ public static class CalculadorAdvertencias
     private static IReadOnlyList<AdvertenciaDiaria> AdvertenciasDelDia(CasillaDia casilla, JornadaAplicada? jornada) =>
         [.. ContraLaJornada(casilla, jornada), .. EntreTurnos(casilla)];
 
-    // El solape reemplaza al descanso entre turnos. Fin exclusivo: turnos contiguos no se solapan.
-    private static IEnumerable<AdvertenciaDiaria> EntreTurnos(CasillaDia casilla)
-    {
-        if (casilla is { Tipo: TipoCasilla.Trabajo, AperturaTurno: { } apertura, CierreTurnoVispera: { } cierre }
-            && cierre > apertura)
-        {
-            yield return new(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, (int)(cierre - apertura).TotalMinutes);
-            yield break;
-        }
+    // 2 h + 4 h de margenes de la Cobertura de marcacion (CA-ADR-0042). Si cambian, cambia esta constante.
+    private static readonly TimeSpan DescansoMinimoEntreTurnos = TimeSpan.FromHours(6);
 
-        if (casilla is { Tipo: TipoCasilla.Trabajo, InicioCobertura: { } inicio, LimiteCoberturaVispera: { } limite }
-            && limite > inicio)
-            yield return new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, (int)(limite - inicio).TotalMinutes);
+    // El solape reemplaza al descanso entre turnos. Fin exclusivo: turnos contiguos no se solapan.
+    // Sin ventana el cierre de la ventana es la apertura de referencia.
+    private static IReadOnlyList<AdvertenciaDiaria> EntreTurnos(CasillaDia casilla)
+    {
+        if (casilla.Tipo != TipoCasilla.Trabajo)
+            return [];
+
+        if (casilla is { CierreVentanaEntrada: { } cierreVentana, CierreTurnoVispera: { } cierre } && cierre > cierreVentana)
+            return [new(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, (int)(cierre - cierreVentana).TotalMinutes)];
+
+        var faltante = casilla.TieneVentanaDeEntrada ? DescansoFaltanteConVentana(casilla) : DescansoFaltanteSinVentana(casilla);
+        return faltante > TimeSpan.Zero
+            ? [new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, (int)faltante.TotalMinutes)]
+            : [];
     }
+
+    // Se juzga contra la entrada mas tardia posible: el cierre de la ventana.
+    private static TimeSpan DescansoFaltanteConVentana(CasillaDia casilla) =>
+        casilla is { CierreVentanaEntrada: { } cierreVentana, CierreTurnoVispera: { } cierre }
+            ? cierre + DescansoMinimoEntreTurnos - cierreVentana
+            : TimeSpan.Zero;
+
+    private static TimeSpan DescansoFaltanteSinVentana(CasillaDia casilla) =>
+        casilla is { InicioCobertura: { } inicio, LimiteCoberturaVispera: { } limite }
+            ? limite - inicio
+            : TimeSpan.Zero;
 
     private static IReadOnlyList<AdvertenciaDiaria> ContraLaJornada(CasillaDia casilla, JornadaAplicada? jornada)
     {

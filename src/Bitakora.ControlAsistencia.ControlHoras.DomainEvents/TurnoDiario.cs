@@ -72,6 +72,9 @@ public record TurnoDiario(
     public bool SeSolapaCon(DateOnly fecha, TurnoDiario otro, DateOnly fechaOtro) =>
         Apertura(fecha) < otro.Cierre(fechaOtro) && otro.Apertura(fechaOtro) < Cierre(fecha);
 
+    public DateTime? CierreDeLaVentana(DateOnly fecha) =>
+        Apertura(fecha)?.AddMinutes(AmplitudVentanaEntradaEnMinutos);
+
     public DateTime? Apertura(DateOnly fecha) =>
         FranjasOrdinarias.Count == 0 ? null : FranjasOrdinarias.Min(f => fecha.ToDateTime(f.HoraInicio));
 

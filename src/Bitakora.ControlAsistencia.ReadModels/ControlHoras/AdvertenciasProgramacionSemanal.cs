@@ -58,7 +58,8 @@ public sealed record CasillaDia(
     TurnoCubiertoSemana? TurnoCubierto = null,
     DateTime? InicioCobertura = null,
     DateTime? LimiteCoberturaVispera = null,
-    DateTime? AperturaTurno = null,
+    DateTime? CierreVentanaEntrada = null,
+    bool TieneVentanaDeEntrada = false,
     DateTime? CierreTurnoVispera = null)
 {
     public IReadOnlyList<AdvertenciaDiaria> Advertencias { get; init; } = [];

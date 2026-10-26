@@ -270,7 +270,7 @@ public class CalculadorAdvertenciasTests
     }
 
     private static CasillaDia ConSolape(int i, DateTime? apertura, DateTime? cierreVispera) =>
-        new(Lunes.AddDays(i), TipoCasilla.Trabajo, "T", 480, AperturaTurno: apertura, CierreTurnoVispera: cierreVispera);
+        new(Lunes.AddDays(i), TipoCasilla.Trabajo, "T", 480, CierreVentanaEntrada: apertura, CierreTurnoVispera: cierreVispera);
 
     [Fact]
     public void Calcular_SeSolapaConTurnoDeLaVispera_CuandoElCierreSuperaLaApertura()
@@ -316,7 +316,7 @@ public class CalculadorAdvertenciasTests
     public void Calcular_SinSolape_CuandoLaCasillaNoEsTrabajo()
     {
         var casillas = Semana(D());
-        casillas[0] = casillas[0] with { AperturaTurno = Hora(0, 4), CierreTurnoVispera = Hora(0, 6) };
+        casillas[0] = casillas[0] with { CierreVentanaEntrada = Hora(0, 4), CierreTurnoVispera = Hora(0, 6) };
 
         CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEmpty();
     }
@@ -329,7 +329,7 @@ public class CalculadorAdvertenciasTests
         {
             InicioCobertura = Hora(0, 2),
             LimiteCoberturaVispera = Hora(0, 10),
-            AperturaTurno = Hora(0, 4),
+            CierreVentanaEntrada = Hora(0, 4),
             CierreTurnoVispera = Hora(0, 6)
         };
 
@@ -354,12 +354,98 @@ public class CalculadorAdvertenciasTests
     public void Calcular_LlevaSuperaTopeYSolape_CuandoElDiaCumpleAmbasCondiciones()
     {
         var casillas = Semana(T(600));
-        casillas[0] = casillas[0] with { AperturaTurno = Hora(0, 4), CierreTurnoVispera = Hora(0, 6) };
+        casillas[0] = casillas[0] with { CierreVentanaEntrada = Hora(0, 4), CierreTurnoVispera = Hora(0, 6) };
 
         CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEquivalentTo(
         [
             Diaria(TipoAdvertenciaDiaria.SuperaTopeDiario, 120),
             Diaria(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, 120)
         ]);
+    }
+
+    // --- Turno con ventana de entrada (#1229): C = CierreTurnoVispera, V = CierreVentanaEntrada. ---
+
+    private static CasillaDia ConVentana(DateTime? cierreVispera, DateTime? cierreVentana) =>
+        new(Lunes, TipoCasilla.Trabajo, "T", 480,
+            CierreVentanaEntrada: cierreVentana, TieneVentanaDeEntrada: true, CierreTurnoVispera: cierreVispera);
+
+    private static IReadOnlyList<AdvertenciaDiaria> Juzgar(CasillaDia casilla, JornadaAplicada? jornada = null) =>
+        CalculadorAdvertencias.Calcular(Semana(T(480)).Select((c, i) => i == 0 ? casilla : c).ToList(), jornada, false).Diarias[0];
+
+    [Fact]
+    public void Calcular_SinAdvertencia_CuandoElDescansoSeCumpleEntrandoMasTarde_CasoOcoa()
+    {
+        // Noche 22:00-06:00 (C = 06:00); Abierto con ventana hasta las 22:00: debe entrar desde las 12:00.
+        Juzgar(ConVentana(Hora(0, 6), Hora(0, 22))).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_SinAdvertenciaDeDescanso_CuandoLaVentanaPermiteCumplirloAunqueLaCoberturaLoInvada()
+    {
+        var casilla = ConVentana(Hora(0, 1), Hora(0, 18)) with
+        {
+            InicioCobertura = Hora(0, 2),
+            LimiteCoberturaVispera = Hora(0, 5)
+        };
+
+        Juzgar(casilla).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_SinAdvertencia_CuandoLaHoraMinimaDeEntradaIgualaElCierreDeLaVentana()
+    {
+        // C + 6 h = 12:00 = V
+        Juzgar(ConVentana(Hora(0, 6), Hora(0, 12))).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_PorDebajoDelDescanso_CuandoNiEntrandoAlCierreDeLaVentanaSeCumple()
+    {
+        // C = 06:00, V = 07:00 -> (C + 6 h) - V = 12:00 - 07:00 = 300
+        Juzgar(ConVentana(Hora(0, 6), Hora(0, 7))).Should().Equal(
+            Diaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 300));
+    }
+
+    [Fact]
+    public void Calcular_SoloSolape_CuandoElCierreDeLaVisperaSuperaElCierreDeLaVentana()
+    {
+        // C = 09:00, V = 07:00 -> solape de 120, sin descanso
+        Juzgar(ConVentana(Hora(0, 9), Hora(0, 7))).Should().Equal(
+            Diaria(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, 120));
+    }
+
+    [Fact]
+    public void Calcular_SoloDescanso_CuandoElCierreDeLaVisperaIgualaElCierreDeLaVentana()
+    {
+        // C = V = 07:00: contiguo no es solape; descanso = 6 h
+        Juzgar(ConVentana(Hora(0, 7), Hora(0, 7))).Should().Equal(
+            Diaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 360));
+    }
+
+    [Fact]
+    public void Calcular_JuzgaElDescansoConVentana_CuandoNoHayJornada()
+    {
+        Juzgar(ConVentana(Hora(0, 6), Hora(0, 7)), null).Should().Equal(
+            Diaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 300));
+    }
+
+    [Fact]
+    public void Calcular_SinAdvertencia_CuandoElTurnoConVentanaNoTieneCierreDeLaVispera()
+    {
+        Juzgar(ConVentana(null, Hora(0, 7)) with { InicioCobertura = Hora(0, 4), LimiteCoberturaVispera = Hora(0, 9) })
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_SinAdvertencia_CuandoElTurnoConVentanaNoEsTrabajo()
+    {
+        Juzgar(ConVentana(Hora(0, 6), Hora(0, 7)) with { Tipo = TipoCasilla.Descanso }).Should().BeEmpty();
+        Juzgar(ConVentana(Hora(0, 6), Hora(0, 7)) with { Tipo = TipoCasilla.Ausencia }).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_SinAdvertencia_CuandoElTurnoConVentanaNoTieneCierreDeLaVentana()
+    {
+        Juzgar(ConVentana(Hora(0, 6), null)).Should().BeEmpty();
     }
 }

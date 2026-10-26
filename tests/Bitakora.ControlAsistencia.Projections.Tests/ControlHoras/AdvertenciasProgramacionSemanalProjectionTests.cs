@@ -582,7 +582,8 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         var v = Aplica(null, Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)));
 
         Casilla(v, 2).Advertencias.Should().Equal(Solape120);
-        Casilla(v, 2).AperturaTurno.Should().Be(Dia(2).ToDateTime(new TimeOnly(4, 0)));
+        Casilla(v, 2).CierreVentanaEntrada.Should().Be(Dia(2).ToDateTime(new TimeOnly(4, 0)));
+        Casilla(v, 2).TieneVentanaDeEntrada.Should().BeFalse();
         Casilla(v, 2).CierreTurnoVispera.Should().Be(SeisAm(2));
     }
 
@@ -592,17 +593,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         var v = Aplica(null, Asigna(2, ContiguoSeis()), CierreVispera(2, SeisAm(2)));
 
         Casilla(v, 2).Advertencias.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void Apply_NoAgregaSolape_CuandoElTurnoDelDiaTieneVentanaDeEntrada()
-    {
-        var abierto = new TurnoDiario("Abierto", [Franja(4, 12)], "", 120);
-
-        var v = Aplica(null, Asigna(2, abierto), CierreVispera(2, SeisAm(2)));
-
-        Casilla(v, 2).Advertencias.Should().BeEmpty();
-        Casilla(v, 2).AperturaTurno.Should().BeNull();
     }
 
     [Fact]
@@ -714,5 +704,156 @@ public class AdvertenciasProgramacionSemanalProjectionTests
     public void Create_NoCreaDocumento_CuandoCierreDeLaVisperaEsElPrimerEvento()
     {
         AdvertenciasProgramacionSemanalProjection.Create(CierreVispera(2, SeisAm(2))).Should().BeNull();
+    }
+
+    // --- Turno con ventana de entrada (#1229) ---
+
+    private static DateTime En(int offset, int h) => Dia(offset).ToDateTime(new TimeOnly(h, 0));
+
+    private static TurnoDiario ConVentana(int hi, int hf, int amplitudMin) =>
+        new("Ventana", [Franja(hi, hf)], "", amplitudMin);
+
+    private static AdvertenciaDiaria Descanso(int minutos) => new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, minutos);
+
+    [Fact]
+    public void Apply_NoAdvierte_CuandoElDescansoSeCumpleEntrandoMasTarde_CasoOcoa()
+    {
+        // Noche 22:00-06:00 y Abierto con franja 04:00-06:00 y ventana hasta las 22:00.
+        var v = Aplica(null, Asigna(1, NocheVeintidos()), Asigna(2, ConVentana(4, 6, 1080)),
+            CierreVispera(2, SeisAm(2)));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+        v.TieneAdvertencias.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_NoAdvierteDescanso_CuandoLaVentanaPermiteCumplirloAunqueLaCoberturaLoInvada()
+    {
+        // Vispera 17:00-01:00 (C = 01:00); dia 04:00-10:00 con ventana hasta las 18:00.
+        var v = Aplica(null, Asigna(2, ConVentana(4, 10, 840)), Vispera(2, En(2, 5)), CierreVispera(2, En(2, 1)));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_AdviertePorDebajoDelDescanso_CuandoNoAlcanzaNiEntrandoAlCierreDeLaVentana()
+    {
+        var v = Aplica(null, Asigna(1, NocheVeintidos()), Asigna(2, ConVentana(5, 13, 120)),
+            CierreVispera(2, SeisAm(2)));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Descanso(300));
+    }
+
+    [Fact]
+    public void Apply_AdvierteSoloSolape_CuandoElCierreDeLaVisperaSuperaElCierreDeLaVentana()
+    {
+        var v = Aplica(null, Asigna(2, ConVentana(5, 13, 120)), CierreVispera(2, En(2, 9)));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Solape120);
+    }
+
+    [Fact]
+    public void Apply_AdvierteSoloDescanso_CuandoElCierreDeLaVisperaIgualaElCierreDeLaVentana()
+    {
+        var v = Aplica(null, Asigna(2, ConVentana(5, 13, 120)), CierreVispera(2, En(2, 7)));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Descanso(360));
+    }
+
+    [Fact]
+    public void Apply_ProyectaCierreDeLaVentanaYSuBandera_CuandoElTurnoTieneVentana()
+    {
+        var v = Aplica(null, Asigna(2, ConVentana(5, 13, 120)));
+
+        Casilla(v, 2).CierreVentanaEntrada.Should().Be(En(2, 7));
+        Casilla(v, 2).TieneVentanaDeEntrada.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_ProyectaLaAperturaComoCierreDeLaVentana_CuandoElTurnoEsFijo()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()));
+
+        Casilla(v, 2).CierreVentanaEntrada.Should().Be(En(2, 4));
+        Casilla(v, 2).TieneVentanaDeEntrada.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_ConservaElEstadoDeLaVentana_CuandoSeCancelaYSeReasignaSinEventoNuevoDeLaVispera()
+    {
+        var v = Aplica(null, Asigna(2, ConVentana(5, 13, 120)), CierreVispera(2, SeisAm(2)),
+            Cancela(2), Asigna(2, ConVentana(5, 13, 120)));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Descanso(300));
+    }
+
+    [Fact]
+    public void Apply_ReevaluaConLaNuevaVentana_CuandoSeReasignaOtroTurnoSinEventoNuevoDeLaVispera()
+    {
+        var v = Aplica(null, Asigna(2, ConVentana(5, 13, 120)), CierreVispera(2, SeisAm(2)),
+            Cancela(2), Asigna(2, FijoCuatro()));
+
+        Casilla(v, 2).TieneVentanaDeEntrada.Should().BeFalse();
+        Casilla(v, 2).Advertencias.Should().Equal(Solape120);
+    }
+
+    [Fact]
+    public void Apply_ConservaElEstadoDeLaVentana_CuandoSeCancelaLaAusencia()
+    {
+        var v = Aplica(null, Asigna(2, ConVentana(5, 13, 120)), CierreVispera(2, SeisAm(2)),
+            Ausenta(2, AusenciaA), CancelaAusencia(2, AusenciaA));
+
+        Casilla(v, 2).Tipo.Should().Be(TipoCasilla.Trabajo);
+        Casilla(v, 2).CierreVentanaEntrada.Should().Be(En(2, 7));
+        Casilla(v, 2).TieneVentanaDeEntrada.Should().BeTrue();
+        Casilla(v, 2).Advertencias.Should().Equal(Descanso(300));
+    }
+
+    [Fact]
+    public void Apply_FijaElEstadoDeLaVentana_CuandoElTurnoSeAsignaDuranteLaAusencia()
+    {
+        var v = Aplica(null, Ausenta(2, AusenciaA), CierreVispera(2, SeisAm(2)), Asigna(2, ConVentana(5, 13, 120)));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+        Casilla(v, 2).CierreVentanaEntrada.Should().Be(En(2, 7));
+        Casilla(v, 2).TieneVentanaDeEntrada.Should().BeTrue();
+
+        v = Aplica(v, CancelaAusencia(2, AusenciaA));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Descanso(300));
+    }
+
+    [Fact]
+    public void Apply_NoAdvierte_CuandoElDiaConVentanaTieneAusencia()
+    {
+        var v = Aplica(null, Asigna(2, ConVentana(5, 13, 120)), CierreVispera(2, SeisAm(2)), Ausenta(2, AusenciaA));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_NoAdvierte_CuandoElDiaConVentanaEsDeDescanso()
+    {
+        var v = Aplica(null, Asigna(2, new TurnoDiario("Libre", [], "", 120)), CierreVispera(2, SeisAm(2)));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_NoAdvierte_CuandoElCierreDeLaVisperaEsNuloConVentana()
+    {
+        var v = Aplica(null, Asigna(2, ConVentana(5, 13, 120)), CierreVispera(2, null));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_AdviertePorDebajoDelDescansoEnElLunes_CuandoLaVisperaEsElDomingoAnteriorYHayVentana()
+    {
+        var v = Aplica(null, Asigna(0, ConVentana(5, 13, 120)), CierreVispera(0, SeisAm(0)));
+
+        Casilla(v, 0).Advertencias.Should().Equal(Descanso(300));
+        v.EsJuzgable.Should().BeFalse();
+        v.Jornada.Should().BeNull();
     }
 }
