@@ -159,8 +159,8 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
             TurnoId, 2, "Turno Manana", false,
             [new DetalleFranjaOrdinaria(
                 new TimeOnly(22, 0), new TimeOnly(6, 0), 1,
-                [new DetalleSubFranja(new TimeOnly(2, 0), new TimeOnly(2, 30), 1, 1, "(02:00+1-02:30+1)")],
-                [], "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]")],
+                [new DetalleSubFranja(new TimeOnly(2, 0), new TimeOnly(2, 30), 1, 1, "02:00+1-02:30+1")],
+                [], "22:00-06:00+1, descanso 02:00+1-02:30+1")],
             false));
         And<CatalogoTurnos, int>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 1);
@@ -183,8 +183,8 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
             [new DetalleFranjaOrdinaria(
                 new TimeOnly(22, 0), new TimeOnly(6, 0), 1,
                 [],
-                [new DetalleSubFranja(new TimeOnly(5, 0), new TimeOnly(6, 0), 1, 1, "(05:00+1-06:00+1)")],
-                "(22:00-06:00+1)[Extras:(05:00+1-06:00+1)]")],
+                [new DetalleSubFranja(new TimeOnly(5, 0), new TimeOnly(6, 0), 1, 1, "05:00+1-06:00+1")],
+                "22:00-06:00+1, extra 05:00+1-06:00+1")],
             false));
         And<CatalogoTurnos, int>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Extras.Count, 1);
@@ -208,8 +208,8 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
             TurnoId, 3, "Turno Manana", false,
             [new DetalleFranjaOrdinaria(
                 new TimeOnly(7, 0), new TimeOnly(16, 0), 0,
-                [new DetalleSubFranja(new TimeOnly(12, 0), new TimeOnly(12, 30), 0, 0, "(12:00-12:30)")],
-                [], "(07:00-16:00)[Descansos:(12:00-12:30)]")],
+                [new DetalleSubFranja(new TimeOnly(12, 0), new TimeOnly(12, 30), 0, 0, "12:00-12:30")],
+                [], "07:00-16:00, descanso 12:00-12:30")],
             false, 180));
         And<CatalogoTurnos, int>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 1);

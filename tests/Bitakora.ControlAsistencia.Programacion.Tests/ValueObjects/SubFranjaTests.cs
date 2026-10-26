@@ -18,7 +18,7 @@ public class SubFranjaTests
     {
         var franja = SubFranja.Crear(new TimeOnly(10, 0), new TimeOnly(10, 15));
 
-        franja.ToString().Should().Be("(10:00-10:15)");
+        franja.ToString().Should().Be("10:00-10:15");
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class SubFranjaTests
         var franja = SubFranja.Crear(new TimeOnly(0, 30), new TimeOnly(0, 45),
             diaOffsetInicio: 1, diaOffsetFin: 1);
 
-        franja.ToString().Should().Be("(00:30+1-00:45+1)");
+        franja.ToString().Should().Be("00:30+1-00:45+1");
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class SubFranjaTests
         var franja = SubFranja.Crear(new TimeOnly(23, 50), new TimeOnly(0, 10),
             diaOffsetInicio: 0, diaOffsetFin: 1);
 
-        franja.ToString().Should().Be("(23:50-00:10+1)");
+        franja.ToString().Should().Be("23:50-00:10+1");
     }
 
     // ---------- CA-10: duracion sin offset ----------
@@ -139,7 +139,7 @@ public class SubFranjaTests
     {
         var franja = SubFranja.Crear(new TimeOnly(12, 0), new TimeOnly(12, 30));
 
-        franja.ToString().Should().Be("(12:00-12:30)");
+        franja.ToString().Should().Be("12:00-12:30");
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public class SubFranjaTests
         var franja = SubFranja.Crear(new TimeOnly(23, 45), new TimeOnly(0, 15),
             diaOffsetInicio: 0, diaOffsetFin: 1);
 
-        franja.ToString().Should().Be("(23:45-00:15+1)");
+        franja.ToString().Should().Be("23:45-00:15+1");
     }
 
     [Fact]
@@ -157,6 +157,6 @@ public class SubFranjaTests
         var franja = SubFranja.Crear(new TimeOnly(2, 0), new TimeOnly(2, 30),
             diaOffsetInicio: 1, diaOffsetFin: 1);
 
-        franja.ToString().Should().Be("(02:00+1-02:30+1)");
+        franja.ToString().Should().Be("02:00+1-02:30+1");
     }
 }

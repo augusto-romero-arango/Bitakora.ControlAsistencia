@@ -44,7 +44,7 @@ public class CatalogoTurnosTests
 
         detalle.Descripcion.Should().Be(catalogo.ToString());
         detalle.FranjasOrdinarias.Should().HaveCount(2);
-        detalle.FranjasOrdinarias[0].Descansos[0].Descripcion.Should().Be("(09:00-09:15)");
+        detalle.FranjasOrdinarias[0].Descansos[0].Descripcion.Should().Be("09:00-09:15");
     }
 
     // ---------- Issue #335 CA-1/CA-2: sede prearmada por franja en el catalogo ----------
@@ -106,7 +106,7 @@ public class CatalogoTurnosTests
         var catalogo = CrearCatalogo(Ordinaria(new TimeOnly(6, 0), new TimeOnly(14, 0)));
 
         catalogo.EstaCompleto().Should().BeTrue();
-        catalogo.ToString().Should().Be("Turno Manana (06:00-14:00)");
+        catalogo.ToString().Should().Be("06:00-14:00");
     }
 
     // ---------- Issue #613 CA-4: EvaluarAsignabilidad() y su precedencia ----------
@@ -170,7 +170,7 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<FranjaAgregada>().Should().ContainSingle()
             .Which.Franja.Should().Be(franja);
         catalogo.EstaCompleto().Should().BeTrue();
-        catalogo.ToString().Should().Be("Turno Manana (22:00-06:00+1)");
+        catalogo.ToString().Should().Be("22:00-06:00+1");
     }
 
     // CA-3: fin exclusivo -- una franja contigua a la existente no se solapa y se agrega,
@@ -184,7 +184,7 @@ public class CatalogoTurnosTests
         var resultado = catalogo.AgregarFranja(nueva);
 
         resultado.Should().Be(ResultadoAgregarFranja.Agregada);
-        catalogo.ToString().Should().Be("Turno Manana (06:00-14:00)(14:00-22:00)");
+        catalogo.ToString().Should().Be("06:00-14:0014:00-22:00");
     }
 
     // CA-3: una franja que se superpone parcialmente con la existente se rechaza sin emitir evento.
@@ -254,8 +254,8 @@ public class CatalogoTurnosTests
 
         resultado.Should().Be(ResultadoAgregarSubFranja.Agregada);
         catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().ContainSingle()
-            .Which.Franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
-        catalogo.ToString().Should().Be("Turno Manana (22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
+            .Which.Franja.ToString().Should().Be("22:00-06:00+1, descanso 02:00+1-02:30+1");
+        catalogo.ToString().Should().Be("22:00-06:00+1, descanso 02:00+1-02:30+1");
     }
 
     // CA-2: AgregarExtra sobre la franja resultante conserva el descanso previo (inmutabilidad del VO).
@@ -271,9 +271,9 @@ public class CatalogoTurnosTests
         resultado.Should().Be(ResultadoAgregarSubFranja.Agregada);
         catalogo.UncommittedEvents.OfType<ExtraAgregado>().Should().ContainSingle()
             .Which.Franja.ToString().Should().Be(
-                "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-06:00+1)]");
+                "22:00-06:00+1, descanso 02:00+1-02:30+1, extra 05:00+1-06:00+1");
         catalogo.ToString().Should().Be(
-            "Turno Manana (22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-06:00+1)]");
+            "22:00-06:00+1, descanso 02:00+1-02:30+1, extra 05:00+1-06:00+1");
     }
 
     // CA-3: ninguna franja empieza a esa hora.
@@ -341,7 +341,7 @@ public class CatalogoTurnosTests
 
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor}*");
-        catalogo.ToString().Should().Be("Turno Manana (22:00-06:00+1)");
+        catalogo.ToString().Should().Be("22:00-06:00+1");
     }
 
     // MEF-ADR-0004 capa 4: un Apply que lanza deja el aggregate roto para siempre -- si el stream
@@ -357,7 +357,7 @@ public class CatalogoTurnosTests
         var act = () => catalogo.Apply(DescansoAgregado.Crear(TurnoId, franjaHuerfana));
 
         act.Should().NotThrow();
-        catalogo.ToString().Should().Be("Turno Manana (22:00-06:00+1)");
+        catalogo.ToString().Should().Be("22:00-06:00+1");
     }
 
     // CA-4: solape con una hermana ya presente.
@@ -392,8 +392,8 @@ public class CatalogoTurnosTests
         resultado.Should().Be(ResultadoQuitarFranja.Quitada);
         catalogo.UncommittedEvents.OfType<FranjaQuitada>().Should().ContainSingle()
             .Which.Franja.ToString().Should().Be(
-                "(06:00-14:00)[Descansos:(09:00-09:15)][sede:Suba]");
-        catalogo.ToString().Should().Be("Turno Manana (14:00-22:00)");
+                "06:00-14:00, descanso 09:00-09:15");
+        catalogo.ToString().Should().Be("14:00-22:00");
         catalogo.EstaCompleto().Should().BeTrue();
     }
 
@@ -477,9 +477,9 @@ public class CatalogoTurnosTests
 
         resultado.Should().Be(ResultadoQuitarSubFranja.Quitada);
         catalogo.UncommittedEvents.OfType<DescansoQuitado>().Should().ContainSingle()
-            .Which.Franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
+            .Which.Franja.ToString().Should().Be("22:00-06:00+1, descanso 02:00+1-02:30+1");
         catalogo.ToString().Should().Be(
-            "Turno Manana (22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
+            "22:00-06:00+1, descanso 02:00+1-02:30+1");
     }
 
     // La hija a esa hora existe, pero es del otro tipo.
