@@ -248,7 +248,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             .Cast<DesgloseFranja>()
             .ToList();
         var anomalas = _controlesDeFranja.Count(cf => cf.EsAnomala);
-        _desgloseHoras = ConsolidadorDesgloseHoras.Consolidar(desgloses, anomalas);
+        _desgloseHoras = ConsolidadorDesgloseHoras.Consolidar(
+            desgloses, anomalas, DetalleTurno?.EsHorarioAbierto == true);
     }
 
     // CA-ADR-0031: prefijo por iniciales -- disjunta este stream del futuro DiaCalculado ("dc:"), que

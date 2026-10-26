@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Text.Json;
 using AwesomeAssertions;
 using Azure.Messaging.ServiceBus;
-using Bitakora.ControlAsistencia.ControlHoras.ActualizarControlDiario;
 using Bitakora.ControlAsistencia.ControlHoras.RepartirMarcacionesCuandoDiaDepuradoFunction;
 using FunctionEndpoint = Bitakora.ControlAsistencia.ControlHoras.ActualizarControlDiario.FunctionEndpoint;
 using Bitakora.ControlAsistencia.ControlHoras.Tests.Infraestructura;

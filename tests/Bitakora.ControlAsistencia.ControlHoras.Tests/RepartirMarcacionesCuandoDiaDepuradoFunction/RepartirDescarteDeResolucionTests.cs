@@ -1,5 +1,4 @@
 using AwesomeAssertions;
-using Cosmos.EventDriven.Abstractions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RepartirMarcacionesCuandoDiaDepuradoFunction;
