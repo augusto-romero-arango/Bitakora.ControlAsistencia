@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using Bitakora.ControlAsistencia.Mcp.Asistente.AsignarEtiqueta;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -11,13 +12,47 @@ public partial class RetirarEtiquetaTool(
     internal const string NombreTool = "retirar_etiqueta";
 
     [Function("RetirarEtiqueta")]
-    public Task<string> Run(
-        [McpToolTrigger(NombreTool, "Pendiente.")]
+    public async Task<string> Run(
+        [McpToolTrigger(
+            NombreTool,
+            "Retira la etiqueta de una categoria a colaboradores concretos. Recibe identificaciones completas, tal como las devuelve buscar_colaboradores.")]
+        [McpMetadata("""{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true}""")]
         ToolInvocationContext context,
-        [McpToolProperty("categoria", "Pendiente.", isRequired: false)]
+        [McpToolProperty("categoria", "Categoria de la etiqueta, por ejemplo 'area'.", isRequired: true)]
         string categoria,
-        [McpToolProperty("identificaciones", "Pendiente.", isRequired: false)]
+        [McpToolProperty(
+            "identificaciones",
+            "Identificaciones completas separadas por coma ('CC-79879078, CE-887766'), tal como "
+            + "las devuelve buscar_colaboradores.",
+            isRequired: true)]
         string identificaciones,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (string.IsNullOrWhiteSpace(categoria))
+            return string.Format(Mensajes.CampoObligatorio, "categoria");
+        if (string.IsNullOrWhiteSpace(identificaciones))
+            return string.Format(Mensajes.CampoObligatorio, "identificaciones");
+
+        var solicitadas = AplicadorDeEtiqueta.SepararIdentificaciones(identificaciones);
+        if (solicitadas.Count == 0)
+            return string.Format(Mensajes.CampoObligatorio, "identificaciones");
+
+        var resolucion = await resolutorCandidatos.ResolverAsync(solicitadas, ct);
+        if (resolucion.FalloDeLectura is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+
+        var noEncontrados = AplicadorDeEtiqueta.NoEncontradas(solicitadas, resolucion.Candidatos);
+        var ejecucion = await AplicadorDeEtiqueta.AplicarAsync(
+            resolucion.Candidatos,
+            (identificacion, token) => colaboradores.RetirarEtiqueta(identificacion, categoria, token),
+            ct);
+
+        return RespuestaJson.Serializar(new EtiquetaRetiradaResumen(
+            Mensajes.ResultadoEtiquetaRetirada,
+            categoria,
+            ejecucion.Exitosos,
+            noEncontrados.Count == 0 ? null : noEncontrados,
+            ejecucion.Fallidos.Count == 0 ? null : ejecucion.Fallidos,
+            Mensajes.NotaVisibilidadEventual));
+    }
 }
