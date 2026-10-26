@@ -148,6 +148,20 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task AsignarTurnoADia_RespondeElMensajeDeValidacion_CuandoElTurnoIdNoEsUnGuid()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "asignar_turno_a_dia",
+            new Dictionary<string, object?> { ["plantilla_id"] = Guid.CreateVersion7().ToString(), ["turno_id"] = "no-es-guid", ["dia"] = "lunes" },
+            cancellationToken: ct);
+
+        TextoDe(resultado).Should().Contain("turno_id").And.Contain("no-es-guid");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task QuitarTurnoDeDia_RespondeElMensajeDeValidacion_CuandoElPlantillaIdNoEsUnGuid()
     {
         var ct = TestContext.Current.CancellationToken;
