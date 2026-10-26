@@ -26,8 +26,22 @@ public partial class RetirarPlantillaSemanalTool(ProgramacionApi programacion, R
         string plantillaId,
         CancellationToken ct)
     {
-        _ = (programacion, resolutor);
-        throw new NotImplementedException();
+        if (!Guid.TryParse(plantillaId, out var idDePlantilla))
+            return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
+        var resolucion = await resolutor.ResolverAsync(idDePlantilla, ct);
+        if (resolucion.FalloDeLectura is { } falloLectura)
+            return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+        if (resolucion.Ficha is not { } plantilla)
+            return string.Format(Mensajes.PlantillaNoExiste, plantillaId);
+
+        var respuesta = await programacion.RetirarPlantillaSemanal(plantilla.Id, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } falloDelete)
+            return string.Format(Mensajes.RechazoDelDominio, falloDelete);
+
+        return RespuestaJson.Serializar(new PlantillaRetiradaResumen(
+            Mensajes.ResultadoPlantillaRetirada,
+            new PlantillaRetiradaEco(plantilla.Id, plantilla.Nombre),
+            Mensajes.NotaVisibilidadEventual));
     }
 }
 

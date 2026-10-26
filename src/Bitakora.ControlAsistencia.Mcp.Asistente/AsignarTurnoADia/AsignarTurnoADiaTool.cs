@@ -36,8 +36,45 @@ public partial class AsignarTurnoADiaTool(
         int? semana,
         CancellationToken ct)
     {
-        _ = (programacion, resolutorPlantilla, resolutorTurno);
-        throw new NotImplementedException();
+        if (!Guid.TryParse(plantillaId, out var idDePlantilla))
+            return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
+
+        if (!Guid.TryParse(turnoId, out var idDelTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
+
+        if (string.IsNullOrWhiteSpace(dia))
+            return string.Format(Mensajes.CampoObligatorio, "dia");
+
+        if (!DiaSemanaMcp.TryParsear(dia, out var diaIso))
+            return string.Format(Mensajes.DiaDesconocido, dia);
+
+        var semanaValor = semana ?? 1;
+        if (semanaValor < 1)
+            return string.Format(Mensajes.SemanaInvalida, semanaValor);
+
+        var resolucion = await resolutorPlantilla.ResolverAsync(idDePlantilla, ct);
+        if (resolucion.FalloDeLectura is { } falloLectura)
+            return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+        if (resolucion.Ficha is not { } plantilla)
+            return string.Format(Mensajes.PlantillaNoExiste, plantillaId);
+
+        var resolucionTurno = await resolutorTurno.ResolverAsync(idDelTurno, ct);
+        if (resolucionTurno.FalloDeLectura is { } falloTurno)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
+        if (resolucionTurno.Ficha is not { } turno)
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
+
+        var respuesta = await programacion.AsignarTurnoADia(plantilla.Id, semanaValor, diaIso, turno.Id, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } motivo)
+            return string.Format(Mensajes.RechazoDelDominio, motivo);
+
+        return RespuestaJson.Serializar(new TurnoAsignadoResumen(
+            Mensajes.ResultadoTurnoAsignado,
+            plantilla.Nombre,
+            semanaValor,
+            DiaSemanaMcp.NombreDe(diaIso),
+            turno.Nombre,
+            Mensajes.NotaVisibilidadEventual));
     }
 }
 

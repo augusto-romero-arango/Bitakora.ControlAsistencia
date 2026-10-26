@@ -26,8 +26,34 @@ public partial class AsignarJornadaAPlantillaSemanalTool(
         string jornadaId,
         CancellationToken ct)
     {
-        _ = (programacion, resolutorPlantilla);
-        throw new NotImplementedException();
+        if (!Guid.TryParse(plantillaId, out var idDePlantilla))
+            return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
+
+        if (!Guid.TryParse(jornadaId, out var jornadaGuid))
+            return string.Format(Mensajes.JornadaIdInvalido, jornadaId);
+
+        var resolucion = await resolutorPlantilla.ResolverAsync(idDePlantilla, ct);
+        if (resolucion.FalloDeLectura is { } falloLectura)
+            return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+        if (resolucion.Ficha is not { } plantilla)
+            return string.Format(Mensajes.PlantillaNoExiste, plantillaId);
+
+        var respuestaJornada = await programacion.ObtenerJornada(jornadaGuid, ct);
+        if (respuestaJornada.StatusCode == HttpStatusCode.NotFound)
+            return Mensajes.JornadaNoExiste;
+        if (await respuestaJornada.LeerFalloAsync(ct) is { } falloJornada)
+            return string.Format(Mensajes.RechazoDelDominio, falloJornada);
+        var jornada = await respuestaJornada.LeerDescritaAsync(ct);
+
+        var respuesta = await programacion.AsignarJornadaAPlantillaSemanal(plantilla.Id, jornadaGuid, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } motivo)
+            return string.Format(Mensajes.RechazoDelDominio, motivo);
+
+        return RespuestaJson.Serializar(new JornadaAsignadaResumen(
+            Mensajes.ResultadoJornadaAsignada,
+            plantilla.Nombre,
+            jornada.Resumir(),
+            Mensajes.NotaAdvertenciasEventuales));
     }
 }
 

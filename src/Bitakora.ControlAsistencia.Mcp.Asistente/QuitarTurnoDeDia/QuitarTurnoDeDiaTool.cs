@@ -32,8 +32,35 @@ public partial class QuitarTurnoDeDiaTool(ProgramacionApi programacion, Resoluto
         int? semana,
         CancellationToken ct)
     {
-        _ = (programacion, resolutorPlantilla);
-        throw new NotImplementedException();
+        if (!Guid.TryParse(plantillaId, out var idDePlantilla))
+            return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
+
+        if (string.IsNullOrWhiteSpace(dia))
+            return string.Format(Mensajes.CampoObligatorio, "dia");
+
+        if (!DiaSemanaMcp.TryParsear(dia, out var diaIso))
+            return string.Format(Mensajes.DiaDesconocido, dia);
+
+        var semanaValor = semana ?? 1;
+        if (semanaValor < 1)
+            return string.Format(Mensajes.SemanaInvalida, semanaValor);
+
+        var resolucion = await resolutorPlantilla.ResolverAsync(idDePlantilla, ct);
+        if (resolucion.FalloDeLectura is { } falloLectura)
+            return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+        if (resolucion.Ficha is not { } plantilla)
+            return string.Format(Mensajes.PlantillaNoExiste, plantillaId);
+
+        var respuesta = await programacion.QuitarTurnoDeDia(plantilla.Id, semanaValor, diaIso, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } motivo)
+            return string.Format(Mensajes.RechazoDelDominio, motivo);
+
+        return RespuestaJson.Serializar(new TurnoQuitadoResumen(
+            Mensajes.ResultadoTurnoQuitado,
+            plantilla.Nombre,
+            semanaValor,
+            DiaSemanaMcp.NombreDe(diaIso),
+            Mensajes.NotaVisibilidadEventual));
     }
 }
 

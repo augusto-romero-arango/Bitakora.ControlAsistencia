@@ -31,8 +31,26 @@ public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api)
         string plantillaId,
         CancellationToken ct)
     {
-        _ = api;
-        throw new NotImplementedException();
+        if (!Guid.TryParse(plantillaId, out var idDePlantilla))
+            return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
+
+        var respuesta = await api.ObtenerPlantillaSemanal(idDePlantilla.ToString(), ct);
+        if (respuesta.StatusCode == HttpStatusCode.NotFound)
+            return string.Format(Mensajes.PlantillaNoExiste, plantillaId);
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+
+        var detalle = (await respuesta.Content.ReadFromJsonAsync<CuadroSemanalTurnos>(ct))!;
+
+        var diasPorSemana = detalle.Dias.ToLookup(d => d.Semana);
+        var cuadro = Enumerable.Range(1, detalle.Semanas)
+            .Select(semana => ArmarSemana(semana, diasPorSemana[semana]))
+            .ToList();
+
+        return RespuestaJson.Serializar(new PlantillaSemanalDetallada(
+            detalle.Id, detalle.Nombre.Trim(), detalle.Semanas, detalle.Completa, cuadro,
+            detalle.Jornada?.Resumir(),
+            (detalle.Advertencias ?? []).Select(a => a.Descripcion).ToList()));
     }
 
     private static SemanaDelCuadro ArmarSemana(int semana, IEnumerable<DiaDelCuadro> dias)
