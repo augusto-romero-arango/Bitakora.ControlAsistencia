@@ -35,21 +35,25 @@ public class AplicarPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFi
 
         string[] diasDeLaSemana = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"];
         var dias = JsonSerializer.Serialize(
-            diasDeLaSemana.Select(dia => new { semana = 1, dia, turno = nombreTurno }));
+            diasDeLaSemana.Select(dia => new { semana = 1, dia, turno_id = turnoId }));
         var creada = await mcp.Cliente.CallToolAsync(
             "crear_plantilla_semanal",
             new Dictionary<string, object?> { ["nombre"] = nombrePlantilla, ["dias"] = dias },
             cancellationToken: ct);
         creada.IsError.Should().NotBeTrue();
+        string plantillaId;
         using (var textoCreada = Sembrado.LeerJson(creada))
+        {
             textoCreada.RootElement.TryGetProperty("diasRechazados", out _)
                 .Should().BeFalse("la plantilla sembrada debe quedar completa para poder aplicarse");
+            plantillaId = textoCreada.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
+        }
 
         var argumentos = new Dictionary<string, object?>
         {
             ["desde"] = "2026-10-05",
             ["hasta"] = "2026-10-11",
-            ["plantilla"] = nombrePlantilla,
+            ["plantilla_id"] = plantillaId,
             ["identificaciones"] = identificacion
         };
 
