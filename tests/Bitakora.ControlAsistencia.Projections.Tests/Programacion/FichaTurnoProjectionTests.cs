@@ -609,4 +609,100 @@ public class FichaTurnoProjectionTests
         ficha!.Nombre.Should().Be("Turno");
         ficha.VentanaDeEntrada.Should().BeNull();
     }
+
+    private static FichaTurno CrearAbierto(string horaFin, int diaOffsetFin = 0)
+    {
+        var turnoId = Guid.NewGuid();
+        var turnoCreado = TurnoCreado.CrearDeHorarioAbierto(
+            turnoId, "Horario abierto",
+            [new DatosFranja(new TimeOnly(4, 0), TimeOnly.Parse(horaFin), [], [], null, diaOffsetFin)]);
+        var evento = new Event<TurnoCreado>(turnoCreado)
+        {
+            StreamKey = turnoId.ToString(),
+            Version = 1,
+            Timestamp = DateTimeOffset.UtcNow,
+        };
+        return FichaTurnoProjection.Create(evento);
+    }
+
+    [Theory]
+    [InlineData("06:00", 0, "2 h")]
+    [InlineData("10:30", 0, "6 h 30 min")]
+    [InlineData("00:00", 1, "20 h")]
+    public void Create_ProyectaLaDuracionDelHorarioAbierto_CuandoTurnoCreadoEsDeHorarioAbierto(
+        string horaFin, int diaOffsetFin, string duracionEsperada)
+    {
+        var vista = CrearAbierto(horaFin, diaOffsetFin);
+
+        vista.HorarioAbierto.Should().Be(new HorarioAbiertoFicha(duracionEsperada));
+    }
+
+    [Fact]
+    public void Create_ConservaHorarioResumidoYVentana_CuandoTurnoCreadoEsDeHorarioAbierto()
+    {
+        var vista = CrearAbierto("06:00");
+
+        vista.HorarioResumido.Should().Be("04:00-06:00");
+        vista.VentanaDeEntrada.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_DejaHorarioAbiertoNulo_CuandoTurnoNormal()
+    {
+        var turnoId = Guid.NewGuid();
+        var turnoCreado = TurnoCreado.Crear(
+            turnoId, "Normal", [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], null)]);
+        var evento = new Event<TurnoCreado>(turnoCreado) { StreamKey = turnoId.ToString(), Version = 1, Timestamp = DateTimeOffset.UtcNow };
+
+        FichaTurnoProjection.Create(evento).HorarioAbierto.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_DejaHorarioAbiertoNulo_CuandoTurnoVacioODescanso()
+    {
+        var vacioId = Guid.NewGuid();
+        var vacio = new Event<TurnoCreado>(TurnoCreado.Crear(vacioId, "Vacio", []))
+        { StreamKey = vacioId.ToString(), Version = 1, Timestamp = DateTimeOffset.UtcNow };
+        var descansoId = Guid.NewGuid();
+        var descanso = new Event<TurnoCreado>(TurnoCreado.CrearDescanso(descansoId, "Descanso"))
+        { StreamKey = descansoId.ToString(), Version = 1, Timestamp = DateTimeOffset.UtcNow };
+
+        FichaTurnoProjection.Create(vacio).HorarioAbierto.Should().BeNull();
+        FichaTurnoProjection.Create(descanso).HorarioAbierto.Should().BeNull();
+    }
+
+    [Fact]
+    public void Apply_ConservaHorarioAbierto_CuandoSedeDeFranjaAsignada()
+    {
+        var ficha = CrearAbierto("06:00");
+        var evento = SedeDeFranjaAsignada.Crear(Guid.NewGuid(), FranjaOrdinaria.Crear(
+            new TimeOnly(4, 0), new TimeOnly(6, 0), sede: new SedeProgramada("sede-01", "Sede Centro")));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.HorarioAbierto.Should().Be(new HorarioAbiertoFicha("2 h"));
+    }
+
+    [Fact]
+    public void Apply_ConservaHorarioAbierto_CuandoSedeDeFranjaRetirada()
+    {
+        var ficha = CrearAbierto("06:00");
+        var evento = SedeDeFranjaRetirada.Crear(Guid.NewGuid(), FranjaOrdinaria.Crear(
+            new TimeOnly(4, 0), new TimeOnly(6, 0)));
+
+        var vista = FichaTurnoProjection.Apply(evento, ficha);
+
+        vista.HorarioAbierto.Should().Be(new HorarioAbiertoFicha("2 h"));
+    }
+
+    [Fact]
+    public void Deserializar_DejaHorarioAbiertoNulo_CuandoElJsonNoTieneLaClaveHorarioAbierto()
+    {
+        const string json = """
+            {"Id":"t-1","Nombre":"Turno","EsDescanso":false,"HorarioResumido":"Sin franjas",
+             "Franjas":[],"Descripcion":"Sin franjas","Completo":false}
+            """;
+
+        JsonSerializer.Deserialize<FichaTurno>(json)!.HorarioAbierto.Should().BeNull();
+    }
 }
