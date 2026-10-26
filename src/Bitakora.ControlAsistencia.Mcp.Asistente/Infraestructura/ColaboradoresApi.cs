@@ -74,6 +74,14 @@ public sealed class ColaboradoresApi(HttpClient http)
     public Task<HttpResponseMessage> AsignarJornada(string identificacion, Guid jornadaId, CancellationToken ct) =>
         http.PutAsJsonAsync($"api/colaboradores/{Uri.EscapeDataString(identificacion)}/jornada", new { jornadaId }, ct);
 
+    public Task<HttpResponseMessage> AsignarEtiqueta(
+        string identificacion, string categoria, string valor, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> RetirarEtiqueta(
+        string identificacion, string categoria, CancellationToken ct) =>
+        throw new NotImplementedException();
+
     public Task<HttpResponseMessage> Registrar(RegistroColaboradorSolicitado datos, CancellationToken ct) =>
         http.PostAsJsonAsync("api/colaboradores", datos, ct);
 }
