@@ -8,7 +8,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
     private static readonly string[] ToolsEsperadas =
     [
         "obtener_sesion", "cerrar_sesion", "listar_sedes", "listar_colaboradores",
-        "buscar_colaboradores", "buscar_sedes", "registrar_sede", "registrar_colaborador",
+        "buscar_colaboradores", "buscar_sedes", "registrar_sede", "registrar_colaborador", "registrar_colaboradores",
         "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
         "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
         "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
@@ -34,6 +34,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["listar_colaboradores"] = [],
         ["buscar_colaboradores"] = [],
         ["registrar_sede"] = ["codigo", "nombre"],
+        ["registrar_colaboradores"] = ["colaboradores"],
         ["registrar_colaborador"] =
         [
             "tipo_identificacion", "numero_identificacion", "primer_nombre",
@@ -126,7 +127,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
             var meta = tools.Single(t => t.Name == nombre).ProtocolTool.Meta;
             meta.Should().NotBeNull($"{nombre} debe publicar su _meta");
 
-            var esEscritura = nombre is "registrar_sede" or "registrar_colaborador" or "crear_turno" or "retirar_turno"
+            var esEscritura = nombre is "registrar_sede" or "registrar_colaborador" or "registrar_colaboradores" or "crear_turno" or "retirar_turno"
                 or "agregar_franja" or "quitar_franja" or "agregar_subfranja" or "quitar_subfranja"
                 or "asignar_sede_franja" or "crear_plantilla_semanal" or "retirar_plantilla_semanal"
                 or "asignar_turno_a_dia" or "quitar_turno_de_dia" or "solicitar_programacion_turno"
