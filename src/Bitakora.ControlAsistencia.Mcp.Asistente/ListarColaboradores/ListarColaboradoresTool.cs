@@ -31,7 +31,8 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
             + "AND entre ellos). Si envias identificacion consultas la ficha puntual de ese "
             + "colaborador y los demas filtros no aplican. Sin fecha_referencia se usa el dia de "
             + "hoy. Para ver que turno le rige a alguno, pasa su codigoColaborador a "
-            + "consultar_programacion.")]
+            + "consultar_programacion. Cada colaborador trae vigenteDesde, y vigenteHasta si su "
+            + "vinculacion termino: con ellos confirmas desde y hasta cuando esta vinculado.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
@@ -48,8 +49,10 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
         string? etiquetas,
         [McpToolProperty(
             "fecha_referencia",
-            "Fecha de vigencia a evaluar, formato yyyy-MM-dd. Si se omite se usa hoy en "
-            + "America/Bogota.")]
+            "Fecha desde la que se evalua la vinculacion, formato yyyy-MM-dd: devuelve a quienes "
+            + "no han terminado su vinculacion en esa fecha, incluidos los que ingresan despues. "
+            + "No responde quien estaba activo ese dia: para eso revisa vigenteDesde y "
+            + "vigenteHasta de cada colaborador. Si se omite se usa hoy en America/Bogota.")]
         string? fechaReferencia,
         [McpToolProperty(
             "cursor",
