@@ -19,7 +19,7 @@ public sealed record ElementoAdvertenciasSemana(
 
 public sealed record JornadaAplicadaSemana(string Id, string Descripcion)
 {
-    public JornadaDescritaResumen Resumir() => throw new NotImplementedException();
+    public JornadaDescritaResumen Resumir() => new(Id, Descripcion);
 }
 
 public sealed record CasillaAdvertenciasSemana(DateOnly Fecha, IReadOnlyList<AdvertenciaSemana> Advertencias);

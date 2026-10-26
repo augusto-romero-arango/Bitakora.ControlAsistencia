@@ -27,6 +27,8 @@ public partial class ConsultarAdvertenciasProgramacionTool(
             + "semanales, o tienen dias de descanso de mas o de menos, o un descanso entre turnos "
             + "consecutivos menor al minimo. Sin fecha revisa la PROXIMA semana. Filtra por sede, "
             + "etiquetas (pares categoria:valor) o codigos de colaborador. "
+            + "Cada colaborador muestra la Jornada contra la que se reviso su semana. Sin Jornada "
+            + "(sinJornada) solo se revisa el descanso entre turnos. "
             + "Solo aparecen quienes tienen advertencias. Para ver los turnos de alguien, usa "
             + "consultar_programacion.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
@@ -103,7 +105,9 @@ public partial class ConsultarAdvertenciasProgramacionTool(
             [
                 .. e.Advertencias.Select(a => $"semana: {a.Descripcion}"),
                 .. e.Casillas.SelectMany(c => c.Advertencias.Select(a => $"{Formatear(c.Fecha)}: {a.Descripcion}"))
-            ]);
+            ],
+            e.Jornada?.Resumir(),
+            e.Jornada is null ? true : null);
 
     private (DateOnly Fecha, string? Error) ResolverFecha(string? fecha)
     {
