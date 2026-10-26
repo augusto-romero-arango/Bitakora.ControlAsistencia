@@ -77,8 +77,8 @@ public partial class SolicitarProgramacionTurnoTool(
             return string.Format(Mensajes.CampoObligatorio, "desde");
         if (string.IsNullOrWhiteSpace(hasta))
             return string.Format(Mensajes.CampoObligatorio, "hasta");
-        if (string.IsNullOrWhiteSpace(turnoId))
-            return string.Format(Mensajes.CampoObligatorio, "turno_id");
+        if (!Guid.TryParse(turnoId, out var idDelTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
         if (string.IsNullOrWhiteSpace(identificaciones))
             return string.Format(Mensajes.CampoObligatorio, "identificaciones");
 
@@ -107,9 +107,11 @@ public partial class SolicitarProgramacionTurnoTool(
 
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
-        var resolucion = await resolutor.ResolverAsync(Guid.Empty, ct);
+        var resolucion = await resolutor.ResolverAsync(idDelTurno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurno)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
         if (resolucion.Ficha is not { } fichaTurno)
-            throw new NotImplementedException();
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         SedeProgramada? sedeExplicita = null;
         if (!string.IsNullOrWhiteSpace(sedeDeProgramacion))

@@ -26,14 +26,16 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
         string amplitud,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turnoId))
-            return string.Format(Mensajes.CampoObligatorio, "turno_id");
+        if (!Guid.TryParse(turnoId, out var idDelTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
         if (!ValidadorDuracion.TryParsear(amplitud, out var duracion))
             return string.Format(Mensajes.AmplitudInvalida, amplitud);
 
-        var resolucion = await resolutor.ResolverAsync(Guid.Empty, ct);
+        var resolucion = await resolutor.ResolverAsync(idDelTurno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurno)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
         if (resolucion.Ficha is not { } ficha)
-            throw new NotImplementedException();
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         var respuesta = await programacion.ModificarVentanaDeEntrada(ficha.Id, duracion, ct);
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)

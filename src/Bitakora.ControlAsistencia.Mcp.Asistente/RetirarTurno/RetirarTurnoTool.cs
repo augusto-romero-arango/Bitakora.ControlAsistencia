@@ -27,12 +27,14 @@ public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTur
         string turnoId,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turnoId))
-            return string.Format(Mensajes.CampoObligatorio, "turno_id");
+        if (!Guid.TryParse(turnoId, out var idDelTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
 
-        var resolucion = await resolutor.ResolverAsync(Guid.Empty, ct);
+        var resolucion = await resolutor.ResolverAsync(idDelTurno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurno)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
         if (resolucion.Ficha is not { } ficha)
-            throw new NotImplementedException();
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         var respuesta = await programacion.RetirarTurno(ficha.Id, ct);
 
