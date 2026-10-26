@@ -54,19 +54,22 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         var indice = Indice(vista, evento.Fecha);
         var actual = vista.Casillas[indice];
         var inicioCobertura = turno.Cobertura(evento.Fecha)?.Inicio;
+        var aperturaTurno = turno.TieneVentanaDeEntrada ? null : turno.Apertura(evento.Fecha);
 
         var casilla = actual.AusenciaId is not null
             ? actual with
             {
                 TurnoCubierto = new TurnoCubiertoSemana(turno.Nombre, minutos, esDescanso),
-                InicioCobertura = inicioCobertura
+                InicioCobertura = inicioCobertura,
+                AperturaTurno = aperturaTurno
             }
             : actual with
             {
                 Tipo = esDescanso ? TipoCasilla.Descanso : TipoCasilla.Trabajo,
                 NombreTurno = turno.Nombre,
                 MinutosOrdinarios = minutos,
-                InicioCobertura = inicioCobertura
+                InicioCobertura = inicioCobertura,
+                AperturaTurno = aperturaTurno
             };
 
         var jornada = evento.Jornada is null
@@ -120,8 +123,8 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         var actual = vista.Casillas[indice];
 
         var casilla = actual.AusenciaId is not null
-            ? actual with { TurnoCubierto = null, InicioCobertura = null }
-            : SinProgramar(actual.Fecha, actual.LimiteCoberturaVispera);
+            ? actual with { TurnoCubierto = null, InicioCobertura = null, AperturaTurno = null }
+            : SinProgramar(actual.Fecha, actual.LimiteCoberturaVispera, actual.CierreTurnoVispera);
 
         return RecalcularOBorrar(vista with { NombreCompleto = evento.Colaborador.NombreCompleto }, indice, casilla);
     }
@@ -138,14 +141,16 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
 
         var cubierto = actual.TurnoCubierto;
         var casilla = cubierto is null
-            ? SinProgramar(actual.Fecha, actual.LimiteCoberturaVispera)
+            ? SinProgramar(actual.Fecha, actual.LimiteCoberturaVispera, actual.CierreTurnoVispera)
             : new CasillaDia(
                 actual.Fecha,
                 cubierto.EsDescanso ? TipoCasilla.Descanso : TipoCasilla.Trabajo,
                 cubierto.NombreTurno,
                 cubierto.MinutosOrdinarios,
                 InicioCobertura: actual.InicioCobertura,
-                LimiteCoberturaVispera: actual.LimiteCoberturaVispera);
+                LimiteCoberturaVispera: actual.LimiteCoberturaVispera,
+                AperturaTurno: actual.AperturaTurno,
+                CierreTurnoVispera: actual.CierreTurnoVispera);
 
         return RecalcularOBorrar(vista, indice, casilla);
     }
@@ -161,11 +166,13 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         return Recalcular(vista, indice, vista.Casillas[indice] with { LimiteCoberturaVispera = evento.Limite });
     }
 
-    public static AdvertenciasProgramacionSemanal? Create(CierreDeLaVisperaActualizado evento) =>
-        throw new NotImplementedException();
+    public static AdvertenciasProgramacionSemanal? Create(CierreDeLaVisperaActualizado evento) => null;
 
-    public static AdvertenciasProgramacionSemanal Apply(CierreDeLaVisperaActualizado evento, AdvertenciasProgramacionSemanal vista) =>
-        throw new NotImplementedException();
+    public static AdvertenciasProgramacionSemanal Apply(CierreDeLaVisperaActualizado evento, AdvertenciasProgramacionSemanal vista)
+    {
+        var indice = Indice(vista, FechaDesdeStream(evento.Id));
+        return Recalcular(vista, indice, vista.Casillas[indice] with { CierreTurnoVispera = evento.Cierre });
+    }
 
     private static int Indice(AdvertenciasProgramacionSemanal vista, DateOnly fecha) =>
         fecha.DayNumber - vista.Lunes.DayNumber;
@@ -176,8 +183,10 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         return (ISOWeek.GetYear(dia), ISOWeek.GetWeekOfYear(dia));
     }
 
-    private static CasillaDia SinProgramar(DateOnly fecha, DateTime? limiteCoberturaVispera = null) =>
-        new(fecha, TipoCasilla.SinProgramar, "", 0, LimiteCoberturaVispera: limiteCoberturaVispera);
+    private static CasillaDia SinProgramar(
+        DateOnly fecha, DateTime? limiteCoberturaVispera = null, DateTime? cierreTurnoVispera = null) =>
+        new(fecha, TipoCasilla.SinProgramar, "", 0,
+            LimiteCoberturaVispera: limiteCoberturaVispera, CierreTurnoVispera: cierreTurnoVispera);
 
     private static AdvertenciasProgramacionSemanal Nueva(string codigo, string nombre, DateOnly fecha)
     {

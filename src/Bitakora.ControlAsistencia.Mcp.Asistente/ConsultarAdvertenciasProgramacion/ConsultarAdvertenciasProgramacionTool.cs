@@ -25,7 +25,7 @@ public partial class ConsultarAdvertenciasProgramacionTool(
             + "programacion de una semana (lunes a domingo) fuera de su Jornada y por cuanto -- superan "
             + "el tope diario o las horas semanales, quedan por debajo del minimo diario o de las horas "
             + "semanales, o tienen dias de descanso de mas o de menos, o un descanso entre turnos "
-            + "consecutivos menor al minimo. Sin fecha revisa la PROXIMA semana. Filtra por sede, "
+            + "consecutivos menor al minimo, o turnos fijos que se solapan con el de la vispera. Sin fecha revisa la PROXIMA semana. Filtra por sede, "
             + "etiquetas (pares categoria:valor) o codigos de colaborador. "
             + "Cada colaborador muestra la Jornada contra la que se reviso su semana. Sin Jornada "
             + "(sinJornada) solo se revisa el descanso entre turnos. "

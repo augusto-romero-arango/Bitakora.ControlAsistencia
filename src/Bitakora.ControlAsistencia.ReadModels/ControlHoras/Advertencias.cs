@@ -58,10 +58,18 @@ public static class CalculadorAdvertencias
     }
 
     private static IReadOnlyList<AdvertenciaDiaria> AdvertenciasDelDia(CasillaDia casilla, JornadaAplicada? jornada) =>
-        [.. ContraLaJornada(casilla, jornada), .. DescansoEntreTurnos(casilla)];
+        [.. ContraLaJornada(casilla, jornada), .. EntreTurnos(casilla)];
 
-    private static IEnumerable<AdvertenciaDiaria> DescansoEntreTurnos(CasillaDia casilla)
+    // El solape reemplaza al descanso entre turnos. Fin exclusivo: turnos contiguos no se solapan.
+    private static IEnumerable<AdvertenciaDiaria> EntreTurnos(CasillaDia casilla)
     {
+        if (casilla is { Tipo: TipoCasilla.Trabajo, AperturaTurno: { } apertura, CierreTurnoVispera: { } cierre }
+            && cierre > apertura)
+        {
+            yield return new(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, (int)(cierre - apertura).TotalMinutes);
+            yield break;
+        }
+
         if (casilla is { Tipo: TipoCasilla.Trabajo, InicioCobertura: { } inicio, LimiteCoberturaVispera: { } limite }
             && limite > inicio)
             yield return new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, (int)(limite - inicio).TotalMinutes);
