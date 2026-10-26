@@ -11,7 +11,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanalPorGru
 
 public partial class AplicarPlantillaSemanalPorGrupoTool(
     ProgramacionApi programacion, SedesApi sedes,
-    ResolutorPlantillaPorNombre resolutorPlantillas, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorGrupo resolutorCandidatos,
+    ResolutorPlantillaPorId resolutorPlantillas, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorGrupo resolutorCandidatos,
     ILogger<AplicarPlantillaSemanalPorGrupoTool>? logger = null, TimeProvider? reloj = null)
 {
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
@@ -34,8 +34,8 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
         string desde,
         [McpToolProperty("hasta", "Ultimo dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
         string hasta,
-        [McpToolProperty("plantilla", "Nombre de la plantilla semanal; miralo con buscar_plantillas_semanales.", isRequired: true)]
-        string plantilla,
+        [McpToolProperty("plantilla_id", "Id de la plantilla semanal, tal como lo da buscar_plantillas_semanales.", isRequired: true)]
+        string plantillaId,
         [McpToolProperty(
             "sede_de_programacion",
             "Opcional. Codigo de la sede donde se registra la programacion; sugierela al usuario. "
@@ -53,8 +53,8 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
             return string.Format(Mensajes.CampoObligatorio, "desde");
         if (string.IsNullOrWhiteSpace(hasta))
             return string.Format(Mensajes.CampoObligatorio, "hasta");
-        if (string.IsNullOrWhiteSpace(plantilla))
-            return string.Format(Mensajes.CampoObligatorio, "plantilla");
+        if (string.IsNullOrWhiteSpace(plantillaId))
+            return string.Format(Mensajes.CampoObligatorio, "plantilla_id");
 
         var mensajesSelector = new MensajesDeSelector(
             Mensajes.SelectorObligatorio, Mensajes.EtiquetaMalFormada, Mensajes.SedeDelSelectorNoExiste,
@@ -80,7 +80,7 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
         var (moldeResuelto, rechazoPlantilla) = await MoldeDePlantilla.ResolverAsync(
-            resolutorPlantillas, plantilla,
+            resolutorPlantillas, plantillaId,
             new MensajesDePlantilla(
                 Mensajes.PlantillaNoExiste, Mensajes.PlantillaIncompleta, Mensajes.PlantillaConTurnoNoProgramable,
                 Mensajes.RechazoDelDominio), ct);

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -15,7 +16,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.CrearPlantillaSemanal;
 // huerfanas). Cada rechazo por dia se traduce a texto y no detiene al resto (CA-ADR-0030): la
 // plantilla queda incompleta y visible. Un dia puede traer una franja inline (CA-ADR-0034 decision
 // 6): el turno se resuelve/crea en el catalogo con nombre derivado antes de escribir la plantilla.
-public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
+public partial class CrearPlantillaSemanalTool(
+    ProgramacionApi programacion, ResolutorTurnoPorId resolutorPorId, ResolutorTurnoPorNombre resolutor)
 {
     internal const string NombreTool = "crear_plantilla_semanal";
     internal const int MinimoSemanas = 1;
@@ -29,10 +31,10 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
         [McpToolTrigger(
             NombreTool,
             "Crea una plantilla semanal de turnos: un molde de 1 a 6 semanas, lunes a domingo, "
-            + "donde cada dia lleva un turno del catalogo por su nombre exacto (miralo con "
+            + "donde cada dia lleva un turno del catalogo por su id (miralo con "
             + "buscar_turnos). Solo admite turnos completos; el descanso es un turno mas. Recibe "
             + "la composicion en dias como JSON: una entrada por dia con semana (opcional, 1 por "
-            + "defecto), dia (lunes..domingo o 1..7) y turno (nombre exacto) o franja (HH:mm-HH:mm, "
+            + "defecto), dia (lunes..domingo o 1..7) y turno_id (id que da buscar_turnos) o franja (HH:mm-HH:mm, "
             + "excluyentes; la franja crea o reutiliza un turno nombrado con la franja, ej. 07:00-17:00, "
             + "o 22:00-06:00+1 si cruza la medianoche; fin menor que inicio cruza la medianoche, "
             + "inicio igual a fin es 24 horas). Si algun turno no existe, no crea "
@@ -49,14 +51,15 @@ public partial class CrearPlantillaSemanalTool(ProgramacionApi programacion, Res
         [McpToolProperty(
             "dias",
             "Composicion de la plantilla como JSON: lista de objetos con semana (opcional, 1 por "
-            + "defecto), dia (lunes..domingo o 1..7) y turno (nombre exacto del catalogo) o franja (HH:mm-HH:mm, excluyentes). Ejemplo: "
-            + """[{"semana":1,"dia":"lunes","turno":"Cocina Manana"},{"semana":1,"dia":"martes","franja":"07:00-17:00"}].""",
+            + "defecto), dia (lunes..domingo o 1..7) y turno_id (id que da buscar_turnos) o franja (HH:mm-HH:mm, excluyentes). Ejemplo: "
+            + """[{"semana":1,"dia":"lunes","turno_id":"<id>"},{"semana":1,"dia":"martes","franja":"07:00-17:00"}].""",
             isRequired: true)]
         string dias,
         [McpToolProperty("jornada_id", "Identificador de la Jornada, tal como lo da listar_jornadas.")]
         string? jornadaId,
         CancellationToken ct)
     {
+        _ = resolutorPorId;
         if (string.IsNullOrWhiteSpace(nombre))
             return string.Format(Mensajes.CampoObligatorio, "nombre");
 
@@ -321,4 +324,6 @@ public sealed record DiaRechazado(int Semana, string Dia, string Turno, string M
 /// escribirlo con o sin comillas ("miercoles" o 3): DiaSemanaMcp.TryParsear normaliza ambas formas
 /// a partir del texto que esta tool extrae de aqui.
 /// </summary>
-public sealed record DiaDePlantillaEntrada(int? Semana, JsonElement Dia, string? Turno, string? Franja = null);
+public sealed record DiaDePlantillaEntrada(
+    int? Semana, JsonElement Dia, string? Turno, string? Franja = null,
+    [property: JsonPropertyName("turno_id")] string? TurnoId = null);

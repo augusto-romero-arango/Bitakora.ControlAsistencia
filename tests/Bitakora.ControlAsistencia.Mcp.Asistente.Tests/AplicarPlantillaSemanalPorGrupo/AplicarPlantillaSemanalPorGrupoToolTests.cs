@@ -15,6 +15,8 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     private const string RutaPlantillas = "/api/programacion/plantillas-semanales";
     private const string RutaTurnos = "/api/programacion/turnos";
     private const string RutaSolicitudes = "/api/programacion/solicitudes";
+    private const string PlantillaId = "01a07000-1000-7000-9000-000000000001";
+    private const string PlantillaIdInexistente = "01a07000-1000-7000-9000-0000000000ff";
     private const string TurnoA = "8f14e45f-ceea-4b3c-8f0a-000000000001";
     private const string TurnoB = "8f14e45f-ceea-4b3c-8f0a-000000000002";
     private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
@@ -110,7 +112,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     {
         var consultas = new List<JsonNode>();
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
-        programacion.Responde(HttpMethod.Get, RutaPlantillas, HttpStatusCode.OK, plantillasJson ?? Plantillas());
+        programacion.RespondeDetalleDePlantilla(plantillasJson ?? Plantillas(), PlantillaId);
         programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, Turnos(sedeDeLaFranja));
         programacion.Responde(
             HttpMethod.Post, RutaSolicitudes,
@@ -126,17 +128,17 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
 
         var tool = new AplicarPlantillaSemanalPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorPlantillaPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorPlantillaPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)), logger);
         return new Entorno(tool, programacion, consultas);
     }
 
     private static Task<string> Ejecutar(
-        Entorno entorno, string desde = "2026-09-01", string hasta = "2026-09-14", string plantilla = "Semana A",
+        Entorno entorno, string desde = "2026-09-01", string hasta = "2026-09-14", string plantillaId = PlantillaId,
         string? sedeDeProgramacion = null, string? sede = null, string? etiquetas = "area:cocina") =>
         entorno.Tool.Run(
-            null!, desde, hasta, plantilla, sedeDeProgramacion, sede, etiquetas,
+            null!, desde, hasta, plantillaId, sedeDeProgramacion, sede, etiquetas,
             TestContext.Current.CancellationToken);
 
     [Fact]
@@ -144,7 +146,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     {
         var entorno = Crear(plantillasJson: """{"elementos":[]}""");
 
-        var resultado = await Ejecutar(entorno, plantilla: "[TEST] Plantilla que no existe", etiquetas: "area");
+        var resultado = await Ejecutar(entorno, plantillaId: PlantillaIdInexistente, etiquetas: "area");
 
         resultado.Should().Be(string.Format(AplicarPlantillaSemanalPorGrupoTool.Mensajes.EtiquetaMalFormada, "area"));
         entorno.Programacion.Requests.Should().BeEmpty();
@@ -157,7 +159,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
         var entorno = Crear(plantillasJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(
-            entorno, plantilla: "[TEST] Plantilla que no existe", sede: null, etiquetas: null);
+            entorno, plantillaId: PlantillaIdInexistente, sede: null, etiquetas: null);
 
         resultado.Should().Be(AplicarPlantillaSemanalPorGrupoTool.Mensajes.SelectorObligatorio);
         entorno.Programacion.Requests.Should().BeEmpty();
@@ -225,10 +227,37 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     {
         var entorno = Crear();
 
-        var resultado = await Ejecutar(entorno, plantilla: "Inexistente");
+        var resultado = await Ejecutar(entorno, plantillaId: PlantillaIdInexistente);
 
-        resultado.Should().Contain("Inexistente").And.Contain("Semana A");
+        resultado.Should().Be(string.Format(
+            AplicarPlantillaSemanalPorGrupoTool.Mensajes.PlantillaNoExiste, PlantillaIdInexistente));
         entorno.SinEscrituras();
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanalPorGrupo_RechazaSinLlamarAlBackend_CuandoElPlantillaIdNoEsGuid()
+    {
+        var entorno = Crear();
+
+        var resultado = await Ejecutar(entorno, plantillaId: "Semana A");
+
+        resultado.Should().Be(string.Format(
+            AplicarPlantillaSemanalPorGrupoTool.Mensajes.PlantillaIdInvalido, "Semana A"));
+        entorno.Programacion.Requests.Should().BeEmpty();
+        entorno.SinEscrituras();
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanalPorGrupo_LeeElDetalleYNoElCatalogoDePlantillas_CuandoLaPlantillaExiste()
+    {
+        var entorno = Crear(fichas: Fichas(1));
+
+        await Ejecutar(entorno);
+
+        entorno.Programacion.Requests.Should().Contain(
+            r => r.Metodo == HttpMethod.Get && r.Ruta == DetalleDePlantillaFalso.RutaDetalle(PlantillaId));
+        entorno.Programacion.Requests.Should().NotContain(
+            r => r.Metodo == HttpMethod.Get && r.Ruta == RutaPlantillas);
     }
 
     [Fact]
@@ -427,18 +456,18 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     public async Task AplicarPlantillaSemanalPorGrupo_RechazaConElDominio_CuandoLaConsultaDeFichasFalla()
     {
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
-        programacion.Responde(HttpMethod.Get, RutaPlantillas, HttpStatusCode.OK, Plantillas());
+        programacion.RespondeDetalleDePlantilla(Plantillas(), PlantillaId);
         programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, Turnos("SUBA"));
         var (clienteSedes, _) = ClienteFalso.ConFuncion(r => EntornoDeSedes.RespondeSedes(r));
         var (clienteColaboradores, _) = ClienteFalso.Con("boom", HttpStatusCode.InternalServerError);
         var tool = new AplicarPlantillaSemanalPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorPlantillaPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorPlantillaPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)));
 
         var resultado = await tool.Run(
-            null!, "2026-09-01", "2026-09-14", "Semana A", null, null, "area:cocina",
+            null!, "2026-09-01", "2026-09-14", PlantillaId, null, null, "area:cocina",
             TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(AplicarPlantillaSemanalPorGrupoTool.Mensajes.RechazoDelDominio, "boom"));
