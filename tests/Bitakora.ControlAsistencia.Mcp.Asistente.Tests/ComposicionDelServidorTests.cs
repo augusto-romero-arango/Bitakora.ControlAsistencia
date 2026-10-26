@@ -351,7 +351,8 @@ public class ComposicionDelServidorTests
         franjas.ParameterType.Should().Be(typeof(string));
         franjas.GetCustomAttribute<McpToolPropertyAttribute>()!.Description.Should().Contain("HH:mm-HH:mm");
         ParametroTrigger(MetodoDe("crear_turno"))!.GetCustomAttribute<McpToolTriggerAttribute>()!
-            .Description.Should().Contain("franjas");
+            .Description.Should().Contain("pasa sus franjas").And.Contain("no se crea nada")
+            .And.Contain("cruza la medianoche").And.Contain("24 horas");
     }
 
     [Fact]

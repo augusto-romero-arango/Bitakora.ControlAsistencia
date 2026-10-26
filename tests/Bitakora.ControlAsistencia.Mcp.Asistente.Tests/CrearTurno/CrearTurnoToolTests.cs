@@ -220,6 +220,20 @@ public class CrearTurnoToolTests
         turno.AsObject().ContainsKey("franjas").Should().BeFalse();
     }
 
+    [Fact]
+    public async Task CrearTurno_CreaElTurnoVacioSinOrdinarias_CuandoFranjasEsUnaListaVacia()
+    {
+        var fakes = CrearToolConSedes();
+
+        var resultado = await EjecutarConFranjas(fakes.Tool, "[]");
+
+        JsonNode.Parse(fakes.Programacion.UltimoCuerpoEnviado!)!.AsObject()
+            .ContainsKey("ordinarias").Should().BeFalse();
+        var turno = JsonNode.Parse(resultado)!["turno"]!;
+        turno["completo"]!.GetValue<bool>().Should().BeFalse();
+        turno.AsObject().ContainsKey("franjas").Should().BeFalse();
+    }
+
     // CA-3: validacion previa, sin tocar ningun dominio.
     [Fact]
     public async Task CrearTurno_RespondeFranjasJsonInvalido_CuandoFranjasNoEsJson()

@@ -18,7 +18,11 @@ public partial class CrearTurnoTool(ProgramacionApi programacion, ResolutorSedeP
             NombreTool,
             "Crea un turno nuevo del catalogo. Por defecto nace vacio (turno incompleto): existe "
             + "y se puede seguir disenando con agregar_franja, pero no se puede programar hasta "
-            + "tener al menos una franja ordinaria. Con es_descanso en true crea un turno de "
+            + "tener al menos una franja ordinaria. Si ya conoces el turno completo, pasa sus "
+            + "franjas con sus descansos, extras y sede en la misma llamada (parametro franjas): nace "
+            + "completo y programable, y si una franja es invalida no se crea nada. Horas sin "
+            + "offsets: si el fin es menor que el inicio la franja cruza la medianoche, y si el "
+            + "inicio es igual al fin dura 24 horas. Con es_descanso en true crea un turno de "
             + "descanso (dia libre programable, no admite franjas). El nombre es unico en el "
             + "catalogo, sin distinguir mayusculas ni espacios repetidos; si ya existe, responde "
             + "el rechazo del dominio. Aparece en listar_turnos en unos segundos.")]
@@ -50,30 +54,34 @@ public partial class CrearTurnoTool(ProgramacionApi programacion, ResolutorSedeP
         var descanso = esDescanso ?? false;
         var turnoId = Guid.CreateVersion7();
 
-        IReadOnlyList<OrdinariaACrear>? ordinarias = null;
-        IReadOnlyList<string>? franjasEco = null;
+        IReadOnlyList<FranjaLeida> leidas = [];
         if (!string.IsNullOrWhiteSpace(franjas))
         {
             var lectura = FranjasDeTurno.Leer(franjas);
             if (lectura.Error is not null)
                 return lectura.Error;
-
-            var sedes = new Dictionary<string, SedeProgramada>();
-            foreach (var codigo in lectura.Franjas.Select(f => f.CodigoSede).OfType<string>().Distinct())
-            {
-                var resolucionSede = await resolutorSedes.ResolverAsync(codigo, ct);
-                if (resolucionSede.FalloDeLectura is { } falloSede)
-                    return string.Format(Mensajes.RechazoDelDominio, falloSede);
-                if (resolucionSede.MensajeDelMotivo(
-                    codigo, noExiste: Mensajes.SedeNoExiste, inactiva: Mensajes.SedeInactiva) is { } rechazo)
-                    return rechazo;
-
-                sedes[codigo] = resolucionSede.Sede!;
-            }
-
-            ordinarias = lectura.Franjas.Select(f => f.ParaEnviar(f.CodigoSede is null ? null : sedes[f.CodigoSede])).ToList();
-            franjasEco = lectura.Franjas.Select(f => f.Compactar(f.CodigoSede is null ? null : sedes[f.CodigoSede].Nombre)).ToList();
+            leidas = lectura.Franjas;
         }
+
+        var sedes = new Dictionary<string, SedeProgramada>();
+        foreach (var codigo in leidas.Select(f => f.CodigoSede).OfType<string>().Distinct())
+        {
+            var resolucionSede = await resolutorSedes.ResolverAsync(codigo, ct);
+            if (resolucionSede.FalloDeLectura is { } falloSede)
+                return string.Format(Mensajes.RechazoDelDominio, falloSede);
+            if (resolucionSede.MensajeDelMotivo(
+                codigo, noExiste: Mensajes.SedeNoExiste, inactiva: Mensajes.SedeInactiva) is { } rechazo)
+                return rechazo;
+
+            sedes[codigo] = resolucionSede.Sede!;
+        }
+
+        // franjas "[]" equivale a omitirlas: el turno nace vacio y el eco no lo declara completo.
+        var conSede = leidas.Select(f => (Franja: f, Sede: f.CodigoSede is null ? null : sedes[f.CodigoSede])).ToList();
+        IReadOnlyList<OrdinariaACrear>? ordinarias =
+            conSede.Count == 0 ? null : conSede.Select(x => x.Franja.ParaEnviar(x.Sede)).ToList();
+        IReadOnlyList<string>? franjasEco =
+            conSede.Count == 0 ? null : conSede.Select(x => x.Franja.Compactar(x.Sede?.Nombre)).ToList();
 
         var respuesta = await programacion.CrearTurno(turnoId, nombre, descanso, ct, ordinarias);
 
@@ -88,9 +96,9 @@ public partial class CrearTurnoTool(ProgramacionApi programacion, ResolutorSedeP
 }
 
 /// <summary>
-/// Eco compacto de crear_turno hacia el asistente: el 202 del dominio no trae body, asi que el
+/// Eco compacto de crear_turno hacia el asistente: el 201 del dominio no trae body, asi que el
 /// turno creado se reconstruye con lo que entro a la tool mas el id generado por ella.
-/// completo = esDescanso (un turno recien creado solo esta completo si es descanso).
+/// Un turno recien creado esta completo si es descanso o si nacio con franjas.
 /// </summary>
 public sealed record TurnoCreadoResumen(string Resultado, TurnoCreadoEco Turno, string Nota);
 
