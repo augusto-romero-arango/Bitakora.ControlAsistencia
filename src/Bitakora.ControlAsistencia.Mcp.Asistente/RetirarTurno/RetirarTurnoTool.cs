@@ -4,10 +4,9 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.RetirarTurno;
 
-// Cliente HTTP puro de GET programacion/turnos (resolver nombre -> id, via
-// ResolutorTurnoPorNombre) + DELETE programacion/turnos/{id} (paso 3 MEF-ADR-0043): referencia
-// por nombre, mismo resolutor que solicitar_programacion_turno (MEF-ADR-0018). El 404/409 del
-// DELETE se devuelve como texto, nunca como excepcion (CA-ADR-0030).
+// Cliente HTTP puro de GET programacion/turnos/{id} (ResolutorTurnoPorId, CA-ADR-0039 decision 18)
+// + DELETE programacion/turnos/{id} (paso 3 MEF-ADR-0043). El 404/409 del DELETE se devuelve como
+// texto, nunca como excepcion (CA-ADR-0030).
 public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
 {
     internal const string NombreTool = "retirar_turno";
@@ -49,8 +48,8 @@ public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTur
 }
 
 /// <summary>
-/// Eco compacto de retirar_turno hacia el asistente: el 202 del dominio no trae body, asi que el
-/// turno retirado se reconstruye con la ficha ya resuelta por nombre.
+/// Eco compacto de retirar_turno hacia el asistente: el DELETE no trae body, asi que el turno
+/// retirado se reconstruye con la ficha leida del detalle.
 /// </summary>
 public sealed record TurnoRetiradoResumen(string Resultado, TurnoRetiradoEco Turno, string Nota);
 

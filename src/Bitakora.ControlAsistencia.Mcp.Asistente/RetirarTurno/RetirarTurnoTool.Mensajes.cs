@@ -12,10 +12,6 @@ public partial class RetirarTurnoTool
 
     internal static class Mensajes
     {
-        /// <summary>{0}: nombre del campo obligatorio en blanco.</summary>
-        public static string CampoObligatorio =>
-            ResourceManager.GetString(nameof(CampoObligatorio))!;
-
         /// <summary>{0}: valor recibido en turno_id.</summary>
         public static string TurnoIdInvalido =>
             ResourceManager.GetString(nameof(TurnoIdInvalido))!;

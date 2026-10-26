@@ -68,6 +68,7 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
 
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
         programacion.RespondeDetalleDeTurno(turnosJson ?? TurnosJson, TurnoId);
+        programacion.RespondeDetalleDeTurno(turnosJson ?? TurnosJson, TurnoInexistenteId);
         programacion.Responde(
             HttpMethod.Post, RutaSolicitudes,
             (_, cuerpo) => respuestaPost?.Invoke(cuerpo) ?? Respuesta(HttpStatusCode.Created, ""));

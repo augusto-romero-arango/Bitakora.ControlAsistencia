@@ -22,6 +22,7 @@ public class ModificarVentanaDeEntradaToolTests
         var catalogo = Fixtures.Leer("ModificarVentanaDeEntrada", "turnos.json");
         handler.RespondeDetalleDeTurno(catalogo, TurnoId);
         handler.RespondeDetalleDeTurno(catalogo, TurnoSinFranjasId);
+        handler.RespondeDetalleDeTurno(catalogo, TurnoInexistenteId);
         handler.Responde(HttpMethod.Put, Ruta(TurnoId), statusPut, cuerpoPut);
         handler.Responde(HttpMethod.Put, Ruta(TurnoSinFranjasId), statusPut, cuerpoPut);
         var api = new ProgramacionApi(cliente);

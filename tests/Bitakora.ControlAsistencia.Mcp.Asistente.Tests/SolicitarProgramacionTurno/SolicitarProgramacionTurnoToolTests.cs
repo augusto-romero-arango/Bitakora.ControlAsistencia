@@ -43,7 +43,10 @@ public class SolicitarProgramacionTurnoToolTests
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();
         if (statusTurnos == HttpStatusCode.OK)
+        {
             handlerProgramacion.RespondeDetalleDeTurno(turnosJson ?? TurnosJson, TurnoId);
+            handlerProgramacion.RespondeDetalleDeTurno(turnosJson ?? TurnosJson, TurnoInexistenteId);
+        }
         else
             handlerProgramacion.Responde(
                 HttpMethod.Get, DetalleDeTurnoFalso.RutaDetalle(TurnoId), statusTurnos, turnosJson ?? "");
