@@ -58,7 +58,7 @@ public class ConsultarProgramacionHorarioAbiertoTests
     }
 
     [Fact]
-    public async Task ConsultarProgramacion_SumaLaDuracionCompleta_CuandoLosBloquesLlegaPartidosEnLaMedianoche()
+    public async Task ConsultarProgramacion_SumaLaDuracionCompleta_CuandoLosBloquesLleganPartidosEnLaMedianoche()
     {
         var bloques = await BloquesDe("turnos-vigentes-abierto-20h-corte.json");
 

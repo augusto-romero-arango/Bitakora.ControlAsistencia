@@ -180,6 +180,7 @@ public partial class ConsultarProgramacionTool(
         return sede is null ? texto : $"{texto}, sede: {sede}";
     }
 
+    // Replica de TextoDeAmplitud (ModificarVentanaDeEntradaTool); segunda aparicion, sin extraer (MEF-ADR-0018).
     private static string TextoDeDuracion(int horas, int minutos) => (horas, minutos) switch
     {
         (_, 0) => $"{horas} {Mensajes.Horas}",
