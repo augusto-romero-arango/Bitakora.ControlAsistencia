@@ -10,7 +10,8 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// ProgramacionTurnoSolicitada; el FA lo mapea campo a campo a DetalleTurno para el bus.
 ///
 /// Equals/GetHashCode comparan FranjasOrdinarias POR VALOR (SequenceEqual), incluyen
-/// AmplitudVentanaEntradaEnMinutos (identidad del turno) y EXCLUYEN Descripcion (dato derivado) --
+/// AmplitudVentanaEntradaEnMinutos y EsHorarioAbierto (identidad del turno) y EXCLUYEN Descripcion
+/// (dato derivado) --
 /// mismo criterio que DetalleTurno y TurnoDiario.
 /// </remarks>
 public record TurnoProgramado(

@@ -11,8 +11,8 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 ///
 /// Descripcion es la representacion textual normalizada del turno (CatalogoTurnos.ToString()),
 /// dato derivado. El record por defecto compararia FranjasOrdinarias (IReadOnlyList) por
-/// referencia: Equals/GetHashCode propios comparan Nombre, AmplitudVentanaEntradaEnMinutos y
-/// FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN Descripcion.
+/// referencia: Equals/GetHashCode propios comparan Nombre, AmplitudVentanaEntradaEnMinutos,
+/// EsHorarioAbierto y FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN Descripcion.
 /// </remarks>
 public record DetalleTurno(
     string Nombre,
