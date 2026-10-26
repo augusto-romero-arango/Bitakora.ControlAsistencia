@@ -14,6 +14,7 @@ public sealed partial class TurnoCreado
     public string Nombre { get; private set; }
     public IReadOnlyList<FranjaOrdinaria> FranjasOrdinarias { get; private set; }
     public bool EsDescanso { get; private set; }
+    public bool EsHorarioAbierto { get; private set; }
 
     // CA-12: constructor real privado -- solo el factory lo invoca
     private TurnoCreado(
@@ -110,6 +111,10 @@ public sealed partial class TurnoCreado
 
         return new TurnoCreado(turnoId, nombre, [], esDescanso: true);
     }
+
+    public static TurnoCreado CrearDeHorarioAbierto(
+        Guid turnoId, string nombre, IReadOnlyList<DatosFranja> ordinarias) =>
+        throw new NotImplementedException();
 
     // Detecta si algun par de franjas ordinarias se solapa usando minutos absolutos desde el dia base.
     // Duplicacion deliberada respecto de FranjaTemporal.SeSolapaCon -- decidida en #272 y #285,
