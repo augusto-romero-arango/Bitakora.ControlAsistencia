@@ -27,13 +27,14 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
         creado.IsError.Should().NotBeTrue();
 
         using var ficha = await programacion.Client.EsperarFichaAsync(nombreTurno, ct);
+        var turnoId = ficha.RootElement.GetProperty("id").GetString()!;
         ficha.RootElement.GetProperty("franjas").GetArrayLength().Should().Be(0);
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombreTurno,
+                ["turno_id"] = turnoId,
                 ["franja"] = "22:00",
                 ["tipo"] = "descanso",
                 ["inicio"] = "02:00"
@@ -49,7 +50,7 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
     // Error path que no toca el dominio: campo en blanco corta en el worker (mensaje .resx).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarSubFranja_RespondeElMensajeDeValidacion_CuandoElTurnoEstaEnBlanco()
+    public async Task QuitarSubFranja_RespondeElMensajeDeValidacion_CuandoElTurnoIdEstaEnBlanco()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -57,14 +58,14 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = "   ",
+                ["turno_id"] = "   ",
                 ["franja"] = "22:00",
                 ["tipo"] = "descanso",
                 ["inicio"] = "02:00"
             },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().Be("'turno' es obligatorio.");
+        TextoDe(resultado).Should().StartWith("turno_id debe ser el id del turno");
     }
 
     [Fact]
@@ -77,7 +78,7 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = "cualquiera",
+                ["turno_id"] = Guid.NewGuid().ToString(),
                 ["franja"] = "22:00",
                 ["tipo"] = "pausa",
                 ["inicio"] = "02:00"
@@ -97,7 +98,7 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = "cualquiera",
+                ["turno_id"] = Guid.NewGuid().ToString(),
                 ["franja"] = "22:00",
                 ["tipo"] = "descanso",
                 ["inicio"] = "2am"
@@ -109,22 +110,22 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarSubFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task QuitarSubFranja_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nombre = $"[TEST] Turno que no existe {Guid.CreateVersion7()}";
+        var turnoInexistente = Guid.CreateVersion7().ToString();
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombre,
+                ["turno_id"] = turnoInexistente,
                 ["franja"] = "22:00",
                 ["tipo"] = "descanso",
                 ["inicio"] = "02:00"
             },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().StartWith($"No existe un turno con el nombre '{nombre}'.");
+        TextoDe(resultado).Should().Contain(turnoInexistente).And.Contain("buscar_turnos");
     }
 }

@@ -36,7 +36,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
             var conFranja = await mcp.Cliente.CallToolAsync(
                 "agregar_franja",
-                new Dictionary<string, object?> { ["turno"] = turno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+                new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()!, ["inicio"] = "06:00", ["fin"] = "14:00" },
                 cancellationToken: ct);
             conFranja.IsError.Should().NotBeTrue();
         }
@@ -164,7 +164,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
         using var ficha = await programacion.Client.EsperarFichaAsync(turno, ct);
         (await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = turno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+            new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()!, ["inicio"] = "06:00", ["fin"] = "14:00" },
             cancellationToken: ct)).IsError.Should().NotBeTrue();
 
         var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{turno}}"}]""";

@@ -4,12 +4,12 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AgregarFranja;
 
-// Cliente HTTP puro que envuelve GET programacion/turnos (resolver nombre -> id, via
-// ResolutorTurnoPorNombre) + GET sedes/fichas/{codigo} (solo si viene codigo_sede) + POST
+// Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno, via
+// ResolutorTurnoPorId) + GET sedes/fichas/{codigo} (solo si viene codigo_sede) + POST
 // programacion/turnos/{id}:agregar-franja (paso 4 MEF-ADR-0043). El 400/404/409 del POST se
 // traduce a texto, nunca a excepcion (CA-ADR-0030).
 public partial class AgregarFranjaTool(
-    ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor, ResolutorSedePorCodigo resolutorSedes)
+    ProgramacionApi programacion, ResolutorTurnoPorId resolutor, ResolutorSedePorCodigo resolutorSedes)
 {
     internal const string NombreTool = "agregar_franja";
 
@@ -17,8 +17,8 @@ public partial class AgregarFranjaTool(
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Agrega una franja ordinaria (segmento continuo de trabajo) a un turno del catalogo, "
-            + "indicado por su nombre exacto. Horas en formato HH:mm; si fin es menor que inicio la "
+            "Agrega una franja ordinaria (segmento continuo de trabajo) a un turno del catalogo. "
+            + "Horas en formato HH:mm; si fin es menor que inicio la "
             + "franja cruza la medianoche; inicio igual a fin significa una franja de 24 horas. "
             + "Opcional codigo_sede (obtenlo con buscar_sedes) para prearmar la sede de esa franja. "
             + "Una franja no puede solaparse con otra del mismo turno ni agregarse a un turno de "
@@ -26,8 +26,8 @@ public partial class AgregarFranjaTool(
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
-        string turno,
+            "turno_id", "Id del turno, tal como lo da buscar_turnos.", isRequired: true)]
+        string turnoId,
         [McpToolProperty("inicio", "Hora de inicio de la franja, formato HH:mm.", isRequired: true)]
         string inicio,
         [McpToolProperty("fin", "Hora de fin de la franja, formato HH:mm.", isRequired: true)]
@@ -38,8 +38,8 @@ public partial class AgregarFranjaTool(
         string? codigoSede,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turno))
-            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (!Guid.TryParse(turnoId, out var idTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
         if (string.IsNullOrWhiteSpace(inicio))
             return string.Format(Mensajes.CampoObligatorio, "inicio");
         if (string.IsNullOrWhiteSpace(fin))
@@ -50,13 +50,11 @@ public partial class AgregarFranjaTool(
         if (!NotacionFranja.TryParseHora(fin, out var horaFin))
             return string.Format(Mensajes.HoraInvalida, "fin", fin);
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
+        var resolucion = await resolutor.ResolverAsync(idTurno, ct);
         if (resolucion.FalloDeLectura is { } falloTurnos)
             return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
-        var fichaTurno = resolucion.Ficha;
+        if (resolucion.Ficha is not { } fichaTurno)
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         SedeProgramada? sede = null;
         if (!string.IsNullOrWhiteSpace(codigoSede))

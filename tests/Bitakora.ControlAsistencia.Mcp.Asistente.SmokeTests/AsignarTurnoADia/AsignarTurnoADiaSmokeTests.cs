@@ -45,7 +45,7 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
         var conFranja = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "06:00", ["fin"] = "14:00" },
             cancellationToken: ct);
         conFranja.IsError.Should().NotBeTrue();
 

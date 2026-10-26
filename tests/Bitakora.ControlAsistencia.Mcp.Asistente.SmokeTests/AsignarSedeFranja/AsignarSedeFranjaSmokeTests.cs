@@ -63,7 +63,7 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
 
         var agregadaFranja = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["inicio"] = "14:00", ["fin"] = "22:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "14:00", ["fin"] = "22:00" },
             cancellationToken: ct);
         agregadaFranja.IsError.Should().NotBeTrue();
 
@@ -74,7 +74,7 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
 
         var argumentosAsignar = new Dictionary<string, object?>
         {
-            ["turno"] = nombreTurno,
+            ["turno_id"] = turnoId,
             ["franja"] = "14:00",
             ["codigo_sede"] = codigoSede
         };
@@ -97,7 +97,7 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
 
         var retirada = await mcp.Cliente.CallToolAsync(
             "asignar_sede_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["franja"] = "14:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["franja"] = "14:00" },
             cancellationToken: ct);
         retirada.IsError.Should().NotBeTrue();
         using var ecoRetirado = JsonDocument.Parse(TextoDe(retirada));
@@ -114,16 +114,16 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
     // que los recursos embebidos viajaron en el publish.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarSedeFranja_RespondeElMensajeDeValidacion_CuandoElTurnoEstaEnBlanco()
+    public async Task AsignarSedeFranja_RespondeElMensajeDeValidacion_CuandoElTurnoIdEstaEnBlanco()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "asignar_sede_franja",
-            new Dictionary<string, object?> { ["turno"] = "   ", ["franja"] = "14:00" },
+            new Dictionary<string, object?> { ["turno_id"] = "   ", ["franja"] = "14:00" },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().Be("'turno' es obligatorio.");
+        TextoDe(resultado).Should().StartWith("turno_id debe ser el id del turno");
     }
 
     // Hora no parseable corta antes de resolver el turno.
@@ -135,26 +135,26 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "asignar_sede_franja",
-            new Dictionary<string, object?> { ["turno"] = "cualquiera", ["franja"] = "2pm" },
+            new Dictionary<string, object?> { ["turno_id"] = Guid.NewGuid().ToString(), ["franja"] = "2pm" },
             cancellationToken: ct);
 
         TextoDe(resultado).Should().Be("'franja' no es una hora valida en formato HH:mm: '2pm'.");
     }
 
-    // Nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion.
+    // turno_id inexistente -> TurnoNoExiste (404 del detalle real de Programacion), remite a buscar_turnos.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarSedeFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task AsignarSedeFranja_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nombre = $"[TEST] Turno que no existe {Guid.CreateVersion7()}";
+        var turnoInexistente = Guid.CreateVersion7().ToString();
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "asignar_sede_franja",
-            new Dictionary<string, object?> { ["turno"] = nombre, ["franja"] = "14:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoInexistente, ["franja"] = "14:00" },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().StartWith($"No existe un turno con el nombre '{nombre}'.");
+        TextoDe(resultado).Should().Contain(turnoInexistente).And.Contain("buscar_turnos");
     }
 
     [Fact]
@@ -164,13 +164,13 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
         var ct = TestContext.Current.CancellationToken;
         var nombreTurno = $"[TEST] SedeFranja MCP {Guid.CreateVersion7()}";
         var codigoSede = $"TEST-INEXISTENTE-{Guid.CreateVersion7()}";
-        await CrearTurnoYEsperarFichaAsync(nombreTurno, ct);
+        var turnoId = await CrearTurnoYEsperarFichaAsync(nombreTurno, ct);
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "asignar_sede_franja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombreTurno,
+                ["turno_id"] = turnoId,
                 ["franja"] = "14:00",
                 ["codigo_sede"] = codigoSede
             },

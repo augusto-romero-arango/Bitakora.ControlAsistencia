@@ -27,11 +27,12 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
         creado.IsError.Should().NotBeTrue();
 
         using var ficha = await programacion.Client.EsperarFichaAsync(nombreTurno, ct);
+        var turnoId = ficha.RootElement.GetProperty("id").GetString()!;
         ficha.RootElement.GetProperty("franjas").GetArrayLength().Should().Be(0);
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "quitar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["franja"] = "10:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["franja"] = "10:00" },
             cancellationToken: ct);
         resultado.IsError.Should().NotBeTrue("un rechazo de negocio no es un error del protocolo");
         TextoDe(resultado).Should().StartWith("El dominio rechazo la solicitud:");
@@ -44,16 +45,16 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
     // que los recursos embebidos viajaron en el publish.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarFranja_RespondeElMensajeDeValidacion_CuandoElTurnoEstaEnBlanco()
+    public async Task QuitarFranja_RespondeElMensajeDeValidacion_CuandoElTurnoIdEstaEnBlanco()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "quitar_franja",
-            new Dictionary<string, object?> { ["turno"] = "   ", ["franja"] = "15:00" },
+            new Dictionary<string, object?> { ["turno_id"] = "   ", ["franja"] = "15:00" },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().Be("'turno' es obligatorio.");
+        TextoDe(resultado).Should().StartWith("turno_id debe ser el id del turno");
     }
 
     [Fact]
@@ -64,7 +65,7 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "quitar_franja",
-            new Dictionary<string, object?> { ["turno"] = "cualquiera", ["franja"] = "   " },
+            new Dictionary<string, object?> { ["turno_id"] = Guid.NewGuid().ToString(), ["franja"] = "   " },
             cancellationToken: ct);
 
         TextoDe(resultado).Should().Be("'franja' es obligatorio.");
@@ -79,25 +80,25 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "quitar_franja",
-            new Dictionary<string, object?> { ["turno"] = "cualquiera", ["franja"] = "3pm" },
+            new Dictionary<string, object?> { ["turno_id"] = Guid.NewGuid().ToString(), ["franja"] = "3pm" },
             cancellationToken: ct);
 
         TextoDe(resultado).Should().Be("'franja' no es una hora valida en formato HH:mm: '3pm'.");
     }
 
-    // CA-3: nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion.
+    // CA-3: turno_id inexistente -> TurnoNoExiste (404 del detalle real de Programacion), remite a buscar_turnos.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task QuitarFranja_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nombre = $"[TEST] Turno que no existe {Guid.CreateVersion7()}";
+        var turnoInexistente = Guid.CreateVersion7().ToString();
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "quitar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombre, ["franja"] = "15:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoInexistente, ["franja"] = "15:00" },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().StartWith($"No existe un turno con el nombre '{nombre}'.");
+        TextoDe(resultado).Should().Contain(turnoInexistente).And.Contain("buscar_turnos");
     }
 }

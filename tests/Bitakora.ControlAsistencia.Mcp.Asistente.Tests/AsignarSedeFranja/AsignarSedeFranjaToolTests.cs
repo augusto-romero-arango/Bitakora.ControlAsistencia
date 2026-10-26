@@ -12,10 +12,11 @@ public class AsignarSedeFranjaToolTests
     private const string Turno = "Partido";
     private const string TurnoId = "8f14e45f-ceea-4b3c-8f0a-000000000020";
     private const string SedeCodigo = "CHAPINERO";
-    private const string RutaTurnos = "/api/programacion/turnos";
+    private const string RutaCatalogo = "/api/programacion/turnos";
+    private const string RutaTurno = $"/api/programacion/turnos/{TurnoId}";
     private const string RutaAsignarSedeFranja = $"/api/programacion/turnos/{TurnoId}:asignar-sede-franja";
 
-    private static string TurnosJson => Fixtures.Leer("AsignarSedeFranja", "turnos.json");
+    private static string TurnosJson => Fixtures.Leer("AsignarSedeFranja", "turno.json");
     private static string SedeJson => Fixtures.Leer("AsignarSedeFranja", "sede.json");
     private static string SedeInactivaJson => Fixtures.Leer("AsignarSedeFranja", "sede-inactiva.json");
     private static string Validacion400Json => Fixtures.Leer("AsignarSedeFranja", "validacion-400.json");
@@ -33,25 +34,25 @@ public class AsignarSedeFranjaToolTests
         HttpStatusCode statusSede = HttpStatusCode.OK)
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();
-        handlerProgramacion.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosJson);
+        handlerProgramacion.Responde(HttpMethod.Get, RutaTurno, statusTurnos, turnosJson ?? TurnosJson);
         handlerProgramacion.Responde(HttpMethod.Post, RutaAsignarSedeFranja, statusAsignar, cuerpoAsignar);
 
         var (clienteSedes, handlerSedes) = ClienteFalso.Con(sedeJson ?? SedeJson, statusSede);
 
         var programacionApi = new ProgramacionApi(clienteProgramacion);
         var tool = new AsignarSedeFranjaTool(
-            programacionApi, new ResolutorTurnoPorNombre(programacionApi), new ResolutorSedePorCodigo(new SedesApi(clienteSedes)));
+            programacionApi, new ResolutorTurnoPorId(programacionApi), new ResolutorSedePorCodigo(new SedesApi(clienteSedes)));
 
         return new Fakes(tool, handlerProgramacion, handlerSedes);
     }
 
     private static Task<string> Ejecutar(
         AsignarSedeFranjaTool tool,
-        string turno = Turno,
+        string turnoId = TurnoId,
         string franja = "14:00",
         string? codigoSede = null,
         CancellationToken ct = default) =>
-        tool.Run(context: null!, turno: turno, franja: franja, codigoSede: codigoSede, ct: ct);
+        tool.Run(context: null!, turnoId: turnoId, franja: franja, codigoSede: codigoSede, ct: ct);
 
     // CA-3: ningun rechazo local debe tocar ninguno de los 2 dominios.
     private static void AsegurarNingunaRequest(Fakes fakes)
@@ -138,18 +139,18 @@ public class AsignarSedeFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
+    // CA-3: el detalle por identidad responde 404 -> frase con el id que remite a buscar_turnos,
+    // sin lista de nombres y sin invocar el comando.
     [Fact]
-    public async Task AsignarSedeFranja_RespondeTurnoNoExisteSinPost_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task AsignarSedeFranja_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
-        var fakes = CrearTool();
+        var fakes = CrearTool(turnosJson: "", statusTurnos: HttpStatusCode.NotFound);
 
-        var resultado = await Ejecutar(
-            fakes.Tool, turno: "Turno Que No Existe", ct: TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(
-            AsignarSedeFranjaTool.Mensajes.TurnoNoExiste, "Turno Que No Existe", "Partido, Cocina Manana"));
+        resultado.Should().Be(string.Format(AsignarSedeFranjaTool.Mensajes.TurnoNoExiste, TurnoId));
+        resultado.Should().Contain(TurnoId).And.Contain("buscar_turnos").And.NotContain("disponibles");
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
-        fakes.Sedes.UltimaRequest.Should().BeNull("el turno se resuelve antes que la sede");
     }
 
     // CA-3: FranjaSinSede es el 409 propio del dominio al retirar una franja que ya no tiene sede
@@ -188,15 +189,41 @@ public class AsignarSedeFranjaToolTests
             string.Format(AsignarSedeFranjaTool.Mensajes.RechazoDelDominio, Validacion400Json));
     }
 
+    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
-    public async Task AsignarSedeFranja_RechazaSinLlamarANingunDominio_CuandoTurnoEstaEnBlanco()
+    public async Task AsignarSedeFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidConNombre()
+    {
+        const string Valor = "Nocturno";
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, turnoId: Valor, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(AsignarSedeFranjaTool.Mensajes.TurnoIdInvalido, Valor));
+        AsegurarNingunaRequest(fakes);
+    }
+
+    [Fact]
+    public async Task AsignarSedeFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidEnBlanco()
+    {
+        const string Valor = "   ";
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, turnoId: Valor, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(AsignarSedeFranjaTool.Mensajes.TurnoIdInvalido, Valor));
+        AsegurarNingunaRequest(fakes);
+    }
+
+    // CA-5: la tool lee el detalle por identidad, nunca el catalogo completo.
+    [Fact]
+    public async Task AsignarSedeFranja_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
     {
         var fakes = CrearTool();
 
-        var resultado = await Ejecutar(fakes.Tool, turno: "   ", ct: TestContext.Current.CancellationToken);
+        await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(AsignarSedeFranjaTool.Mensajes.CampoObligatorio, "turno"));
-        AsegurarNingunaRequest(fakes);
+        fakes.Programacion.Requests.Should().Contain(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaTurno);
+        fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaCatalogo);
     }
 
     [Fact]

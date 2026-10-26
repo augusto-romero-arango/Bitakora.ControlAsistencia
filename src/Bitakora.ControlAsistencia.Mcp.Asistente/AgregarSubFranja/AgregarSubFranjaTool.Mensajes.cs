@@ -24,7 +24,11 @@ public partial class AgregarSubFranjaTool
         public static string TipoDesconocido =>
             ResourceManager.GetString(nameof(TipoDesconocido))!;
 
-        /// <summary>{0}: nombre de turno recibido; {1}: nombres disponibles en el catalogo.</summary>
+        /// <summary>{0}: valor recibido en turno_id.</summary>
+        public static string TurnoIdInvalido =>
+            ResourceManager.GetString(nameof(TurnoIdInvalido))!;
+
+        /// <summary>{0}: id de turno recibido.</summary>
         public static string TurnoNoExiste =>
             ResourceManager.GetString(nameof(TurnoNoExiste))!;
 

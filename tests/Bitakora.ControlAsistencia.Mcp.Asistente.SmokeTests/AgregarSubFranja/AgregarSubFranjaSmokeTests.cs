@@ -66,7 +66,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
         var agregadaFranja = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["inicio"] = "22:00", ["fin"] = "06:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "22:00", ["fin"] = "06:00" },
             cancellationToken: ct);
         agregadaFranja.IsError.Should().NotBeTrue();
 
@@ -75,7 +75,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
         var argumentosAgregarSubFranja = new Dictionary<string, object?>
         {
-            ["turno"] = nombreTurno,
+            ["turno_id"] = turnoId,
             ["franja"] = "22:00",
             ["tipo"] = "descanso",
             ["inicio"] = "02:00",
@@ -96,7 +96,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "quitar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombreTurno,
+                ["turno_id"] = turnoId,
                 ["franja"] = "22:00",
                 ["tipo"] = "descanso",
                 ["inicio"] = "02:00"
@@ -116,7 +116,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
     // que los recursos embebidos viajaron en el publish.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AgregarSubFranja_RespondeElMensajeDeValidacion_CuandoElTurnoEstaEnBlanco()
+    public async Task AgregarSubFranja_RespondeElMensajeDeValidacion_CuandoElTurnoIdEstaEnBlanco()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -124,7 +124,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "agregar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = "   ",
+                ["turno_id"] = "   ",
                 ["franja"] = "22:00",
                 ["tipo"] = "descanso",
                 ["inicio"] = "02:00",
@@ -132,7 +132,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().Be("'turno' es obligatorio.");
+        TextoDe(resultado).Should().StartWith("turno_id debe ser el id del turno");
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "agregar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = "cualquiera",
+                ["turno_id"] = Guid.NewGuid().ToString(),
                 ["franja"] = "22:00",
                 ["tipo"] = "pausa",
                 ["inicio"] = "02:00",
@@ -166,7 +166,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "agregar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = "cualquiera",
+                ["turno_id"] = Guid.NewGuid().ToString(),
                 ["franja"] = "22:00",
                 ["tipo"] = "descanso",
                 ["inicio"] = "2am",
@@ -179,16 +179,16 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AgregarSubFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task AgregarSubFranja_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nombre = $"[TEST] Turno que no existe {Guid.CreateVersion7()}";
+        var turnoInexistente = Guid.CreateVersion7().ToString();
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "agregar_subfranja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombre,
+                ["turno_id"] = turnoInexistente,
                 ["franja"] = "22:00",
                 ["tipo"] = "descanso",
                 ["inicio"] = "02:00",
@@ -196,6 +196,6 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().StartWith($"No existe un turno con el nombre '{nombre}'.");
+        TextoDe(resultado).Should().Contain(turnoInexistente).And.Contain("buscar_turnos");
     }
 }

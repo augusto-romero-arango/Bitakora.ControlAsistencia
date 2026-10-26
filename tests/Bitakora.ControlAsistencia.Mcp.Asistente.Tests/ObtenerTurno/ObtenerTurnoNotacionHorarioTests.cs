@@ -12,13 +12,13 @@ public class ObtenerTurnoNotacionHorarioTests
         """{"horaInicio":"22:00:00","horaFin":"06:00:00","diaOffsetFin":1,"descansos":[],"extras":[],"sedeId":null,"nombreSede":null,"descripcion":"x"}""";
 
     private static string Ficha(string franjas, bool esDescanso = false, string horarioResumido = "viejo") =>
-        $$"""{"id":"id-turno","nombre":"Turno","esDescanso":{{(esDescanso ? "true" : "false")}},"horarioResumido":"{{horarioResumido}}","franjas":[{{franjas}}],"descripcion":"x","completo":true}""";
+        $$"""{"id":"019fdaab-92b6-7b57-8408-cef0e48e1a46","nombre":"Turno","esDescanso":{{(esDescanso ? "true" : "false")}},"horarioResumido":"{{horarioResumido}}","franjas":[{{franjas}}],"descripcion":"x","completo":true}""";
 
     private static async Task<JsonObject> Ejecutar(string ficha)
     {
         var (cliente, _) = ClienteFalso.Con(ficha);
         var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
-        var resultado = await tool.Run(null!, "id-turno", TestContext.Current.CancellationToken);
+        var resultado = await tool.Run(null!, "019fdaab-92b6-7b57-8408-cef0e48e1a46", TestContext.Current.CancellationToken);
         return JsonNode.Parse(resultado)!.AsObject();
     }
 
