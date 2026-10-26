@@ -37,7 +37,7 @@ public class ComposicionDelServidorTests
         nombres.Should().BeEquivalentTo(
             [
                 "obtener_sesion", "cerrar_sesion", "listar_sedes", "listar_colaboradores",
-                "buscar_colaboradores", "buscar_sedes", "registrar_sede", "registrar_colaborador",
+                "buscar_colaboradores", "buscar_sedes", "registrar_sede", "registrar_colaborador", "registrar_colaboradores",
                 "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
                 "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
                 "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
@@ -178,6 +178,8 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("registrar_colaborador", "Pone a una persona bajo control de asistencia",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("registrar_colaboradores", "Pone bajo control de asistencia una lista de personas",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("buscar_sedes", "Busca sedes activas para saber a cual se refiere el usuario",
             "\"readOnlyHint\": true"),
         ("buscar_turnos", "Busca turnos del catalogo para saber a cual se refiere el usuario",
@@ -302,6 +304,14 @@ public class ComposicionDelServidorTests
                 ("segundo_nombre", false), ("primer_apellido", true), ("segundo_apellido", false),
                 ("codigo_colaborador", true), ("fecha_inicio", true), ("codigo_sede", false)
             ]);
+
+    [Fact]
+    public void RegistrarColaboradores_DeclaraColaboradoresComoUnicoRequerido_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("registrar_colaboradores").Should().BeEquivalentTo([("colaboradores", true)]);
+
+    [Fact]
+    public void HostJson_MencionaRegistrarColaboradores_CuandoSeLeenLasInstrucciones() =>
+        LeerHostJson().Should().Contain("registrar_colaboradores");
 
     [Fact]
     public void BuscarSedes_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
