@@ -118,7 +118,9 @@ public partial class ConsultarProgramacionTool(
                 t.NombreCompleto,
                 t.Fecha,
                 t.NombreTurno.Trim(),
-                [.. UnirCortesDeMedianoche(t.Bloques).Select(b => Compactar(b, t.Fecha))]))
+                t.EsHorarioAbierto
+                    ? [DescribirHorarioAbierto(t.Bloques)]
+                    : [.. UnirCortesDeMedianoche(t.Bloques).Select(b => Compactar(b, t.Fecha))]))
             .ToList();
 
         var notas = new[]
@@ -169,6 +171,21 @@ public partial class ConsultarProgramacionTool(
         && anterior.Fin.TimeOfDay == TimeSpan.Zero
         && anterior.Tipo == siguiente.Tipo
         && anterior.SedeId == siguiente.SedeId;
+
+    private static string DescribirHorarioAbierto(IReadOnlyList<BloqueVigente> bloques)
+    {
+        var minutos = (int)bloques.Where(b => b.Tipo == TipoBloque.Ordinaria).Sum(b => (b.Fin - b.Inicio).TotalMinutes);
+        var texto = string.Format(Mensajes.HorarioAbierto, TextoDeDuracion(minutos / 60, minutos % 60));
+        var sede = bloques.Select(b => b.NombreSede ?? b.SedeId).FirstOrDefault(s => s is not null);
+        return sede is null ? texto : $"{texto}, sede: {sede}";
+    }
+
+    private static string TextoDeDuracion(int horas, int minutos) => (horas, minutos) switch
+    {
+        (_, 0) => $"{horas} {Mensajes.Horas}",
+        (0, _) => $"{minutos} {Mensajes.Minutos}",
+        _ => $"{horas} {Mensajes.Horas} {minutos} {Mensajes.Minutos}",
+    };
 
     private static string Compactar(BloqueVigente bloque, DateOnly fecha)
     {

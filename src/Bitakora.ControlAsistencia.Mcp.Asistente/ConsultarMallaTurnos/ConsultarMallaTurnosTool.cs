@@ -101,6 +101,10 @@ public partial class ConsultarMallaTurnosTool(
     {
         var estado = c.Tipo switch
         {
+            "Trabajo" when c.EsHorarioAbierto => string.Format(
+                Mensajes.DiaHorarioAbierto,
+                c.NombreTurno,
+                string.Join(", ", c.Bloques.Select(b => b.NombreSede).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())),
             "Trabajo" => string.Format(
                 Mensajes.DiaTrabajo,
                 c.NombreTurno,

@@ -56,4 +56,13 @@
   <data name="CriterioSedeTrabajo" xml:space="preserve">
     <value>trabajando en la sede {0}</value>
   </data>
+  <data name="HorarioAbierto" xml:space="preserve">
+    <value>horario abierto de {0}</value>
+  </data>
+  <data name="Horas" xml:space="preserve">
+    <value>h</value>
+  </data>
+  <data name="Minutos" xml:space="preserve">
+    <value>min</value>
+  </data>
 </root>
