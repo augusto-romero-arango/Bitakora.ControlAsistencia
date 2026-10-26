@@ -72,7 +72,8 @@ public partial class AgregarFranjaTool(
         }
 
         // inicio == fin es la unica lectura valida de una franja de 24h; el dominio infiere el +1
-        // por su cuenta cuando fin < inicio, asi que la tool no calcula ningun otro offset.
+        // por su cuenta cuando fin < inicio, asi que el payload no envia ningun otro offset. El eco
+        // replica esa misma inferencia.
         int? diaOffsetFin = horaInicio == horaFin ? 1 : null;
 
         var respuestaAgregar = await programacion.AgregarFranja(

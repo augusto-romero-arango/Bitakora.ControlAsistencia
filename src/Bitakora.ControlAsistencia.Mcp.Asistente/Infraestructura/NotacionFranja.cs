@@ -4,8 +4,9 @@ using System.Text;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 // Formato HH:mm de las franjas, en las dos direcciones: lo que entra por parametro de tool
-// (TryParseHora) y lo que sale en el eco (Compactar, HH:mm[+N]-HH:mm[+N]). Compartido por las
-// tools de diseno de turno.
+// (TryParseHora) y lo que sale (Compactar, HH:mm[+N]-HH:mm[+N]). Notacion unica del eco de diseno
+// y del horario de las tools del catalogo. Una franja nace siempre en su propio dia (por eso su
+// inicio no lleva offset); solo sus hijas pueden caer al dia siguiente.
 internal static class NotacionFranja
 {
     private static readonly string[] FormatosAceptados = ["HH:mm", "H:mm"];

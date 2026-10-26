@@ -47,9 +47,9 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
             ficha.Nombre.Trim(),
             ficha.EsDescanso,
             ficha.Completo,
-            horarioAbierto is null
-                ? (ficha.EsDescanso || !ficha.Completo ? ficha.HorarioResumido : NotacionFranja.Horario(ficha.Franjas))
-                : string.Format(Mensajes.HorarioAbierto, horarioAbierto.Duracion),
+            horarioAbierto is not null ? string.Format(Mensajes.HorarioAbierto, horarioAbierto.Duracion)
+                : ficha.EsDescanso || !ficha.Completo ? ficha.HorarioResumido
+                : NotacionFranja.Horario(ficha.Franjas),
             horarioAbierto is null ? [.. ficha.Franjas.Select(f => NotacionFranja.Compactar(f, Sede(f)))] : [],
             ficha.VentanaDeEntrada is { } v
                 ? string.Format(Mensajes.EntraEntre, $"{v.Apertura:HH\\:mm}", $"{v.Cierre:HH\\:mm}", v.Amplitud)
