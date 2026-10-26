@@ -1,0 +1,23 @@
+{
+  "desde": "2026-10-12",
+  "hasta": "2026-10-18",
+  "anioIso": 2026,
+  "numeroSemana": 42,
+  "elementos": [
+    {
+      "codigoColaborador": "C-102",
+      "casillas": [
+        { "fecha": "2026-10-12", "tipo": "Trabajo", "nombreTurno": "Manana", "horarioResumido": "06:00-14:00", "esHorarioAbierto": false,
+          "bloques": [ { "tipo": "Ordinaria", "inicio": "2026-10-12T06:00:00", "fin": "2026-10-12T14:00:00", "sedeId": "S-1", "nombreSede": "Norte" } ], "motivoAusencia": null },
+        { "fecha": "2026-10-13", "tipo": "Descanso", "nombreTurno": "Descanso", "horarioResumido": null, "esHorarioAbierto": false, "bloques": [], "motivoAusencia": null },
+        { "fecha": "2026-10-14", "tipo": "SinProgramar", "nombreTurno": null, "horarioResumido": null, "esHorarioAbierto": false, "bloques": [], "motivoAusencia": null },
+        { "fecha": "2026-10-15", "tipo": "SinProgramar", "nombreTurno": null, "horarioResumido": null, "esHorarioAbierto": false, "bloques": [], "motivoAusencia": null },
+        { "fecha": "2026-10-16", "tipo": "SinProgramar", "nombreTurno": null, "horarioResumido": null, "esHorarioAbierto": false, "bloques": [], "motivoAusencia": null },
+        { "fecha": "2026-10-17", "tipo": "Trabajo", "nombreTurno": "Abierto 2:00", "horarioResumido": "04:00-06:00", "esHorarioAbierto": true,
+          "bloques": [ { "tipo": "Ordinaria", "inicio": "2026-10-17T04:00:00", "fin": "2026-10-17T06:00:00", "sedeId": "S-9", "nombreSede": "Ocoa" } ], "motivoAusencia": null },
+        { "fecha": "2026-10-18", "tipo": "SinProgramar", "nombreTurno": null, "horarioResumido": null, "esHorarioAbierto": false, "bloques": [], "motivoAusencia": null }
+      ]
+    }
+  ],
+  "siguienteCursor": null
+}
