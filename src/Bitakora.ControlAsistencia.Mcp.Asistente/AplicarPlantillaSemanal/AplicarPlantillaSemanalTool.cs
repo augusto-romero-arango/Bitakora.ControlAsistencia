@@ -52,6 +52,8 @@ public partial class AplicarPlantillaSemanalTool(
             return string.Format(Mensajes.CampoObligatorio, "hasta");
         if (string.IsNullOrWhiteSpace(plantillaId))
             return string.Format(Mensajes.CampoObligatorio, "plantilla_id");
+        if (!Guid.TryParse(plantillaId, out var plantillaGuid))
+            return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
         if (string.IsNullOrWhiteSpace(identificaciones))
             return string.Format(Mensajes.CampoObligatorio, "identificaciones");
 
@@ -79,7 +81,7 @@ public partial class AplicarPlantillaSemanalTool(
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
         var (moldeResuelto, rechazoPlantilla) = await MoldeDePlantilla.ResolverAsync(
-            resolutorPlantillas, plantillaId,
+            resolutorPlantillas, plantillaGuid,
             new MensajesDePlantilla(
                 Mensajes.PlantillaNoExiste, Mensajes.PlantillaIncompleta, Mensajes.PlantillaConTurnoNoProgramable,
                 Mensajes.RechazoDelDominio), ct);

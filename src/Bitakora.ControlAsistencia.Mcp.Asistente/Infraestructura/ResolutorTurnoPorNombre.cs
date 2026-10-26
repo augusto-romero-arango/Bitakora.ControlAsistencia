@@ -14,24 +14,6 @@ public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion
 
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
-    // El boundary del sistema (5xx o cuerpo no JSON) se traduce como fallo de lectura crudo: la
-    // tool consumidora decide como formatearlo con su propia .resx RechazoDelDominio (CA-ADR-0030).
-    public async Task<ResultadoResolucionTurno> ResolverAsync(string nombre, CancellationToken ct)
-    {
-        var respuesta = await programacion.ListarTurnos(ct);
-        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
-            return new ResultadoResolucionTurno(null, fallo, []);
-
-        var catalogo = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaTurno>>(OpcionesLectura, ct))?.Elementos ?? [];
-        var normalizado = NormalizarNombre(nombre);
-        var ficha = catalogo.FirstOrDefault(f => NormalizarNombre(f.Nombre) == normalizado);
-
-        return ficha is not null
-            ? new ResultadoResolucionTurno(ficha, null, [])
-            : new ResultadoResolucionTurno(
-                null, null, [.. catalogo.Select(f => f.Nombre).Take(MaximoTurnosEnMensaje)]);
-    }
-
     // Resuelve N nombres con UNA sola lectura del catalogo (crear_plantilla_semanal, MEF-ADR-0047
     // decision 4: nunca un GET por nombre). Cada nombre solicitado conserva su posicion y su texto
     // original -- puede repetirse o venir con distinta capitalizacion -- para que la tool
@@ -66,16 +48,6 @@ public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion
     [GeneratedRegex(@"\s+")]
     private static partial Regex EspaciosConsecutivos();
 }
-
-/// <summary>
-/// Resultado de resolver un turno por nombre: exactamente uno de Ficha/FalloDeLectura viene
-/// poblado cuando el turno se encuentra o la lectura del catalogo falla; NombresDisponibles
-/// alimenta el mensaje TurnoNoExiste de la tool consumidora cuando ninguno de los dos aplica.
-/// </summary>
-public sealed record ResultadoResolucionTurno(
-    FichaTurno? Ficha,
-    string? FalloDeLectura,
-    IReadOnlyList<string> NombresDisponibles);
 
 /// <summary>Resolucion de un nombre solicitado dentro de un lote (ResolverVariosAsync); Ficha null = no encontrado.</summary>
 public sealed record ResolucionTurnoPorNombre(string NombreSolicitado, FichaTurno? Ficha);

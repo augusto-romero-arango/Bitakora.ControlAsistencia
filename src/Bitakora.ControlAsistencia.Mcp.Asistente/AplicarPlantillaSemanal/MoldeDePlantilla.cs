@@ -20,9 +20,21 @@ internal sealed class MoldeDePlantilla
 
     public string Nombre => cuadro.Nombre;
 
-    public static Task<(MoldeDePlantilla? Molde, string? Rechazo)> ResolverAsync(
-        ResolutorPlantillaPorId resolutor, string plantillaId, MensajesDePlantilla mensajes, CancellationToken ct) =>
-        throw new NotImplementedException();
+    public static async Task<(MoldeDePlantilla? Molde, string? Rechazo)> ResolverAsync(
+        ResolutorPlantillaPorId resolutor, Guid plantillaId, MensajesDePlantilla mensajes, CancellationToken ct)
+    {
+        var resolucion = await resolutor.ResolverAsync(plantillaId, ct);
+        if (resolucion.FalloDeLectura is { } fallo)
+            return (null, string.Format(mensajes.RechazoDelDominio, fallo));
+        if (resolucion.Ficha is not { } cuadro)
+            return (null, string.Format(mensajes.PlantillaNoExiste, plantillaId));
+        if (!cuadro.Completa)
+            return (null, string.Format(mensajes.PlantillaIncompleta, cuadro.Nombre));
+        if (cuadro.Dias.Any(d => d.Turno.Retirado || !d.Turno.Completo))
+            return (null, string.Format(mensajes.PlantillaConTurnoNoProgramable, cuadro.Nombre));
+
+        return (new MoldeDePlantilla(cuadro), null);
+    }
 
     /// <summary>Una sola lectura del catalogo de turnos (CA-ADR-0038), solo cuando la cascada de sede la necesita.</summary>
     public async Task<(IReadOnlySet<Guid> Turnos, string? Fallo)> TurnosConFranjaSinSedeAsync(

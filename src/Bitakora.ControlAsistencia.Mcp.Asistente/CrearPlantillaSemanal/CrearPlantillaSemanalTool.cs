@@ -59,7 +59,6 @@ public partial class CrearPlantillaSemanalTool(
         string? jornadaId,
         CancellationToken ct)
     {
-        _ = resolutorPorId;
         if (string.IsNullOrWhiteSpace(nombre))
             return string.Format(Mensajes.CampoObligatorio, "nombre");
 
@@ -109,7 +108,10 @@ public partial class CrearPlantillaSemanalTool(
                 return string.Format(Mensajes.DiaDuplicado, semana, diaIso);
 
             var nombreDia = DiaSemanaMcp.NombreDe(diaIso);
-            var traeTurno = !string.IsNullOrWhiteSpace(entrada.Turno);
+            if (!string.IsNullOrWhiteSpace(entrada.Turno))
+                return string.Format(Mensajes.TurnoPorNombreNoSoportado, semana, nombreDia);
+
+            var traeTurno = !string.IsNullOrWhiteSpace(entrada.TurnoId);
             var traeFranja = !string.IsNullOrWhiteSpace(entrada.Franja);
 
             if (traeTurno && traeFranja)
@@ -119,7 +121,9 @@ public partial class CrearPlantillaSemanalTool(
 
             if (traeTurno)
             {
-                validadas.Add(new EntradaValidada(semana, diaIso, entrada.Turno!, null));
+                if (!Guid.TryParse(entrada.TurnoId, out var turnoGuid))
+                    return string.Format(Mensajes.TurnoIdInvalido, entrada.TurnoId);
+                validadas.Add(new EntradaValidada(semana, diaIso, turnoGuid.ToString(), null));
                 continue;
             }
 
@@ -146,27 +150,36 @@ public partial class CrearPlantillaSemanalTool(
             jornadaResumen = (await respuestaJornada.LeerDescritaAsync(ct)).Resumir();
         }
 
-        var resolucion = await resolutor.ResolverVariosAsync(validadas.Select(v => v.NombreTurno), ct);
-        if (resolucion.FalloDeLectura is { } falloLectura)
-            return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+        var turnoIdPorNombre = new Dictionary<string, string>();
+        var nombreDeTurnoPorId = new Dictionary<string, string>();
+        var inexistentes = new List<string>();
+        foreach (var idTurno in validadas.Where(v => v.Inline is null).Select(v => v.NombreTurno).Distinct())
+        {
+            var resolucionTurno = await resolutorPorId.ResolverAsync(Guid.Parse(idTurno), ct);
+            if (resolucionTurno.FalloDeLectura is { } falloLectura)
+                return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+            if (resolucionTurno.Ficha is { } fichaTurno)
+            {
+                turnoIdPorNombre[idTurno] = fichaTurno.Id;
+                nombreDeTurnoPorId[idTurno] = fichaTurno.Nombre;
+            }
+            else
+                inexistentes.Add(idTurno);
+        }
 
-        var resueltas = validadas.Zip(resolucion.Resoluciones, (v, r) => (Entrada: v, r.Ficha)).ToList();
+        if (inexistentes.Count > 0)
+            return string.Format(Mensajes.TurnosNoExisten, string.Join(", ", inexistentes));
 
-        var faltantes = resueltas
-            .Where(x => x.Entrada.Inline is null && x.Ficha is null)
-            .Select(x => x.Entrada.NombreTurno)
-            .Distinct()
-            .ToList();
-        if (faltantes.Count > 0)
-            return string.Format(
-                Mensajes.TurnosNoExisten,
-                string.Join(", ", faltantes),
-                string.Join(", ", resolucion.NombresDisponibles));
-
-        var turnoIdPorNombre = resueltas
-            .Where(x => x.Entrada.Inline is null)
-            .DistinctBy(x => x.Entrada.NombreTurno)
-            .ToDictionary(x => x.Entrada.NombreTurno, x => x.Ficha!.Id);
+        var resueltas = new List<(EntradaValidada Entrada, FichaTurno? Ficha)>();
+        if (validadas.Any(v => v.Inline is not null))
+        {
+            var resolucion = await resolutor.ResolverVariosAsync(
+                validadas.Where(v => v.Inline is not null).Select(v => v.NombreTurno), ct);
+            if (resolucion.FalloDeLectura is { } falloCatalogo)
+                return string.Format(Mensajes.RechazoDelDominio, falloCatalogo);
+            resueltas = validadas.Where(v => v.Inline is not null)
+                .Zip(resolucion.Resoluciones, (v, r) => (Entrada: v, r.Ficha)).ToList();
+        }
 
         var inlinePorNombre = resueltas
             .Where(x => x.Entrada.Inline is not null)
@@ -228,7 +241,8 @@ public partial class CrearPlantillaSemanalTool(
 
             if (await respuestaPut.LeerFalloAsync(ct) is { } motivo)
                 diasRechazados.Add(new DiaRechazado(
-                    validada.Semana, DiaSemanaMcp.NombreDe(validada.DiaIso), validada.NombreTurno, motivo));
+                    validada.Semana, DiaSemanaMcp.NombreDe(validada.DiaIso),
+                    nombreDeTurnoPorId.GetValueOrDefault(validada.NombreTurno, validada.NombreTurno), motivo));
             else
                 diasAsignados++;
         }

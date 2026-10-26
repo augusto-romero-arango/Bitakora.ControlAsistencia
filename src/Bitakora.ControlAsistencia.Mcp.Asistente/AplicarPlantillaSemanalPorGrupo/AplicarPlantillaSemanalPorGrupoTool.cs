@@ -55,6 +55,8 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
             return string.Format(Mensajes.CampoObligatorio, "hasta");
         if (string.IsNullOrWhiteSpace(plantillaId))
             return string.Format(Mensajes.CampoObligatorio, "plantilla_id");
+        if (!Guid.TryParse(plantillaId, out var plantillaGuid))
+            return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
 
         var mensajesSelector = new MensajesDeSelector(
             Mensajes.SelectorObligatorio, Mensajes.EtiquetaMalFormada, Mensajes.SedeDelSelectorNoExiste,
@@ -80,7 +82,7 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
         var (moldeResuelto, rechazoPlantilla) = await MoldeDePlantilla.ResolverAsync(
-            resolutorPlantillas, plantillaId,
+            resolutorPlantillas, plantillaGuid,
             new MensajesDePlantilla(
                 Mensajes.PlantillaNoExiste, Mensajes.PlantillaIncompleta, Mensajes.PlantillaConTurnoNoProgramable,
                 Mensajes.RechazoDelDominio), ct);
