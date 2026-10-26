@@ -331,6 +331,18 @@ public class ListarColaboradoresToolTests
     }
 
     [Fact]
+    public async Task ListarColaboradores_OmiteLaJornada_CuandoNoTieneAsignadaYElCatalogoNoTraePredeterminada()
+    {
+        var fichas = ClienteFalso.Con(Sobre(Ficha("CC-1", null))).Cliente;
+        var jornadas = ClienteFalso.Con("""{"elementos":[]}""").Cliente;
+
+        var resultado = await Tool(fichas, jornadas).Run(null!, null, null, null, null, null, TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!["colaboradores"]![0]!.AsObject().ContainsKey("jornada").Should()
+            .BeFalse("sin asignada ni predeterminada no hay jornada que mostrar, nunca un jornada_id vacio");
+    }
+
+    [Fact]
     public async Task ListarColaboradores_NoLlamaAlCatalogoDeJornadas_CuandoNoHayColaboradores()
     {
         var fichas = ClienteFalso.Con(Sobre()).Cliente;

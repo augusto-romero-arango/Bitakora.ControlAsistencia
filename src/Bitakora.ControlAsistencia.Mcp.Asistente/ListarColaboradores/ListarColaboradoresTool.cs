@@ -152,23 +152,22 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, ProgramacionA
             : (default, string.Format(Mensajes.FechaInvalida, fechaReferencia));
     }
 
-
-    private static JornadaDeColaborador DescribirJornada(
-        FichaColaborador ficha, IReadOnlyList<JornadaDelCatalogo> catalogo)
+    // Sin JornadaId le rige la predeterminada (por_defecto). Un JornadaId que el catalogo no conoce
+    // (consistencia eventual) viaja solo con su id; sin asignada ni predeterminada no hay jornada.
+    private static JornadaDeColaborador? DescribirJornada(
+        Guid? asignada, IReadOnlyList<JornadaDelCatalogo> catalogo)
     {
-        var asignada = ficha.JornadaId?.ToString();
-        var jornada = asignada is null
-            ? catalogo.FirstOrDefault(j => j.EsPredeterminada)
-            : catalogo.FirstOrDefault(j => string.Equals(j.JornadaId, asignada, StringComparison.OrdinalIgnoreCase));
+        var jornada = asignada is { } id
+            ? catalogo.FirstOrDefault(j => Guid.TryParse(j.JornadaId, out var jornadaId) && jornadaId == id)
+            : catalogo.FirstOrDefault(j => j.EsPredeterminada);
 
-        if (jornada is null)
-            return new JornadaDeColaborador(asignada ?? string.Empty, null, null, null);
-
-        return new JornadaDeColaborador(
-            jornada.JornadaId,
-            jornada.Descripcion,
-            asignada is null ? true : null,
-            jornada.Activa ? null : false);
+        return (jornada, asignada) switch
+        {
+            ({ } rige, _) => new JornadaDeColaborador(
+                rige.JornadaId, rige.Descripcion, asignada is null ? true : null, rige.Activa ? null : false),
+            (null, { } desconocida) => new JornadaDeColaborador(desconocida.ToString(), null, null, null),
+            _ => null,
+        };
     }
 
     private static ColaboradorFicha Remodelar(FichaColaborador ficha, IReadOnlyList<JornadaDelCatalogo> catalogo)
@@ -185,7 +184,7 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, ProgramacionA
             ficha.VigenteDesde,
             ficha.VigenteHasta,
             etiquetas,
-            DescribirJornada(ficha, catalogo));
+            DescribirJornada(ficha.JornadaId, catalogo));
     }
 
     private static string? Normalizar(string? valor) =>
@@ -214,7 +213,7 @@ public sealed record ColaboradorFicha(
     DateOnly VigenteDesde,
     DateOnly? VigenteHasta,
     IReadOnlyList<string>? Etiquetas,
-    JornadaDeColaborador Jornada);
+    JornadaDeColaborador? Jornada);
 
 /// <summary>
 /// Jornada que rige al colaborador: por_defecto solo si no tiene ninguna asignada, activa solo
