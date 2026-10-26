@@ -132,4 +132,35 @@ public class ObtenerTurnoToolTests
 
         JsonNode.Parse(resultado)!.AsObject().ContainsKey("ventanaDeEntrada").Should().BeFalse();
     }
+
+    [Fact]
+    public async Task ObtenerTurno_MuestraHorarioAbiertoSedeYVentana_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("ObtenerTurno", "obtener-turno-horario-abierto.json"));
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "01a0ec12-0000-7000-9000-000000000001", TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!.AsObject();
+        json["horario"]!.GetValue<string>().Should().Be("horario abierto de 2 h");
+        json["franjas"]!.AsArray().Should().BeEmpty();
+        json["sede"]!.GetValue<string>().Should().Be("Ocoa");
+        json["ventanaDeEntrada"]!.GetValue<string>().Should().Be("entra entre 04:00 y 22:00 (18 h)");
+    }
+
+    [Fact]
+    public async Task ObtenerTurno_OmiteSede_CuandoElTurnoDeHorarioAbiertoNoTieneSede()
+    {
+        var (cliente, _) = ClienteFalso.Con(
+            Fixtures.Leer("ObtenerTurno", "obtener-turno-horario-abierto-sin-sede.json"));
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "01a0ec12-0000-7000-9000-000000000002", TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!.AsObject();
+        json["horario"]!.GetValue<string>().Should().Be("horario abierto de 2 h");
+        json.ContainsKey("sede").Should().BeFalse();
+    }
 }
