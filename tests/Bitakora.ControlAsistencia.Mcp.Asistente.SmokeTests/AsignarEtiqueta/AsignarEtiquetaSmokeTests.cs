@@ -53,7 +53,7 @@ public class AsignarEtiquetaSmokeTests(McpFixture mcp)
             },
             TimeoutPolling);
 
-        listada.RootElement.GetRawText().Should().Contain("smoke");
+        listada.RootElement.GetRawText().Should().Contain($"smoke:{valor}");
 
         var retirada = await mcp.Cliente.CallToolAsync(
             "retirar_etiqueta",

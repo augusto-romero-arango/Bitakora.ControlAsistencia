@@ -55,11 +55,3 @@ public sealed record EtiquetaAsignadaResumen(
     [property: JsonPropertyName("no_encontrados")] IReadOnlyList<string>? NoEncontrados,
     IReadOnlyList<EtiquetaFallida>? Fallidos,
     string Nota);
-
-public sealed record EtiquetaRetiradaResumen(
-    string Resultado,
-    string Etiqueta,
-    int Retirados,
-    [property: JsonPropertyName("no_encontrados")] IReadOnlyList<string>? NoEncontrados,
-    IReadOnlyList<EtiquetaFallida>? Fallidos,
-    string Nota);

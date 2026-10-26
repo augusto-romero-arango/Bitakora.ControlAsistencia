@@ -1,5 +1,6 @@
-using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
+using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.AsignarEtiqueta;
+using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -56,3 +57,11 @@ public partial class RetirarEtiquetaTool(
             Mensajes.NotaVisibilidadEventual));
     }
 }
+
+public sealed record EtiquetaRetiradaResumen(
+    string Resultado,
+    string Etiqueta,
+    int Retirados,
+    [property: JsonPropertyName("no_encontrados")] IReadOnlyList<string>? NoEncontrados,
+    IReadOnlyList<EtiquetaFallida>? Fallidos,
+    string Nota);
