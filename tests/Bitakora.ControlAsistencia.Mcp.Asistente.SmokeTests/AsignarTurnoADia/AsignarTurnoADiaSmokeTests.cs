@@ -51,7 +51,7 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
         // Plantilla de un solo dia (lunes): martes queda vacio a proposito -- es el slot que este
         // test asigna y luego quita con las dos tools bajo prueba.
-        var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{nombreTurno}}"}]""";
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno_id":"{{turnoId}}"}]""";
         var creada = await mcp.Cliente.CallToolAsync(
             "crear_plantilla_semanal",
             new Dictionary<string, object?> { ["nombre"] = nombrePlantilla, ["dias"] = dias },
