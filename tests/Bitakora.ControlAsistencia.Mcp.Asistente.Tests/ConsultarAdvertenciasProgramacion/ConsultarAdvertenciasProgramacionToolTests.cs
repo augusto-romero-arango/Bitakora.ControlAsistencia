@@ -148,13 +148,43 @@ public class ConsultarAdvertenciasProgramacionToolTests
         var ana = json["colaboradores"]![0]!.AsObject();
         ana["codigo"]!.GetValue<string>().Should().Be("C-102");
         ana["nombre"]!.GetValue<string>().Should().Be("Ana Pérez");
-        ana.Select(p => p.Key).Should().BeEquivalentTo(["codigo", "nombre", "advertencias"]);
+        ana.Select(p => p.Key).Should().BeEquivalentTo(["codigo", "nombre", "advertencias", "jornada"]);
         ana["advertencias"]!.AsArray().Select(a => a!.GetValue<string>()).Should().Equal(
             "semana: supera las horas semanales en 6 h",
             "semana: le falta 1 día de descanso",
             "2026-10-14: supera el tope diario en 2 h");
 
         json["colaboradores"]![1]!["advertencias"]!.AsArray().Select(a => a!.GetValue<string>()).Should().Equal(
+            "semana: le faltan 12 h para las horas semanales");
+    }
+
+    [Fact]
+    public async Task ConsultarAdvertenciasProgramacion_MuestraLaJornadaAplicada_CuandoElColaboradorTieneJornada()
+    {
+        var (tool, _, _) = Armar(Leer("advertencias-semana.json"));
+
+        var resultado = await Ejecutar(tool, fecha: "2026-10-14");
+
+        var ana = JsonNode.Parse(resultado)!["colaboradores"]![0]!.AsObject();
+        var jornada = ana["jornada"]!.AsObject();
+        jornada["jornada_id"]!.GetValue<string>().Should().Be("0198a000-0000-7000-8000-000000000001");
+        jornada["descripcion"]!.GetValue<string>().Should().Be(
+            "42 h semanales, tope diario 8 h, mínimo diario 0 h, 1 día de descanso por semana");
+        jornada.Select(p => p.Key).Should().BeEquivalentTo(["jornada_id", "descripcion"]);
+        ana.ContainsKey("sinJornada").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ConsultarAdvertenciasProgramacion_MarcaSinJornadaYConservaAdvertencias_CuandoElColaboradorNoTieneJornada()
+    {
+        var (tool, _, _) = Armar(Leer("advertencias-semana.json"));
+
+        var resultado = await Ejecutar(tool, fecha: "2026-10-14");
+
+        var luis = JsonNode.Parse(resultado)!["colaboradores"]![1]!.AsObject();
+        luis["sinJornada"]!.GetValue<bool>().Should().BeTrue();
+        luis.ContainsKey("jornada").Should().BeFalse();
+        luis["advertencias"]!.AsArray().Select(a => a!.GetValue<string>()).Should().Equal(
             "semana: le faltan 12 h para las horas semanales");
     }
 

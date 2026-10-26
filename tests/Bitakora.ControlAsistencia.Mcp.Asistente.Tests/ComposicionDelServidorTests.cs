@@ -469,6 +469,15 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
+    public void ConsultarAdvertenciasProgramacion_MencionaLaJornadaDeCadaColaborador_CuandoSeInspeccionaSuDescripcion()
+    {
+        var descripcion = ParametroTrigger(MetodoDe("consultar_advertencias_programacion"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!.Description;
+
+        descripcion.Should().Contain("Jornada contra la que se reviso").And.Contain("Sin Jornada");
+    }
+
+    [Fact]
     public void ConsultarAusencias_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("consultar_ausencias").Should().BeEquivalentTo(
             [("desde", true), ("hasta", true), ("codigos_colaborador", false), ("sede", false), ("etiquetas", false), ("cursor", false)]);
