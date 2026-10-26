@@ -26,6 +26,9 @@ public class ObtenerTurnoSmokeTests(McpFixture mcp)
 
         var primerId = turnos[0].GetProperty("id").GetString();
 
+        foreach (var turno in turnos)
+            turno.GetProperty("horario").GetString().Should().NotContain("(+");
+
         var resultado = await mcp.Cliente.CallToolAsync(
             "obtener_turno", new Dictionary<string, object?> { ["id"] = primerId }, cancellationToken: ct);
 
