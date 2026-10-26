@@ -28,7 +28,7 @@ public class BuscarPlantillasSemanalesSmokeTests(McpFixture mcp, ProgramacionApi
             cancellationToken: ct);
         franja.IsError.Should().NotBeTrue();
 
-        var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{turno}}"}]""";
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno_id":"{{turnoId}}"}]""";
         var creada = await mcp.Cliente.CallToolAsync(
             "crear_plantilla_semanal",
             new Dictionary<string, object?> { ["nombre"] = plantilla, ["dias"] = dias },

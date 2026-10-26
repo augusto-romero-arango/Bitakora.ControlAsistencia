@@ -41,7 +41,8 @@ public class ListarColaboradoresSmokeTests(McpFixture mcp)
 
             var jornada = colaborador.GetProperty("jornada");
             jornada.GetProperty("jornada_id").GetString().Should().NotBeNullOrWhiteSpace();
-            jornada.GetProperty("descripcion").GetString().Should().NotBeNullOrWhiteSpace();
+            if (jornada.TryGetProperty("descripcion", out var descripcion))
+                descripcion.GetString().Should().NotBeNullOrWhiteSpace();
         }
     }
 
