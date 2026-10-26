@@ -361,6 +361,92 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         And<SolicitudProgramacionAggregateRoot, int>(s => s.DetalleTurno!.AmplitudVentanaEntradaEnMinutos, 180);
     }
 
+    // --- Marca de horario abierto (copiada al programar) ---
+
+    private static TurnoCreado CrearEventoTurnoDeHorarioAbierto() =>
+        TurnoCreado.CrearDeHorarioAbierto(
+            TurnoId, "Turno Abierto", [new DatosFranja(new TimeOnly(4, 0), new TimeOnly(10, 0), [], [])]);
+
+    private static readonly TurnoProgramado TurnoAbiertoProgramadoEsperado = new(
+        "Turno Abierto",
+        new List<FranjaProgramada>
+        {
+            new(new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00")
+        }.AsReadOnly(),
+        "04:00-10:00",
+        EsHorarioAbierto: true);
+
+    private static readonly DetalleTurno DetalleAbiertoEsperado = new(
+        "Turno Abierto",
+        new List<DetalleFranjaOrdinaria>
+        {
+            new(new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00")
+        }.AsReadOnly(),
+        "04:00-10:00",
+        EsHorarioAbierto: true);
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_CopiaLaMarcaDeHorarioAbiertoEnAmbosPayloads_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoDeHorarioAbierto());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1, Fecha2]));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1, Fecha2],
+            TurnoAbiertoProgramadoEsperado, jornada: JornadaEsperada));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
+            new ProgramacionTurnoDiarioSolicitada(
+                GuidAggregateId, ColaboradorResumen, Fecha1, DetalleAbiertoEsperado, jornada: DetalleJornadaEsperado),
+            new ProgramacionTurnoDiarioSolicitada(
+                GuidAggregateId, ColaboradorResumen, Fecha2, DetalleAbiertoEsperado, jornada: DetalleJornadaEsperado));
+        And<SolicitudProgramacionAggregateRoot, bool>(s => s.DetalleTurno!.EsHorarioAbierto, true);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_DejaLaMarcaEnFalse_CuandoElTurnoNoEsDeHorarioAbierto()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1]));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1], TurnoProgramadoEsperado, jornada: JornadaEsperada));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, ColaboradorResumen, Fecha1, DetalleEsperado, jornada: DetalleJornadaEsperado));
+        And<SolicitudProgramacionAggregateRoot, bool>(s => s.DetalleTurno!.EsHorarioAbierto, false);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_ConservaLaMarcaDeHorarioAbierto_CuandoLaSolicitudTraeSede()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurnoDeHorarioAbierto());
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Fecha1], SedePrincipal));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Fecha1],
+            TurnoAbiertoProgramadoEsperado with
+            {
+                FranjasOrdinarias = new List<FranjaProgramada>
+                {
+                    new(new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00", SedePrincipal)
+                }.AsReadOnly()
+            },
+            SedePrincipal, jornada: JornadaEsperada));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, new ProgramacionTurnoDiarioSolicitada(
+            GuidAggregateId, ColaboradorResumen, Fecha1,
+            DetalleAbiertoEsperado with
+            {
+                FranjasOrdinarias = new List<DetalleFranjaOrdinaria>
+                {
+                    new(new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00", SedePrincipalDetalle)
+                }.AsReadOnly()
+            },
+            SedePrincipalDetalle, jornada: DetalleJornadaEsperado));
+        And<SolicitudProgramacionAggregateRoot, bool>(s => s.DetalleTurno!.EsHorarioAbierto, true);
+    }
+
     // --- Tests del camino feliz ---
 
     // CA-9, CA-10, CA-11, CA-12: emite evento de ES y publica evento publico por cada fecha

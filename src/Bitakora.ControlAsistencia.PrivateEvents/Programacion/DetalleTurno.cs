@@ -18,7 +18,8 @@ public record DetalleTurno(
     string Nombre,
     IReadOnlyList<DetalleFranjaOrdinaria> FranjasOrdinarias,
     string Descripcion,
-    int AmplitudVentanaEntradaEnMinutos = 0)
+    int AmplitudVentanaEntradaEnMinutos = 0,
+    bool EsHorarioAbierto = false)
 {
     /// <summary>
     /// Los eventos anteriores al issue #288 no llevan el campo: STJ deja null en el parametro

@@ -43,6 +43,17 @@ public class TurnoDiarioHorarioEfectivoTests
     }
 
     [Fact]
+    public void HorarioEfectivo_ConservaLaMarcaDeHorarioAbierto_CuandoDesplazaLasFranjas()
+    {
+        var turno = new TurnoDiario("Abierto", [Franja(7, 16)], "", 180, true);
+
+        var efectivo = turno.HorarioEfectivo(Fecha, new DateTime(2026, 3, 15, 9, 0, 0));
+
+        efectivo.EsHorarioAbierto.Should().BeTrue();
+        efectivo.FranjasOrdinarias[0].HoraInicio.Should().Be(new TimeOnly(9, 0));
+    }
+
+    [Fact]
     public void HorarioEfectivo_DevuelveReferencia_CuandoNoHayMarcacion()
     {
         var turno = new TurnoDiario("Ventana", [Franja(7, 16)], "", 180);
