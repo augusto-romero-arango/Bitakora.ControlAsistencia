@@ -43,6 +43,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private DateTime? _finCoberturaVispera;
     private DateTime? _inicioCoberturaDiaSiguiente;
     private DateTime? _finCoberturaEfectiva;
+    private DateTime? _cierreTurnoVispera;
     private IReadOnlyDictionary<DateTime, PertenenciaMarcacion> _pertenencias =
         ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
 
@@ -73,21 +74,20 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Descanso, sin programar o con ausencia: no depura horas, solo clasifica marcaciones de vecinos.
     private bool SinJornada => _ausenciaId is not null || DetalleTurno?.CoberturaPosible(Fecha) is null;
 
-    private DateTime? _cierreTurnoVispera;
-
-    // true si emitio el evento. Cierre de referencia: no depende de las marcaciones ni de Invade.
-    internal bool ActualizarCierreDeLaVispera(ControlDiarioAggregateRoot vispera)
+    // Cierre de referencia: no depende de las marcaciones ni de Invade, asi que tambien llega con solape.
+    internal void ActualizarCierreDeLaVispera(ControlDiarioAggregateRoot vispera)
     {
-        var cierre = vispera._ausenciaId is null ? vispera.DetalleTurno?.Cierre(vispera.Fecha) : null;
-        if (cierre == _cierreTurnoVispera) return false;
+        var cierre = vispera.CierreDeSuTurno();
+        if (cierre == _cierreTurnoVispera) return;
 
         var evento = CierreDeLaVisperaActualizado.Crear(Id, cierre);
         _uncommittedEvents.Add(evento);
         Apply(evento);
-        return true;
     }
 
     public void Apply(CierreDeLaVisperaActualizado e) => _cierreTurnoVispera = e.Cierre;
+
+    private DateTime? CierreDeSuTurno() => _ausenciaId is null ? DetalleTurno?.Cierre(Fecha) : null;
 
     // true si emitio el evento.
     internal bool ActualizarCoberturaVecina(ControlDiarioAggregateRoot vecino)
