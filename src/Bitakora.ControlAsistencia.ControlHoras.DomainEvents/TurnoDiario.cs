@@ -100,6 +100,7 @@ public record TurnoDiario(
         if (ReferenceEquals(this, other)) return true;
         return Nombre == other.Nombre
             && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
+            && EsHorarioAbierto == other.EsHorarioAbierto
             && FranjasOrdinarias.SequenceEqual(other.FranjasOrdinarias);
     }
 
@@ -108,6 +109,7 @@ public record TurnoDiario(
         var hash = new HashCode();
         hash.Add(Nombre);
         hash.Add(AmplitudVentanaEntradaEnMinutos);
+        hash.Add(EsHorarioAbierto);
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }
