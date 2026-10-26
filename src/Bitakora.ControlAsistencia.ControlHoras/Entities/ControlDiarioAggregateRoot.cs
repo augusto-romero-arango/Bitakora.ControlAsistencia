@@ -73,10 +73,21 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Descanso, sin programar o con ausencia: no depura horas, solo clasifica marcaciones de vecinos.
     private bool SinJornada => _ausenciaId is not null || DetalleTurno?.CoberturaPosible(Fecha) is null;
 
-    internal bool ActualizarCierreDeLaVispera(ControlDiarioAggregateRoot vispera) =>
-        throw new NotImplementedException();
+    private DateTime? _cierreTurnoVispera;
 
-    public void Apply(CierreDeLaVisperaActualizado e) => throw new NotImplementedException();
+    // true si emitio el evento. Cierre de referencia: no depende de las marcaciones ni de Invade.
+    internal bool ActualizarCierreDeLaVispera(ControlDiarioAggregateRoot vispera)
+    {
+        var cierre = vispera._ausenciaId is null ? vispera.DetalleTurno?.Cierre(vispera.Fecha) : null;
+        if (cierre == _cierreTurnoVispera) return false;
+
+        var evento = CierreDeLaVisperaActualizado.Crear(Id, cierre);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return true;
+    }
+
+    public void Apply(CierreDeLaVisperaActualizado e) => _cierreTurnoVispera = e.Cierre;
 
     // true si emitio el evento.
     internal bool ActualizarCoberturaVecina(ControlDiarioAggregateRoot vecino)

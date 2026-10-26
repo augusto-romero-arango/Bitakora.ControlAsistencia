@@ -34,6 +34,7 @@ public partial class RepartirMarcacionesCommandHandler : ICommandHandlerAsync<Re
             var (anterior, posterior) = fechaVecino < command.Fecha ? (vecino, dia) : (dia, vecino);
             if (anterior.ActualizarCoberturaVecina(posterior)) cambiados.Add(anterior);
             if (posterior.ActualizarCoberturaVecina(anterior)) cambiados.Add(posterior);
+            posterior.ActualizarCierreDeLaVispera(anterior);
             if (vecino.RecogerDe(dia)) cambiados.Add(vecino);
             if (dia.RecogerDe(vecino)) cambiados.Add(dia);
         }

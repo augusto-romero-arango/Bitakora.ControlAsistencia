@@ -75,7 +75,7 @@ public record TurnoDiario(
     private DateTime? Apertura(DateOnly fecha) =>
         FranjasOrdinarias.Count == 0 ? null : FranjasOrdinarias.Min(f => fecha.ToDateTime(f.HoraInicio));
 
-    private DateTime? Cierre(DateOnly fecha) =>
+    public DateTime? Cierre(DateOnly fecha) =>
         FranjasOrdinarias.Count == 0
             ? null
             : FranjasOrdinarias.Max(f => fecha.AddDays(f.DiaOffsetFin).ToDateTime(f.HoraFin));
