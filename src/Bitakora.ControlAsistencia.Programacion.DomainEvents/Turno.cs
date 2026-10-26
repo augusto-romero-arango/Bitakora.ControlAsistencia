@@ -7,6 +7,7 @@ public sealed partial class Turno : IEquatable<Turno>
 {
     private string _nombre = string.Empty;
     private bool _esDescanso;
+    private bool _esHorarioAbierto;
     private List<FranjaOrdinaria> _franjas = [];
     private HorasYMinutos _amplitudVentanaEntrada = HorasYMinutos.Crear(0, 0);
 
@@ -16,13 +17,19 @@ public sealed partial class Turno : IEquatable<Turno>
 
     public static Turno Crear(
         string nombre, bool esDescanso, IEnumerable<FranjaOrdinaria> franjas, bool esHorarioAbierto = false) =>
-        new() { _nombre = nombre, _esDescanso = esDescanso, _franjas = franjas.ToList() };
+        new()
+        {
+            _nombre = nombre,
+            _esDescanso = esDescanso,
+            _esHorarioAbierto = esHorarioAbierto,
+            _franjas = franjas.ToList()
+        };
 
     public string Nombre => _nombre;
 
     public bool EsDescanso() => _esDescanso;
 
-    public bool EsHorarioAbierto() => throw new NotImplementedException();
+    public bool EsHorarioAbierto() => _esHorarioAbierto;
 
     public int MinutosOrdinarios() => _esDescanso ? 0 : _franjas.Sum(f => f.MinutosOrdinarios());
 
@@ -71,6 +78,7 @@ public sealed partial class Turno : IEquatable<Turno>
         {
             _nombre = _nombre,
             _esDescanso = _esDescanso,
+            _esHorarioAbierto = _esHorarioAbierto,
             _franjas = (franjas ?? _franjas).ToList(),
             _amplitudVentanaEntrada = amplitud ?? _amplitudVentanaEntrada
         };
@@ -108,6 +116,7 @@ public sealed partial class Turno : IEquatable<Turno>
 
             Registrar<string>(typeInfo, "_nombre", "nombre");
             Registrar<bool>(typeInfo, "_esDescanso", "esDescanso");
+            Registrar<bool>(typeInfo, "_esHorarioAbierto", "esHorarioAbierto");
             Registrar<List<FranjaOrdinaria>>(typeInfo, "_franjas", "franjas");
             Registrar<HorasYMinutos>(typeInfo, "_amplitudVentanaEntrada", "amplitudVentanaEntrada");
         });

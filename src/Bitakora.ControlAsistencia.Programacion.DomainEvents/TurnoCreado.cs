@@ -113,8 +113,12 @@ public sealed partial class TurnoCreado
     }
 
     public static TurnoCreado CrearDeHorarioAbierto(
-        Guid turnoId, string nombre, IReadOnlyList<DatosFranja> ordinarias) =>
-        throw new NotImplementedException();
+        Guid turnoId, string nombre, IReadOnlyList<DatosFranja> ordinarias)
+    {
+        var evento = Crear(turnoId, nombre, ordinarias);
+        evento.EsHorarioAbierto = true;
+        return evento;
+    }
 
     // Detecta si algun par de franjas ordinarias se solapa usando minutos absolutos desde el dia base.
     // Duplicacion deliberada respecto de FranjaTemporal.SeSolapaCon -- decidida en #272 y #285,
