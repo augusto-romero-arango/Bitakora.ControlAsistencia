@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
@@ -27,10 +26,7 @@ public partial class CrearPlantillaSemanalCommandHandler : ICommandHandlerAsync<
             throw new RecursoYaExisteException(Mensajes.PlantillaYaExiste);
 
         var nombresVigentes = await _lectorNombres.ObtenerNombresAsync(ct);
-        var nombreNormalizado = NormalizarNombre(command.Nombre);
-        var duplicado = nombresVigentes.Any(nombre =>
-            string.Equals(NormalizarNombre(nombre), nombreNormalizado, StringComparison.Ordinal));
-        if (duplicado)
+        if (NombreDeCatalogo.EstaRepetido(command.Nombre, nombresVigentes))
             throw new ReglaDeNegocioDeclinadaException(Mensajes.NombreDuplicado);
 
         Jornada? jornada = null;
@@ -50,15 +46,4 @@ public partial class CrearPlantillaSemanalCommandHandler : ICommandHandlerAsync<
                 evento, command.JornadaId!.Value, jornada.Limites, jornada.Version);
         _eventStore.StartStream(plantilla);
     }
-
-    // Trim de extremos + colapso de espacios internos + case-folding. Los acentos SON
-    // significativos (decision del experto, issue #497): ToUpperInvariant no los remueve, y por eso
-    // la comparacion final es Ordinal sobre los dos nombres ya normalizados. Copia deliberada de
-    // CrearTurnoCommandHandler: segunda ocurrencia, MEF-ADR-0018 mantiene la duplicacion hasta la
-    // tercera -- si cambia esta regla, cambia alla tambien.
-    private static string NormalizarNombre(string nombre) =>
-        EspaciosConsecutivos().Replace(nombre.Trim(), " ").ToUpperInvariant();
-
-    [GeneratedRegex(@"\s+")]
-    private static partial Regex EspaciosConsecutivos();
 }

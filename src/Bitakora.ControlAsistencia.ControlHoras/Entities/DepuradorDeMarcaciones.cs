@@ -65,14 +65,14 @@ public static class DepuradorDeMarcaciones
         IReadOnlyList<MarcacionNormalizada> marcaciones,
         CoberturasVecinas? vecinas)
     {
-        if (turno?.Cobertura(fecha) is not { } coberturaReferencia)
+        if (turno?.CoberturaPosible(fecha) is not { } coberturaPosible)
             return null;
 
         var usables = marcaciones
             .Where(m => vecinas?.Excluye(m.TimestampNormalizado) != true)
             .ToList();
         var ancla = usables
-            .Where(m => coberturaReferencia.Contiene(m.TimestampNormalizado))
+            .Where(m => coberturaPosible.Contiene(m.TimestampNormalizado))
             .Min(m => (DateTime?)m.TimestampNormalizado);
         var horarioEfectivo = turno.HorarioEfectivo(fecha, ancla);
 
