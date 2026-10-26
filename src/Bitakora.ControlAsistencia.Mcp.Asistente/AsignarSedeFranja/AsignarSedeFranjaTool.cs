@@ -5,7 +5,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AsignarSedeFranja;
 
 // Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno, via
-// ResolutorTurnoPorNombre) + GET sedes/fichas/{codigo} (solo con codigo_sede) + POST
+// ResolutorTurnoPorId) + GET sedes/fichas/{codigo} (solo con codigo_sede) + POST
 // programacion/turnos/{id}:asignar-sede-franja (paso 4 MEF-ADR-0043). Sin codigo_sede la tool
 // retira la sede prearmada (body sin la clave sede); el 400/404/409 del POST -- incluido
 // FranjaSinSede al retirar sin sede -- se traduce a texto, nunca a excepcion (CA-ADR-0030).

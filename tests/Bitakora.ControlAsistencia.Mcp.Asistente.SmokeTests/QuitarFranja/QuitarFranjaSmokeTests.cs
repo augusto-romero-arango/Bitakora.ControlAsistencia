@@ -45,7 +45,7 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
     // que los recursos embebidos viajaron en el publish.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarFranja_RespondeElMensajeDeValidacion_CuandoElTurnoEstaEnBlanco()
+    public async Task QuitarFranja_RespondeElMensajeDeValidacion_CuandoElTurnoIdEstaEnBlanco()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -86,10 +86,10 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
         TextoDe(resultado).Should().Be("'franja' no es una hora valida en formato HH:mm: '3pm'.");
     }
 
-    // CA-3: nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion.
+    // CA-3: turno_id inexistente -> TurnoNoExiste (404 del detalle real de Programacion), remite a buscar_turnos.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task QuitarFranja_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
         var turnoInexistente = Guid.CreateVersion7().ToString();

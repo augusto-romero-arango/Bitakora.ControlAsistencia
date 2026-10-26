@@ -5,7 +5,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AgregarFranja;
 
 // Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno, via
-// ResolutorTurnoPorNombre) + GET sedes/fichas/{codigo} (solo si viene codigo_sede) + POST
+// ResolutorTurnoPorId) + GET sedes/fichas/{codigo} (solo si viene codigo_sede) + POST
 // programacion/turnos/{id}:agregar-franja (paso 4 MEF-ADR-0043). El 400/404/409 del POST se
 // traduce a texto, nunca a excepcion (CA-ADR-0030).
 public partial class AgregarFranjaTool(
@@ -17,7 +17,7 @@ public partial class AgregarFranjaTool(
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Agrega una franja ordinaria (segmento continuo de trabajo) a un turno del catalogo, "
+            "Agrega una franja ordinaria (segmento continuo de trabajo) a un turno del catalogo. "
             + "Horas en formato HH:mm; si fin es menor que inicio la "
             + "franja cruza la medianoche; inicio igual a fin significa una franja de 24 horas. "
             + "Opcional codigo_sede (obtenlo con buscar_sedes) para prearmar la sede de esa franja. "

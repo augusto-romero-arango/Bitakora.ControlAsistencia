@@ -50,7 +50,7 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
     // Error path que no toca el dominio: campo en blanco corta en el worker (mensaje .resx).
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarSubFranja_RespondeElMensajeDeValidacion_CuandoElTurnoEstaEnBlanco()
+    public async Task QuitarSubFranja_RespondeElMensajeDeValidacion_CuandoElTurnoIdEstaEnBlanco()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -110,7 +110,7 @@ public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture pr
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarSubFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task QuitarSubFranja_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
         var turnoInexistente = Guid.CreateVersion7().ToString();

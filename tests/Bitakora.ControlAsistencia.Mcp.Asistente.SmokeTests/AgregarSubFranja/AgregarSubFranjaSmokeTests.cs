@@ -116,7 +116,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
     // que los recursos embebidos viajaron en el publish.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AgregarSubFranja_RespondeElMensajeDeValidacion_CuandoElTurnoEstaEnBlanco()
+    public async Task AgregarSubFranja_RespondeElMensajeDeValidacion_CuandoElTurnoIdEstaEnBlanco()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -179,7 +179,7 @@ public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AgregarSubFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task AgregarSubFranja_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
         var turnoInexistente = Guid.CreateVersion7().ToString();

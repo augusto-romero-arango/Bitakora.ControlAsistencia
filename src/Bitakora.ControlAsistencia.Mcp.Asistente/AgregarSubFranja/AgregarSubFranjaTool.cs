@@ -5,7 +5,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AgregarSubFranja;
 
 // Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno, via
-// ResolutorTurnoPorNombre) + POST programacion/turnos/{id}:agregar-subfranja (paso 4
+// ResolutorTurnoPorId) + POST programacion/turnos/{id}:agregar-subfranja (paso 4
 // MEF-ADR-0043). Descanso y extra comparten forma exacta: una tool con tipo, no cuatro
 // (MEF-ADR-0047 decision 4). El 400/404/409 del POST se traduce a texto, nunca a excepcion
 // (CA-ADR-0030).
