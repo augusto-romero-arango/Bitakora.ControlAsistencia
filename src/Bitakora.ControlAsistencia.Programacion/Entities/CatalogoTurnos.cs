@@ -6,7 +6,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 // El diseno del turno vive en el VO Turno; el aggregate conserva el ciclo de vida (_estaActivo)
 // y las decisiones, preguntandole al turno.
-public class CatalogoTurnos : AggregateRoot
+public partial class CatalogoTurnos : AggregateRoot
 {
     private Turno _turno = Turno.Crear(string.Empty, false, []);
     private bool _estaActivo;
@@ -29,6 +29,29 @@ public class CatalogoTurnos : AggregateRoot
         };
 
     internal Turno Turno => _turno;
+
+    private static readonly TimeOnly AperturaHorarioAbierto = new(4, 0);
+
+    // La salida mas tardia es la medianoche: la duracion maxima es lo que queda del dia tras la apertura.
+    private static readonly HorasYMinutos DuracionMaximaHorarioAbierto =
+        HorasYMinutos.Crear(24 - AperturaHorarioAbierto.Hour, 0);
+
+    // Atajo de creacion: franja 04:00 + duracion y ventana de 20 h - duracion, en un solo stream.
+    internal static CatalogoTurnos IniciarDeHorarioAbierto(Guid turnoId, string nombre, HorasYMinutos duracion)
+    {
+        var minutos = duracion.TotalMinutos();
+        if (minutos <= 0 || duracion.CompareTo(DuracionMaximaHorarioAbierto) > 0)
+            throw new AggregateException(new ArgumentException(Mensajes.DuracionHorarioAbiertoFueraDeRango));
+
+        var fin = AperturaHorarioAbierto.Add(TimeSpan.FromMinutes(minutos), out var diaOffsetFin);
+        var franja = new DatosFranja(AperturaHorarioAbierto, fin, [], [], null, diaOffsetFin);
+        var catalogo = Iniciar(TurnoCreado.Crear(turnoId, nombre, [franja]));
+
+        var amplitud = DuracionMaximaHorarioAbierto.TotalMinutos() - minutos;
+        if (amplitud > 0)
+            catalogo.ModificarVentanaDeEntrada(HorasYMinutos.Crear(amplitud / 60, amplitud % 60));
+        return catalogo;
+    }
 
     public void Apply(TurnoCreado evento)
     {

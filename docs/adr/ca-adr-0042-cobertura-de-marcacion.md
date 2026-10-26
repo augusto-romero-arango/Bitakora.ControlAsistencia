@@ -10,7 +10,7 @@ La hora de corte nacio como regla de ruteo pragmatica y la relevancia se delego 
 
 ## Decision
 1. **Cobertura de marcacion** = [apertura - 2 h, fin efectivo + 4 h). Apertura = menor inicio de las franjas; fin = mayor fin resuelto (incluye `DiaOffsetFin`). Sin franjas: sin cobertura. El depurador solo usa marcaciones dentro de ella.
-2. **Ancla de la ventana** = primera marcacion dentro de la cobertura del turno de referencia.
+2. **Ancla de la ventana** = primera marcacion dentro de la cobertura posible del turno (la de referencia extendida en la amplitud de la ventana), sin las del solape con un vecino, acotada a la ventana (#1202).
 3. **Reparto**: toda marcacion se guarda en su dia calendario y una reaccion a `DiaDepurado` la entrega a la vispera o al dia siguiente si la cobertura posible de su turno la contiene, y recoge de ellos las que le corresponden (#1125).
 4. **Guardar y luego mirar**: el reparto lee a los vecinos en otra transaccion, posterior al commit del dia, para que ninguna marcacion se pierda en una carrera marcacion/turno.
 5. Una marcacion en la cobertura de dos turnos es **ambigua**: ninguno la usa, la decide el Aprobador (#1127, #1130).
