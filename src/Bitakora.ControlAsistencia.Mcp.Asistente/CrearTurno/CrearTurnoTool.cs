@@ -38,7 +38,7 @@ public partial class CrearTurnoTool(ProgramacionApi programacion, ResolutorSedeP
         bool? esDescanso,
         [McpToolProperty(
             "franjas",
-            "Franjas del turno completo, como JSON (opcional): "
+            "Franjas del turno completo, como JSON (opcional); cada franja, descanso y extra en formato HH:mm-HH:mm: "
             + "[{\"franja\":\"06:00-14:00\",\"descansos\":[\"10:00-10:15\"],\"extras\":[\"13:00-14:00\"],\"codigo_sede\":\"SUBA\"}]. "
             + "descansos, extras y codigo_sede son opcionales (codigo_sede, miralo con buscar_sedes).")]
         string? franjas,
@@ -47,19 +47,42 @@ public partial class CrearTurnoTool(ProgramacionApi programacion, ResolutorSedeP
         if (string.IsNullOrWhiteSpace(nombre))
             return string.Format(Mensajes.CampoObligatorio, "nombre");
 
-        if (!string.IsNullOrWhiteSpace(franjas))
-            throw new NotImplementedException();
-
         var descanso = esDescanso ?? false;
         var turnoId = Guid.CreateVersion7();
-        var respuesta = await programacion.CrearTurno(turnoId, nombre, descanso, ct);
+
+        IReadOnlyList<OrdinariaACrear>? ordinarias = null;
+        IReadOnlyList<string>? franjasEco = null;
+        if (!string.IsNullOrWhiteSpace(franjas))
+        {
+            var lectura = FranjasDeTurno.Leer(franjas);
+            if (lectura.Error is not null)
+                return lectura.Error;
+
+            var sedes = new Dictionary<string, SedeProgramada>();
+            foreach (var codigo in lectura.Franjas.Select(f => f.CodigoSede).OfType<string>().Distinct())
+            {
+                var resolucionSede = await resolutorSedes.ResolverAsync(codigo, ct);
+                if (resolucionSede.FalloDeLectura is { } falloSede)
+                    return string.Format(Mensajes.RechazoDelDominio, falloSede);
+                if (resolucionSede.MensajeDelMotivo(
+                    codigo, noExiste: Mensajes.SedeNoExiste, inactiva: Mensajes.SedeInactiva) is { } rechazo)
+                    return rechazo;
+
+                sedes[codigo] = resolucionSede.Sede!;
+            }
+
+            ordinarias = lectura.Franjas.Select(f => f.ParaEnviar(f.CodigoSede is null ? null : sedes[f.CodigoSede])).ToList();
+            franjasEco = lectura.Franjas.Select(f => f.Compactar(f.CodigoSede is null ? null : sedes[f.CodigoSede].Nombre)).ToList();
+        }
+
+        var respuesta = await programacion.CrearTurno(turnoId, nombre, descanso, ct, ordinarias);
 
         if (!respuesta.IsSuccessStatusCode)
             return string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct));
 
         return RespuestaJson.Serializar(new TurnoCreadoResumen(
             Mensajes.ResultadoTurnoCreado,
-            new TurnoCreadoEco(turnoId.ToString(), nombre, descanso, descanso),
+            new TurnoCreadoEco(turnoId.ToString(), nombre, descanso, descanso || franjasEco is not null, franjasEco),
             Mensajes.NotaVisibilidadEventual));
     }
 }

@@ -20,7 +20,8 @@ public sealed class ProgramacionApi(HttpClient http)
         bool esDescanso,
         CancellationToken ct,
         IReadOnlyList<OrdinariaACrear>? ordinarias = null) =>
-        http.PostAsJsonAsync("api/programacion/turnos", new { turnoId, nombre, esDescanso }, ct);
+        http.PostAsJsonAsync(
+            "api/programacion/turnos", new TurnoACrear(turnoId, nombre, esDescanso, ordinarias), ct);
 
     public Task<HttpResponseMessage> RetirarTurno(string id, CancellationToken ct) =>
         http.DeleteAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
@@ -310,9 +311,17 @@ public sealed record SubFranjaAQuitar
 
 public sealed record SedeProgramada(string Id, string Nombre, string? CentroDeCostos);
 
+public sealed record TurnoACrear(
+    Guid TurnoId,
+    string Nombre,
+    bool EsDescanso,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyList<OrdinariaACrear>? Ordinarias);
+
 public sealed record OrdinariaACrear(
     string Inicio,
     string Fin,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     int? DiaOffsetFin,
     IReadOnlyList<SubFranjaACrear>? Descansos,
     IReadOnlyList<SubFranjaACrear>? Extras,
