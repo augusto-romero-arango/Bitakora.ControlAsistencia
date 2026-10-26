@@ -45,11 +45,12 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
             ficha.Nombre.Trim(),
             ficha.EsDescanso,
             ficha.Completo,
-            ficha.HorarioResumido,
-            [.. ficha.Franjas.Select(Compactar)],
+            ficha.HorarioAbierto is { } ha ? string.Format(Mensajes.HorarioAbierto, ha.Duracion) : ficha.HorarioResumido,
+            ficha.HorarioAbierto is null ? [.. ficha.Franjas.Select(Compactar)] : [],
             ficha.VentanaDeEntrada is { } v
                 ? string.Format(Mensajes.EntraEntre, $"{v.Apertura:HH\\:mm}", $"{v.Cierre:HH\\:mm}", v.Amplitud)
-                : null);
+                : null,
+            ficha.HorarioAbierto is not null ? ficha.Franjas.Select(f => f.NombreSede ?? f.SedeId).FirstOrDefault(s => s is not null) : null);
 
         return RespuestaJson.Serializar(detalle);
     }
@@ -89,4 +90,5 @@ public sealed record TurnoDetallado(
     bool Completo,
     string Horario,
     IReadOnlyList<string> Franjas,
-    string? VentanaDeEntrada);
+    string? VentanaDeEntrada,
+    string? Sede = null);
