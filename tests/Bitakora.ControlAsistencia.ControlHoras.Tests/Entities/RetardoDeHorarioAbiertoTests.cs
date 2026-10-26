@@ -44,6 +44,8 @@ public class RetardoDeHorarioAbiertoTests
     private static RegistroDeMarcacionCreado Creado(DateTime timestamp) =>
         new(Colaborador.CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
+    // La salida tras medianoche se guarda en el stream del dia siguiente y llega al del turno como copia
+    // del reparto (CA-ADR-0042): por eso va en el Given y la entrada del propio dia dispara el handler.
     private static decimal HorasSinRetardo(ControlDiarioAggregateRoot c) =>
         c.CrearDiaDepurado().HorasDiscriminadas.HorasPorConcepto
             .Where(h => h.Key != "Retardo")
@@ -56,11 +58,11 @@ public class RetardoDeHorarioAbiertoTests
     {
         var entrada = new DateTime(2026, 3, 11, 19, 0, 0);
         var salida = new DateTime(2026, 3, 12, 0, 0, 0);
-        Given(StreamId, Asignado(AbiertoDe6Horas), Marcacion(entrada));
+        Given(StreamId, Asignado(AbiertoDe6Horas), Marcacion(salida));
 
-        await WhenAsync(Creado(salida));
+        await WhenAsync(Creado(entrada));
 
-        Then(StreamId, Marcacion(salida));
+        Then(StreamId, Marcacion(entrada));
         And<ControlDiarioAggregateRoot, bool>(
             StreamId,
             c => c.CrearDiaDepurado().HorasDiscriminadas.HorasPorConcepto.ContainsKey("Retardo"),
@@ -74,11 +76,11 @@ public class RetardoDeHorarioAbiertoTests
     {
         var entrada = new DateTime(2026, 3, 11, 19, 0, 0);
         var salida = new DateTime(2026, 3, 12, 1, 0, 0);
-        Given(StreamId, Asignado(AbiertoDe6Horas), Marcacion(entrada));
+        Given(StreamId, Asignado(AbiertoDe6Horas), Marcacion(salida));
 
-        await WhenAsync(Creado(salida));
+        await WhenAsync(Creado(entrada));
 
-        Then(StreamId, Marcacion(salida));
+        Then(StreamId, Marcacion(entrada));
         And<ControlDiarioAggregateRoot, bool>(
             StreamId,
             c => c.CrearDiaDepurado().HorasDiscriminadas.HorasPorConcepto.ContainsKey("Retardo"),
