@@ -8,7 +8,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.CrearTurno;
 // MEF-ADR-0043): el turnoId es un Guid v7 generado por esta tool (MEF-ADR-0037 seccion 1), nunca
 // por el dominio. El rechazo del dominio (nombre duplicado) se devuelve como texto, nunca como
 // excepcion (CA-ADR-0030).
-public partial class CrearTurnoTool(ProgramacionApi programacion)
+public partial class CrearTurnoTool(ProgramacionApi programacion, ResolutorSedePorCodigo resolutorSedes)
 {
     internal const string NombreTool = "crear_turno";
 
@@ -36,10 +36,19 @@ public partial class CrearTurnoTool(ProgramacionApi programacion)
             "En true crea un turno de descanso (dia libre programable, sin franjas). Por defecto "
             + "false: turno incompleto listo para disenar con agregar_franja.")]
         bool? esDescanso,
+        [McpToolProperty(
+            "franjas",
+            "Franjas del turno completo, como JSON (opcional): "
+            + "[{\"franja\":\"06:00-14:00\",\"descansos\":[\"10:00-10:15\"],\"extras\":[\"13:00-14:00\"],\"codigo_sede\":\"SUBA\"}]. "
+            + "descansos, extras y codigo_sede son opcionales (codigo_sede, miralo con buscar_sedes).")]
+        string? franjas,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(nombre))
             return string.Format(Mensajes.CampoObligatorio, "nombre");
+
+        if (!string.IsNullOrWhiteSpace(franjas))
+            throw new NotImplementedException();
 
         var descanso = esDescanso ?? false;
         var turnoId = Guid.CreateVersion7();
@@ -62,4 +71,5 @@ public partial class CrearTurnoTool(ProgramacionApi programacion)
 /// </summary>
 public sealed record TurnoCreadoResumen(string Resultado, TurnoCreadoEco Turno, string Nota);
 
-public sealed record TurnoCreadoEco(string Id, string Nombre, bool EsDescanso, bool Completo);
+public sealed record TurnoCreadoEco(
+    string Id, string Nombre, bool EsDescanso, bool Completo, IReadOnlyList<string>? Franjas = null);

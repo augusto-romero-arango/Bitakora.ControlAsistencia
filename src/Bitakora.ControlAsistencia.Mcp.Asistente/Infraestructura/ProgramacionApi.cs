@@ -14,7 +14,12 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> ObtenerTurno(string id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
 
-    public Task<HttpResponseMessage> CrearTurno(Guid turnoId, string nombre, bool esDescanso, CancellationToken ct) =>
+    public Task<HttpResponseMessage> CrearTurno(
+        Guid turnoId,
+        string nombre,
+        bool esDescanso,
+        CancellationToken ct,
+        IReadOnlyList<OrdinariaACrear>? ordinarias = null) =>
         http.PostAsJsonAsync("api/programacion/turnos", new { turnoId, nombre, esDescanso }, ct);
 
     public Task<HttpResponseMessage> RetirarTurno(string id, CancellationToken ct) =>
@@ -304,3 +309,13 @@ public sealed record SubFranjaAQuitar
 }
 
 public sealed record SedeProgramada(string Id, string Nombre, string? CentroDeCostos);
+
+public sealed record OrdinariaACrear(
+    string Inicio,
+    string Fin,
+    int? DiaOffsetFin,
+    IReadOnlyList<SubFranjaACrear>? Descansos,
+    IReadOnlyList<SubFranjaACrear>? Extras,
+    SedeProgramada? Sede);
+
+public sealed record SubFranjaACrear(string Inicio, string Fin);

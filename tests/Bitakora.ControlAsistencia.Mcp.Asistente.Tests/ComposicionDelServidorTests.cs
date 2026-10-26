@@ -340,7 +340,19 @@ public class ComposicionDelServidorTests
 
     [Fact]
     public void CrearTurno_DeclaraElNombreComoObligatorio_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("crear_turno").Should().BeEquivalentTo([("nombre", true), ("es_descanso", false)]);
+        PropiedadesDe("crear_turno").Should().BeEquivalentTo(
+            [("nombre", true), ("es_descanso", false), ("franjas", false)]);
+
+    [Fact]
+    public void CrearTurno_DeclaraFranjasOpcionalDeTipoStringYLaDescribe_CuandoSeInspeccionaLaTool()
+    {
+        var franjas = ParametrosDeTool("crear_turno")
+            .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "franjas");
+        franjas.ParameterType.Should().Be(typeof(string));
+        franjas.GetCustomAttribute<McpToolPropertyAttribute>()!.Description.Should().Contain("HH:mm-HH:mm");
+        ParametroTrigger(MetodoDe("crear_turno"))!.GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("franjas");
+    }
 
     [Fact]
     public void CrearTurnoDeHorarioAbierto_DeclaraNombreYDuracionComoObligatoriosDeTipoString_CuandoSeInspeccionaLaTool()
