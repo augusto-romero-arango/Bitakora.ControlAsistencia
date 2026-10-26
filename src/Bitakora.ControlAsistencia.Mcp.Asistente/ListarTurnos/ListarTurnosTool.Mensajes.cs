@@ -10,6 +10,9 @@ public partial class ListarTurnosTool
 
     internal static class Mensajes
     {
+        /// <summary>{0}: duracion de la ficha.</summary>
+        public static string HorarioAbierto => ResourceManager.GetString(nameof(HorarioAbierto))!;
+
         /// <summary>{0}: siguienteCursor.</summary>
         public static string NotaHayMasTurnos => ResourceManager.GetString(nameof(NotaHayMasTurnos))!;
 

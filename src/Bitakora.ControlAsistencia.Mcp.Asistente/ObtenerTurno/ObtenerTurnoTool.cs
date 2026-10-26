@@ -40,16 +40,22 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
 
         var ficha = (await respuesta.Content.ReadFromJsonAsync<FichaTurno>(ct))!;
 
+        // Un turno de horario abierto controla horas y no horarios: su franja es detalle de diseno,
+        // asi que solo se conserva su sede.
+        var horarioAbierto = ficha.HorarioAbierto;
         var detalle = new TurnoDetallado(
             ficha.Id,
             ficha.Nombre.Trim(),
             ficha.EsDescanso,
             ficha.Completo,
-            ficha.HorarioResumido,
-            [.. ficha.Franjas.Select(Compactar)],
+            horarioAbierto is null
+                ? ficha.HorarioResumido
+                : string.Format(Mensajes.HorarioAbierto, horarioAbierto.Duracion),
+            horarioAbierto is null ? [.. ficha.Franjas.Select(Compactar)] : [],
             ficha.VentanaDeEntrada is { } v
                 ? string.Format(Mensajes.EntraEntre, $"{v.Apertura:HH\\:mm}", $"{v.Cierre:HH\\:mm}", v.Amplitud)
-                : null);
+                : null,
+            horarioAbierto is null ? null : ficha.Franjas.Select(Sede).FirstOrDefault(s => s is not null));
 
         return RespuestaJson.Serializar(detalle);
     }
@@ -68,12 +74,13 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
         foreach (var extra in franja.Extras)
             texto.Append($", extra {Rango(extra.HoraInicio, extra.HoraFin, extra.DiaOffsetInicio, extra.DiaOffsetFin)}");
 
-        var sede = franja.NombreSede ?? franja.SedeId;
-        if (sede is not null)
+        if (Sede(franja) is { } sede)
             texto.Append($", sede: {sede}");
 
         return texto.ToString();
     }
+
+    private static string? Sede(FranjaFicha franja) => franja.NombreSede ?? franja.SedeId;
 
     private static string Rango(TimeOnly inicio, TimeOnly fin, int diaOffsetInicio, int diaOffsetFin) =>
         $"{inicio:HH\\:mm}{Sufijo(diaOffsetInicio)}-{fin:HH\\:mm}{Sufijo(diaOffsetFin)}";
@@ -89,4 +96,5 @@ public sealed record TurnoDetallado(
     bool Completo,
     string Horario,
     IReadOnlyList<string> Franjas,
-    string? VentanaDeEntrada);
+    string? VentanaDeEntrada,
+    string? Sede = null);

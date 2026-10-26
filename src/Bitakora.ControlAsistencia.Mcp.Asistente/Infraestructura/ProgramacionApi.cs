@@ -219,7 +219,10 @@ public sealed record FichaTurno(
     IReadOnlyList<FranjaFicha> Franjas,
     string Descripcion,
     bool Completo,
-    VentanaDeEntradaFicha? VentanaDeEntrada = null);
+    VentanaDeEntradaFicha? VentanaDeEntrada = null,
+    HorarioAbiertoFicha? HorarioAbierto = null);
+
+public sealed record HorarioAbiertoFicha(string Duracion);
 
 public sealed record VentanaDeEntradaFicha(TimeOnly Apertura, TimeOnly Cierre, string Amplitud);
 

@@ -12,6 +12,9 @@ public partial class ObtenerTurnoTool
 
     internal static class Mensajes
     {
+        /// <summary>{0}: duracion de la ficha.</summary>
+        public static string HorarioAbierto => ResourceManager.GetString(nameof(HorarioAbierto))!;
+
         /// <summary>{0}: id pedido.</summary>
         public static string TurnoNoExiste =>
             ResourceManager.GetString(nameof(TurnoNoExiste))!;
