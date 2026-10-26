@@ -142,7 +142,7 @@ public class TurnoCreadoSerializacionTests
         deserializado!.EsDescanso.Should().BeFalse();
     }
 
-    // ---------- #1233: EsHorarioAbierto sobrevive el roundtrip y el legado deserializa false ----------
+    // ---------- EsHorarioAbierto sobrevive el roundtrip y el legado deserializa false ----------
 
     [Fact]
     public void RoundTrip_PreservaEsHorarioAbiertoTrue_CuandoEventoEsDeHorarioAbierto()

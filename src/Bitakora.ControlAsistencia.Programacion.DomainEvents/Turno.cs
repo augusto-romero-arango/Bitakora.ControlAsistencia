@@ -94,13 +94,14 @@ public sealed partial class Turno : IEquatable<Turno>
         other is not null
         && _nombre == other._nombre
         && _esDescanso == other._esDescanso
+        && _esHorarioAbierto == other._esHorarioAbierto
         && _amplitudVentanaEntrada.Equals(other._amplitudVentanaEntrada)
         && _franjas.SequenceEqual(other._franjas);
 
     public override bool Equals(object? obj) => Equals(obj as Turno);
 
     public override int GetHashCode() =>
-        _franjas.Aggregate(HashCode.Combine(_nombre, _esDescanso, _amplitudVentanaEntrada), HashCode.Combine);
+        _franjas.Aggregate(HashCode.Combine(_nombre, _esDescanso, _esHorarioAbierto, _amplitudVentanaEntrada), HashCode.Combine);
 
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {

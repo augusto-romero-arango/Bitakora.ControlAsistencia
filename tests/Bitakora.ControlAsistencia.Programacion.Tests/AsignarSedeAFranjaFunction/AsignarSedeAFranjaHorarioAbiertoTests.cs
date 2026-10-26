@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction;
 using Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -43,5 +43,23 @@ public class AsignarSedeAFranjaHorarioAbiertoTests : CommandHandlerAsyncTest<Asi
             FranjaOrdinaria.Crear(new TimeOnly(4, 0), new TimeOnly(10, 0))));
         And<CatalogoTurnos, SedeProgramada?>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias.Single().Sede, null);
+    }
+
+    // La copia de la plantilla se sincroniza desde este evento: sin la marca, la perderia.
+    [Fact]
+    public async Task AsignarSedeAFranja_PublicaElDisenoConLaMarcaDeHorarioAbierto_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        Given(TurnoId.ToString(), TurnoDeHorarioAbiertoEventos.Creado(), TurnoDeHorarioAbiertoEventos.Ventana());
+
+        await WhenAsync(new AsignarSedeAFranja(TurnoId, new TimeOnly(4, 0), Sede));
+
+        Then(TurnoId.ToString(), SedeDeFranjaAsignada.Crear(TurnoId,
+            FranjaOrdinaria.Crear(new TimeOnly(4, 0), new TimeOnly(10, 0), sede: Sede)));
+        ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
+            TurnoId, 3, "Turno Abierto", false,
+            [new DetalleFranjaOrdinaria(
+                new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00", new DetalleSede("SEDE-OCOA", "Ocoa"))],
+            false, AmplitudVentanaEntradaEnMinutos: 840, EsHorarioAbierto: true));
+        And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.Turno.EsHorarioAbierto(), true);
     }
 }
