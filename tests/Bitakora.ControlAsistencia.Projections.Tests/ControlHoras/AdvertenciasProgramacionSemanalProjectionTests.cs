@@ -542,6 +542,82 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         AdvertenciasProgramacionSemanalProjection.Create(Vispera(1, CincoAm(1))).Should().BeNull();
     }
 
+    private static TurnoDiario Abierto() => new("Abierto", [Franja(4, 6)], "", EsHorarioAbierto: true);
+
+    private static DateTime DiezAm(int offset) => Dia(offset).ToDateTime(new TimeOnly(10, 0));
+
+    [Fact]
+    public void Apply_NoAdvierteDescansoEntreTurnos_CuandoElDiaEsDeHorarioAbierto()
+    {
+        var v = Aplica(null, Asigna(0, NocheVeintidos()), Asigna(1, Abierto()), Vispera(1, DiezAm(1)));
+
+        Casilla(v, 1).EsHorarioAbierto.Should().BeTrue();
+        Casilla(v, 1).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_AdvierteDescansoEntreTurnos_CuandoElDiaNoEsDeHorarioAbierto()
+    {
+        var v = Aplica(null, Asigna(0, NocheVeintidos()), Asigna(1, Manana()), Vispera(1, DiezAm(1)));
+
+        Casilla(v, 1).EsHorarioAbierto.Should().BeFalse();
+        Casilla(v, 1).Advertencias.Should().Equal(new AdvertenciaDiaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 360));
+    }
+
+    [Fact]
+    public void Apply_AdvierteDescansoEntreTurnos_CuandoLaVisperaEsDeHorarioAbiertoYSuLimiteInvadeElDia()
+    {
+        var v = Aplica(null, Asigna(0, Abierto()), Asigna(1, Manana()), Vispera(1, CincoAm(1)));
+
+        Casilla(v, 1).Advertencias.Should().Equal(Solape60);
+    }
+
+    [Fact]
+    public void Apply_ApagaLaMarca_CuandoReasignacionEsComun()
+    {
+        var v = Aplica(null, Asigna(0, Abierto()), Asigna(0, Manana()));
+
+        Casilla(v, 0).EsHorarioAbierto.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_GuardaLaMarcaEnTurnoCubierto_CuandoAusenciaAsignadaSobreHorarioAbierto()
+    {
+        var v = Aplica(null, Asigna(0, Abierto()), Ausenta(0, AusenciaA));
+
+        Casilla(v, 0).EsHorarioAbierto.Should().BeFalse();
+        Casilla(v, 0).TurnoCubierto!.EsHorarioAbierto.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_GuardaLaMarcaEnTurnoCubierto_CuandoTurnoDiarioAsignadoConAusenciaVigente()
+    {
+        var v = Aplica(null, Ausenta(0, AusenciaA), Asigna(0, Abierto()));
+
+        Casilla(v, 0).EsHorarioAbierto.Should().BeFalse();
+        Casilla(v, 0).TurnoCubierto!.EsHorarioAbierto.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_RestableceLaMarcaYNoAdvierte_CuandoCancelacionDeAusenciaSobreHorarioAbierto()
+    {
+        var v = Aplica(null, Asigna(0, NocheVeintidos()), Asigna(1, Abierto()), Vispera(1, DiezAm(1)),
+            Ausenta(1, AusenciaA), CancelaAusencia(1, AusenciaA));
+
+        Casilla(v, 1).EsHorarioAbierto.Should().BeTrue();
+        Casilla(v, 1).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Deserializar_LeeFalse_CuandoElDocumentoNoTraeLaClaveEsHorarioAbierto()
+    {
+        var casilla = System.Text.Json.JsonSerializer.Deserialize<CasillaDia>(
+            """{"Fecha":"2026-10-05","Tipo":0,"NombreTurno":"T","MinutosOrdinarios":0,"TurnoCubierto":{"NombreTurno":"C","MinutosOrdinarios":0,"EsDescanso":false}}""")!;
+
+        casilla.EsHorarioAbierto.Should().BeFalse();
+        casilla.TurnoCubierto!.EsHorarioAbierto.Should().BeFalse();
+    }
+
     private static FranjaProgramada FranjaNoche(int hi, int hf) =>
         new(new TimeOnly(hi, 0), new TimeOnly(hf, 0), 1, [], [], "");
 

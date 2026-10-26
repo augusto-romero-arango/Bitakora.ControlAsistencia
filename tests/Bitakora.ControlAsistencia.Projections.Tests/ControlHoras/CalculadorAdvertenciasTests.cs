@@ -204,6 +204,28 @@ public class CalculadorAdvertenciasTests
     private static DateTime Hora(int dia, int h) => Lunes.AddDays(dia).ToDateTime(new TimeOnly(h, 0));
 
     [Fact]
+    public void Calcular_NoAdvierteDescansoEntreTurnos_CuandoLaCasillaEsDeHorarioAbierto()
+    {
+        var casillas = Semana(T(480), T(120));
+        casillas[1] = ConCobertura(1, Hora(1, 2), Hora(1, 10)) with { EsHorarioAbierto = true };
+
+        var r = CalculadorAdvertencias.Calcular(casillas, Jornada, false);
+
+        r.Diarias[1].Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_AdvierteDescansoEntreTurnos_CuandoLaCasillaNoEsDeHorarioAbierto()
+    {
+        var casillas = Semana(T(480), T(120));
+        casillas[1] = ConCobertura(1, Hora(1, 2), Hora(1, 10));
+
+        var r = CalculadorAdvertencias.Calcular(casillas, Jornada, false);
+
+        r.Diarias[1].Should().Equal(Diaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 480));
+    }
+
+    [Fact]
     public void Calcular_PorDebajoDelDescansoEntreTurnos_CuandoElLimiteDeLaVisperaSuperaElInicioDeCobertura()
     {
         var casillas = Semana(T(480), T(480));

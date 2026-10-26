@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurnoPor
 
 public partial class SolicitarProgramacionTurnoPorGrupoTool(
     ProgramacionApi programacion, SedesApi sedes,
-    ResolutorTurnoPorNombre resolutor, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorGrupo resolutorCandidatos,
+    ResolutorTurnoPorId resolutor, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorGrupo resolutorCandidatos,
     ILogger<SolicitarProgramacionTurnoPorGrupoTool>? logger = null, TimeProvider? reloj = null)
 {
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
@@ -33,8 +33,9 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
         string desde,
         [McpToolProperty("hasta", "Ultimo dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
         string hasta,
-        [McpToolProperty("turno", "Nombre exacto del turno del catalogo.", isRequired: true)]
-        string turno,
+        [McpToolProperty(
+            "turno_id", "Id del turno, tal como lo da buscar_turnos.", isRequired: true)]
+        string turnoId,
         [McpToolProperty(
             "sede_de_programacion",
             "Opcional. Codigo de la sede donde se registra la programacion; sugierela al usuario. "
@@ -52,8 +53,8 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
             return string.Format(Mensajes.CampoObligatorio, "desde");
         if (string.IsNullOrWhiteSpace(hasta))
             return string.Format(Mensajes.CampoObligatorio, "hasta");
-        if (string.IsNullOrWhiteSpace(turno))
-            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (!Guid.TryParse(turnoId, out var idDelTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
 
         var mensajesSelector = new MensajesDeSelector(
             Mensajes.SelectorObligatorio, Mensajes.EtiquetaMalFormada, Mensajes.SedeDelSelectorNoExiste,
@@ -78,13 +79,11 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
 
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
-        if (resolucion.FalloDeLectura is { } falloTurnos)
-            return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
-        var fichaTurno = resolucion.Ficha;
+        var resolucion = await resolutor.ResolverAsync(idDelTurno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurno)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
+        if (resolucion.Ficha is not { } fichaTurno)
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         SedeProgramada? sedeExplicita = null;
         if (!string.IsNullOrWhiteSpace(sedeDeProgramacion))

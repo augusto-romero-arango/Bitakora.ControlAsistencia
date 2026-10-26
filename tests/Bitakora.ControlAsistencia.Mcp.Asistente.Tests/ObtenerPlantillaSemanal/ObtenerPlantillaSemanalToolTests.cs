@@ -7,47 +7,42 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.ObtenerPlantillaSemanal;
 
-// Tests del remodelado de obtener_plantilla_semanal (CA-2/CA-3, issue #629): resuelve el nombre
-// contra GET programacion/plantillas-semanales y arma el cuadro con GET
-// programacion/plantillas-semanales/{id}. El HandlerFuncional responde distinto segun la ruta,
-// para poder simular la carrera lista-encuentra/detalle-404 y contar cuantos GET se hicieron.
+// Tests del remodelado de obtener_plantilla_semanal: lee el detalle por GET
+// programacion/plantillas-semanales/{id}, sin catalogo previo, y arma el cuadro por semana y dia.
 public class ObtenerPlantillaSemanalToolTests
 {
-    private const string RutaListado = "/api/programacion/plantillas-semanales";
+    private const string PlantillaId = "01a07000-1000-7000-9000-000000000001";
+    private const string PlantillaIdBodega = "01a07000-1000-7000-9000-000000000004";
 
-    private static ObtenerPlantillaSemanalTool CrearTool(HttpClient cliente)
+    private static (ObtenerPlantillaSemanalTool Tool, HandlerPorRuta Handler) CrearTool(
+        string fixtureDetalle = "obtener-plantilla-semanal.json",
+        string plantillaId = PlantillaId,
+        HttpStatusCode statusDetalle = HttpStatusCode.OK,
+        string cuerpoDetalle = "")
     {
-        var api = new ProgramacionApi(cliente);
-        return new ObtenerPlantillaSemanalTool(api, new ResolutorPlantillaPorNombre(api));
+        var (cliente, handler) = ClienteFalso.ConRutas();
+        handler.Responde(
+            HttpMethod.Get, DetalleDePlantillaFalso.RutaDetalle(plantillaId), statusDetalle,
+            statusDetalle == HttpStatusCode.OK ? Fixtures.Leer("ObtenerPlantillaSemanal", fixtureDetalle) : cuerpoDetalle);
+        return (new ObtenerPlantillaSemanalTool(new ProgramacionApi(cliente)), handler);
     }
 
-    private static (HttpClient Cliente, HandlerFuncional Handler) ClienteConCatalogoYDetalle(
-        string fixtureListado, string fixtureDetalle, HttpStatusCode statusDetalle = HttpStatusCode.OK)
-    {
-        return ClienteFalso.ConFuncion(req => req.RequestUri!.AbsolutePath == RutaListado
-            ? ClienteFalso.JsonOk(Fixtures.Leer("ObtenerPlantillaSemanal", fixtureListado))
-            : statusDetalle == HttpStatusCode.NotFound
-                ? new HttpResponseMessage(HttpStatusCode.NotFound)
-                : ClienteFalso.JsonOk(Fixtures.Leer("ObtenerPlantillaSemanal", fixtureDetalle)));
-    }
+    private static Task<string> Ejecutar(ObtenerPlantillaSemanalTool tool, string plantillaId = PlantillaId) =>
+        tool.Run(null!, plantillaId, TestContext.Current.CancellationToken);
 
+    // CA-4 y CA-5: el cuadro sale del detalle por id, con una sola llamada y sin catalogo.
     [Fact]
     public async Task ObtenerPlantillaSemanal_ArmaElCuadroPorSemanaYDia_CuandoLaPlantillaExiste()
     {
-        var (cliente, handler) = ClienteConCatalogoYDetalle(
-            "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = CrearTool(cliente);
+        var (tool, handler) = CrearTool();
 
-        var resultado = await tool.Run(
-            null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(tool);
 
-        handler.Requests.Should().HaveCount(2, "resuelve nombre -> id y luego pide el detalle");
-        handler.Requests[0].RequestUri!.AbsolutePath.Should().Be(RutaListado);
-        handler.Requests[1].RequestUri!.AbsolutePath.Should()
-            .Be("/api/programacion/plantillas-semanales/01a07000-1000-7000-9000-000000000001");
+        handler.Requests.Select(r => (r.Metodo, r.Ruta)).Should().Equal(
+            (HttpMethod.Get, DetalleDePlantillaFalso.RutaDetalle(PlantillaId)));
 
         var json = JsonNode.Parse(resultado)!.AsObject();
-        json["id"]!.GetValue<string>().Should().Be("01a07000-1000-7000-9000-000000000001");
+        json["id"]!.GetValue<string>().Should().Be(PlantillaId);
         json["nombre"]!.GetValue<string>().Should().Be("[TEST] Semana Cocina");
         json["semanas"]!.GetValue<int>().Should().Be(1);
         json["completa"]!.GetValue<bool>().Should().BeFalse();
@@ -63,98 +58,69 @@ public class ObtenerPlantillaSemanalToolTests
     [Fact]
     public async Task ObtenerPlantillaSemanal_MuestraSinTurno_CuandoElDiaEstaVacio()
     {
-        var (cliente, _) = ClienteConCatalogoYDetalle(
-            "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = CrearTool(cliente);
+        var (tool, _) = CrearTool();
 
-        var resultado = await tool.Run(
-            null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(tool);
 
-        var semana = JsonNode.Parse(resultado)!["cuadro"]![0]!.AsObject();
-        semana["domingo"]!.GetValue<string>().Should().Be("sin turno");
+        JsonNode.Parse(resultado)!["cuadro"]![0]!["domingo"]!.GetValue<string>().Should().Be("sin turno");
     }
 
     [Fact]
     public async Task ObtenerPlantillaSemanal_MarcaTurnoIncompleto_CuandoElDiaTieneUnTurnoIncompleto()
     {
-        var (cliente, _) = ClienteConCatalogoYDetalle(
-            "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = CrearTool(cliente);
+        var (tool, _) = CrearTool();
 
-        var resultado = await tool.Run(
-            null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(tool);
 
-        var semana = JsonNode.Parse(resultado)!["cuadro"]![0]!.AsObject();
-        semana["miercoles"]!.GetValue<string>().Should().Be("[TEST] Turno Incompleto (turno incompleto)");
+        JsonNode.Parse(resultado)!["cuadro"]![0]!["miercoles"]!.GetValue<string>()
+            .Should().Be("[TEST] Turno Incompleto (turno incompleto)");
     }
 
     [Fact]
     public async Task ObtenerPlantillaSemanal_MarcaTurnoRetirado_CuandoElDiaTieneUnTurnoRetirado()
     {
-        var (cliente, _) = ClienteConCatalogoYDetalle(
-            "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = CrearTool(cliente);
+        var (tool, _) = CrearTool();
 
-        var resultado = await tool.Run(
-            null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(tool);
 
-        var semana = JsonNode.Parse(resultado)!["cuadro"]![0]!.AsObject();
-        semana["jueves"]!.GetValue<string>().Should().Be("01a07000-2000-7000-9000-000000000004 (turno retirado)");
+        JsonNode.Parse(resultado)!["cuadro"]![0]!["jueves"]!.GetValue<string>()
+            .Should().Be("01a07000-2000-7000-9000-000000000004 (turno retirado)");
+    }
+
+    // CA-3: 404 del detalle -> frase con el id que remite a buscar_plantillas_semanales.
+    [Fact]
+    public async Task ObtenerPlantillaSemanal_RespondePlantillaNoExiste_Cuando404EnElDetalle()
+    {
+        var (tool, handler) = CrearTool(statusDetalle: HttpStatusCode.NotFound);
+
+        var resultado = await Ejecutar(tool);
+
+        handler.Requests.Should().HaveCount(1);
+        resultado.Should().Be(string.Format(ObtenerPlantillaSemanalTool.Mensajes.PlantillaNoExiste, PlantillaId));
+        resultado.Should().Contain(PlantillaId).And.Contain("buscar_plantillas_semanales");
+    }
+
+    // CA-2: plantilla_id que no es GUID -> mensaje del .resx con el valor, sin backend.
+    [Fact]
+    public async Task ObtenerPlantillaSemanal_RechazaSinLlamarAlBackend_CuandoPlantillaIdNoEsUnGuid()
+    {
+        var (tool, handler) = CrearTool();
+
+        var resultado = await Ejecutar(tool, plantillaId: "[TEST] Semana Cocina");
+
+        resultado.Should().Be(string.Format(ObtenerPlantillaSemanalTool.Mensajes.PlantillaIdInvalido, "[TEST] Semana Cocina"));
+        handler.Requests.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task ObtenerPlantillaSemanal_ResuelveElNombreConEspaciosYMayusculasDistintas_CuandoNoEsExacto()
+    public async Task ObtenerPlantillaSemanal_RechazaSinLlamarAlBackend_CuandoPlantillaIdEstaEnBlanco()
     {
-        var (cliente, handler) = ClienteConCatalogoYDetalle(
-            "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = CrearTool(cliente);
+        var (tool, handler) = CrearTool();
 
-        var resultado = await tool.Run(
-            null!, "  [TEST]   semana   cocina  ", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(tool, plantillaId: "   ");
 
-        handler.Requests.Should().HaveCount(2);
-        JsonNode.Parse(resultado)!["nombre"]!.GetValue<string>().Should().Be("[TEST] Semana Cocina");
-    }
-
-    [Fact]
-    public async Task ObtenerPlantillaSemanal_NoResuelve_CuandoElNombreDifiereSoloPorAcentos()
-    {
-        var (cliente, _) = ClienteConCatalogoYDetalle(
-            "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = CrearTool(cliente);
-
-        var resultado = await tool.Run(
-            null!, "[TEST] Semana Cafeteria", TestContext.Current.CancellationToken);
-
-        resultado.Should().Contain("[TEST] Semana Cafeteria", "los acentos son significativos en la resolucion por nombre");
-    }
-
-    [Fact]
-    public async Task ObtenerPlantillaSemanal_RespondeNoExiste_CuandoElNombreNoEstaEnElCatalogo_SinSegundoGet()
-    {
-        var (cliente, handler) = ClienteConCatalogoYDetalle(
-            "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = CrearTool(cliente);
-
-        var resultado = await tool.Run(
-            null!, "[TEST] Plantilla Inexistente", TestContext.Current.CancellationToken);
-
-        handler.Requests.Should().HaveCount(1, "sin match no hay razon para pedir el detalle");
-        resultado.Should().Contain("[TEST] Plantilla Inexistente").And.Contain("[TEST] Semana Cocina");
-    }
-
-    [Fact]
-    public async Task ObtenerPlantillaSemanal_RespondeNoExiste_CuandoElDetalleResponde404PorCarrera()
-    {
-        var (cliente, handler) = ClienteConCatalogoYDetalle(
-            "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json", HttpStatusCode.NotFound);
-        var tool = CrearTool(cliente);
-
-        var resultado = await tool.Run(
-            null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
-
-        handler.Requests.Should().HaveCount(2, "el 404 llega recien en el segundo GET");
-        resultado.Should().Contain("[TEST] Semana Cocina");
+        resultado.Should().Be(string.Format(ObtenerPlantillaSemanalTool.Mensajes.PlantillaIdInvalido, "   "));
+        handler.Requests.Should().BeEmpty();
     }
 
     // Enumerable.Range(1, detalle.Semanas) -- no las semanas presentes en Dias: una semana sin
@@ -162,12 +128,9 @@ public class ObtenerPlantillaSemanalToolTests
     [Fact]
     public async Task ObtenerPlantillaSemanal_RindeUnaFilaPorSemanaDeclarada_CuandoUnaSemanaNoTieneNingunDiaAsignado()
     {
-        var (cliente, _) = ClienteConCatalogoYDetalle(
-            "listar-plantillas-semanales.json", "obtener-plantilla-semanal-dos-semanas.json");
-        var tool = CrearTool(cliente);
+        var (tool, _) = CrearTool("obtener-plantilla-semanal-dos-semanas.json", PlantillaIdBodega);
 
-        var resultado = await tool.Run(
-            null!, "[TEST] Semana Bodega", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(tool, PlantillaIdBodega);
 
         var cuadro = JsonNode.Parse(resultado)!["cuadro"]!.AsArray();
         cuadro.Should().HaveCount(2);
@@ -180,33 +143,16 @@ public class ObtenerPlantillaSemanalToolTests
             .Should().AllBe("sin turno");
     }
 
-    // El boundary del sistema (5xx del Function App) se traduce a RechazoDelDominio con el cuerpo
-    // crudo, nunca a una excepcion cruda en la tool call (CA-ADR-0030, MEF-ADR-0009).
+    // CA-ADR-0030: el 5xx del detalle se traduce a RechazoDelDominio con el cuerpo crudo.
     [Fact]
-    public async Task ObtenerPlantillaSemanal_RespondeRechazoDelDominio_CuandoElCatalogoFallaConError500()
+    public async Task ObtenerPlantillaSemanal_RespondeRechazoDelDominio_CuandoElDetalleFallaConError500()
     {
-        var (cliente, handler) = ClienteFalso.ConFuncion(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError)
-        {
-            Content = new StringContent("catalogo no disponible")
-        });
-        var tool = CrearTool(cliente);
+        var (tool, _) = CrearTool(
+            statusDetalle: HttpStatusCode.InternalServerError, cuerpoDetalle: "detalle no disponible");
 
-        var resultado = await tool.Run(
-            null!, "[TEST] Semana Cocina", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(tool);
 
-        handler.Requests.Should().HaveCount(1, "sin catalogo no hay id que pedir");
-        resultado.Should().Contain("catalogo no disponible");
-    }
-
-    [Fact]
-    public async Task ObtenerPlantillaSemanal_RespondeCampoObligatorio_CuandoPlantillaEstaEnBlanco()
-    {
-        var (cliente, _) = ClienteConCatalogoYDetalle(
-            "listar-plantillas-semanales.json", "obtener-plantilla-semanal.json");
-        var tool = CrearTool(cliente);
-
-        var resultado = await tool.Run(null!, "   ", TestContext.Current.CancellationToken);
-
-        resultado.Should().Contain("plantilla").And.Contain("obligatorio");
+        resultado.Should().Be(string.Format(
+            ObtenerPlantillaSemanalTool.Mensajes.RechazoDelDominio, "detalle no disponible"));
     }
 }

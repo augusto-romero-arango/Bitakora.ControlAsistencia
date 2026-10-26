@@ -30,7 +30,7 @@ public class ObtenerTurnoSmokeTests(McpFixture mcp)
             turno.GetProperty("horario").GetString().Should().NotContain("(+");
 
         var resultado = await mcp.Cliente.CallToolAsync(
-            "obtener_turno", new Dictionary<string, object?> { ["id"] = primerId }, cancellationToken: ct);
+            "obtener_turno", new Dictionary<string, object?> { ["turno_id"] = primerId }, cancellationToken: ct);
 
         resultado.IsError.Should().NotBeTrue();
         var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
@@ -65,7 +65,7 @@ public class ObtenerTurnoSmokeTests(McpFixture mcp)
             async () =>
             {
                 var obtenido = await mcp.Cliente.CallToolAsync(
-                    "obtener_turno", new Dictionary<string, object?> { ["id"] = turnoId }, cancellationToken: ct);
+                    "obtener_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
                 var contenido = obtenido.Content.OfType<TextContentBlock>().Single().Text;
                 return contenido.Contains("horario abierto de") ? contenido : null;
             },
@@ -75,7 +75,7 @@ public class ObtenerTurnoSmokeTests(McpFixture mcp)
         json.RootElement.GetProperty("horario").GetString().Should().Be("horario abierto de 2 h");
 
         var retirado = await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
         retirado.IsError.Should().NotBeTrue();
     }
 }

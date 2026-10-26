@@ -10,11 +10,11 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.SolicitarProgramacionTu
 
 public class SolicitarProgramacionTurnoToolTests
 {
-    private const string Turno = "Cocina Manana";
+    private const string TurnoId = "8f14e45f-ceea-4b3c-8f0a-000000000001";
+    private const string TurnoInexistenteId = "8f14e45f-ceea-4b3c-8f0a-0000000000ff";
     private const string SedeCodigo = "SUBA";
     private const string VentanaDesde = "2026-09-01";
     private const string VentanaHasta = "2026-09-30";
-    private const string RutaTurnos = "/api/programacion/turnos";
     private const string RutaSolicitudes = "/api/programacion/solicitudes";
 
     private static string TurnosJson => Fixtures.Leer("SolicitarProgramacionTurno", "turnos.json");
@@ -42,7 +42,14 @@ public class SolicitarProgramacionTurnoToolTests
         HttpStatusCode statusDirectorio = HttpStatusCode.OK)
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();
-        handlerProgramacion.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosJson);
+        if (statusTurnos == HttpStatusCode.OK)
+        {
+            handlerProgramacion.RespondeDetalleDeTurno(turnosJson ?? TurnosJson, TurnoId);
+            handlerProgramacion.RespondeDetalleDeTurno(turnosJson ?? TurnosJson, TurnoInexistenteId);
+        }
+        else
+            handlerProgramacion.Responde(
+                HttpMethod.Get, DetalleDeTurnoFalso.RutaDetalle(TurnoId), statusTurnos, turnosJson ?? "");
         handlerProgramacion.Responde(HttpMethod.Post, RutaSolicitudes, statusSolicitud, cuerpoSolicitud);
 
         var (clienteSedes, handlerSedes) = ClienteFalso.Con(sedeJson ?? SedeJson, statusSede);
@@ -51,7 +58,7 @@ public class SolicitarProgramacionTurnoToolTests
 
         var tool = new SolicitarProgramacionTurnoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorTurnoPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
 
@@ -62,7 +69,7 @@ public class SolicitarProgramacionTurnoToolTests
         SolicitarProgramacionTurnoTool tool,
         string desde = VentanaDesde,
         string hasta = VentanaHasta,
-        string turno = Turno,
+        string turnoId = TurnoId,
         string sedeDeProgramacion = SedeCodigo,
         string identificaciones = "CC-1111,CC-2222,CC-3333",
         CancellationToken ct = default) =>
@@ -70,7 +77,7 @@ public class SolicitarProgramacionTurnoToolTests
             context: null!,
             desde: desde,
             hasta: hasta,
-            turno: turno,
+            turnoId: turnoId,
             sedeDeProgramacion: sedeDeProgramacion,
             identificaciones: identificaciones,
             ct: ct);
@@ -141,41 +148,18 @@ public class SolicitarProgramacionTurnoToolTests
         programadoBeto["dias"]!.GetValue<int>().Should().Be(20);
     }
 
-    // CA-2: coincidencia exacta bajo trim + colapsar espacios + case-insensitive.
+    // CA-3: el detalle responde 404 -> frase con el id que remite a buscar_turnos, sin lista de nombres.
     [Fact]
-    public async Task SolicitarProgramacionTurno_ResuelveElTurnoPorNombre_ConTrimColapsoDeEspaciosYCaseInsensitive()
+    public async Task SolicitarProgramacionTurno_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
-        var fakes = CrearTool();
+        var fakes = CrearTool(turnosJson: """{"elementos":[]}""");
 
         var resultado = await Ejecutar(
-            fakes.Tool, turno: "  cocina   manana  ", identificaciones: "CC-1111",
-            ct: TestContext.Current.CancellationToken);
-
-        JsonNode.Parse(resultado)!["turno"]!.GetValue<string>().Should().Be("Cocina Manana");
-    }
-
-    // CA-2: los acentos son significativos -- "Cocina Mañana" no es "Cocina Manana" del catalogo.
-    [Fact]
-    public async Task SolicitarProgramacionTurno_NoIgualaAcentos_CuandoElNombreDifiereSoloEnTildes()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(fakes.Tool, turno: "Cocina Mañana", ct: TestContext.Current.CancellationToken);
+            fakes.Tool, turnoId: TurnoInexistenteId, ct: TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(
-            SolicitarProgramacionTurnoTool.Mensajes.TurnoNoExiste, "Cocina Mañana", "Cocina Manana, Cocina Tarde"));
-    }
-
-    [Fact]
-    public async Task SolicitarProgramacionTurno_RespondeTurnoNoExisteSinPost_CuandoElNombreNoEstaEnElCatalogo()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(
-            fakes.Tool, turno: "Turno Que No Existe", ct: TestContext.Current.CancellationToken);
-
-        resultado.Should().Be(string.Format(
-            SolicitarProgramacionTurnoTool.Mensajes.TurnoNoExiste, "Turno Que No Existe", "Cocina Manana, Cocina Tarde"));
+            SolicitarProgramacionTurnoTool.Mensajes.TurnoNoExiste, TurnoInexistenteId));
+        resultado.Should().Contain("buscar_turnos").And.NotContain("disponibles");
         fakes.Programacion.Requests.Should().ContainSingle(r => r.Metodo == HttpMethod.Get);
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
         fakes.Sedes.UltimaRequest.Should().BeNull("el turno se resuelve antes que la sede");
@@ -212,7 +196,7 @@ public class SolicitarProgramacionTurnoToolTests
     public async Task SolicitarProgramacionTurno_LlevaAFallidosAlColaboradorCuyoPostFalla_YProgramaAlOtro()
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();
-        handlerProgramacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, TurnosJson);
+        handlerProgramacion.RespondeDetalleDeTurno(TurnosJson, TurnoId);
         handlerProgramacion.Responde(HttpMethod.Post, RutaSolicitudes, (_, cuerpo) =>
             cuerpo!.Contains("AR01")
                 ? new HttpResponseMessage(HttpStatusCode.BadRequest)
@@ -226,7 +210,7 @@ public class SolicitarProgramacionTurnoToolTests
 
         var tool = new SolicitarProgramacionTurnoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorTurnoPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
 
@@ -296,15 +280,42 @@ public class SolicitarProgramacionTurnoToolTests
         AsegurarNingunaRequest(fakes);
     }
 
+    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
-    public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoTurnoEstaEnBlanco()
+    public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuid()
     {
         var fakes = CrearTool();
 
-        var resultado = await Ejecutar(fakes.Tool, turno: "   ", ct: TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(
+            fakes.Tool, turnoId: "Cocina Manana", ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(SolicitarProgramacionTurnoTool.Mensajes.CampoObligatorio, "turno"));
+        resultado.Should().Be(string.Format(SolicitarProgramacionTurnoTool.Mensajes.TurnoIdInvalido, "Cocina Manana"));
         AsegurarNingunaRequest(fakes);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoTurnoIdEstaEnBlanco()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, turnoId: "   ", ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(SolicitarProgramacionTurnoTool.Mensajes.TurnoIdInvalido, "   "));
+        AsegurarNingunaRequest(fakes);
+    }
+
+    // CA-5: la tool lee el detalle por identidad, nunca el catalogo completo.
+    [Fact]
+    public async Task SolicitarProgramacionTurno_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
+    {
+        var fakes = CrearTool();
+
+        await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
+
+        fakes.Programacion.Requests.Should().Contain(r =>
+            r.Metodo == HttpMethod.Get && r.Ruta == DetalleDeTurnoFalso.RutaDetalle(TurnoId));
+        fakes.Programacion.Requests.Should().NotContain(r =>
+            r.Metodo == HttpMethod.Get && r.Ruta == DetalleDeTurnoFalso.RutaCatalogo);
     }
 
     [Fact]
@@ -460,7 +471,7 @@ public class SolicitarProgramacionTurnoToolTests
         var directorio = System.Text.Json.JsonSerializer.Serialize(new { elementos = entradas });
 
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
-        programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, TurnosJson);
+        programacion.RespondeDetalleDeTurno(TurnosJson, TurnoId);
         programacion.Responde(HttpMethod.Post, RutaSolicitudes, HttpStatusCode.Created, "");
         var (clienteSedes, _) = ClienteFalso.Con(SedeJson);
         var (clienteColaboradores, colaboradores) = ClienteFalso.ConFuncion(_ =>
@@ -470,7 +481,7 @@ public class SolicitarProgramacionTurnoToolTests
             });
         var tool = new SolicitarProgramacionTurnoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorTurnoPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
         var identificaciones = string.Join(",", entradas.Select(e => e.identificacion));

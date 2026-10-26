@@ -17,29 +17,33 @@ public class RetirarPlantillaSemanalToolTests
     private sealed record Fakes(RetirarPlantillaSemanalTool Tool, HandlerPorRuta Handler);
 
     private static Fakes CrearTool(
-        string? plantillasJson = null,
-        HttpStatusCode statusPlantillas = HttpStatusCode.OK,
+        HttpStatusCode statusDetalle = HttpStatusCode.OK,
         HttpStatusCode statusDelete = HttpStatusCode.NoContent,
         string cuerpoDelete = "")
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
-        handler.Responde(HttpMethod.Get, RutaPlantillas, statusPlantillas, plantillasJson ?? PlantillasJson);
+        if (statusDetalle == HttpStatusCode.OK)
+            handler.RespondeDetalleDePlantilla(PlantillasJson, PlantillaIdCocina);
+        else
+            handler.Responde(
+                HttpMethod.Get, DetalleDePlantillaFalso.RutaDetalle(PlantillaIdCocina), statusDetalle, "");
         handler.Responde(HttpMethod.Delete, $"{RutaPlantillas}/{PlantillaIdCocina}", statusDelete, cuerpoDelete);
 
         var programacionApi = new ProgramacionApi(cliente);
-        var tool = new RetirarPlantillaSemanalTool(
-            programacionApi, new ResolutorPlantillaPorNombre(programacionApi));
+        var tool = new RetirarPlantillaSemanalTool(programacionApi, new ResolutorPlantillaPorId(programacionApi));
         return new Fakes(tool, handler);
     }
 
-    // CA-5: resuelve "Semana Tipo Cocina" en el catalogo y envia el DELETE al id correspondiente.
+    private static Task<string> Ejecutar(Fakes fakes, string plantillaId = PlantillaIdCocina) =>
+        fakes.Tool.Run(context: null!, plantillaId: plantillaId, ct: TestContext.Current.CancellationToken);
+
+    // CA-4: lee el detalle por id, envia el DELETE a ese id y el eco conserva el nombre leido.
     [Fact]
-    public async Task RetirarPlantillaSemanal_ResuelveElIdPorNombreYEnviaElDelete_CuandoLaPlantillaExiste()
+    public async Task RetirarPlantillaSemanal_EnviaElDeleteAlIdYEcoConElNombreDelDetalle_CuandoLaPlantillaExiste()
     {
         var fakes = CrearTool();
 
-        var resultado = await fakes.Tool.Run(
-            null!, "Semana Tipo Cocina", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(fakes);
 
         fakes.Handler.Requests.Should().ContainSingle(r =>
             r.Metodo == HttpMethod.Delete && r.Ruta == $"{RutaPlantillas}/{PlantillaIdCocina}");
@@ -51,31 +55,54 @@ public class RetirarPlantillaSemanalToolTests
         json["nota"]!.GetValue<string>().Should().Be(RetirarPlantillaSemanalTool.Mensajes.NotaVisibilidadEventual);
     }
 
-    // CA-5: coincidencia exacta bajo trim + colapso de espacios + case-insensitive; acentos
-    // significativos (mismo criterio que ResolutorTurnoPorNombre).
+    // CA-5: nunca llama al catalogo completo.
     [Fact]
-    public async Task RetirarPlantillaSemanal_ResuelveLaPlantilla_ConTrimColapsoDeEspaciosYCaseInsensitive()
+    public async Task RetirarPlantillaSemanal_LeeElDetalleDeLaPlantillaPorId_SinConsultarElCatalogo()
     {
         var fakes = CrearTool();
 
-        var resultado = await fakes.Tool.Run(
-            null!, "  semana   tipo   cocina  ", TestContext.Current.CancellationToken);
+        await Ejecutar(fakes);
 
-        JsonNode.Parse(resultado)!["plantilla"]!["nombre"]!.GetValue<string>().Should().Be("Semana Tipo Cocina");
+        fakes.Handler.Requests.Should().Contain(r =>
+            r.Metodo == HttpMethod.Get && r.Ruta == DetalleDePlantillaFalso.RutaDetalle(PlantillaIdCocina));
+        fakes.Handler.Requests.Should().NotContain(r =>
+            r.Metodo == HttpMethod.Get && r.Ruta == DetalleDePlantillaFalso.RutaCatalogo);
+    }
+
+    // CA-3: detalle 404 -> frase con el id que remite a buscar_plantillas_semanales, sin DELETE.
+    [Fact]
+    public async Task RetirarPlantillaSemanal_RespondePlantillaNoExisteSinDelete_Cuando404EnElDetalle()
+    {
+        var fakes = CrearTool(statusDetalle: HttpStatusCode.NotFound);
+
+        var resultado = await Ejecutar(fakes);
+
+        resultado.Should().Be(string.Format(RetirarPlantillaSemanalTool.Mensajes.PlantillaNoExiste, PlantillaIdCocina));
+        resultado.Should().Contain(PlantillaIdCocina).And.Contain("buscar_plantillas_semanales");
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Delete);
+    }
+
+    // CA-2: plantilla_id que no es GUID -> mensaje del .resx con el valor, sin backend.
+    [Fact]
+    public async Task RetirarPlantillaSemanal_RechazaSinLlamarAlBackend_CuandoPlantillaIdNoEsUnGuid()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes, plantillaId: "Semana Tipo Cocina");
+
+        resultado.Should().Be(string.Format(RetirarPlantillaSemanalTool.Mensajes.PlantillaIdInvalido, "Semana Tipo Cocina"));
+        fakes.Handler.Requests.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task RetirarPlantillaSemanal_RespondePlantillaNoExisteSinDelete_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task RetirarPlantillaSemanal_RechazaSinLlamarAlBackend_CuandoPlantillaIdEstaEnBlanco()
     {
         var fakes = CrearTool();
 
-        var resultado = await fakes.Tool.Run(
-            null!, "Plantilla Que No Existe", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(fakes, plantillaId: "   ");
 
-        resultado.Should().Be(string.Format(
-            RetirarPlantillaSemanalTool.Mensajes.PlantillaNoExiste,
-            "Plantilla Que No Existe", "Semana Tipo Cocina, Turno Rotativo"));
-        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Delete);
+        resultado.Should().Be(string.Format(RetirarPlantillaSemanalTool.Mensajes.PlantillaIdInvalido, "   "));
+        fakes.Handler.Requests.Should().BeEmpty();
     }
 
     [Fact]
@@ -84,32 +111,18 @@ public class RetirarPlantillaSemanalToolTests
         const string cuerpo = "La plantilla no existe";
         var fakes = CrearTool(statusDelete: HttpStatusCode.NotFound, cuerpoDelete: cuerpo);
 
-        var resultado = await fakes.Tool.Run(
-            null!, "Semana Tipo Cocina", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(fakes);
 
         resultado.Should().Be(string.Format(RetirarPlantillaSemanalTool.Mensajes.RechazoDelDominio, cuerpo));
     }
 
+    // CA-ADR-0030: un fallo de lectura del detalle se traduce a texto y corta antes del DELETE.
     [Fact]
-    public async Task RetirarPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoLaPlantillaEstaEnBlanco()
+    public async Task RetirarPlantillaSemanal_RespondeElRechazoDelDominioSinDelete_CuandoElDetalleFalla()
     {
-        var fakes = CrearTool();
+        var fakes = CrearTool(statusDetalle: HttpStatusCode.ServiceUnavailable);
 
-        var resultado = await fakes.Tool.Run(null!, "   ", TestContext.Current.CancellationToken);
-
-        resultado.Should().Be(string.Format(RetirarPlantillaSemanalTool.Mensajes.CampoObligatorio, "plantilla"));
-        fakes.Handler.Requests.Should().BeEmpty();
-    }
-
-    // Boundary del sistema: un fallo del catalogo se traduce a texto y corta antes del DELETE
-    // (CA-ADR-0030), mismo criterio que retirar_turno.
-    [Fact]
-    public async Task RetirarPlantillaSemanal_RespondeElRechazoDelDominioSinDelete_CuandoElCatalogoFalla()
-    {
-        var fakes = CrearTool(plantillasJson: "", statusPlantillas: HttpStatusCode.ServiceUnavailable);
-
-        var resultado = await fakes.Tool.Run(
-            null!, "Semana Tipo Cocina", TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(fakes);
 
         resultado.Should().Be(string.Format(RetirarPlantillaSemanalTool.Mensajes.RechazoDelDominio, "503"));
         fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Delete);

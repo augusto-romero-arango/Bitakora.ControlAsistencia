@@ -21,12 +21,15 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
   <data name="TurnoNoExiste" xml:space="preserve">
-    <value>No existe un turno con id '{0}' en el catalogo.</value>
+    <value>No existe un turno con id '{0}'. Ubicalo con buscar_turnos.</value>
   </data>
   <data name="EntraEntre" xml:space="preserve">
     <value>entra entre {0} y {1} ({2})</value>
   </data>
   <data name="HorarioAbierto" xml:space="preserve">
     <value>horario abierto de {0}</value>
+  </data>
+  <data name="TurnoIdInvalido" xml:space="preserve">
+    <value>turno_id debe ser el id del turno (un GUID), tal como lo da buscar_turnos; se recibio: {0}</value>
   </data>
 </root>

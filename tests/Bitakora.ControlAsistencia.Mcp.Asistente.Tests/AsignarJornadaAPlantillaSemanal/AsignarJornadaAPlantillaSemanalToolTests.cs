@@ -23,22 +23,27 @@ public class AsignarJornadaAPlantillaSemanalToolTests
     private sealed record Fakes(AsignarJornadaAPlantillaSemanalTool Tool, HandlerPorRuta Handler);
 
     private static Fakes CrearTool(
+        HttpStatusCode statusDetalle = HttpStatusCode.OK,
         HttpStatusCode statusJornada = HttpStatusCode.OK,
         HttpStatusCode statusPut = HttpStatusCode.NoContent,
         string cuerpoPut = "")
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
-        handler.Responde(HttpMethod.Get, RutaPlantillas, HttpStatusCode.OK, PlantillasJson);
+        if (statusDetalle == HttpStatusCode.OK)
+            handler.RespondeDetalleDePlantilla(PlantillasJson, PlantillaIdCocina);
+        else
+            handler.Responde(
+                HttpMethod.Get, DetalleDePlantillaFalso.RutaDetalle(PlantillaIdCocina), statusDetalle, "");
         handler.Responde(HttpMethod.Get, $"{RutaJornadas}/{JornadaId}", statusJornada, JornadaJson);
         handler.Responde(HttpMethod.Put, $"{RutaPlantillas}/{PlantillaIdCocina}/jornada", statusPut, cuerpoPut);
 
         var api = new ProgramacionApi(cliente);
-        return new Fakes(new AsignarJornadaAPlantillaSemanalTool(api, new ResolutorPlantillaPorNombre(api)), handler);
+        return new Fakes(new AsignarJornadaAPlantillaSemanalTool(api, new ResolutorPlantillaPorId(api)), handler);
     }
 
     private static Task<string> Ejecutar(
-        Fakes fakes, string plantilla = "Semana Tipo Cocina", string jornadaId = JornadaId) =>
-        fakes.Tool.Run(null!, plantilla, jornadaId, TestContext.Current.CancellationToken);
+        Fakes fakes, string plantillaId = PlantillaIdCocina, string jornadaId = JornadaId) =>
+        fakes.Tool.Run(null!, plantillaId, jornadaId, TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task AsignarJornadaAPlantillaSemanal_LeeLaJornadaYHacePutConJornadaId_CuandoTodoExiste()
@@ -48,7 +53,7 @@ public class AsignarJornadaAPlantillaSemanalToolTests
         var resultado = await Ejecutar(fakes);
 
         fakes.Handler.Requests.Select(r => (r.Metodo, r.Ruta)).Should().Equal(
-            (HttpMethod.Get, RutaPlantillas),
+            (HttpMethod.Get, DetalleDePlantillaFalso.RutaDetalle(PlantillaIdCocina)),
             (HttpMethod.Get, $"{RutaJornadas}/{JornadaId}"),
             (HttpMethod.Put, $"{RutaPlantillas}/{PlantillaIdCocina}/jornada"));
         JsonNode.Parse(fakes.Handler.Requests[2].Cuerpo!)!["jornadaId"]!.GetValue<string>().Should().Be(JornadaId);
@@ -75,26 +80,38 @@ public class AsignarJornadaAPlantillaSemanalToolTests
     }
 
     [Fact]
-    public async Task AsignarJornadaAPlantillaSemanal_RechazaSinLlamadasHttp_CuandoPlantillaEstaEnBlanco()
+    public async Task AsignarJornadaAPlantillaSemanal_RechazaSinLlamadasHttp_CuandoPlantillaIdNoEsGuid()
     {
         var fakes = CrearTool();
 
-        var resultado = await Ejecutar(fakes, plantilla: "   ");
+        var resultado = await Ejecutar(fakes, plantillaId: "Semana Tipo Cocina");
 
-        resultado.Should().Be(string.Format(AsignarJornadaAPlantillaSemanalTool.Mensajes.CampoObligatorio, "plantilla"));
+        resultado.Should().Be(string.Format(
+            AsignarJornadaAPlantillaSemanalTool.Mensajes.PlantillaIdInvalido, "Semana Tipo Cocina"));
         fakes.Handler.Requests.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task AsignarJornadaAPlantillaSemanal_RespondePlantillaNoExisteSinPut_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task AsignarJornadaAPlantillaSemanal_RespondePlantillaNoExisteSinPut_Cuando404EnElDetalle()
     {
-        var fakes = CrearTool();
+        var fakes = CrearTool(statusDetalle: HttpStatusCode.NotFound);
 
-        var resultado = await Ejecutar(fakes, plantilla: "Plantilla Que No Existe");
+        var resultado = await Ejecutar(fakes);
 
         resultado.Should().Be(string.Format(
-            AsignarJornadaAPlantillaSemanalTool.Mensajes.PlantillaNoExiste,
-            "Plantilla Que No Existe", "Semana Tipo Cocina, Turno Rotativo"));
+            AsignarJornadaAPlantillaSemanalTool.Mensajes.PlantillaNoExiste, PlantillaIdCocina));
+        resultado.Should().Contain(PlantillaIdCocina).And.Contain("buscar_plantillas_semanales");
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
+    }
+
+    [Fact]
+    public async Task AsignarJornadaAPlantillaSemanal_RespondeElRechazoDelDominioSinPut_CuandoElDetalleFalla()
+    {
+        var fakes = CrearTool(statusDetalle: HttpStatusCode.ServiceUnavailable);
+
+        var resultado = await Ejecutar(fakes);
+
+        resultado.Should().Be(string.Format(AsignarJornadaAPlantillaSemanalTool.Mensajes.RechazoDelDominio, "503"));
         fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
     }
 

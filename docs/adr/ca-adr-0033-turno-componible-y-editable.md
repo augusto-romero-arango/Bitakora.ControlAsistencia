@@ -90,10 +90,11 @@ sede? }`; hija `{ inicio, fin }` (record, no tupla). Verbo y ruta no cambian (pa
 - `FichaTurno` sigue los 9 eventos de diseno, lee `EsDescanso` del evento y gana `Completo` (derivado
   de lectura, MEF-ADR-0041). Franjas ordenadas por hora de inicio; incompleto = "Sin franjas". Sin
   filtro server-side: el catalogo es acotado y el cliente filtra (MEF-ADR-0042 seccion 1); el listado
-  incluye los incompletos porque el resolutor por nombre los necesita.
-- Tools MCP de Comandos: referencia al turno **por nombre** (resolutor compartido), horas `HH:mm` sin
-  offsets (`inicio == fin` en `agregar_franja` significa 24 h), eco = lo enviado + nota de visibilidad
-  eventual (nunca se relee la ficha tras el POST). Consultas: `enConstruccion` solo cuando aplica;
+  incluye los incompletos (originalmente porque los necesitaba el resolutor por nombre, retirado por
+  CA-ADR-0039 decision 18).
+- Tools MCP de Comandos: referencia al turno por `turno_id` (CA-ADR-0039 decision 18), horas `HH:mm`
+  sin offsets (`inicio == fin` en `agregar_franja` significa 24 h), eco = lo enviado + nota de
+  visibilidad eventual (nunca se relee la ficha tras el POST). Consultas: `enConstruccion` solo cuando aplica;
   notacion unificada `HH:mm[+N]-HH:mm[+N]` en ambos servidores (islas: se replica el formato).
 
 ### 8. El turno de horario abierto no se redisena
@@ -178,3 +179,5 @@ un concepto distinto del turno con **ventana limitada**, que sigue siendo contro
 - 2026-09-04: creado (sesion planner; refinamiento de #598-#612, creacion de #613).
 - 2026-10-25: decision 8, el turno de horario abierto se marca (`EsHorarioAbierto`) y no se redisena
   (#1233, refinamiento de #1222).
+- 2026-10-25: seccion 7, las tools MCP refieren el turno por `turno_id` y no por nombre; se retira el
+  resolutor por nombre (CA-ADR-0039 decision 18, #1241).
