@@ -89,7 +89,7 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
             async () =>
             {
                 var obtenido = await mcp.Cliente.CallToolAsync(
-                    "obtener_turno", new Dictionary<string, object?> { ["id"] = turnoId }, cancellationToken: ct);
+                    "obtener_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
                 var contenido = obtenido.Content.OfType<TextContentBlock>().Single().Text;
                 return contenido.Contains("06:00") && contenido.Contains("10:00") ? contenido : null;
             },
