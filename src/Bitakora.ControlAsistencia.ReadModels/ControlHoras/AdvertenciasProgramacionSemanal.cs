@@ -57,7 +57,9 @@ public sealed record CasillaDia(
     Guid? AusenciaId = null,
     TurnoCubiertoSemana? TurnoCubierto = null,
     DateTime? InicioCobertura = null,
-    DateTime? LimiteCoberturaVispera = null)
+    DateTime? LimiteCoberturaVispera = null,
+    DateTime? AperturaTurno = null,
+    DateTime? CierreTurnoVispera = null)
 {
     public IReadOnlyList<AdvertenciaDiaria> Advertencias { get; init; } = [];
 }

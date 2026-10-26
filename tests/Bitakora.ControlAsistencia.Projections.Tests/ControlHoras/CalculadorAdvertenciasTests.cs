@@ -268,4 +268,89 @@ public class CalculadorAdvertenciasTests
             Diaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 60)
         ]);
     }
+
+    private static CasillaDia ConSolape(int i, DateTime? apertura, DateTime? cierreVispera) =>
+        new(Lunes.AddDays(i), TipoCasilla.Trabajo, "T", 480, AperturaTurno: apertura, CierreTurnoVispera: cierreVispera);
+
+    [Fact]
+    public void Calcular_SeSolapaConTurnoDeLaVispera_CuandoElCierreSuperaLaApertura()
+    {
+        var casillas = Semana(T(480), T(480));
+        casillas[1] = ConSolape(1, Hora(1, 4), Hora(1, 6));
+
+        var r = CalculadorAdvertencias.Calcular(casillas, Jornada, false);
+
+        r.Diarias[1].Should().Equal(Diaria(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, 120));
+        r.Diarias[0].Should().BeEmpty();
+        r.TieneAdvertencias.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Calcular_SinSolape_CuandoCierreIgualApertura()
+    {
+        var casillas = Semana(T(480));
+        casillas[0] = ConSolape(0, Hora(0, 6), Hora(0, 6));
+
+        CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void Calcular_SinSolape_CuandoFaltaLaAperturaOElCierre(bool sinApertura, bool sinCierre)
+    {
+        var casillas = Semana(T(480));
+        casillas[0] = ConSolape(0, sinApertura ? null : Hora(0, 4), sinCierre ? null : Hora(0, 6));
+
+        CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_SinSolape_CuandoLaCasillaNoEsTrabajo()
+    {
+        var casillas = Semana(D());
+        casillas[0] = casillas[0] with { AperturaTurno = Hora(0, 4), CierreTurnoVispera = Hora(0, 6) };
+
+        CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_SoloSolape_CuandoTambienHayLimiteDeCoberturaDeLaVispera()
+    {
+        var casillas = Semana(T(480));
+        casillas[0] = casillas[0] with
+        {
+            InicioCobertura = Hora(0, 2), LimiteCoberturaVispera = Hora(0, 10),
+            AperturaTurno = Hora(0, 4), CierreTurnoVispera = Hora(0, 6)
+        };
+
+        CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0]
+            .Should().Equal(Diaria(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, 120));
+    }
+
+    [Fact]
+    public void Calcular_SeSolapaConTurnoDeLaVispera_CuandoNoHayJornada()
+    {
+        var casillas = Semana(T(480));
+        casillas[0] = ConSolape(0, Hora(0, 4), Hora(0, 6));
+
+        var r = CalculadorAdvertencias.Calcular(casillas, null, false);
+
+        r.Diarias[0].Should().Equal(Diaria(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, 120));
+        r.Semanales.Should().BeEmpty();
+        r.TieneAdvertencias.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Calcular_LlevaSuperaTopeYSolape_CuandoElDiaCumpleAmbasCondiciones()
+    {
+        var casillas = Semana(T(600));
+        casillas[0] = casillas[0] with { AperturaTurno = Hora(0, 4), CierreTurnoVispera = Hora(0, 6) };
+
+        CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEquivalentTo(
+        [
+            Diaria(TipoAdvertenciaDiaria.SuperaTopeDiario, 120),
+            Diaria(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, 120)
+        ]);
+    }
 }

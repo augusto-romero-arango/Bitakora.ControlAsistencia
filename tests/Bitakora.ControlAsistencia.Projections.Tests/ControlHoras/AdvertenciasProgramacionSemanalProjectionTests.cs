@@ -48,6 +48,7 @@ public class AdvertenciasProgramacionSemanalProjectionTests
                 TurnoDiarioCancelado c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c) : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
                 CancelacionAusenciaDiariaRegistrada c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c) : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
                 CoberturaVecinaActualizada c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c) : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
+                CierreDeLaVisperaActualizado c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c)! : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
                 _ => throw new InvalidOperationException()
             };
         }
@@ -539,5 +540,181 @@ public class AdvertenciasProgramacionSemanalProjectionTests
     public void Create_NoCreaDocumento_CuandoCoberturaVecinaEsElPrimerEvento()
     {
         AdvertenciasProgramacionSemanalProjection.Create(Vispera(1, CincoAm(1))).Should().BeNull();
+    }
+
+    // --- Solape con el turno de la vispera (#1213) ---
+
+    private static FranjaProgramada FranjaNoche(int hi, int hf) =>
+        new(new TimeOnly(hi, 0), new TimeOnly(hf, 0), 1, [], [], "");
+
+    private static TurnoDiario NocheVeintidos() => new("Noche22", [FranjaNoche(22, 6)], "");
+    private static TurnoDiario FijoCuatro() => new("Fijo4", [Franja(4, 12)], "");
+    private static TurnoDiario ContiguoSeis() => new("Seis", [Franja(6, 14)], "");
+
+    private static CierreDeLaVisperaActualizado CierreVispera(int offset, DateTime? cierre) =>
+        CierreDeLaVisperaActualizado.Crear(Stream(Dia(offset)), cierre);
+
+    // Cierre de la Noche22 asignada el dia anterior: 06:00 del dia del offset.
+    private static DateTime SeisAm(int offset) => Dia(offset).ToDateTime(new TimeOnly(6, 0));
+
+    private static readonly AdvertenciaDiaria Solape120 = new(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, 120);
+
+    [Fact]
+    public void Apply_AgregaSeSolapaConTurnoDeLaVispera_CuandoElCierreDeLaVisperaSuperaLaAperturaDelTurno()
+    {
+        var v = Aplica(null, Asigna(1, NocheVeintidos()), Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Solape120);
+        Casilla(v, 1).Advertencias.Should().BeEmpty();
+        v.TieneAdvertencias.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_AgregaSeSolapaConTurnoDeLaVisperaEnElLunes_CuandoLaVisperaEsElDomingoAnterior()
+    {
+        var v = Aplica(null, Asigna(0, FijoCuatro()), CierreVispera(0, SeisAm(0)));
+
+        Casilla(v, 0).Advertencias.Should().Equal(Solape120);
+        v.TieneAdvertencias.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_ProyectaAperturaYCierreInternos_CuandoHaySolape()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Solape120);
+        Casilla(v, 2).AperturaTurno.Should().Be(Dia(2).ToDateTime(new TimeOnly(4, 0)));
+        Casilla(v, 2).CierreTurnoVispera.Should().Be(SeisAm(2));
+    }
+
+    [Fact]
+    public void Apply_NoAgregaSolape_CuandoLosTurnosSonContiguos()
+    {
+        var v = Aplica(null, Asigna(2, ContiguoSeis()), CierreVispera(2, SeisAm(2)));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_NoAgregaSolape_CuandoElTurnoDelDiaTieneVentanaDeEntrada()
+    {
+        var abierto = new TurnoDiario("Abierto", [Franja(4, 12)], "", 120);
+
+        var v = Aplica(null, Asigna(2, abierto), CierreVispera(2, SeisAm(2)));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+        Casilla(v, 2).AperturaTurno.Should().BeNull();
+    }
+
+    [Fact]
+    public void Apply_NoAgregaSolape_CuandoElDiaEsDeDescanso()
+    {
+        var v = Aplica(null, Asigna(2, Libre()), CierreVispera(2, SeisAm(2)));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_NoAgregaSolape_CuandoElDiaTieneAusencia()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)), Ausenta(2, AusenciaA));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_NoAgregaSolape_CuandoElCierreEsNulo()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()), CierreVispera(2, null));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_ReemplazaElDescansoEntreTurnos_CuandoHaySolape()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()), Vispera(2, SeisAm(2).AddHours(4)), CierreVispera(2, SeisAm(2)));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Solape120);
+    }
+
+    [Fact]
+    public void Apply_ReemplazaElDescansoEntreTurnos_SinImportarElOrdenDeLlegada()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)), Vispera(2, SeisAm(2).AddHours(4)));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Solape120);
+    }
+
+    [Fact]
+    public void Apply_ConservaElDescansoEntreTurnos_CuandoNoHaySolape()
+    {
+        var v = Aplica(null, Asigna(2, new TurnoDiario("Tarde7", [Franja(5, 13)], "")),
+            Vispera(2, Dia(2).ToDateTime(new TimeOnly(4, 0)).AddHours(2)), CierreVispera(2, Dia(2).ToDateTime(new TimeOnly(5, 0))));
+
+        Casilla(v, 2).Advertencias.Should().Equal(new AdvertenciaDiaria(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, 180));
+        Casilla(v, 2).Advertencias.Should().NotContain(x => x.Tipo == TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera);
+    }
+
+    [Fact]
+    public void Apply_ConservaElCierreDeLaVispera_CuandoSeCancelaYReasignaElTurnoDelDia()
+    {
+        var v = Aplica(null, Asigna(4, Manana()), Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)),
+            Cancela(2), Asigna(2, FijoCuatro()));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Solape120);
+    }
+
+    [Fact]
+    public void Apply_ConservaElCierreDeLaVispera_CuandoSeAsignaYCancelaUnaAusencia()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)),
+            Ausenta(2, AusenciaA), CancelaAusencia(2, AusenciaA));
+
+        Casilla(v, 2).Advertencias.Should().Equal(Solape120);
+    }
+
+    [Fact]
+    public void Apply_RecalculaElSolape_CuandoLlegaUnCierreMayor()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)), CierreVispera(2, SeisAm(2).AddMinutes(30)));
+
+        Casilla(v, 2).Advertencias.Should().Equal(new AdvertenciaDiaria(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, 150));
+    }
+
+    [Fact]
+    public void Apply_ApagaElSolape_CuandoLlegaUnCierreMenorQueLaApertura()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)), CierreVispera(2, Dia(2).ToDateTime(new TimeOnly(3, 0))));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Apply_ApagaElSolape_CuandoLlegaUnCierreNulo()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)), CierreVispera(2, null));
+
+        Casilla(v, 2).Advertencias.Should().BeEmpty();
+        v.TieneAdvertencias.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_MuestraElSolape_CuandoLaSemanaNoTieneJornadaNiEsJuzgable()
+    {
+        var v = Aplica(null, Asigna(2, FijoCuatro()), CierreVispera(2, SeisAm(2)));
+
+        v.Jornada.Should().BeNull();
+        v.EsJuzgable.Should().BeFalse();
+        v.AdvertenciasSemanales.Should().BeEmpty();
+        Casilla(v, 2).Advertencias.Should().Equal(Solape120);
+        v.TieneAdvertencias.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_NoCreaDocumento_CuandoCierreDeLaVisperaEsElPrimerEvento()
+    {
+        AdvertenciasProgramacionSemanalProjection.Create(CierreVispera(2, SeisAm(2))).Should().BeNull();
     }
 }
