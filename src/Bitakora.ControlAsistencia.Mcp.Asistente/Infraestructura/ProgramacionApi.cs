@@ -63,6 +63,10 @@ public sealed class ProgramacionApi(HttpClient http)
         string id, HorasYMinutosJornada amplitud, CancellationToken ct) =>
         http.PutAsJsonAsync($"api/programacion/turnos/{id}/ventana-entrada", new { amplitud }, ct);
 
+    public Task<HttpResponseMessage> CrearTurnoDeHorarioAbierto(
+        Guid turnoId, string nombre, HorasYMinutosJornada duracion, CancellationToken ct) =>
+        http.PostAsJsonAsync("api/programacion/turnos/horario-abierto", new { turnoId, nombre, duracion }, ct);
+
     public Task<HttpResponseMessage> DesactivarJornada(Guid id, CancellationToken ct) =>
         http.PostAsync($"api/programacion/jornadas/{id}:desactivar", null, ct);
 
