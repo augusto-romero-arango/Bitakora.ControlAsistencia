@@ -24,11 +24,12 @@ public class AplicarPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFi
         var creadoTurno = await mcp.Cliente.CallToolAsync(
             "crear_turno", new Dictionary<string, object?> { ["nombre"] = nombreTurno }, cancellationToken: ct);
         creadoTurno.IsError.Should().NotBeTrue();
-        await programacion.Client.EsperarFichaAsync(nombreTurno, ct);
+        using var fichaTurno = await programacion.Client.EsperarFichaAsync(nombreTurno, ct);
+        var turnoId = fichaTurno.RootElement.GetProperty("id").GetString()!;
 
         var conFranja = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "06:00", ["fin"] = "14:00" },
             cancellationToken: ct);
         conFranja.IsError.Should().NotBeTrue();
 

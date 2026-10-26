@@ -336,7 +336,7 @@ public class ComposicionDelServidorTests
 
     [Fact]
     public void ObtenerTurno_DeclaraElIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("obtener_turno").Should().BeEquivalentTo([("id", true)]);
+        PropiedadesDe("obtener_turno").Should().BeEquivalentTo([("turno_id", true)]);
 
     [Fact]
     public void CrearTurno_DeclaraElNombreComoObligatorio_CuandoSeInspeccionaLaTool() =>
@@ -383,26 +383,26 @@ public class ComposicionDelServidorTests
     [Fact]
     public void AgregarFranja_DeclaraSusObligatoriosYOpcionales_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("agregar_franja").Should().BeEquivalentTo(
-            [("turno", true), ("inicio", true), ("fin", true), ("codigo_sede", false)]);
+            [("turno_id", true), ("inicio", true), ("fin", true), ("codigo_sede", false)]);
 
     [Fact]
     public void QuitarFranja_DeclaraTurnoYFranjaComoObligatorios_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("quitar_franja").Should().BeEquivalentTo([("turno", true), ("franja", true)]);
+        PropiedadesDe("quitar_franja").Should().BeEquivalentTo([("turno_id", true), ("franja", true)]);
 
     [Fact]
     public void AgregarSubFranja_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("agregar_subfranja").Should().BeEquivalentTo(
-            [("turno", true), ("franja", true), ("tipo", true), ("inicio", true), ("fin", true)]);
+            [("turno_id", true), ("franja", true), ("tipo", true), ("inicio", true), ("fin", true)]);
 
     [Fact]
     public void QuitarSubFranja_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("quitar_subfranja").Should().BeEquivalentTo(
-            [("turno", true), ("franja", true), ("tipo", true), ("inicio", true)]);
+            [("turno_id", true), ("franja", true), ("tipo", true), ("inicio", true)]);
 
     [Fact]
     public void AsignarSedeFranja_DeclaraCodigoSedeComoOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("asignar_sede_franja").Should().BeEquivalentTo(
-            [("turno", true), ("franja", true), ("codigo_sede", false)]);
+            [("turno_id", true), ("franja", true), ("codigo_sede", false)]);
 
     [Fact]
     public void ListarPlantillasSemanales_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>

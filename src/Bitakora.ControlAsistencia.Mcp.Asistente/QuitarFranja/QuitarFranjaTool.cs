@@ -7,7 +7,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.QuitarFranja;
 // Cliente HTTP puro que envuelve GET programacion/turnos (resolver nombre -> id + ficha vigente
 // para el eco) + POST programacion/turnos/{id}:quitar-franja (paso 4 MEF-ADR-0043). El 404/409 del
 // POST se traduce a texto, nunca a excepcion (CA-ADR-0030).
-public partial class QuitarFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
+public partial class QuitarFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
 {
     internal const string NombreTool = "quitar_franja";
 
@@ -23,12 +23,12 @@ public partial class QuitarFranjaTool(ProgramacionApi programacion, ResolutorTur
         ToolInvocationContext context,
         [McpToolProperty(
             "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
-        string turno,
+        string turnoId,
         [McpToolProperty("franja", "Hora de inicio de la franja a quitar, formato HH:mm.", isRequired: true)]
         string franja,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turno))
+        if (string.IsNullOrWhiteSpace(turnoId))
             return string.Format(Mensajes.CampoObligatorio, "turno");
         if (string.IsNullOrWhiteSpace(franja))
             return string.Format(Mensajes.CampoObligatorio, "franja");
@@ -36,12 +36,12 @@ public partial class QuitarFranjaTool(ProgramacionApi programacion, ResolutorTur
         if (!NotacionFranja.TryParseHora(franja, out var horaFranja))
             return string.Format(Mensajes.HoraInvalida, "franja", franja);
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
+        var resolucion = await resolutor.ResolverAsync(turnoId, ct);
         if (resolucion.FalloDeLectura is { } falloTurnos)
             return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
         if (resolucion.Ficha is null)
             return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+                Mensajes.TurnoNoExiste, turnoId, string.Join(", ", resolucion.NombresDisponibles));
         var fichaTurno = resolucion.Ficha;
 
         var respuestaQuitar = await programacion.QuitarFranja(fichaTurno.Id, horaFranja, ct);

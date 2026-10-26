@@ -9,7 +9,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.AgregarSubFranja;
 // MEF-ADR-0043). Descanso y extra comparten forma exacta: una tool con tipo, no cuatro
 // (MEF-ADR-0047 decision 4). El 400/404/409 del POST se traduce a texto, nunca a excepcion
 // (CA-ADR-0030).
-public partial class AgregarSubFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
+public partial class AgregarSubFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
 {
     internal const string NombreTool = "agregar_subfranja";
 
@@ -27,7 +27,7 @@ public partial class AgregarSubFranjaTool(ProgramacionApi programacion, Resoluto
         ToolInvocationContext context,
         [McpToolProperty(
             "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
-        string turno,
+        string turnoId,
         [McpToolProperty(
             "franja", "Hora de inicio de la franja ordinaria donde se agrega, formato HH:mm.", isRequired: true)]
         string franja,
@@ -39,7 +39,7 @@ public partial class AgregarSubFranjaTool(ProgramacionApi programacion, Resoluto
         string fin,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turno))
+        if (string.IsNullOrWhiteSpace(turnoId))
             return string.Format(Mensajes.CampoObligatorio, "turno");
         if (string.IsNullOrWhiteSpace(franja))
             return string.Format(Mensajes.CampoObligatorio, "franja");
@@ -60,12 +60,12 @@ public partial class AgregarSubFranjaTool(ProgramacionApi programacion, Resoluto
         if (!NotacionFranja.TryParseHora(fin, out var horaFin))
             return string.Format(Mensajes.HoraInvalida, "fin", fin);
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
+        var resolucion = await resolutor.ResolverAsync(turnoId, ct);
         if (resolucion.FalloDeLectura is { } falloTurnos)
             return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
         if (resolucion.Ficha is null)
             return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+                Mensajes.TurnoNoExiste, turnoId, string.Join(", ", resolucion.NombresDisponibles));
         var fichaTurno = resolucion.Ficha;
 
         var respuestaAgregar = await programacion.AgregarSubFranja(

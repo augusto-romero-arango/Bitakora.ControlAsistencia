@@ -19,11 +19,12 @@ public class BuscarPlantillasSemanalesSmokeTests(McpFixture mcp, ProgramacionApi
         var turnoCreado = await mcp.Cliente.CallToolAsync(
             "crear_turno", new Dictionary<string, object?> { ["nombre"] = turno }, cancellationToken: ct);
         turnoCreado.IsError.Should().NotBeTrue();
-        using (await programacion.Client.EsperarFichaAsync(turno, ct)) { }
+        using var fichaTurno = await programacion.Client.EsperarFichaAsync(turno, ct);
+        var turnoId = fichaTurno.RootElement.GetProperty("id").GetString()!;
 
         var franja = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = turno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "06:00", ["fin"] = "14:00" },
             cancellationToken: ct);
         franja.IsError.Should().NotBeTrue();
 

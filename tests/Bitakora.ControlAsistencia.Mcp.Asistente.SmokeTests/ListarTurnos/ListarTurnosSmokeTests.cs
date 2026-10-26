@@ -55,13 +55,13 @@ public class ListarTurnosSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
 
         var agregada = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["inicio"] = "14:00", ["fin"] = "22:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "14:00", ["fin"] = "22:00" },
             cancellationToken: ct);
         agregada.IsError.Should().NotBeTrue();
 
         var argumentosSede = new Dictionary<string, object?>
         {
-            ["turno"] = nombreTurno,
+            ["turno_id"] = turnoId,
             ["franja"] = "14:00",
             ["codigo_sede"] = codigoSede
         };

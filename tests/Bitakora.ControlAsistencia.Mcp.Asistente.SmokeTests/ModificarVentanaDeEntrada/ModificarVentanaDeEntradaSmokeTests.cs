@@ -27,7 +27,7 @@ public class ModificarVentanaDeEntradaSmokeTests(McpFixture mcp, ProgramacionApi
     private async Task<string?> VentanaEnObtenerTurnoAsync(string turnoId, CancellationToken ct)
     {
         var resultado = await mcp.Cliente.CallToolAsync(
-            "obtener_turno", new Dictionary<string, object?> { ["id"] = turnoId }, cancellationToken: ct);
+            "obtener_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
         using var documento = JsonDocument.Parse(TextoDe(resultado));
         return documento.RootElement.TryGetProperty("ventanaDeEntrada", out var ventana) ? ventana.GetString() : null;
     }
@@ -47,7 +47,7 @@ public class ModificarVentanaDeEntradaSmokeTests(McpFixture mcp, ProgramacionApi
 
         var agregada = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["inicio"] = "07:00", ["fin"] = "16:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "07:00", ["fin"] = "16:00" },
             cancellationToken: ct);
         agregada.IsError.Should().NotBeTrue();
         // El eco toma la apertura de la ficha que lee la tool: sin la franja proyectada, sale sin horas.

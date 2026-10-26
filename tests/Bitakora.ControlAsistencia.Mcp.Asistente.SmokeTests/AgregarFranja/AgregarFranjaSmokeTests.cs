@@ -65,7 +65,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
 
         var argumentosAgregar = new Dictionary<string, object?>
         {
-            ["turno"] = nombreTurno,
+            ["turno_id"] = turnoId,
             ["inicio"] = "22:00",
             ["fin"] = "06:00",
             ["codigo_sede"] = codigoSede
@@ -101,7 +101,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
 
         var quitado = await mcp.Cliente.CallToolAsync(
             "quitar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["franja"] = "22:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["franja"] = "22:00" },
             cancellationToken: ct);
         quitado.IsError.Should().NotBeTrue();
         using var ecoQuitado = JsonDocument.Parse(TextoDe(quitado));
@@ -132,7 +132,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["inicio"] = "08:00", ["fin"] = "16:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "08:00", ["fin"] = "16:00" },
             cancellationToken: ct);
         resultado.IsError.Should().NotBeTrue();
         using var eco = JsonDocument.Parse(TextoDe(resultado));
@@ -156,13 +156,13 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
         var ct = TestContext.Current.CancellationToken;
         var nombreTurno = $"[TEST] Franja MCP {Guid.CreateVersion7()}";
         var codigoSede = $"TEST-INEXISTENTE-{Guid.CreateVersion7()}";
-        await CrearTurnoYEsperarFichaAsync(nombreTurno, ct);
+        var turnoId = await CrearTurnoYEsperarFichaAsync(nombreTurno, ct);
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
             new Dictionary<string, object?>
             {
-                ["turno"] = nombreTurno,
+                ["turno_id"] = turnoId,
                 ["inicio"] = "08:00",
                 ["fin"] = "16:00",
                 ["codigo_sede"] = codigoSede
@@ -184,10 +184,10 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = "   ", ["inicio"] = "08:00", ["fin"] = "16:00" },
+            new Dictionary<string, object?> { ["turno_id"] = "   ", ["inicio"] = "08:00", ["fin"] = "16:00" },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().Be("'turno' es obligatorio.");
+        TextoDe(resultado).Should().StartWith("turno_id debe ser el id del turno");
     }
 
     // Hora no parseable corta antes de resolver el turno.
@@ -199,7 +199,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = "cualquiera", ["inicio"] = "8pm", ["fin"] = "16:00" },
+            new Dictionary<string, object?> { ["turno_id"] = Guid.NewGuid().ToString(), ["inicio"] = "8pm", ["fin"] = "16:00" },
             cancellationToken: ct);
 
         TextoDe(resultado).Should().Be("'inicio' no es una hora valida en formato HH:mm: '8pm'.");
@@ -211,13 +211,13 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
     public async Task AgregarFranja_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nombre = $"[TEST] Turno que no existe {Guid.CreateVersion7()}";
+        var turnoInexistente = Guid.CreateVersion7().ToString();
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombre, ["inicio"] = "08:00", ["fin"] = "16:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoInexistente, ["inicio"] = "08:00", ["fin"] = "16:00" },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().StartWith($"No existe un turno con el nombre '{nombre}'.");
+        TextoDe(resultado).Should().Contain(turnoInexistente).And.Contain("buscar_turnos");
     }
 }

@@ -41,4 +41,7 @@
   <data name="NotaVisibilidadEventual" xml:space="preserve">
     <value>La sub-franja aparece en obtener_turno unos segundos despues.</value>
   </data>
+  <data name="TurnoIdInvalido" xml:space="preserve">
+    <value>turno_id debe ser el id del turno (un GUID), tal como lo da buscar_turnos; se recibio: {0}</value>
+  </data>
 </root>

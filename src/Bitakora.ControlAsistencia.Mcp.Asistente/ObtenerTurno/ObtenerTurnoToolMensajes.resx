@@ -29,4 +29,7 @@
   <data name="HorarioAbierto" xml:space="preserve">
     <value>horario abierto de {0}</value>
   </data>
+  <data name="TurnoIdInvalido" xml:space="preserve">
+    <value>turno_id debe ser el id del turno (un GUID), tal como lo da buscar_turnos; se recibio: {0}</value>
+  </data>
 </root>

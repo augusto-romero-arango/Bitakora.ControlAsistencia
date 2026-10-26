@@ -27,13 +27,13 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
             "id",
             "Id del turno en el catalogo (obtenlo con buscar_turnos).",
             isRequired: true)]
-        string id,
+        string turnoId,
         CancellationToken ct)
     {
-        var respuesta = await api.ObtenerTurno(id, ct);
+        var respuesta = await api.ObtenerTurno(turnoId, ct);
 
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
-            return string.Format(Mensajes.TurnoNoExiste, id);
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         respuesta.EnsureSuccessStatusCode();
 

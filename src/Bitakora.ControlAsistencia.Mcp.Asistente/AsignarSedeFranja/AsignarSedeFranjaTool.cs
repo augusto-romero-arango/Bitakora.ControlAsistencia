@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.AsignarSedeFranja;
 // retira la sede prearmada (body sin la clave sede); el 400/404/409 del POST -- incluido
 // FranjaSinSede al retirar sin sede -- se traduce a texto, nunca a excepcion (CA-ADR-0030).
 public partial class AsignarSedeFranjaTool(
-    ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor, ResolutorSedePorCodigo resolutorSedes)
+    ProgramacionApi programacion, ResolutorTurnoPorId resolutor, ResolutorSedePorCodigo resolutorSedes)
 {
     internal const string NombreTool = "asignar_sede_franja";
 
@@ -26,7 +26,7 @@ public partial class AsignarSedeFranjaTool(
         ToolInvocationContext context,
         [McpToolProperty(
             "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
-        string turno,
+        string turnoId,
         [McpToolProperty("franja", "Hora de inicio de la franja, formato HH:mm.", isRequired: true)]
         string franja,
         [McpToolProperty(
@@ -36,7 +36,7 @@ public partial class AsignarSedeFranjaTool(
         string? codigoSede,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turno))
+        if (string.IsNullOrWhiteSpace(turnoId))
             return string.Format(Mensajes.CampoObligatorio, "turno");
         if (string.IsNullOrWhiteSpace(franja))
             return string.Format(Mensajes.CampoObligatorio, "franja");
@@ -44,12 +44,12 @@ public partial class AsignarSedeFranjaTool(
         if (!NotacionFranja.TryParseHora(franja, out var horaFranja))
             return string.Format(Mensajes.HoraInvalida, "franja", franja);
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
+        var resolucion = await resolutor.ResolverAsync(turnoId, ct);
         if (resolucion.FalloDeLectura is { } falloTurnos)
             return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
         if (resolucion.Ficha is null)
             return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+                Mensajes.TurnoNoExiste, turnoId, string.Join(", ", resolucion.NombresDisponibles));
         var fichaTurno = resolucion.Ficha;
 
         SedeProgramada? sede = null;

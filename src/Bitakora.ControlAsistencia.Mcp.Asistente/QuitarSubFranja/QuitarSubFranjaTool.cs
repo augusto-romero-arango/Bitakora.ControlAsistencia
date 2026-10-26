@@ -7,7 +7,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.QuitarSubFranja;
 // Cliente HTTP puro que envuelve GET programacion/turnos (resolver nombre -> id + ficha vigente
 // para el eco) + POST programacion/turnos/{id}:quitar-subfranja (paso 4 MEF-ADR-0043). El
 // 400/404/409 del POST se traduce a texto, nunca a excepcion (CA-ADR-0030).
-public partial class QuitarSubFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
+public partial class QuitarSubFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
 {
     internal const string NombreTool = "quitar_subfranja";
 
@@ -23,7 +23,7 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion, Resolutor
         ToolInvocationContext context,
         [McpToolProperty(
             "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
-        string turno,
+        string turnoId,
         [McpToolProperty(
             "franja", "Hora de inicio de la franja ordinaria que contiene la sub-franja, formato HH:mm.",
             isRequired: true)]
@@ -34,7 +34,7 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion, Resolutor
         string inicio,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turno))
+        if (string.IsNullOrWhiteSpace(turnoId))
             return string.Format(Mensajes.CampoObligatorio, "turno");
         if (string.IsNullOrWhiteSpace(franja))
             return string.Format(Mensajes.CampoObligatorio, "franja");
@@ -51,12 +51,12 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion, Resolutor
         if (!NotacionFranja.TryParseHora(inicio, out var horaInicio))
             return string.Format(Mensajes.HoraInvalida, "inicio", inicio);
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
+        var resolucion = await resolutor.ResolverAsync(turnoId, ct);
         if (resolucion.FalloDeLectura is { } falloTurnos)
             return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
         if (resolucion.Ficha is null)
             return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+                Mensajes.TurnoNoExiste, turnoId, string.Join(", ", resolucion.NombresDisponibles));
         var fichaTurno = resolucion.Ficha;
 
         var respuestaQuitar = await programacion.QuitarSubFranja(
