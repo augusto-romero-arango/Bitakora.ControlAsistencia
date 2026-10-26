@@ -13,7 +13,7 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
 
     // Issue #335: sede prearmada para esta franja del catalogo (null = sin sede asignada). Campo
     // interno, sin propiedad publica (MEF-ADR-0012, Tell-don't-Ask) -- se expone SOLO via
-    // ToDetalle() y ToString().
+    // ToDetalle().
     private readonly SedeProgramada? _sede;
 
     // Constructor real: usado por el factory
@@ -152,13 +152,14 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         ToString(),
         _sede);
 
-    // CA-20, CA-21: formato "(06:00-12:00)" o "(22:00-06:00+1)"
-    // Issue #335: incluye el label de sede (.resx) cuando la franja la trae prearmada.
-    public override string ToString() =>
-        string.Join(", ",
-            new[] { $"{FormatearHora(_horaInicio, 0)}-{FormatearHora(_horaFin, _diaOffsetFin)}" }
-                .Concat(_descansos.Select(d => $"{FranjaTemporal.Mensajes.LabelDescansos} {d}"))
-                .Concat(_extras.Select(e => $"{FranjaTemporal.Mensajes.LabelExtras} {e}")));
+    // Notacion unica de las tools (#612): "22:00-06:00+1, descanso 02:00+1-02:30+1, extra ...".
+    // La sede no entra: la malla muestra la efectiva, que resuelve la cascada al programar.
+    public override string ToString() => string.Join(", ",
+    [
+        $"{FormatearHora(_horaInicio, 0)}-{FormatearHora(_horaFin, _diaOffsetFin)}",
+        .. _descansos.Select(d => $"{FranjaTemporal.Mensajes.LabelDescanso} {d}"),
+        .. _extras.Select(e => $"{FranjaTemporal.Mensajes.LabelExtra} {e}")
+    ]);
 
     // Igualdad por valor
     // Issue #335 CA-5: _sede entra en Equals/GetHashCode -- es dato de identidad del diseno de la

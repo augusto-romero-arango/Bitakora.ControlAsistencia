@@ -1,5 +1,5 @@
 // Issue #288 CA-3: coherencia entre CatalogoTurnos.ObtenerDetalle().Descripcion y
-// CatalogoTurnos.ToString(). El formato de nivel turno ("{nombre} {franjas}") vive en este
+// CatalogoTurnos.ToString(). El formato de nivel turno (franjas unidas con ", ") vive en este
 // aggregate, en el Function App de Programacion (el worker de proyecciones no puede referenciarlo,
 // MEF-ADR-0034 seccion 5). ObtenerDetalle() e Iniciar() son internal (ADR-0015); accesibles en este
 // proyecto de tests via InternalsVisibleTo (Bitakora.ControlAsistencia.Programacion.csproj).
@@ -88,7 +88,7 @@ public class CatalogoTurnosTests
         var catalogo = CrearCatalogoDescanso("Descanso Compensatorio");
 
         catalogo.EstaCompleto().Should().BeTrue();
-        catalogo.ToString().Should().Be($"Descanso Compensatorio {Turno.Mensajes.LabelDescanso}");
+        catalogo.ToString().Should().Be(Turno.Mensajes.LabelDescanso);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class CatalogoTurnosTests
         var catalogo = CrearCatalogo();
 
         catalogo.EstaCompleto().Should().BeFalse();
-        catalogo.ToString().Should().Be($"Turno Manana {Turno.Mensajes.LabelIncompleto}");
+        catalogo.ToString().Should().Be(Turno.Mensajes.LabelIncompleto);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public class CatalogoTurnosTests
         var resultado = catalogo.AgregarFranja(nueva);
 
         resultado.Should().Be(ResultadoAgregarFranja.Agregada);
-        catalogo.ToString().Should().Be("06:00-14:0014:00-22:00");
+        catalogo.ToString().Should().Be("06:00-14:00, 14:00-22:00");
     }
 
     // CA-3: una franja que se superpone parcialmente con la existente se rechaza sin emitir evento.
@@ -407,7 +407,7 @@ public class CatalogoTurnosTests
 
         resultado.Should().Be(ResultadoQuitarFranja.Quitada);
         catalogo.EstaCompleto().Should().BeFalse();
-        catalogo.ToString().Should().Be($"Turno Manana {Turno.Mensajes.LabelIncompleto}");
+        catalogo.ToString().Should().Be(Turno.Mensajes.LabelIncompleto);
     }
 
     [Fact]

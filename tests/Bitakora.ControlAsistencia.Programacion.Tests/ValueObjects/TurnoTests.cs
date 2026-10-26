@@ -63,12 +63,16 @@ public class TurnoTests
     [Fact]
     public void ToString_DescribeDescansoYExtraConOffset_SinSede_CuandoLaFranjaCruzaMedianoche()
     {
-        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0),
-                sede: new SedeProgramada("SEDE-OCOA", "Ocoa"))
+        var ocoa = new SedeProgramada("SEDE-OCOA", "Ocoa");
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0), sede: ocoa)
+            .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30));
+        // El extra debe quedar contenido en la ordinaria, asi que esta termina a las 07:00+1.
+        var franjaConExtra = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(7, 0), sede: ocoa)
             .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30))
             .ConExtra(new TimeOnly(6, 0), new TimeOnly(7, 0));
 
-        franja.ToString().Should().Be("22:00-06:00+1, descanso 02:00+1-02:30+1, extra 06:00+1-07:00+1");
+        franja.ToString().Should().Be("22:00-06:00+1, descanso 02:00+1-02:30+1");
+        franjaConExtra.ToString().Should().Be("22:00-07:00+1, descanso 02:00+1-02:30+1, extra 06:00+1-07:00+1");
     }
 
     [Fact]

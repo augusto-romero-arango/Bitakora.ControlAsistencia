@@ -54,8 +54,10 @@ public class ObtenerPlantillaSemanalToolTests
 
         var semana = json["cuadro"]![0]!.AsObject();
         semana["semana"]!.GetValue<int>().Should().Be(1);
-        semana["lunes"]!.GetValue<string>().Should().Be("[TEST] Cocina Manana (07:00-17:00)");
-        semana["martes"]!.GetValue<string>().Should().Be("[TEST] Cocina Tarde (13:00-21:00)");
+        semana["lunes"]!.GetValue<string>().Should().Be("[TEST] Cocina Manana 07:00-17:00");
+        semana["martes"]!.GetValue<string>().Should().Be("[TEST] Cocina Tarde 13:00-21:00");
+        semana["viernes"]!.GetValue<string>().Should().Be("[TEST] Cocina Noche 21:00-05:00+1");
+        semana["sabado"]!.GetValue<string>().Should().Be("[TEST] Descanso Semana Cocina (descanso)");
     }
 
     [Fact]

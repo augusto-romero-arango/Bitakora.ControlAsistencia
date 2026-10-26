@@ -43,7 +43,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
 
     // CA-3: handler persiste evento cuando turno no existe
     // CA-1: aggregate aplica TurnoCreado y establece Id (AggregateRoot.Id = turnoId.ToString())
-    // CA-2: ToString produce "{nombre} (franja1)" usando el ToString() de cada FranjaOrdinaria
+    // CA-2: ToString produce las franjas (sin el nombre) usando el ToString() de cada FranjaOrdinaria
     [Fact]
     public async Task DebeEmitirTurnoCreadoYEstablecerEstado_CuandoTurnoNoExiste()
     {
@@ -55,7 +55,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
 
         Then(eventoEsperado);
         And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
-        And<CatalogoTurnos, string>(c => c.ToString(), $"{NombreTurno} (08:00-16:00)");
+        And<CatalogoTurnos, string>(c => c.ToString(), "08:00-16:00");
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
     public async Task CrearTurno_EmiteTurnoCreadoConFranjasVacias_CuandoEsDescansoEsTrue()
     {
         const string nombreDescanso = "Descanso Compensatorio";
-        var descripcionEsperada = $"{nombreDescanso} {Turno.Mensajes.LabelDescanso}";
+        var descripcionEsperada = Turno.Mensajes.LabelDescanso;
         var comando = new CrearTurno(GuidAggregateId, nombreDescanso, [], EsDescanso: true);
         var eventoEsperado = TurnoCreado.CrearDescanso(comando.TurnoId, comando.Nombre);
 
@@ -154,7 +154,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
             .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.NombreDuplicado}*");
         Then(GuidAggregateId.ToString());
         And<CatalogoTurnos, string>(
-            turnoExistenteId.ToString(), c => c.ToString(), $"{nombreExistente} (08:00-16:00)");
+            turnoExistenteId.ToString(), c => c.ToString(), "08:00-16:00");
     }
 
     // CA-2: nombre difiere solo en mayusculas/espacios (trim + colapso + case-insensitive) de uno
@@ -173,7 +173,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
             .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.NombreDuplicado}*");
         Then(GuidAggregateId.ToString());
         And<CatalogoTurnos, string>(
-            turnoExistenteId.ToString(), c => c.ToString(), $"{nombreExistente} (08:00-16:00)");
+            turnoExistenteId.ToString(), c => c.ToString(), "08:00-16:00");
     }
 
     // CA-3: nombre difiere solo en acentos de uno existente -> se crea normalmente (decision del

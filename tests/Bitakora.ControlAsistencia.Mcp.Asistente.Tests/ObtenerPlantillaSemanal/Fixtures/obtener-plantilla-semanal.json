@@ -10,7 +10,7 @@
    "turno": {
     "id": "01a07000-2000-7000-9000-000000000001",
     "nombre": "[TEST] Cocina Manana",
-    "descripcion": "(07:00-17:00)",
+    "descripcion": "07:00-17:00",
     "completo": true,
     "retirado": false
    }
@@ -21,7 +21,7 @@
    "turno": {
     "id": "01a07000-2000-7000-9000-000000000002",
     "nombre": "[TEST] Cocina Tarde",
-    "descripcion": "(13:00-21:00)",
+    "descripcion": "13:00-21:00",
     "completo": true,
     "retirado": false
    }
@@ -32,7 +32,7 @@
    "turno": {
     "id": "01a07000-2000-7000-9000-000000000003",
     "nombre": "[TEST] Turno Incompleto",
-    "descripcion": "Sin franjas",
+    "descripcion": "(incompleto)",
     "completo": false,
     "retirado": false
    }
@@ -54,7 +54,7 @@
    "turno": {
     "id": "01a07000-2000-7000-9000-000000000005",
     "nombre": "[TEST] Cocina Noche",
-    "descripcion": "(21:00-05:00+1)",
+    "descripcion": "21:00-05:00+1",
     "completo": true,
     "retirado": false
    }
@@ -65,7 +65,7 @@
    "turno": {
     "id": "01a07000-2000-7000-9000-000000000006",
     "nombre": "[TEST] Descanso Semana Cocina",
-    "descripcion": "Descanso",
+    "descripcion": "(descanso)",
     "completo": true,
     "retirado": false
    }

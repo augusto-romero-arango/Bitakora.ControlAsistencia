@@ -51,7 +51,7 @@ public class FichaTurnoProjectionTests
             [new SubFranjaFicha(new TimeOnly(10, 0), new TimeOnly(10, 15), 0, 0)],
             [new SubFranjaFicha(new TimeOnly(13, 0), new TimeOnly(13, 30), 0, 0)],
             "sede-01", "Sede Centro",
-            "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-13:30)][sede:Sede Centro]");
+            "06:00-14:00, descanso 10:00-10:15, extra 13:00-13:30");
 
         vista.Should().BeEquivalentTo(new FichaTurno(
             turnoId.ToString(),
@@ -59,7 +59,7 @@ public class FichaTurnoProjectionTests
             false,
             "06:00-14:00",
             [franjaEsperada],
-            "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-13:30)][sede:Sede Centro]",
+            "06:00-14:00, descanso 10:00-10:15, extra 13:00-13:30",
             Completo: true));
     }
 
@@ -88,11 +88,11 @@ public class FichaTurnoProjectionTests
         var vista = FichaTurnoProjection.Create(evento);
 
         vista.HorarioResumido.Should().Be("06:00-10:00, 14:00-18:00");
-        vista.Descripcion.Should().Be("(06:00-10:00), (14:00-18:00)");
+        vista.Descripcion.Should().Be("06:00-10:00, 14:00-18:00");
         vista.Completo.Should().BeTrue();
         vista.Franjas.Should().BeEquivalentTo([
-            new FranjaFicha(new TimeOnly(6, 0), new TimeOnly(10, 0), 0, [], [], null, null, "(06:00-10:00)"),
-            new FranjaFicha(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], null, null, "(14:00-18:00)")
+            new FranjaFicha(new TimeOnly(6, 0), new TimeOnly(10, 0), 0, [], [], null, null, "06:00-10:00"),
+            new FranjaFicha(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], null, null, "14:00-18:00")
         ], opciones => opciones.WithStrictOrdering());
     }
 
@@ -182,7 +182,7 @@ public class FichaTurnoProjectionTests
             [new SubFranjaFicha(new TimeOnly(10, 0), new TimeOnly(10, 15), 0, 0)],
             [new SubFranjaFicha(new TimeOnly(13, 0), new TimeOnly(13, 30), 0, 0)],
             "sede-01", "Sede Centro",
-            "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-13:30)][sede:Sede Centro]");
+            "06:00-14:00, descanso 10:00-10:15, extra 13:00-13:30");
 
         vista.Should().BeEquivalentTo(new FichaTurno(
             turnoId.ToString(),
@@ -190,7 +190,7 @@ public class FichaTurnoProjectionTests
             false,
             "06:00-14:00",
             [franjaEsperada],
-            "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-13:30)][sede:Sede Centro]",
+            "06:00-14:00, descanso 10:00-10:15, extra 13:00-13:30",
             Completo: true));
     }
 
@@ -201,10 +201,10 @@ public class FichaTurnoProjectionTests
     {
         var turnoId = Guid.NewGuid();
         var franjaTarde = new FranjaFicha(
-            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "(14:00-22:00)");
+            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "14:00-22:00");
         var fichaPrevia = new FichaTurno(
             turnoId.ToString(), "Turno Partido", false,
-            "14:00-22:00", [franjaTarde], "(14:00-22:00)", Completo: true);
+            "14:00-22:00", [franjaTarde], "14:00-22:00", Completo: true);
 
         var franjaManana = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
         var evento = FranjaAgregada.Crear(turnoId, franjaManana);
@@ -213,7 +213,7 @@ public class FichaTurnoProjectionTests
 
         vista.HorarioResumido.Should().Be("06:00-14:00, 14:00-22:00");
         vista.Franjas.Should().BeEquivalentTo([
-            new FranjaFicha(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "(06:00-14:00)"),
+            new FranjaFicha(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "06:00-14:00"),
             franjaTarde
         ], opciones => opciones.WithStrictOrdering());
     }
@@ -223,13 +223,13 @@ public class FichaTurnoProjectionTests
     {
         var turnoId = Guid.NewGuid();
         var franjaManana = new FranjaFicha(
-            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "(06:00-14:00)");
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "06:00-14:00");
         var franjaTarde = new FranjaFicha(
-            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "(14:00-22:00)");
+            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "14:00-22:00");
         var fichaPrevia = new FichaTurno(
             turnoId.ToString(), "Turno Partido", false,
             "06:00-14:00, 14:00-22:00", [franjaManana, franjaTarde],
-            "(06:00-14:00), (14:00-22:00)", Completo: true);
+            "06:00-14:00, 14:00-22:00", Completo: true);
 
         var evento = FranjaQuitada.Crear(turnoId, FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0)));
 
@@ -245,9 +245,9 @@ public class FichaTurnoProjectionTests
     {
         var turnoId = Guid.NewGuid();
         var franja = new FranjaFicha(
-            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "(06:00-14:00)");
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "06:00-14:00");
         var fichaPrevia = new FichaTurno(
-            turnoId.ToString(), "Turno Manana", false, "06:00-14:00", [franja], "(06:00-14:00)", Completo: true);
+            turnoId.ToString(), "Turno Manana", false, "06:00-14:00", [franja], "06:00-14:00", Completo: true);
 
         var evento = FranjaQuitada.Crear(turnoId, FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0)));
 
@@ -265,13 +265,13 @@ public class FichaTurnoProjectionTests
     {
         var turnoId = Guid.NewGuid();
         var franjaManana = new FranjaFicha(
-            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "(06:00-14:00)");
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "06:00-14:00");
         var franjaTarde = new FranjaFicha(
-            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "(14:00-22:00)");
+            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "14:00-22:00");
         var fichaPrevia = new FichaTurno(
             turnoId.ToString(), "Turno Partido", false,
             "06:00-14:00, 14:00-22:00", [franjaManana, franjaTarde],
-            "(06:00-14:00), (14:00-22:00)", Completo: true);
+            "06:00-14:00, 14:00-22:00", Completo: true);
 
         var franjaResultante = FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(14, 0),
@@ -283,10 +283,10 @@ public class FichaTurnoProjectionTests
         var franjaMananaEsperada = franjaManana with
         {
             Descansos = [new SubFranjaFicha(new TimeOnly(10, 0), new TimeOnly(10, 15), 0, 0)],
-            Descripcion = "(06:00-14:00)[Descansos:(10:00-10:15)]",
+            Descripcion = "06:00-14:00, descanso 10:00-10:15",
         };
         vista.Franjas.Should().BeEquivalentTo([franjaMananaEsperada, franjaTarde]);
-        vista.Descripcion.Should().Be("(06:00-14:00)[Descansos:(10:00-10:15)], (14:00-22:00)");
+        vista.Descripcion.Should().Be("06:00-14:00, descanso 10:00-10:15, 14:00-22:00");
     }
 
     [Fact]
@@ -294,13 +294,13 @@ public class FichaTurnoProjectionTests
     {
         var turnoId = Guid.NewGuid();
         var franjaManana = new FranjaFicha(
-            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "(06:00-14:00)");
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "06:00-14:00");
         var franjaTarde = new FranjaFicha(
-            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "(14:00-22:00)");
+            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "14:00-22:00");
         var fichaPrevia = new FichaTurno(
             turnoId.ToString(), "Turno Partido", false,
             "06:00-14:00, 14:00-22:00", [franjaManana, franjaTarde],
-            "(06:00-14:00), (14:00-22:00)", Completo: true);
+            "06:00-14:00, 14:00-22:00", Completo: true);
 
         var franjaResultante = FranjaOrdinaria.Crear(
             new TimeOnly(6, 0), new TimeOnly(14, 0),
@@ -312,10 +312,10 @@ public class FichaTurnoProjectionTests
         var franjaMananaEsperada = franjaManana with
         {
             Extras = [new SubFranjaFicha(new TimeOnly(13, 0), new TimeOnly(13, 30), 0, 0)],
-            Descripcion = "(06:00-14:00)[Extras:(13:00-13:30)]",
+            Descripcion = "06:00-14:00, extra 13:00-13:30",
         };
         vista.Franjas.Should().BeEquivalentTo([franjaMananaEsperada, franjaTarde]);
-        vista.Descripcion.Should().Be("(06:00-14:00)[Extras:(13:00-13:30)], (14:00-22:00)");
+        vista.Descripcion.Should().Be("06:00-14:00, extra 13:00-13:30, 14:00-22:00");
     }
 
     [Fact]
@@ -325,13 +325,13 @@ public class FichaTurnoProjectionTests
         var franjaMananaConDescanso = new FranjaFicha(
             new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
             [new SubFranjaFicha(new TimeOnly(10, 0), new TimeOnly(10, 15), 0, 0)],
-            [], null, null, "(06:00-14:00)[Descansos:(10:00-10:15)]");
+            [], null, null, "06:00-14:00, descanso 10:00-10:15");
         var franjaTarde = new FranjaFicha(
-            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "(14:00-22:00)");
+            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "14:00-22:00");
         var fichaPrevia = new FichaTurno(
             turnoId.ToString(), "Turno Partido", false,
             "06:00-14:00, 14:00-22:00", [franjaMananaConDescanso, franjaTarde],
-            "(06:00-14:00)[Descansos:(10:00-10:15)], (14:00-22:00)", Completo: true);
+            "06:00-14:00, descanso 10:00-10:15, 14:00-22:00", Completo: true);
 
         // Sin descansos: el evento trae la franja contenedora resultante, ya sin la hija.
         var franjaResultante = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
@@ -339,9 +339,9 @@ public class FichaTurnoProjectionTests
 
         var vista = FichaTurnoProjection.Apply(evento, fichaPrevia);
 
-        var franjaMananaEsperada = franjaMananaConDescanso with { Descansos = [], Descripcion = "(06:00-14:00)" };
+        var franjaMananaEsperada = franjaMananaConDescanso with { Descansos = [], Descripcion = "06:00-14:00" };
         vista.Franjas.Should().BeEquivalentTo([franjaMananaEsperada, franjaTarde]);
-        vista.Descripcion.Should().Be("(06:00-14:00), (14:00-22:00)");
+        vista.Descripcion.Should().Be("06:00-14:00, 14:00-22:00");
     }
 
     [Fact]
@@ -351,22 +351,22 @@ public class FichaTurnoProjectionTests
         var franjaMananaConExtra = new FranjaFicha(
             new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
             [], [new SubFranjaFicha(new TimeOnly(13, 0), new TimeOnly(13, 30), 0, 0)],
-            null, null, "(06:00-14:00)[Extras:(13:00-13:30)]");
+            null, null, "06:00-14:00, extra 13:00-13:30");
         var franjaTarde = new FranjaFicha(
-            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "(14:00-22:00)");
+            new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], null, null, "14:00-22:00");
         var fichaPrevia = new FichaTurno(
             turnoId.ToString(), "Turno Partido", false,
             "06:00-14:00, 14:00-22:00", [franjaMananaConExtra, franjaTarde],
-            "(06:00-14:00)[Extras:(13:00-13:30)], (14:00-22:00)", Completo: true);
+            "06:00-14:00, extra 13:00-13:30, 14:00-22:00", Completo: true);
 
         var franjaResultante = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
         var evento = ExtraQuitado.Crear(turnoId, franjaResultante);
 
         var vista = FichaTurnoProjection.Apply(evento, fichaPrevia);
 
-        var franjaMananaEsperada = franjaMananaConExtra with { Extras = [], Descripcion = "(06:00-14:00)" };
+        var franjaMananaEsperada = franjaMananaConExtra with { Extras = [], Descripcion = "06:00-14:00" };
         vista.Franjas.Should().BeEquivalentTo([franjaMananaEsperada, franjaTarde]);
-        vista.Descripcion.Should().Be("(06:00-14:00), (14:00-22:00)");
+        vista.Descripcion.Should().Be("06:00-14:00, 14:00-22:00");
     }
 
     [Fact]
@@ -374,9 +374,9 @@ public class FichaTurnoProjectionTests
     {
         var turnoId = Guid.NewGuid();
         var franjaSinSede = new FranjaFicha(
-            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "(06:00-14:00)");
+            new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], null, null, "06:00-14:00");
         var fichaPrevia = new FichaTurno(
-            turnoId.ToString(), "Turno Manana", false, "06:00-14:00", [franjaSinSede], "(06:00-14:00)",
+            turnoId.ToString(), "Turno Manana", false, "06:00-14:00", [franjaSinSede], "06:00-14:00",
             Completo: true);
 
         var franjaResultante = FranjaOrdinaria.Crear(
@@ -389,10 +389,10 @@ public class FichaTurnoProjectionTests
         {
             SedeId = "sede-01",
             NombreSede = "Sede Centro",
-            Descripcion = "(06:00-14:00)[sede:Sede Centro]",
+            Descripcion = "06:00-14:00",
         };
         vista.Franjas.Should().BeEquivalentTo([franjaEsperada]);
-        vista.Descripcion.Should().Be("(06:00-14:00)[sede:Sede Centro]");
+        vista.Descripcion.Should().Be("06:00-14:00");
     }
 
     [Fact]
@@ -401,19 +401,19 @@ public class FichaTurnoProjectionTests
         var turnoId = Guid.NewGuid();
         var franjaConSede = new FranjaFicha(
             new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [],
-            "sede-01", "Sede Centro", "(06:00-14:00)[sede:Sede Centro]");
+            "sede-01", "Sede Centro", "06:00-14:00");
         var fichaPrevia = new FichaTurno(
             turnoId.ToString(), "Turno Manana", false,
-            "06:00-14:00", [franjaConSede], "(06:00-14:00)[sede:Sede Centro]", Completo: true);
+            "06:00-14:00", [franjaConSede], "06:00-14:00", Completo: true);
 
         var franjaResultante = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0));
         var evento = SedeDeFranjaRetirada.Crear(turnoId, franjaResultante);
 
         var vista = FichaTurnoProjection.Apply(evento, fichaPrevia);
 
-        var franjaEsperada = franjaConSede with { SedeId = null, NombreSede = null, Descripcion = "(06:00-14:00)" };
+        var franjaEsperada = franjaConSede with { SedeId = null, NombreSede = null, Descripcion = "06:00-14:00" };
         vista.Franjas.Should().BeEquivalentTo([franjaEsperada]);
-        vista.Descripcion.Should().Be("(06:00-14:00)");
+        vista.Descripcion.Should().Be("06:00-14:00");
     }
 
     private static Event<TurnoCreado> Evento(TurnoCreado turnoCreado) =>
@@ -430,7 +430,7 @@ public class FichaTurnoProjectionTests
             .Select(r => r.Split('-'))
             .Select(p => (Ini: TimeOnly.Parse(p[0]), Fin: TimeOnly.Parse(p[1])))
             .Select(r => new FranjaFicha(
-                r.Ini, r.Fin, 0, [], [], null, null, $"({r.Ini:HH\\:mm}-{r.Fin:HH\\:mm})"))
+                r.Ini, r.Fin, 0, [], [], null, null, $"{r.Ini:HH\\:mm}-{r.Fin:HH\\:mm}"))
             .ToList();
         return new FichaTurno(
             Guid.NewGuid().ToString(), "Turno", false,
@@ -589,7 +589,7 @@ public class FichaTurnoProjectionTests
         var vista = FichaTurnoProjection.Apply(evento, ficha);
 
         vista.HorarioResumido.Should().Be("07:00-16:00");
-        vista.Descripcion.Should().Be("(07:00-16:00)");
+        vista.Descripcion.Should().Be("07:00-16:00");
         vista.Completo.Should().BeTrue();
     }
 

@@ -216,11 +216,9 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             "Turno Con Sede",
             [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], SedeSuba)]);
 
-    // La sede entra al ToString() de la franja, asi que la Descripcion derivada la incluye.
-    private static readonly string DescripcionFranjaConSede =
-        "06:00-14:00";
-    private static readonly string DescripcionTurnoConSede =
-        DescripcionFranjaConSede;
+    // La sede prearmada no entra a la Descripcion derivada: viaja solo en su campo Sede.
+    private const string DescripcionFranjaConSede = "06:00-14:00";
+    private const string DescripcionTurnoConSede = DescripcionFranjaConSede;
 
     private static readonly TurnoProgramado TurnoConSedePrearmadaEsperado = new(
         "Turno Con Sede",
@@ -266,7 +264,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
     // La cascada NUNCA reconstruye el ToString() ya congelado en el catalogo (Descripcion se
     // calcula ANTES de conocer la sede de la solicitud): la franja2 queda con Sede = SedePrincipal
-    // pero su Descripcion sigue siendo "14:00-18:00", sin el label de sede.
+    // pero su Descripcion sigue siendo "14:00-18:00".
     private static readonly TurnoProgramado TurnoMixtoConCascadaEsperado = new(
         "Turno Mixto",
         new List<FranjaProgramada>

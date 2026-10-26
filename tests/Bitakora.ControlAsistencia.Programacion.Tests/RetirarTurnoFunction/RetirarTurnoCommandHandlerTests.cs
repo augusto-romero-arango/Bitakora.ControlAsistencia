@@ -87,7 +87,7 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
         Then(TurnoId.ToString(), TurnoRetirado.Crear(TurnoId));
         ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
             TurnoId, 2, "Turno Manana", false,
-            [new DetalleFranjaOrdinaria(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)")],
+            [new DetalleFranjaOrdinaria(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00")],
             true));
         And<CatalogoTurnos, ResultadoAsignabilidadTurno>(TurnoId.ToString(),
             c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
