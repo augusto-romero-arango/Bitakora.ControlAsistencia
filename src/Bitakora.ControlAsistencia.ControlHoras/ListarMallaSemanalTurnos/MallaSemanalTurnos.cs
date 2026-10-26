@@ -19,7 +19,8 @@ public sealed record CasillaMalla(
     string? NombreTurno,
     string? HorarioResumido,
     IReadOnlyList<Bloque> Bloques,
-    string? MotivoAusencia);
+    string? MotivoAusencia,
+    bool EsHorarioAbierto = false);
 
 public sealed record FilaMallaSemanal(string CodigoColaborador, IReadOnlyList<CasillaMalla> Casillas);
 

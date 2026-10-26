@@ -40,6 +40,7 @@ public static class ComponedorMallaSemanal
             return new CasillaMalla(fecha, TipoCasillaMalla.Ausencia, null, null, [], doc.MotivoAusencia);
 
         var tipo = doc.Bloques.Count == 0 ? TipoCasillaMalla.Descanso : TipoCasillaMalla.Trabajo;
-        return new CasillaMalla(fecha, tipo, doc.NombreTurno, doc.HorarioResumido, doc.Bloques, null);
+        return new CasillaMalla(
+            fecha, tipo, doc.NombreTurno, doc.HorarioResumido, doc.Bloques, null, doc.EsHorarioAbierto);
     }
 }
