@@ -37,7 +37,7 @@ public class TurnoCreadoSerializacionTests
         deserializado.Nombre.Should().Be("Turno Completo");
         deserializado.FranjasOrdinarias.Should().HaveCount(1);
         deserializado.FranjasOrdinarias[0].ToString()
-            .Should().Be("(06:00-16:00)[Descansos:(10:00-10:15)][Extras:(06:00-08:00)]");
+            .Should().Be("06:00-16:00, descanso 10:00-10:15, extra 06:00-08:00");
     }
 
     // Issue #335 CA-5: round-trip con sedes diferentes en cada franja ordinaria.

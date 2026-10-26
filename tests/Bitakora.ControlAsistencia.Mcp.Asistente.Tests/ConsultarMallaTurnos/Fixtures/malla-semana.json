@@ -15,7 +15,7 @@
         { "fecha": "2026-10-13", "tipo": "Descanso", "nombreTurno": "Descanso", "horarioResumido": null, "bloques": [], "motivoAusencia": null },
         { "fecha": "2026-10-14", "tipo": "Ausencia", "nombreTurno": null, "horarioResumido": null, "bloques": [], "motivoAusencia": "Vacaciones" },
         { "fecha": "2026-10-15", "tipo": "SinProgramar", "nombreTurno": null, "horarioResumido": null, "bloques": [], "motivoAusencia": null },
-        { "fecha": "2026-10-16", "tipo": "Trabajo", "nombreTurno": "Tarde", "horarioResumido": "14:00-22:00",
+        { "fecha": "2026-10-16", "tipo": "Trabajo", "nombreTurno": "Tarde", "horarioResumido": "14:00-22:00, descanso 18:00-18:30",
           "bloques": [ { "tipo": "Ordinaria", "inicio": "2026-10-16T14:00:00", "fin": "2026-10-16T22:00:00", "sedeId": "S-1", "nombreSede": "Norte" } ], "motivoAusencia": null },
         { "fecha": "2026-10-17", "tipo": "SinProgramar", "nombreTurno": null, "horarioResumido": null, "bloques": [], "motivoAusencia": null },
         { "fecha": "2026-10-18", "tipo": "FueraDeVinculacion", "nombreTurno": null, "horarioResumido": null, "bloques": [], "motivoAusencia": null }

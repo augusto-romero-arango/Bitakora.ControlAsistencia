@@ -39,7 +39,7 @@ public sealed class SubFranja : FranjaTemporal, IEquatable<SubFranja>
 
     // CA-20, CA-21: formato legible con offsets
     public override string ToString() =>
-        $"({FormatearHora(_horaInicio, _diaOffsetInicio)}-{FormatearHora(_horaFin, _diaOffsetFin)})";
+        $"{FormatearHora(_horaInicio, _diaOffsetInicio)}-{FormatearHora(_horaFin, _diaOffsetFin)}";
 
     // Igualdad por valor
     public bool Equals(SubFranja? other) =>

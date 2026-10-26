@@ -63,9 +63,9 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         "Turno Manana",
         new List<DetalleFranjaOrdinaria>
         {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)")
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00")
         }.AsReadOnly(),
-        "Turno Manana (06:00-14:00)");
+        "06:00-14:00");
 
     // Issue #319 CA-1/CA-5: mismo turno, en el record propio del dominio (Programacion.DomainEvents)
     // que ahora tipa el evento persistido ProgramacionTurnoSolicitada.DetalleTurno.
@@ -73,9 +73,9 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         "Turno Manana",
         new List<FranjaProgramada>
         {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)")
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00")
         }.AsReadOnly(),
-        "Turno Manana (06:00-14:00)");
+        "06:00-14:00");
 
     // --- Issue #861: Jornada estampada ---
     //
@@ -142,12 +142,12 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     // (SubFranja, FranjaOrdinaria, CatalogoTurnos); su coherencia la prueban FranjaOrdinariaToDetalleTests
     // y CatalogoTurnosTests, aqui documentan que fluyen intactos por AMBOS mapeos.
 
-    private const string DescripcionDescanso = "(10:00-10:15)";
-    private const string DescripcionExtra = "(13:00-14:00)";
+    private const string DescripcionDescanso = "10:00-10:15";
+    private const string DescripcionExtra = "13:00-14:00";
     private const string DescripcionFranjaConHijas =
-        "(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-14:00)]";
+        "06:00-14:00, descanso 10:00-10:15, extra 13:00-14:00";
     private const string DescripcionTurnoConHijas =
-        "Turno Partido (06:00-14:00)[Descansos:(10:00-10:15)][Extras:(13:00-14:00)]";
+        "06:00-14:00, descanso 10:00-10:15, extra 13:00-14:00";
 
     // Issue #331: sede efectiva del dia, en los dos roles de payload (evento persistido y evento
     // que cruza el bus interno) -- gemelos deliberados con paridad de campos (CA-ADR-0029/MEF-ADR-0039).
@@ -198,17 +198,17 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         "Turno Manana",
         new List<FranjaProgramada>
         {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedeConCentroDeCostos)
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00", SedeConCentroDeCostos)
         }.AsReadOnly(),
-        "Turno Manana (06:00-14:00)");
+        "06:00-14:00");
 
     private static readonly DetalleTurno DetalleConCentroDeCostosEsperado = new(
         "Turno Manana",
         new List<DetalleFranjaOrdinaria>
         {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedeConCentroDeCostosDetalle)
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00", SedeConCentroDeCostosDetalle)
         }.AsReadOnly(),
-        "Turno Manana (06:00-14:00)");
+        "06:00-14:00");
 
     private static TurnoCreado CrearEventoTurnoConSedePrearmada() =>
         TurnoCreado.Crear(
@@ -216,11 +216,9 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             "Turno Con Sede",
             [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], SedeSuba)]);
 
-    // La sede entra al ToString() de la franja, asi que la Descripcion derivada la incluye.
-    private static readonly string DescripcionFranjaConSede =
-        $"(06:00-14:00)[{FranjaOrdinaria.Mensajes.LabelSede}:Suba]";
-    private static readonly string DescripcionTurnoConSede =
-        $"Turno Con Sede {DescripcionFranjaConSede}";
+    // La sede prearmada no entra a la Descripcion derivada: viaja solo en su campo Sede.
+    private const string DescripcionFranjaConSede = "06:00-14:00";
+    private const string DescripcionTurnoConSede = DescripcionFranjaConSede;
 
     private static readonly TurnoProgramado TurnoConSedePrearmadaEsperado = new(
         "Turno Con Sede",
@@ -259,14 +257,14 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             ]);
 
     private static readonly string DescripcionFranja1Mixta =
-        $"(06:00-10:00)[{FranjaOrdinaria.Mensajes.LabelSede}:Suba]";
-    private const string DescripcionFranja2Mixta = "(14:00-18:00)";
+        "06:00-10:00";
+    private const string DescripcionFranja2Mixta = "14:00-18:00";
     private static readonly string DescripcionTurnoMixto =
-        $"Turno Mixto {DescripcionFranja1Mixta}{DescripcionFranja2Mixta}";
+        $"{DescripcionFranja1Mixta}, {DescripcionFranja2Mixta}";
 
     // La cascada NUNCA reconstruye el ToString() ya congelado en el catalogo (Descripcion se
     // calcula ANTES de conocer la sede de la solicitud): la franja2 queda con Sede = SedePrincipal
-    // pero su Descripcion sigue siendo "(14:00-18:00)", sin el label de sede.
+    // pero su Descripcion sigue siendo "14:00-18:00".
     private static readonly TurnoProgramado TurnoMixtoConCascadaEsperado = new(
         "Turno Mixto",
         new List<FranjaProgramada>
@@ -294,17 +292,17 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         "Turno Manana",
         new List<FranjaProgramada>
         {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedePrincipal)
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00", SedePrincipal)
         }.AsReadOnly(),
-        "Turno Manana (06:00-14:00)");
+        "06:00-14:00");
 
     private static readonly DetalleTurno DetalleConSedeAplicadaEsperado = new(
         "Turno Manana",
         new List<DetalleFranjaOrdinaria>
         {
-            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "(06:00-14:00)", SedePrincipalDetalle)
+            new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00", SedePrincipalDetalle)
         }.AsReadOnly(),
-        "Turno Manana (06:00-14:00)");
+        "06:00-14:00");
 
     private static VentanaDeEntradaModificada VentanaDeTresHoras() =>
         VentanaDeEntradaModificada.Crear(TurnoId, HorasYMinutos.Crear(3, 0));
@@ -636,7 +634,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoDescansoId, Colaborador, [Fecha1]));
 
-        var descripcionDescanso = $"Descanso Compensatorio {Turno.Mensajes.LabelDescanso}";
+        var descripcionDescanso = "(descanso)";
         var turnoDescansoEsperado = new TurnoProgramado(
             "Descanso Compensatorio", new List<FranjaProgramada>().AsReadOnly(), descripcionDescanso);
         var detalleDescansoEsperado = new DetalleTurno(

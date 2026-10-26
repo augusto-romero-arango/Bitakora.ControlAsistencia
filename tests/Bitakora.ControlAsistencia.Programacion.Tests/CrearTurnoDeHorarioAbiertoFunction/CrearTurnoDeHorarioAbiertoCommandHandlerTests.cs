@@ -37,7 +37,7 @@ public class CrearTurnoDeHorarioAbiertoCommandHandlerTests : CommandHandlerAsync
             VentanaDeEntradaModificada.Crear(GuidAggregateId, HorasYMinutos.Crear(14, 0)));
         And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
         And<CatalogoTurnos, int>(c => c.ObtenerDetalle().AmplitudVentanaEntradaEnMinutos, 14 * 60);
-        And<CatalogoTurnos, string>(c => c.ToString(), $"{Nombre} (04:00-10:00)");
+        And<CatalogoTurnos, string>(c => c.ToString(), "04:00-10:00");
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class CrearTurnoDeHorarioAbiertoCommandHandlerTests : CommandHandlerAsync
 
         Then(TurnoCreadoEsperado(new TimeOnly(0, 0), diaOffsetFin: 1));
         And<CatalogoTurnos, int>(c => c.ObtenerDetalle().AmplitudVentanaEntradaEnMinutos, 0);
-        And<CatalogoTurnos, string>(c => c.ToString(), $"{Nombre} (04:00-00:00+1)");
+        And<CatalogoTurnos, string>(c => c.ToString(), "04:00-00:00+1");
     }
 
     [Fact]

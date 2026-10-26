@@ -29,11 +29,11 @@ public abstract class FranjaTemporal
         public static string FranjasHijasSeSuperponen =>
             ResourceManager.GetString(nameof(FranjasHijasSeSuperponen))!;
 
-        public static string LabelDescansos =>
-            ResourceManager.GetString(nameof(LabelDescansos))!;
+        public static string LabelDescanso =>
+            ResourceManager.GetString(nameof(LabelDescanso))!;
 
-        public static string LabelExtras =>
-            ResourceManager.GetString(nameof(LabelExtras))!;
+        public static string LabelExtra =>
+            ResourceManager.GetString(nameof(LabelExtra))!;
     }
 
     // Estado interno - solo las subclases lo ven para calculos
@@ -84,7 +84,7 @@ public abstract class FranjaTemporal
     // (MEF-ADR-0012).
     public bool EmpiezaA(TimeOnly horaInicio) => _horaInicio == horaInicio;
 
-    // CA-20: formato legible - "(06:00-12:00)" o "(22:00-06:00+1)" con offset
+    // Formato legible con offset: "06:00-12:00" o "22:00-06:00+1"
     public abstract override string ToString();
 
     protected static string FormatearHora(TimeOnly hora, int offset) =>
