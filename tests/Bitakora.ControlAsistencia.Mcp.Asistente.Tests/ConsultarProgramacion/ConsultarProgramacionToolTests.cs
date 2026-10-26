@@ -53,6 +53,9 @@ public class ConsultarProgramacionToolTests
     private static string[] Codigos(JsonObject body) =>
         [.. body["codigosColaborador"]!.AsArray().Select(c => c!.GetValue<string>())];
 
+    private static string[] BloquesDelPrimerDia(string resultado) =>
+        [.. JsonNode.Parse(resultado)!["dias"]![0]!["bloques"]!.AsArray().Select(b => b!.GetValue<string>())];
+
     private static string ConCursor(string json, string cursor)
     {
         var nodo = JsonNode.Parse(json)!.AsObject();
@@ -273,12 +276,9 @@ public class ConsultarProgramacionToolTests
 
         var resultado = await Ejecutar(fakes.Tool);
 
-        JsonNode.Parse(resultado)!["dias"]![0]!["bloques"]!.AsArray().Select(b => b!.GetValue<string>())
-            .Should().Equal("08:00-12:00", "descanso 12:00-13:00", "extra 22:00-02:00+1, sede: Sede Nocturna");
+        BloquesDelPrimerDia(resultado).Should()
+            .Equal("08:00-12:00", "descanso 12:00-13:00", "extra 22:00-02:00+1, sede: Sede Nocturna");
     }
-
-    private static string[] BloquesDelPrimerDia(string resultado) =>
-        [.. JsonNode.Parse(resultado)!["dias"]![0]!["bloques"]!.AsArray().Select(b => b!.GetValue<string>())];
 
     [Fact]
     public async Task ConsultarProgramacion_UneLosPedazosDeLaNoche_CuandoSoloLosPartioLaMedianoche()
