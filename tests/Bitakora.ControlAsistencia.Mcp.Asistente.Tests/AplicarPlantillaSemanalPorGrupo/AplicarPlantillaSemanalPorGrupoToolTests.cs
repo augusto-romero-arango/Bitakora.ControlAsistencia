@@ -226,6 +226,7 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
     public async Task AplicarPlantillaSemanalPorGrupo_RechazaSinEscribir_CuandoLaPlantillaNoExiste()
     {
         var entorno = Crear();
+        entorno.Programacion.RespondeDetalleDePlantilla(Plantillas(), PlantillaIdInexistente);
 
         var resultado = await Ejecutar(entorno, plantillaId: PlantillaIdInexistente);
 

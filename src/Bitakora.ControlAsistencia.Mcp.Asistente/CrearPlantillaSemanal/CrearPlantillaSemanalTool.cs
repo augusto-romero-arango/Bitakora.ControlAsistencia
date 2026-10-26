@@ -11,11 +11,12 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.CrearPlantillaSemanal;
 // paso 1) + N AsignarTurnoADia (PUT .../dias/{semana}/{dia}, paso 2, MEF-ADR-0043): todos los PUT
 // tocan el mismo stream que el POST (concurrencia optimista de Marten -> 409 espurios en
 // paralelo), por eso van secuenciales -- a diferencia de los POST de solicitar_programacion_turno,
-// que si tocan streams distintos. Resuelve TODOS los nombres de turno con una sola lectura de GET
-// programacion/turnos antes de escribir nada: si alguno falta, no crea nada (evita plantillas
-// huerfanas). Cada rechazo por dia se traduce a texto y no detiene al resto (CA-ADR-0030): la
+// que si tocan streams distintos. Lee el detalle de cada turno_id distinto (GET
+// programacion/turnos/{id}, CA-ADR-0039 decision 18) antes de escribir nada: si alguno falta, no
+// crea nada (evita plantillas huerfanas). Cada rechazo por dia se traduce a texto y no detiene al resto (CA-ADR-0030): la
 // plantilla queda incompleta y visible. Un dia puede traer una franja inline (CA-ADR-0034 decision
-// 6): el turno se resuelve/crea en el catalogo con nombre derivado antes de escribir la plantilla.
+// 6): el turno se resuelve/crea en el catalogo con nombre derivado antes de escribir la plantilla;
+// solo entonces se lee el catalogo, porque el nombre es la clave de unicidad del turno inline.
 public partial class CrearPlantillaSemanalTool(
     ProgramacionApi programacion, ResolutorTurnoPorId resolutorPorId, ResolutorTurnoPorNombre resolutor)
 {
@@ -150,17 +151,17 @@ public partial class CrearPlantillaSemanalTool(
             jornadaResumen = (await respuestaJornada.LeerDescritaAsync(ct)).Resumir();
         }
 
-        var turnoIdPorNombre = new Dictionary<string, string>();
+        var turnoIdPorReferencia = new Dictionary<string, string>();
         var nombreDeTurnoPorId = new Dictionary<string, string>();
         var inexistentes = new List<string>();
-        foreach (var idTurno in validadas.Where(v => v.Inline is null).Select(v => v.NombreTurno).Distinct())
+        foreach (var idTurno in validadas.Where(v => v.Inline is null).Select(v => v.Referencia).Distinct())
         {
             var resolucionTurno = await resolutorPorId.ResolverAsync(Guid.Parse(idTurno), ct);
             if (resolucionTurno.FalloDeLectura is { } falloLectura)
                 return string.Format(Mensajes.RechazoDelDominio, falloLectura);
             if (resolucionTurno.Ficha is { } fichaTurno)
             {
-                turnoIdPorNombre[idTurno] = fichaTurno.Id;
+                turnoIdPorReferencia[idTurno] = fichaTurno.Id;
                 nombreDeTurnoPorId[idTurno] = fichaTurno.Nombre;
             }
             else
@@ -170,25 +171,19 @@ public partial class CrearPlantillaSemanalTool(
         if (inexistentes.Count > 0)
             return string.Format(Mensajes.TurnosNoExisten, string.Join(", ", inexistentes));
 
-        var resueltas = new List<(EntradaValidada Entrada, FichaTurno? Ficha)>();
-        if (validadas.Any(v => v.Inline is not null))
+        var inlineValidadas = validadas.Where(v => v.Inline is not null).ToList();
+        IReadOnlyList<(EntradaValidada Entrada, FichaTurno? Ficha)> resueltas = [];
+        if (inlineValidadas.Count > 0)
         {
-            var resolucion = await resolutor.ResolverVariosAsync(
-                validadas.Where(v => v.Inline is not null).Select(v => v.NombreTurno), ct);
+            var resolucion = await resolutor.ResolverVariosAsync(inlineValidadas.Select(v => v.Referencia), ct);
             if (resolucion.FalloDeLectura is { } falloCatalogo)
                 return string.Format(Mensajes.RechazoDelDominio, falloCatalogo);
-            resueltas = validadas.Where(v => v.Inline is not null)
-                .Zip(resolucion.Resoluciones, (v, r) => (Entrada: v, r.Ficha)).ToList();
+            resueltas = [.. inlineValidadas.Zip(resolucion.Resoluciones, (v, r) => (v, r.Ficha))];
         }
 
-        var inlinePorNombre = resueltas
-            .Where(x => x.Entrada.Inline is not null)
-            .DistinctBy(x => x.Entrada.NombreTurno)
-            .Select(x => (Inline: x.Entrada.Inline!, x.Ficha))
-            .ToList();
-
-        var clasificadas = inlinePorNombre
-            .Select(x => (x.Inline, x.Ficha, Clase: Clasificar(x.Inline, x.Ficha)))
+        var clasificadas = resueltas
+            .DistinctBy(x => x.Entrada.Referencia)
+            .Select(x => (Inline: x.Entrada.Inline!, x.Ficha, Clase: Clasificar(x.Entrada.Inline!, x.Ficha)))
             .ToList();
 
         if (clasificadas.FirstOrDefault(x => x.Clase == ClaseInline.Distinto).Inline is { } enConflicto)
@@ -222,7 +217,7 @@ public partial class CrearPlantillaSemanalTool(
             }
 
             turnosInline.Add(new TurnoInlineResumen(inline.Nombre, AccionPorClase[clase]));
-            turnoIdPorNombre[inline.Nombre] = turnoId!;
+            turnoIdPorReferencia[inline.Nombre] = turnoId!;
         }
 
         var plantillaId = Guid.CreateVersion7();
@@ -235,14 +230,14 @@ public partial class CrearPlantillaSemanalTool(
 
         foreach (var validada in validadas)
         {
-            var turnoId = turnoIdPorNombre[validada.NombreTurno];
+            var turnoId = turnoIdPorReferencia[validada.Referencia];
             var respuestaPut = await programacion.AsignarTurnoADia(
                 plantillaId.ToString(), validada.Semana, validada.DiaIso, turnoId, ct);
 
             if (await respuestaPut.LeerFalloAsync(ct) is { } motivo)
                 diasRechazados.Add(new DiaRechazado(
                     validada.Semana, DiaSemanaMcp.NombreDe(validada.DiaIso),
-                    nombreDeTurnoPorId.GetValueOrDefault(validada.NombreTurno, validada.NombreTurno), motivo));
+                    nombreDeTurnoPorId.GetValueOrDefault(validada.Referencia, validada.Referencia), motivo));
             else
                 diasAsignados++;
         }
@@ -280,7 +275,8 @@ public partial class CrearPlantillaSemanalTool(
             _ => ClaseInline.Distinto
         };
 
-    private sealed record EntradaValidada(int Semana, int DiaIso, string NombreTurno, FranjaInline? Inline);
+    // Referencia: el turno_id canonico, o el nombre derivado de la franja si el dia es inline.
+    private sealed record EntradaValidada(int Semana, int DiaIso, string Referencia, FranjaInline? Inline);
 
     private sealed record FranjaInline(TimeOnly Inicio, TimeOnly Fin)
     {

@@ -6,24 +6,21 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 // Extraido de SolicitarProgramacionTurnoTool (MEF-ADR-0018: segunda aparicion, con
 // CrearTurno/AgregarFranja/etc. ya planeadas en #609-#611). Encapsula GET programacion/turnos +
-// normalizacion + busqueda por nombre; cada tool consumidora sigue formateando su propio mensaje
-// de "no encontrado" con su .resx (MEF-ADR-0009) a partir de NombresDisponibles.
+// normalizacion + busqueda por nombre. Solo lo consume crear_plantilla_semanal para clasificar sus
+// turnos inline: ahi el nombre es la clave de unicidad (CA-ADR-0039 decision 18, punto 3).
 public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion)
 {
-    public const int MaximoTurnosEnMensaje = 20;
-
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     // Resuelve N nombres con UNA sola lectura del catalogo (crear_plantilla_semanal, MEF-ADR-0047
     // decision 4: nunca un GET por nombre). Cada nombre solicitado conserva su posicion y su texto
-    // original -- puede repetirse o venir con distinta capitalizacion -- para que la tool
-    // consumidora arme el mensaje de "faltantes" con el texto que el usuario/modelo escribio.
+    // original -- puede repetirse o venir con distinta capitalizacion.
     public async Task<ResultadoResolucionVariosTurnos> ResolverVariosAsync(
         IEnumerable<string> nombres, CancellationToken ct)
     {
         var respuesta = await programacion.ListarTurnos(ct);
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)
-            return new ResultadoResolucionVariosTurnos([], fallo, []);
+            return new ResultadoResolucionVariosTurnos([], fallo);
 
         var catalogo = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<FichaTurno>>(OpcionesLectura, ct))?.Elementos ?? [];
         var porNombreNormalizado = catalogo
@@ -36,8 +33,7 @@ public sealed partial class ResolutorTurnoPorNombre(ProgramacionApi programacion
                 porNombreNormalizado.GetValueOrDefault(NormalizarNombre(nombre))))
             .ToList();
 
-        return new ResultadoResolucionVariosTurnos(
-            resoluciones, null, [.. catalogo.Select(f => f.Nombre).Take(MaximoTurnosEnMensaje)]);
+        return new ResultadoResolucionVariosTurnos(resoluciones, null);
     }
 
     // Duplicado deliberado de CrearTurnoCommandHandler.NormalizarNombre (MEF-ADR-0018): este
@@ -54,10 +50,8 @@ public sealed record ResolucionTurnoPorNombre(string NombreSolicitado, FichaTurn
 
 /// <summary>
 /// Resultado de resolver varios turnos por nombre con una sola lectura del catalogo. Resoluciones
-/// conserva el orden y las repeticiones de los nombres solicitados; NombresDisponibles alimenta el
-/// mensaje TurnosNoExisten de la tool consumidora (maximo MaximoTurnosEnMensaje).
+/// conserva el orden y las repeticiones de los nombres solicitados.
 /// </summary>
 public sealed record ResultadoResolucionVariosTurnos(
     IReadOnlyList<ResolucionTurnoPorNombre> Resoluciones,
-    string? FalloDeLectura,
-    IReadOnlyList<string> NombresDisponibles);
+    string? FalloDeLectura);

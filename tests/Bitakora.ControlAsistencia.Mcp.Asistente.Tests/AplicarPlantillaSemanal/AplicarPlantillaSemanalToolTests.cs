@@ -146,6 +146,7 @@ public class AplicarPlantillaSemanalToolTests
     public async Task AplicarPlantillaSemanal_RechazaConLaFraseDelId_CuandoLaPlantillaNoExiste()
     {
         var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01"));
+        entorno.Programacion.RespondeDetalleDePlantilla(Plantillas(), PlantillaIdInexistente);
 
         var resultado = await Ejecutar(entorno, plantillaId: PlantillaIdInexistente);
 
