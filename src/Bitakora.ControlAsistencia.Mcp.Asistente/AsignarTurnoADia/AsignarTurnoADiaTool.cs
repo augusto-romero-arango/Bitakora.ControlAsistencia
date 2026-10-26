@@ -4,11 +4,11 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AsignarTurnoADia;
 
-// Cliente HTTP puro que envuelve GET programacion/plantillas-semanales (resolver plantilla) + GET
-// programacion/turnos (resolver turno) + PUT programacion/plantillas-semanales/{id}/dias/{semana}/{dia}
-// (paso 2 MEF-ADR-0043): correccion puntual de un solo dia sobre una plantilla ya creada
-// (CA-ADR-0034 decision 4, dia = slot atomico). El 404/409 del PUT se traduce a texto, nunca a
-// excepcion (CA-ADR-0030).
+// Cliente HTTP puro que envuelve GET programacion/plantillas-semanales/{id} + GET
+// programacion/turnos/{id} (detalles por identidad) + PUT
+// programacion/plantillas-semanales/{id}/dias/{semana}/{dia} (paso 2 MEF-ADR-0043): correccion
+// puntual de un solo dia sobre una plantilla ya creada (CA-ADR-0034 decision 4, dia = slot
+// atomico). El 404/409 del PUT se traduce a texto, nunca a excepcion (CA-ADR-0030).
 public partial class AsignarTurnoADiaTool(
     ProgramacionApi programacion, ResolutorPlantillaPorId resolutorPlantilla, ResolutorTurnoPorId resolutorTurno)
 {
@@ -80,6 +80,6 @@ public partial class AsignarTurnoADiaTool(
 
 /// <summary>
 /// Eco de asignar_turno_a_dia hacia el asistente: el 204 del PUT no trae body util, asi que el dia
-/// se reconstruye con lo que entro a la tool y lo ya resuelto por nombre.
+/// se reconstruye con lo que entro a la tool y lo leido de los detalles.
 /// </summary>
 public sealed record TurnoAsignadoResumen(string Resultado, string Plantilla, int Semana, string Dia, string Turno, string Nota);

@@ -67,7 +67,6 @@ public class QuitarJornadaDePlantillaSemanalToolTests
             .Should().Be(QuitarJornadaDePlantillaSemanalTool.Mensajes.ResultadoJornadaQuitada);
     }
 
-    // CA-2
     [Fact]
     public async Task QuitarJornadaDePlantillaSemanal_RechazaSinLlamadasHttp_CuandoPlantillaIdNoEsGuid()
     {
@@ -80,7 +79,6 @@ public class QuitarJornadaDePlantillaSemanalToolTests
         fakes.Handler.Requests.Should().BeEmpty();
     }
 
-    // CA-3
     [Fact]
     public async Task QuitarJornadaDePlantillaSemanal_RespondePlantillaNoExisteSinDelete_Cuando404EnElDetalle()
     {

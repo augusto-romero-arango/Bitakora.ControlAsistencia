@@ -79,7 +79,6 @@ public class AsignarJornadaAPlantillaSemanalToolTests
         fakes.Handler.Requests.Should().BeEmpty();
     }
 
-    // CA-2
     [Fact]
     public async Task AsignarJornadaAPlantillaSemanal_RechazaSinLlamadasHttp_CuandoPlantillaIdNoEsGuid()
     {
@@ -92,7 +91,6 @@ public class AsignarJornadaAPlantillaSemanalToolTests
         fakes.Handler.Requests.Should().BeEmpty();
     }
 
-    // CA-3
     [Fact]
     public async Task AsignarJornadaAPlantillaSemanal_RespondePlantillaNoExisteSinPut_Cuando404EnElDetalle()
     {

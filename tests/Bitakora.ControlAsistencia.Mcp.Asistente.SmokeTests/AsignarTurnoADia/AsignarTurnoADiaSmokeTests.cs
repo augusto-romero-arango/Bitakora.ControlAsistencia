@@ -129,7 +129,7 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
         TextoDe(resultado).Should().Contain(plantillaInexistente);
     }
 
-    // Error path que no toca el dominio: campo en blanco corta en el worker (mensaje .resx), prueba
+    // Error path que no toca el dominio: un id que no es GUID corta en el worker (mensaje .resx), prueba
     // que los recursos embebidos de cada tool viajaron en el publish (mismo patron que AgregarFranja/
     // QuitarFranja). Ambas tools comparten 'plantilla_id' como primer chequeo -- un test por tool basta.
     [Fact]

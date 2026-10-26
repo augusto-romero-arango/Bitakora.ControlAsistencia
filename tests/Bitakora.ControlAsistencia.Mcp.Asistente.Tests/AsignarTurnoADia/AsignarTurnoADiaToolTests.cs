@@ -106,7 +106,6 @@ public class AsignarTurnoADiaToolTests
         JsonNode.Parse(resultado)!["semana"]!.GetValue<int>().Should().Be(1);
     }
 
-    // CA-3
     [Fact]
     public async Task AsignarTurnoADia_RespondePlantillaNoExisteSinPut_Cuando404EnElDetalleDeLaPlantilla()
     {
@@ -132,7 +131,6 @@ public class AsignarTurnoADiaToolTests
         fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
     }
 
-    // CA-2
     [Fact]
     public async Task AsignarTurnoADia_RechazaSinLlamarANingunDominio_CuandoPlantillaIdNoEsUnGuid()
     {
@@ -145,7 +143,6 @@ public class AsignarTurnoADiaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-2
     [Fact]
     public async Task AsignarTurnoADia_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuid()
     {

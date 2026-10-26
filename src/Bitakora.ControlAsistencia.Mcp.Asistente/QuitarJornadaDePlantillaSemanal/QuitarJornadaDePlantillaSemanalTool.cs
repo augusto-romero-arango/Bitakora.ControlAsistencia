@@ -24,6 +24,7 @@ public partial class QuitarJornadaDePlantillaSemanalTool(
     {
         if (!Guid.TryParse(plantillaId, out var idDePlantilla))
             return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
+
         var resolucion = await resolutorPlantilla.ResolverAsync(idDePlantilla, ct);
         if (resolucion.FalloDeLectura is { } falloLectura)
             return string.Format(Mensajes.RechazoDelDominio, falloLectura);

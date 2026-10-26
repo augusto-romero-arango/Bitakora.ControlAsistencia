@@ -7,9 +7,8 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.ObtenerPlantillaSemanal;
 
-// Tests del remodelado de obtener_plantilla_semanal (CA-2/CA-3, issue #629; identidad por plantilla_id,
-// issue #1244): lee el detalle por GET programacion/plantillas-semanales/{id}, sin catalogo previo, y
-// arma el cuadro por semana y dia.
+// Tests del remodelado de obtener_plantilla_semanal: lee el detalle por GET
+// programacion/plantillas-semanales/{id}, sin catalogo previo, y arma el cuadro por semana y dia.
 public class ObtenerPlantillaSemanalToolTests
 {
     private const string PlantillaId = "01a07000-1000-7000-9000-000000000001";

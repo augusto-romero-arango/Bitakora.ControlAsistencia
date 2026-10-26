@@ -20,9 +20,6 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
-  <data name="CampoObligatorio" xml:space="preserve">
-    <value>'{0}' es obligatorio.</value>
-  </data>
   <data name="JornadaIdInvalido" xml:space="preserve">
     <value>'jornada_id' no es un identificador valido: '{0}'.</value>
   </data>

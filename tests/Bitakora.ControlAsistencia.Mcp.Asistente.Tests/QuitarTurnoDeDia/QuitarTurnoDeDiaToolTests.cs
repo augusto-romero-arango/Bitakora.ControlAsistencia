@@ -87,7 +87,6 @@ public class QuitarTurnoDeDiaToolTests
             .Should().Be(QuitarTurnoDeDiaTool.Mensajes.ResultadoTurnoQuitado);
     }
 
-    // CA-3
     [Fact]
     public async Task QuitarTurnoDeDia_RespondePlantillaNoExisteSinDelete_Cuando404EnElDetalle()
     {
@@ -100,7 +99,6 @@ public class QuitarTurnoDeDiaToolTests
         fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Delete);
     }
 
-    // CA-2
     [Fact]
     public async Task QuitarTurnoDeDia_RechazaSinLlamarANingunDominio_CuandoPlantillaIdNoEsUnGuid()
     {

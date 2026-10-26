@@ -20,9 +20,6 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
-  <data name="CampoObligatorio" xml:space="preserve">
-    <value>'{0}' es obligatorio.</value>
-  </data>
   <data name="PlantillaNoExiste" xml:space="preserve">
     <value>No existe una plantilla semanal con el id '{0}'. Ubicala con buscar_plantillas_semanales.</value>
   </data>

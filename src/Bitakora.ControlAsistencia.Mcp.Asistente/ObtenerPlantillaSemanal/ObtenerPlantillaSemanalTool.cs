@@ -6,11 +6,10 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ObtenerPlantillaSemanal;
 
-// Tool de solo lectura sobre GET programacion/plantillas-semanales (resolver nombre -> id) + GET
-// programacion/plantillas-semanales/{id} (issue #629). Remodela el cuadro compuesto de #625 como
-// una linea por dia ("nombre (descripcion)") agrupada por semana con clave lunes..domingo, para
-// que el asistente lo lea como tabla. El detalle con franjas de cada turno sigue siendo
-// obtener_turno.
+// Tool de solo lectura sobre GET programacion/plantillas-semanales/{id} (CA-ADR-0039 decision 18).
+// Remodela el cuadro compuesto de #625 como una linea por dia ("nombre (descripcion)") agrupada por
+// semana con clave lunes..domingo, para que el asistente lo lea como tabla. El detalle con franjas
+// de cada turno sigue siendo obtener_turno.
 public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api)
 {
     internal const string NombreTool = "obtener_plantilla_semanal";

@@ -4,7 +4,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.QuitarTurnoDeDia;
 
-// Cliente HTTP puro que envuelve GET programacion/plantillas-semanales (resolver plantilla) +
+// Cliente HTTP puro que envuelve GET programacion/plantillas-semanales/{id} (detalle de plantilla) +
 // DELETE programacion/plantillas-semanales/{id}/dias/{semana}/{dia} (paso 3 MEF-ADR-0043):
 // correccion puntual de un solo dia sobre una plantilla ya creada (CA-ADR-0034 decision 4, dia =
 // slot atomico). Un DELETE sobre un dia ya vacio responde 204 sin evento (idempotente,
@@ -66,6 +66,6 @@ public partial class QuitarTurnoDeDiaTool(ProgramacionApi programacion, Resoluto
 
 /// <summary>
 /// Eco de quitar_turno_de_dia hacia el asistente: el 204 del DELETE no trae body util, asi que el
-/// dia se reconstruye con lo que entro a la tool y lo ya resuelto por nombre.
+/// dia se reconstruye con lo que entro a la tool y lo leido del detalle.
 /// </summary>
 public sealed record TurnoQuitadoResumen(string Resultado, string Plantilla, int Semana, string Dia, string Nota);
