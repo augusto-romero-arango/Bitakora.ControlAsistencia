@@ -38,6 +38,9 @@ internal static class NotacionFranja
         return texto.ToString();
     }
 
+    public static string Horario(IReadOnlyList<FranjaFicha> franjas) =>
+        throw new NotImplementedException();
+
     public static string Hora(TimeOnly hora) => hora.ToString("HH\\:mm");
 
     public static string Rango(TimeOnly inicio, TimeOnly fin, int diaOffsetInicio, int diaOffsetFin) =>

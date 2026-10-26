@@ -37,6 +37,8 @@ public class ObtenerTurnoSmokeTests(McpFixture mcp)
 
         raiz.GetProperty("completo").ValueKind.Should().BeOneOf(JsonValueKind.True, JsonValueKind.False);
 
+        raiz.GetProperty("horario").GetString().Should().NotContain("(+");
+
         foreach (var franja in raiz.GetProperty("franjas").EnumerateArray())
             franja.GetString().Should().NotContain("(+");
     }
