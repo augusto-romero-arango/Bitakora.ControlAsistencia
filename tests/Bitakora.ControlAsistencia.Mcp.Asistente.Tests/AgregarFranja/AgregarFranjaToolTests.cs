@@ -80,8 +80,28 @@ public class AgregarFranjaToolTests
         var json = JsonNode.Parse(resultado)!;
         json["resultado"]!.GetValue<string>().Should().Be(AgregarFranjaTool.Mensajes.ResultadoFranjaAgregada);
         json["turno"]!.GetValue<string>().Should().Be(Turno);
-        json["franja"]!.GetValue<string>().Should().Be("22:00-06:00");
+        json["franja"]!.GetValue<string>().Should().Be("22:00-06:00+1");
         json["nota"]!.GetValue<string>().Should().Be(AgregarFranjaTool.Mensajes.NotaVisibilidadEventual);
+    }
+
+    [Fact]
+    public async Task AgregarFranja_EcoSinOffset_CuandoElFinEsMayorQueElInicio()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, inicio: "08:00", fin: "16:00", ct: TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("08:00-16:00");
+    }
+
+    [Fact]
+    public async Task AgregarFranja_EcoConMasUno_CuandoInicioIgualAlFin()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, inicio: "08:00", fin: "08:00", ct: TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("08:00-08:00+1");
     }
 
     // CA-2: con codigo_sede, el body agrega sede {id, nombre, centroDeCostos} y el eco la incluye.
@@ -99,7 +119,7 @@ public class AgregarFranjaToolTests
         body["sede"]!["nombre"]!.GetValue<string>().Should().Be("Suba");
         body["sede"]!["centroDeCostos"]!.GetValue<string>().Should().Be("CC-100");
 
-        JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("22:00-06:00, sede: Suba");
+        JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("22:00-06:00+1, sede: Suba");
     }
 
     [Fact]

@@ -63,7 +63,7 @@ public partial class ListarTurnosTool(ProgramacionApi api, ResolutorSedePorCodig
                 f.Nombre.Trim(),
                 f.HorarioAbierto is { } ha
                     ? string.Format(Mensajes.HorarioAbierto, ha.Duracion)
-                    : f.HorarioResumido,
+                    : f.EsDescanso || !f.Completo ? f.HorarioResumido : NotacionFranja.Horario(f.Franjas),
                 EsDescanso: f.EsDescanso ? true : null,
                 EnConstruccion: f.Completo ? null : true,
                 ConVentanaDeEntrada: f.VentanaDeEntrada is not null && f.HorarioAbierto is null ? true : null))
