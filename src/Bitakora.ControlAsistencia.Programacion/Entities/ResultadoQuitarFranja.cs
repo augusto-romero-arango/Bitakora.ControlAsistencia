@@ -6,6 +6,7 @@ internal enum ResultadoQuitarFranja
 {
     Quitada,
     TurnoRetirado,
+    TurnoDeHorarioAbierto,
     FranjaNoExiste,
     DejariaVentanaSinFranjas
 }

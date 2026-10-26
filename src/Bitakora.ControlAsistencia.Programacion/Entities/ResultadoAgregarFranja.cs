@@ -6,6 +6,7 @@ internal enum ResultadoAgregarFranja
 {
     Agregada,
     TurnoRetirado,
+    TurnoDeHorarioAbierto,
     TurnoEsDescanso,
     SeSolapaConOtraFranja,
     CierrePasaMedianoche

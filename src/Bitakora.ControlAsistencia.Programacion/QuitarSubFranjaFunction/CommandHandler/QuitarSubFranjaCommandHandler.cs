@@ -36,6 +36,7 @@ public partial class QuitarSubFranjaCommandHandler : ICommandHandlerAsync<Quitar
         {
             ResultadoQuitarSubFranja.Quitada => null,
             ResultadoQuitarSubFranja.TurnoRetirado => Mensajes.TurnoRetirado,
+            ResultadoQuitarSubFranja.TurnoDeHorarioAbierto => Mensajes.TurnoDeHorarioAbierto,
             ResultadoQuitarSubFranja.FranjaNoExiste => Mensajes.FranjaNoExiste,
             ResultadoQuitarSubFranja.SubFranjaNoExiste => Mensajes.SubFranjaNoExiste,
             var otro => throw new NotSupportedException($"Resultado de QuitarSubFranja no mapeado: {otro}")

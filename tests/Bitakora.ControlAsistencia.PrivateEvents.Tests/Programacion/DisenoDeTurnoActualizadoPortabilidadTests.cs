@@ -68,4 +68,36 @@ public class DisenoDeTurnoActualizadoPortabilidadTests
     {
         Evento(180).Should().NotBe(Evento(0));
     }
+
+    [Fact]
+    public void RoundTrip_ConservaLaMarcaDeHorarioAbierto_ConSerializadorPorDefectoDelBus()
+    {
+        var evento = Evento(840) with { EsHorarioAbierto = true };
+        var opciones = CrearOpcionesBus();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<DisenoDeTurnoActualizado>(json, opciones);
+
+        restaurado.Should().Be(evento);
+        restaurado!.EsHorarioAbierto.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Deserializar_LeeHorarioAbiertoFalse_CuandoElJsonNoTraeLaClave()
+    {
+        const string json = """
+            {"turnoId":"019600a0-0000-7000-8000-000000001109","version":2,"nombre":"Oficina","esDescanso":false,
+             "franjas":[],"retirado":false,"amplitudVentanaEntradaEnMinutos":840}
+            """;
+
+        var restaurado = JsonSerializer.Deserialize<DisenoDeTurnoActualizado>(json, CrearOpcionesBus());
+
+        restaurado!.EsHorarioAbierto.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Equals_EsFalso_CuandoSoloDifierePorLaMarcaDeHorarioAbierto()
+    {
+        (Evento(840) with { EsHorarioAbierto = true }).Should().NotBe(Evento(840));
+    }
 }

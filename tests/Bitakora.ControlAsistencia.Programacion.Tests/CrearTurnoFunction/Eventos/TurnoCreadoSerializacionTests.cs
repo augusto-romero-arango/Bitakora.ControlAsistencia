@@ -141,4 +141,48 @@ public class TurnoCreadoSerializacionTests
         deserializado.Should().NotBeNull();
         deserializado!.EsDescanso.Should().BeFalse();
     }
+
+    // ---------- EsHorarioAbierto sobrevive el roundtrip y el legado deserializa false ----------
+
+    [Fact]
+    public void RoundTrip_PreservaEsHorarioAbiertoTrue_CuandoEventoEsDeHorarioAbierto()
+    {
+        var evento = TurnoCreado.CrearDeHorarioAbierto(
+            TurnoId, "Turno Abierto",
+            [new DatosFranja(new TimeOnly(4, 0), new TimeOnly(10, 0), [], [])]);
+        var opciones = CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<TurnoCreado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.EsHorarioAbierto.Should().BeTrue();
+        deserializado.EsDescanso.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Crear_DejaEsHorarioAbiertoFalse_CuandoEsUnTurnoComunOUnDescanso()
+    {
+        var comun = TurnoCreado.Crear(
+            TurnoId, "Turno Completo",
+            [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(16, 0), [], [])]);
+        var descanso = TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
+
+        comun.EsHorarioAbierto.Should().BeFalse();
+        descanso.EsHorarioAbierto.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Deserializar_AsumeEsHorarioAbiertoFalse_CuandoJsonLegadoNoTraeLaClave()
+    {
+        var opciones = CrearOpcionesMarten();
+        var json = $$"""
+            {"TurnoId":"{{TurnoId}}","Nombre":"Turno Legado","FranjasOrdinarias":[],"EsDescanso":false}
+            """;
+
+        var deserializado = JsonSerializer.Deserialize<TurnoCreado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.EsHorarioAbierto.Should().BeFalse();
+    }
 }
