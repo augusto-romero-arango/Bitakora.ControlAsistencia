@@ -73,6 +73,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Descanso, sin programar o con ausencia: no depura horas, solo clasifica marcaciones de vecinos.
     private bool SinJornada => _ausenciaId is not null || DetalleTurno?.CoberturaPosible(Fecha) is null;
 
+    internal bool ActualizarCierreDeLaVispera(ControlDiarioAggregateRoot vispera) =>
+        throw new NotImplementedException();
+
+    public void Apply(CierreDeLaVisperaActualizado e) => throw new NotImplementedException();
+
     // true si emitio el evento.
     internal bool ActualizarCoberturaVecina(ControlDiarioAggregateRoot vecino)
     {
