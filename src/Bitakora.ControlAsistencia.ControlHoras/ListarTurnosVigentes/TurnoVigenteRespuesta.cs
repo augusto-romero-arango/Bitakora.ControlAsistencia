@@ -20,5 +20,5 @@ public sealed record TurnoVigenteRespuesta(
 {
     public static TurnoVigenteRespuesta Desde(TurnoVigente v) =>
         new(v.Id, v.CodigoColaborador, v.NombreCompleto, v.Fecha, v.NombreTurno,
-            v.HorarioResumido, v.Bloques, v.MotivoAusencia);
+            v.HorarioResumido, v.Bloques, v.MotivoAusencia, v.EsHorarioAbierto);
 }

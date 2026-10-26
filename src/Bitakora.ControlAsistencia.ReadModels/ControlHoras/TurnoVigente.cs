@@ -49,7 +49,8 @@ public sealed record TurnoCubierto(
         other is not null
         && NombreTurno == other.NombreTurno
         && HorarioResumido == other.HorarioResumido
-        && Bloques.SequenceEqual(other.Bloques);
+        && Bloques.SequenceEqual(other.Bloques)
+        && EsHorarioAbierto == other.EsHorarioAbierto;
 
-    public override int GetHashCode() => HashCode.Combine(NombreTurno, HorarioResumido, Bloques.Count);
+    public override int GetHashCode() => HashCode.Combine(NombreTurno, HorarioResumido, Bloques.Count, EsHorarioAbierto);
 }
