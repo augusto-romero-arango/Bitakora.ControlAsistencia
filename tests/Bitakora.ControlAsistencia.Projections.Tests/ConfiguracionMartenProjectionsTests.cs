@@ -523,7 +523,8 @@ public class ConfiguracionMartenProjectionsTests
                 typeof(MarcacionAdicionada),
                 typeof(TurnoDiarioAsignado),
                 typeof(DepuracionDiaRecibida),
-                typeof(CoberturaVecinaActualizada)
+                typeof(CoberturaVecinaActualizada),
+                typeof(CierreDeLaVisperaActualizado)
             ]);
     }
 

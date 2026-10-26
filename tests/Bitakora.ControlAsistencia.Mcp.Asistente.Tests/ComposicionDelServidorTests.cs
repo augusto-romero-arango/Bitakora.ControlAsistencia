@@ -487,6 +487,15 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
+    public void ConsultarAdvertenciasProgramacion_MencionaLosTurnosQueSeSolapanConElDeLaVispera_CuandoSeInspeccionaSuDescripcion()
+    {
+        var descripcion = ParametroTrigger(MetodoDe("consultar_advertencias_programacion"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!.Description;
+
+        descripcion.Should().Contain("se solapan con el de la vispera");
+    }
+
+    [Fact]
     public void ConsultarAdvertenciasProgramacion_MencionaLaJornadaDeCadaColaborador_CuandoSeInspeccionaSuDescripcion()
     {
         var descripcion = ParametroTrigger(MetodoDe("consultar_advertencias_programacion"))!
