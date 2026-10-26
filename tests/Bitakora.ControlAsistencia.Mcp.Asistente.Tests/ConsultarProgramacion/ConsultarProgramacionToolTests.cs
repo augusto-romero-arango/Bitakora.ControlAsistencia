@@ -274,7 +274,63 @@ public class ConsultarProgramacionToolTests
         var resultado = await Ejecutar(fakes.Tool);
 
         JsonNode.Parse(resultado)!["dias"]![0]!["bloques"]!.AsArray().Select(b => b!.GetValue<string>())
-            .Should().Equal("08:00-12:00", "descanso 12:00-13:00", "extra 22:00-02:00(+1), sede: Sede Nocturna");
+            .Should().Equal("08:00-12:00", "descanso 12:00-13:00", "extra 22:00-02:00+1, sede: Sede Nocturna");
+    }
+
+    private static string[] BloquesDelPrimerDia(string resultado) =>
+        [.. JsonNode.Parse(resultado)!["dias"]![0]!["bloques"]!.AsArray().Select(b => b!.GetValue<string>())];
+
+    [Fact]
+    public async Task ConsultarProgramacion_UneLosPedazosDeLaNoche_CuandoSoloLosPartioLaMedianoche()
+    {
+        var fakes = Armar(Leer("turnos-vigentes-noche-partida.json"));
+
+        var resultado = await Ejecutar(fakes.Tool, desde: "2026-11-07", hasta: "2026-11-07");
+
+        BloquesDelPrimerDia(resultado).Should().Equal("22:00-06:00+1, sede: X");
+    }
+
+    [Fact]
+    public async Task ConsultarProgramacion_UneElDescansoQueCruzaLaMedianoche_CuandoLosPedazosSonDelMismoTipo()
+    {
+        var fakes = Armar(Leer("turnos-vigentes-descanso-cruza-medianoche.json"));
+
+        var resultado = await Ejecutar(fakes.Tool, desde: "2026-11-07", hasta: "2026-11-07");
+
+        BloquesDelPrimerDia(resultado).Should()
+            .Equal("18:00-23:30", "descanso 23:30-00:30+1", "00:30+1-06:00+1");
+    }
+
+    [Fact]
+    public async Task ConsultarProgramacion_NoUneLosBloques_CuandoLaSedeCambiaEnLaMedianoche()
+    {
+        var fakes = Armar(Leer("turnos-vigentes-medianoche-sedes-distintas.json"));
+
+        var resultado = await Ejecutar(fakes.Tool, desde: "2026-11-07", hasta: "2026-11-07");
+
+        BloquesDelPrimerDia(resultado).Should()
+            .Equal("16:00-00:00+1, sede: A", "00:00+1-08:00+1, sede: B");
+    }
+
+    [Fact]
+    public async Task ConsultarProgramacion_DejaLosBloquesComoVienenSinMarcaDeDia_CuandoElTurnoEsDiurnoConAlmuerzo()
+    {
+        var fakes = Armar(Leer("turnos-vigentes-diurno-con-almuerzo.json"));
+
+        var resultado = await Ejecutar(fakes.Tool, desde: "2026-11-07", hasta: "2026-11-07");
+
+        BloquesDelPrimerDia(resultado).Should()
+            .Equal("08:00-13:00", "descanso 13:00-14:00", "14:00-17:00");
+    }
+
+    [Fact]
+    public async Task ConsultarProgramacion_NoUsaLaNotacionParentesisEnNingunBloque_CuandoHayCruces()
+    {
+        var fakes = Armar(Leer("turnos-vigentes-descanso-cruza-medianoche.json"));
+
+        var resultado = await Ejecutar(fakes.Tool, desde: "2026-11-07", hasta: "2026-11-07");
+
+        BloquesDelPrimerDia(resultado).Should().OnlyContain(b => !b.Contains("(+"));
     }
 
     [Fact]
