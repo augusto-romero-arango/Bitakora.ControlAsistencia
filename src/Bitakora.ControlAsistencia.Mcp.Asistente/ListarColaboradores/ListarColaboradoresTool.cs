@@ -15,7 +15,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarColaboradores;
 // Sin enriquecimiento del nombre de sede (MEF-ADR-0018): codigoSede viaja tal cual. TimeProvider
 // resuelve fecha_referencia a "hoy" en America/Bogota cuando el parametro llega ausente -- el back
 // jamas resuelve "hoy" (decision #373), la tool MCP es el cliente que lo hace por el agente.
-public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider reloj)
+public partial class ListarColaboradoresTool(ColaboradoresApi api, ProgramacionApi programacion, TimeProvider reloj)
 {
     internal const string NombreTool = "listar_colaboradores";
     internal const int MaximoColaboradores = 50;

@@ -10,7 +10,7 @@ public class DescripcionListarColaboradoresTests
     private static readonly MethodInfo Run = typeof(ListarColaboradoresTool).GetMethod(nameof(ListarColaboradoresTool.Run))!;
 
     [Fact]
-    public void ListarColaboradores_AgregaLaFraseDeVigenciaAlFinal_CuandoSeInspeccionaLaDescripcion()
+    public void ListarColaboradores_AgregaLaFraseDeJornadaAlFinal_CuandoSeInspeccionaLaDescripcion()
     {
         var descripcion = Run.GetParameters()
             .Select(p => p.GetCustomAttribute<McpToolTriggerAttribute>())
@@ -23,7 +23,9 @@ public class DescripcionListarColaboradoresTests
             + "Sin fecha_referencia se usa el dia de hoy. "
             + "Para ver que turno le rige a alguno, pasa su codigoColaborador a consultar_programacion. "
             + "Cada colaborador trae vigenteDesde, y vigenteHasta si su vinculacion termino: "
-            + "con ellos confirmas desde y hasta cuando esta vinculado.");
+            + "con ellos confirmas desde y hasta cuando esta vinculado. "
+            + "Cada colaborador trae su jornada (jornada_id y descripcion de sus limites); "
+            + "por_defecto indica que no tiene ninguna asignada y le rige la predeterminada.");
     }
 
     [Fact]

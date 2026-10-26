@@ -12,8 +12,32 @@ public class ListarColaboradoresToolTests
     // 2026-08-30T15:00:00Z = 2026-08-30T10:00:00 en America/Bogota (UTC-5): "hoy" no es ambiguo.
     private static readonly DateTimeOffset AhoraFalso = new(2026, 8, 30, 15, 0, 0, TimeSpan.Zero);
 
+    private const string JornadaAsignada = "11111111-1111-1111-1111-111111111111";
+    private const string JornadaPredeterminada = "22222222-2222-2222-2222-222222222222";
+    private const string JornadaDesactivada = "33333333-3333-3333-3333-333333333333";
+    private const string JornadaInexistente = "44444444-4444-4444-4444-444444444444";
+
+    private const string CatalogoDeJornadas = """
+        {"elementos":[
+          {"jornadaId":"11111111-1111-1111-1111-111111111111","descripcion":"42 h semanales, tope diario 8 h","esPredeterminada":false,"activa":true},
+          {"jornadaId":"22222222-2222-2222-2222-222222222222","descripcion":"44 h semanales, tope diario 9 h","esPredeterminada":true,"activa":true},
+          {"jornadaId":"33333333-3333-3333-3333-333333333333","descripcion":"36 h semanales, tope diario 6 h","esPredeterminada":false,"activa":false}
+        ]}
+        """;
+
     private static ListarColaboradoresTool Tool(HttpClient cliente, DateTimeOffset? ahora = null) =>
-        new(new ColaboradoresApi(cliente), new RelojFalso(ahora ?? AhoraFalso));
+        Tool(cliente, ClienteFalso.ConFuncion(_ => ClienteFalso.JsonOk(CatalogoDeJornadas)).Cliente, ahora);
+
+    private static ListarColaboradoresTool Tool(HttpClient fichas, HttpClient jornadas, DateTimeOffset? ahora = null) =>
+        new(new ColaboradoresApi(fichas), new ProgramacionApi(jornadas), new RelojFalso(ahora ?? AhoraFalso));
+
+    private static string Ficha(string id, string? jornadaId) =>
+        $$"""
+        {"id":"{{id}}","nombreCompleto":"[TEST] {{id}}","codigoColaborador":"COL-{{id}}","vigenteDesde":"2024-01-15",
+         "vigenteHasta":null,"etiquetas":[],"codigoSede":null,"jornadaId":{{(jornadaId is null ? "null" : $"\"{jornadaId}\"")}}}
+        """;
+
+    private static string Sobre(params string[] fichas) => $$"""{"elementos":[{{string.Join(",", fichas)}}]}""";
 
     [Fact]
     public async Task ListarColaboradores_EnviaElQueryConFechaReferenciaResuelta_CuandoFechaReferenciaEstaAusente()
@@ -225,5 +249,146 @@ public class ListarColaboradoresToolTests
 
         resultado.Should().Contain("yyyy-MM-dd").And.Contain("31/07/2026");
         handler.UltimaRequest.Should().BeNull("la validacion de formato es previa a la llamada HTTP");
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_TraeLaJornadaAsignadaOLaPredeterminada_CuandoHayColaboradoresConYSinJornada()
+    {
+        var fichas = ClienteFalso.Con(Sobre(Ficha("CC-1", JornadaAsignada), Ficha("CC-2", null))).Cliente;
+        var (jornadas, handler) = ClienteFalso.ConFuncion(_ => ClienteFalso.JsonOk(CatalogoDeJornadas));
+
+        var resultado = await Tool(fichas, jornadas).Run(null!, null, null, null, null, null, TestContext.Current.CancellationToken);
+
+        var colaboradores = JsonNode.Parse(resultado)!["colaboradores"]!.AsArray();
+        var asignada = colaboradores[0]!["jornada"]!.AsObject();
+        asignada["jornada_id"]!.GetValue<string>().Should().Be(JornadaAsignada);
+        asignada["descripcion"]!.GetValue<string>().Should().Be("42 h semanales, tope diario 8 h");
+        asignada.ContainsKey("por_defecto").Should().BeFalse("tiene jornada asignada");
+        asignada.ContainsKey("activa").Should().BeFalse("activa se omite cuando es true");
+
+        var porDefecto = colaboradores[1]!["jornada"]!.AsObject();
+        porDefecto["jornada_id"]!.GetValue<string>().Should().Be(JornadaPredeterminada);
+        porDefecto["descripcion"]!.GetValue<string>().Should().Be("44 h semanales, tope diario 9 h");
+        porDefecto["por_defecto"]!.GetValue<bool>().Should().BeTrue();
+
+        handler.Requests.Should().ContainSingle("una sola llamada al catalogo, sin importar cuantos colaboradores");
+        handler.Requests[0].Method.Should().Be(HttpMethod.Get);
+        handler.Requests[0].RequestUri!.AbsolutePath.Should().Be("/api/programacion/jornadas");
+        handler.Requests[0].RequestUri!.Query.Should().BeEmpty("composicion interna sin take (CA-ADR-0038)");
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_HaceUnaSolaLlamadaAlCatalogo_CuandoHayVariosColaboradores()
+    {
+        var fichas = ClienteFalso.Con(Sobre(
+            Ficha("CC-1", JornadaAsignada), Ficha("CC-2", null), Ficha("CC-3", JornadaDesactivada),
+            Ficha("CC-4", JornadaAsignada))).Cliente;
+        var (jornadas, handler) = ClienteFalso.ConFuncion(_ => ClienteFalso.JsonOk(CatalogoDeJornadas));
+
+        await Tool(fichas, jornadas).Run(null!, null, null, null, null, null, TestContext.Current.CancellationToken);
+
+        handler.Requests.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_NoMarcaPorDefecto_CuandoTieneAsignadaLaQueHoyEsPredeterminada()
+    {
+        var fichas = ClienteFalso.Con(Sobre(Ficha("CC-1", JornadaPredeterminada))).Cliente;
+
+        var resultado = await Tool(fichas).Run(null!, null, null, null, null, null, TestContext.Current.CancellationToken);
+
+        var jornada = JsonNode.Parse(resultado)!["colaboradores"]![0]!["jornada"]!.AsObject();
+        jornada["jornada_id"]!.GetValue<string>().Should().Be(JornadaPredeterminada);
+        jornada["descripcion"]!.GetValue<string>().Should().Be("44 h semanales, tope diario 9 h");
+        jornada.ContainsKey("por_defecto").Should().BeFalse("por_defecto dice que no tiene ninguna asignada");
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_MarcaActivaFalse_CuandoLaJornadaEstaDesactivada()
+    {
+        var fichas = ClienteFalso.Con(Sobre(Ficha("CC-1", JornadaDesactivada))).Cliente;
+
+        var resultado = await Tool(fichas).Run(null!, null, null, null, null, null, TestContext.Current.CancellationToken);
+
+        var jornada = JsonNode.Parse(resultado)!["colaboradores"]![0]!["jornada"]!.AsObject();
+        jornada["jornada_id"]!.GetValue<string>().Should().Be(JornadaDesactivada);
+        jornada["descripcion"]!.GetValue<string>().Should().Be("36 h semanales, tope diario 6 h");
+        jornada["activa"]!.GetValue<bool>().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_TraeSoloElIdDeJornada_CuandoLaJornadaNoEstaEnElCatalogo()
+    {
+        var fichas = ClienteFalso.Con(Sobre(Ficha("CC-1", JornadaInexistente))).Cliente;
+
+        var resultado = await Tool(fichas).Run(null!, null, null, null, null, null, TestContext.Current.CancellationToken);
+
+        var jornada = JsonNode.Parse(resultado)!["colaboradores"]![0]!["jornada"]!.AsObject();
+        jornada["jornada_id"]!.GetValue<string>().Should().Be(JornadaInexistente);
+        jornada.ContainsKey("descripcion").Should().BeFalse();
+        jornada.ContainsKey("por_defecto").Should().BeFalse();
+        jornada.ContainsKey("activa").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_NoLlamaAlCatalogoDeJornadas_CuandoNoHayColaboradores()
+    {
+        var fichas = ClienteFalso.Con(Sobre()).Cliente;
+        var (jornadas, handler) = ClienteFalso.ConFuncion(_ => ClienteFalso.JsonOk(CatalogoDeJornadas));
+
+        var resultado = await Tool(fichas, jornadas).Run(null!, null, null, null, "2026-07-01", null,
+            TestContext.Current.CancellationToken);
+
+        resultado.Should().Be("No hay colaboradores vinculados con fecha de referencia 2026-07-01.");
+        handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_LanzaExcepcion_CuandoElCatalogoDeJornadasFalla()
+    {
+        var fichas = ClienteFalso.Con(Sobre(Ficha("CC-1", JornadaAsignada))).Cliente;
+        var jornadas = ClienteFalso.Con("", HttpStatusCode.InternalServerError).Cliente;
+
+        var act = async () => await Tool(fichas, jornadas).Run(
+            null!, null, null, null, null, null, TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_TraeLaJornadaAsignadaEnLaFichaPuntual_CuandoIdentificacionEstaPresente()
+    {
+        var fichas = ClienteFalso.Con(Ficha("CC-1", JornadaAsignada)).Cliente;
+
+        var resultado = await Tool(fichas).Run(null!, "CC-1", null, null, null, null, TestContext.Current.CancellationToken);
+
+        var jornada = JsonNode.Parse(resultado)!["jornada"]!.AsObject();
+        jornada["jornada_id"]!.GetValue<string>().Should().Be(JornadaAsignada);
+        jornada["descripcion"]!.GetValue<string>().Should().Be("42 h semanales, tope diario 8 h");
+        jornada.ContainsKey("por_defecto").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_TraeLaPredeterminadaEnLaFichaPuntual_CuandoNoTieneJornadaAsignada()
+    {
+        var fichas = ClienteFalso.Con(Ficha("CC-1", null)).Cliente;
+
+        var resultado = await Tool(fichas).Run(null!, "CC-1", null, null, null, null, TestContext.Current.CancellationToken);
+
+        var jornada = JsonNode.Parse(resultado)!["jornada"]!.AsObject();
+        jornada["jornada_id"]!.GetValue<string>().Should().Be(JornadaPredeterminada);
+        jornada["por_defecto"]!.GetValue<bool>().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ListarColaboradores_MarcaActivaFalseEnLaFichaPuntual_CuandoLaJornadaEstaDesactivada()
+    {
+        var fichas = ClienteFalso.Con(Ficha("CC-1", JornadaDesactivada)).Cliente;
+
+        var resultado = await Tool(fichas).Run(null!, "CC-1", null, null, null, null, TestContext.Current.CancellationToken);
+
+        var jornada = JsonNode.Parse(resultado)!["jornada"]!.AsObject();
+        jornada["jornada_id"]!.GetValue<string>().Should().Be(JornadaDesactivada);
+        jornada["activa"]!.GetValue<bool>().Should().BeFalse();
     }
 }
