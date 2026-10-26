@@ -49,6 +49,9 @@ public sealed class ProgramacionApi(HttpClient http)
                 : $"api/programacion/jornadas?take={take}&cursor={Uri.EscapeDataString(cursor)}",
             ct);
 
+    public Task<HttpResponseMessage> ListarJornadasCompleto(CancellationToken ct) =>
+        http.GetAsync("api/programacion/jornadas", ct);
+
     public Task<HttpResponseMessage> ObtenerJornada(Guid id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/jornadas/{id}", ct);
 
