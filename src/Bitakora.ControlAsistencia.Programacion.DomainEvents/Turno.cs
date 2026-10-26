@@ -74,9 +74,9 @@ public sealed partial class Turno : IEquatable<Turno>
 
     public override string ToString() => (_esDescanso, _franjas.Count) switch
     {
-        (true, _) => $"{_nombre} {Mensajes.LabelDescanso}",
-        (false, 0) => $"{_nombre} {Mensajes.LabelIncompleto}",
-        _ => $"{_nombre} {string.Join("", _franjas)}"
+        (true, _) => Mensajes.LabelDescanso,
+        (false, 0) => Mensajes.LabelIncompleto,
+        _ => string.Join(", ", _franjas)
     };
 
     public bool Equals(Turno? other) =>

@@ -30,9 +30,9 @@
     <value>Dos franjas hijas dentro de la misma franja ordinaria se superponen</value>
   </data>
   <data name="LabelDescansos" xml:space="preserve">
-    <value>Descansos</value>
+    <value>descanso</value>
   </data>
   <data name="LabelExtras" xml:space="preserve">
-    <value>Extras</value>
+    <value>extra</value>
   </data>
 </root>

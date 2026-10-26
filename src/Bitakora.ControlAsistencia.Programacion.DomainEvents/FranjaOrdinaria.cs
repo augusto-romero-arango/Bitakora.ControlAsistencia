@@ -154,21 +154,11 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
 
     // CA-20, CA-21: formato "(06:00-12:00)" o "(22:00-06:00+1)"
     // Issue #335: incluye el label de sede (.resx) cuando la franja la trae prearmada.
-    public override string ToString()
-    {
-        var resultado = $"({FormatearHora(_horaInicio, 0)}-{FormatearHora(_horaFin, _diaOffsetFin)})";
-
-        if (_descansos.Count > 0)
-            resultado += $"[{FranjaTemporal.Mensajes.LabelDescansos}:{string.Join(", ", _descansos)}]";
-
-        if (_extras.Count > 0)
-            resultado += $"[{FranjaTemporal.Mensajes.LabelExtras}:{string.Join(", ", _extras)}]";
-
-        if (_sede is not null)
-            resultado += $"[{Mensajes.LabelSede}:{_sede.Nombre}]";
-
-        return resultado;
-    }
+    public override string ToString() =>
+        string.Join(", ",
+            new[] { $"{FormatearHora(_horaInicio, 0)}-{FormatearHora(_horaFin, _diaOffsetFin)}" }
+                .Concat(_descansos.Select(d => $"{FranjaTemporal.Mensajes.LabelDescansos} {d}"))
+                .Concat(_extras.Select(e => $"{FranjaTemporal.Mensajes.LabelExtras} {e}")));
 
     // Igualdad por valor
     // Issue #335 CA-5: _sede entra en Equals/GetHashCode -- es dato de identidad del diseno de la
