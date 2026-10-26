@@ -205,11 +205,11 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("listar_plantillas_semanales", "Lista las plantillas semanales de turnos del catalogo: nombre, numero de semanas",
             "\"readOnlyHint\": true"),
-        ("obtener_plantilla_semanal", "Devuelve el cuadro de una plantilla semanal por su nombre exacto",
+        ("obtener_plantilla_semanal", "Devuelve el cuadro de una plantilla semanal por su id",
             "\"readOnlyHint\": true"),
         ("crear_plantilla_semanal", "Crea una plantilla semanal de turnos: un molde de 1 a 6 semanas",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
-        ("retirar_plantilla_semanal", "Retira una plantilla semanal del catalogo por su nombre exacto",
+        ("retirar_plantilla_semanal", "Retira una plantilla semanal del catalogo por su id",
             "\"readOnlyHint\": false, \"destructiveHint\": true"),
         ("asignar_turno_a_dia", "Pone o reemplaza el turno de un dia de una plantilla semanal",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
@@ -419,8 +419,8 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
-    public void ObtenerPlantillaSemanal_DeclaraLaPlantillaComoObligatoria_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("obtener_plantilla_semanal").Should().BeEquivalentTo([("plantilla", true)]);
+    public void ObtenerPlantillaSemanal_DeclaraElPlantillaIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("obtener_plantilla_semanal").Should().BeEquivalentTo([("plantilla_id", true)]);
 
     [Fact]
     public void CrearPlantillaSemanal_DeclaraNombreYDiasComoObligatorios_CuandoSeInspeccionaLaTool() =>
@@ -434,32 +434,32 @@ public class ComposicionDelServidorTests
             .ParameterType.Should().Be(typeof(string));
 
     [Fact]
-    public void AsignarJornadaAPlantillaSemanal_DeclaraPlantillaYJornadaIdObligatoriosDeTipoString_CuandoSeInspeccionaLaTool()
+    public void AsignarJornadaAPlantillaSemanal_DeclaraPlantillaIdYJornadaIdObligatoriosDeTipoString_CuandoSeInspeccionaLaTool()
     {
         PropiedadesDe("asignar_jornada_a_plantilla_semanal").Should().BeEquivalentTo(
-            [("plantilla", true), ("jornada_id", true)]);
+            [("plantilla_id", true), ("jornada_id", true)]);
         ParametrosDeTool("asignar_jornada_a_plantilla_semanal")
             .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "jornada_id")
             .ParameterType.Should().Be(typeof(string));
     }
 
     [Fact]
-    public void QuitarJornadaDePlantillaSemanal_DeclaraLaPlantillaComoObligatoria_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("quitar_jornada_de_plantilla_semanal").Should().BeEquivalentTo([("plantilla", true)]);
+    public void QuitarJornadaDePlantillaSemanal_DeclaraElPlantillaIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("quitar_jornada_de_plantilla_semanal").Should().BeEquivalentTo([("plantilla_id", true)]);
 
     [Fact]
-    public void RetirarPlantillaSemanal_DeclaraLaPlantillaComoObligatoria_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("retirar_plantilla_semanal").Should().BeEquivalentTo([("plantilla", true)]);
+    public void RetirarPlantillaSemanal_DeclaraElPlantillaIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("retirar_plantilla_semanal").Should().BeEquivalentTo([("plantilla_id", true)]);
 
     [Fact]
     public void AsignarTurnoADia_DeclaraSusObligatoriosYOpcionales_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("asignar_turno_a_dia").Should().BeEquivalentTo(
-            [("plantilla", true), ("turno", true), ("dia", true), ("semana", false)]);
+            [("plantilla_id", true), ("turno_id", true), ("dia", true), ("semana", false)]);
 
     [Fact]
     public void QuitarTurnoDeDia_DeclaraSusObligatoriosYOpcionales_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("quitar_turno_de_dia").Should().BeEquivalentTo(
-            [("plantilla", true), ("dia", true), ("semana", false)]);
+            [("plantilla_id", true), ("dia", true), ("semana", false)]);
 
     [Fact]
     public void ConsultarProgramacion_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>

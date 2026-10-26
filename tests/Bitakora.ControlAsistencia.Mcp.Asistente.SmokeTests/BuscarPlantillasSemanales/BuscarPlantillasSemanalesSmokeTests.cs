@@ -34,6 +34,8 @@ public class BuscarPlantillasSemanalesSmokeTests(McpFixture mcp, ProgramacionApi
             new Dictionary<string, object?> { ["nombre"] = plantilla, ["dias"] = dias },
             cancellationToken: ct);
         creada.IsError.Should().NotBeTrue();
+        using var textoCreada = JsonDocument.Parse(creada.Content.OfType<TextContentBlock>().Single().Text);
+        var plantillaId = textoCreada.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
 
         try
         {
@@ -63,7 +65,7 @@ public class BuscarPlantillasSemanalesSmokeTests(McpFixture mcp, ProgramacionApi
         finally
         {
             await mcp.Cliente.CallToolAsync(
-                "retirar_plantilla_semanal", new Dictionary<string, object?> { ["plantilla"] = plantilla },
+                "retirar_plantilla_semanal", new Dictionary<string, object?> { ["plantilla_id"] = plantillaId },
                 cancellationToken: ct);
             await mcp.Cliente.CallToolAsync(
                 "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);

@@ -10,15 +10,15 @@ public class RetirarPlantillaSemanalSmokeTests(McpFixture mcp)
 {
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarPlantillaSemanal_RespondeElMensajeDeValidacion_CuandoLaPlantillaEstaEnBlanco()
+    public async Task RetirarPlantillaSemanal_RespondeElMensajeDeValidacion_CuandoElPlantillaIdNoEsUnGuid()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "retirar_plantilla_semanal",
-            new Dictionary<string, object?> { ["plantilla"] = "   " },
+            new Dictionary<string, object?> { ["plantilla_id"] = "no-es-guid" },
             cancellationToken: ct);
 
-        resultado.Content.OfType<TextContentBlock>().Single().Text.Should().Be("'plantilla' es obligatorio.");
+        resultado.Content.OfType<TextContentBlock>().Single().Text.Should().Contain("plantilla_id").And.Contain("no-es-guid");
     }
 }

@@ -28,49 +28,55 @@ public class AsignarTurnoADiaToolTests
     private static Fakes CrearTool(
         int semana = 2,
         int diaIso = 3,
-        string? plantillasJson = null,
-        HttpStatusCode statusPlantillas = HttpStatusCode.OK,
-        string? turnosJson = null,
-        HttpStatusCode statusTurnos = HttpStatusCode.OK,
+        HttpStatusCode statusPlantilla = HttpStatusCode.OK,
+        HttpStatusCode statusTurno = HttpStatusCode.OK,
         HttpStatusCode statusPut = HttpStatusCode.NoContent,
         string cuerpoPut = "")
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
-        handler.Responde(HttpMethod.Get, RutaPlantillas, statusPlantillas, plantillasJson ?? PlantillasJson);
-        handler.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosJson);
+        if (statusPlantilla == HttpStatusCode.OK)
+            handler.RespondeDetalleDePlantilla(PlantillasJson, PlantillaIdCocina);
+        else
+            handler.Responde(
+                HttpMethod.Get, DetalleDePlantillaFalso.RutaDetalle(PlantillaIdCocina), statusPlantilla, "");
+        if (statusTurno == HttpStatusCode.OK)
+            handler.RespondeDetalleDeTurno(TurnosJson, TurnoIdCocinaManana);
+        else
+            handler.Responde(
+                HttpMethod.Get, DetalleDeTurnoFalso.RutaDetalle(TurnoIdCocinaManana), statusTurno, "");
         handler.Responde(
             HttpMethod.Put, $"{RutaPlantillas}/{PlantillaIdCocina}/dias/{semana}/{diaIso}", statusPut, cuerpoPut);
 
         var programacionApi = new ProgramacionApi(cliente);
         var tool = new AsignarTurnoADiaTool(
-            programacionApi, new ResolutorPlantillaPorNombre(programacionApi), new ResolutorTurnoPorNombre(programacionApi));
+            programacionApi, new ResolutorPlantillaPorId(programacionApi), new ResolutorTurnoPorId(programacionApi));
         return new Fakes(tool, handler);
     }
 
     private static Task<string> Ejecutar(
         AsignarTurnoADiaTool tool,
-        string plantilla = "Semana Tipo Cocina",
-        string turno = "Cocina Manana",
+        string plantillaId = PlantillaIdCocina,
+        string turnoId = TurnoIdCocinaManana,
         string dia = "miercoles",
         int? semana = 2,
         CancellationToken ct = default) =>
-        tool.Run(context: null!, plantilla: plantilla, turno: turno, dia: dia, semana: semana, ct: ct);
+        tool.Run(context: null!, plantillaId: plantillaId, turnoId: turnoId, dia: dia, semana: semana, ct: ct);
 
     private static void AsegurarNingunaRequest(Fakes fakes) =>
         fakes.Handler.Requests.Should().BeEmpty();
 
-    // CA-1: resuelve plantilla y turno con un GET cada uno, luego el PUT al dia exacto con el
+    // CA-1: lee el detalle de plantilla y de turno (sin catalogos), luego el PUT al dia exacto con el
     // turnoId resuelto; el eco trae el nombre en espanol del dia aunque se paso texto ("miercoles").
     [Fact]
-    public async Task AsignarTurnoADia_ResuelvePlantillaYTurnoYEnviaElPut_CuandoAmbosExisten()
+    public async Task AsignarTurnoADia_LeeLosDetallesYEnviaElPut_CuandoAmbosExisten()
     {
         var fakes = CrearTool();
 
         var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
         fakes.Handler.Requests.Select(r => (r.Metodo, r.Ruta)).Should().Equal(
-            (HttpMethod.Get, RutaPlantillas),
-            (HttpMethod.Get, RutaTurnos),
+            (HttpMethod.Get, DetalleDePlantillaFalso.RutaDetalle(PlantillaIdCocina)),
+            (HttpMethod.Get, DetalleDeTurnoFalso.RutaDetalle(TurnoIdCocinaManana)),
             (HttpMethod.Put, $"{RutaPlantillas}/{PlantillaIdCocina}/dias/2/3"));
 
         var put = fakes.Handler.Requests.Single(r => r.Metodo == HttpMethod.Put);
@@ -100,54 +106,55 @@ public class AsignarTurnoADiaToolTests
         JsonNode.Parse(resultado)!["semana"]!.GetValue<int>().Should().Be(1);
     }
 
+    // CA-3
     [Fact]
-    public async Task AsignarTurnoADia_RespondePlantillaNoExisteSinPut_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task AsignarTurnoADia_RespondePlantillaNoExisteSinPut_Cuando404EnElDetalleDeLaPlantilla()
+    {
+        var fakes = CrearTool(statusPlantilla: HttpStatusCode.NotFound);
+
+        var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(AsignarTurnoADiaTool.Mensajes.PlantillaNoExiste, PlantillaIdCocina));
+        resultado.Should().Contain(PlantillaIdCocina).And.Contain("buscar_plantillas_semanales");
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
+    }
+
+    // CA-3: un 404 del detalle del turno remite a buscar_turnos.
+    [Fact]
+    public async Task AsignarTurnoADia_RespondeTurnoNoExisteSinPut_Cuando404EnElDetalleDelTurno()
+    {
+        var fakes = CrearTool(statusTurno: HttpStatusCode.NotFound);
+
+        var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(AsignarTurnoADiaTool.Mensajes.TurnoNoExiste, TurnoIdCocinaManana));
+        resultado.Should().Contain(TurnoIdCocinaManana).And.Contain("buscar_turnos");
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
+    }
+
+    // CA-2
+    [Fact]
+    public async Task AsignarTurnoADia_RechazaSinLlamarANingunDominio_CuandoPlantillaIdNoEsUnGuid()
     {
         var fakes = CrearTool();
 
         var resultado = await Ejecutar(
-            fakes.Tool, plantilla: "Plantilla Que No Existe", ct: TestContext.Current.CancellationToken);
+            fakes.Tool, plantillaId: "Semana Tipo Cocina", ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(
-            AsignarTurnoADiaTool.Mensajes.PlantillaNoExiste,
-            "Plantilla Que No Existe", "Semana Tipo Cocina, Turno Rotativo"));
-        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
-    }
-
-    [Fact]
-    public async Task AsignarTurnoADia_RespondeTurnoNoExisteSinPut_CuandoElNombreNoEstaEnElCatalogo()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(
-            fakes.Tool, turno: "Turno Que No Existe", ct: TestContext.Current.CancellationToken);
-
-        resultado.Should().Be(string.Format(
-            AsignarTurnoADiaTool.Mensajes.TurnoNoExiste, "Turno Que No Existe", "Cocina Manana, Cocina Tarde"));
-        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
-        // Plantilla ya se resolvio antes que el turno: el GET de plantillas si ocurre.
-        fakes.Handler.Requests.Should().ContainSingle(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaPlantillas);
-    }
-
-    [Fact]
-    public async Task AsignarTurnoADia_RechazaSinLlamarANingunDominio_CuandoPlantillaEstaEnBlanco()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(fakes.Tool, plantilla: "   ", ct: TestContext.Current.CancellationToken);
-
-        resultado.Should().Be(string.Format(AsignarTurnoADiaTool.Mensajes.CampoObligatorio, "plantilla"));
+        resultado.Should().Be(string.Format(AsignarTurnoADiaTool.Mensajes.PlantillaIdInvalido, "Semana Tipo Cocina"));
         AsegurarNingunaRequest(fakes);
     }
 
+    // CA-2
     [Fact]
-    public async Task AsignarTurnoADia_RechazaSinLlamarANingunDominio_CuandoTurnoEstaEnBlanco()
+    public async Task AsignarTurnoADia_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuid()
     {
         var fakes = CrearTool();
 
-        var resultado = await Ejecutar(fakes.Tool, turno: "   ", ct: TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(
+            fakes.Tool, turnoId: "Cocina Manana", ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(AsignarTurnoADiaTool.Mensajes.CampoObligatorio, "turno"));
+        resultado.Should().Be(string.Format(AsignarTurnoADiaTool.Mensajes.TurnoIdInvalido, "Cocina Manana"));
         AsegurarNingunaRequest(fakes);
     }
 
@@ -239,12 +246,11 @@ public class AsignarTurnoADiaToolTests
         resultado.Should().Be(string.Format(AsignarTurnoADiaTool.Mensajes.RechazoDelDominio, fixture));
     }
 
-    // Boundary del sistema: un 5xx del catalogo de plantillas se traduce a texto y corta antes de
-    // cualquier otro GET o PUT (CA-ADR-0030).
+    // Boundary del sistema: un 5xx del detalle se traduce a texto y corta antes del PUT (CA-ADR-0030).
     [Fact]
-    public async Task AsignarTurnoADia_RespondeElRechazoDelDominioSinPut_CuandoElCatalogoDePlantillasFalla()
+    public async Task AsignarTurnoADia_RespondeElRechazoDelDominioSinPut_CuandoElDetalleDeLaPlantillaFalla()
     {
-        var fakes = CrearTool(plantillasJson: "", statusPlantillas: HttpStatusCode.ServiceUnavailable);
+        var fakes = CrearTool(statusPlantilla: HttpStatusCode.ServiceUnavailable);
 
         var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
@@ -253,13 +259,25 @@ public class AsignarTurnoADiaToolTests
     }
 
     [Fact]
-    public async Task AsignarTurnoADia_RespondeElRechazoDelDominioSinPut_CuandoElCatalogoDeTurnosFalla()
+    public async Task AsignarTurnoADia_RespondeElRechazoDelDominioSinPut_CuandoElDetalleDelTurnoFalla()
     {
-        var fakes = CrearTool(turnosJson: "", statusTurnos: HttpStatusCode.ServiceUnavailable);
+        var fakes = CrearTool(statusTurno: HttpStatusCode.ServiceUnavailable);
 
         var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(AsignarTurnoADiaTool.Mensajes.RechazoDelDominio, "503"));
         fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
+    }
+
+    // CA-5: ninguna llamada a los catalogos.
+    [Fact]
+    public async Task AsignarTurnoADia_NoConsultaLosCatalogos_CuandoAmbosExisten()
+    {
+        var fakes = CrearTool();
+
+        await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
+
+        fakes.Handler.Requests.Should().NotContain(r =>
+            r.Metodo == HttpMethod.Get && (r.Ruta == RutaPlantillas || r.Ruta == RutaTurnos));
     }
 }

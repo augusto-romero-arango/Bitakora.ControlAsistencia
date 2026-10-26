@@ -11,7 +11,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.ObtenerPlantillaSemanal;
 // una linea por dia ("nombre (descripcion)") agrupada por semana con clave lunes..domingo, para
 // que el asistente lo lea como tabla. El detalle con franjas de cada turno sigue siendo
 // obtener_turno.
-public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api, ResolutorPlantillaPorNombre resolutor)
+public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api)
 {
     internal const string NombreTool = "obtener_plantilla_semanal";
 
@@ -19,7 +19,7 @@ public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api, ResolutorP
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Devuelve el cuadro de una plantilla semanal por su nombre exacto (mirala con "
+            "Devuelve el cuadro de una plantilla semanal por su id (ubicala con "
             + "buscar_plantillas_semanales): por cada semana, el turno de cada dia de lunes a "
             + "domingo con su nombre y horario, los dias sin turno y los turnos retirados o "
             + "incompletos, la Jornada asociada y las advertencias de la plantilla contra sus "
@@ -27,41 +27,12 @@ public partial class ObtenerPlantillaSemanalTool(ProgramacionApi api, ResolutorP
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "plantilla",
-            "Nombre exacto de la plantilla semanal del catalogo (mirala con buscar_plantillas_semanales).",
-            isRequired: true)]
-        string plantilla,
+            "plantilla_id", "Id de la plantilla semanal, tal como lo da buscar_plantillas_semanales.", isRequired: true)]
+        string plantillaId,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(plantilla))
-            return string.Format(Mensajes.CampoObligatorio, "plantilla");
-
-        var resolucion = await resolutor.ResolverAsync(plantilla, ct);
-        if (resolucion.FalloDeLectura is { } fallo)
-            return string.Format(Mensajes.RechazoDelDominio, fallo);
-
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.PlantillaNoExiste, plantilla, string.Join(", ", resolucion.NombresDisponibles));
-
-        var respuesta = await api.ObtenerPlantillaSemanal(resolucion.Ficha.Id, ct);
-        if (respuesta.StatusCode == HttpStatusCode.NotFound)
-            return string.Format(
-                Mensajes.PlantillaNoExiste, plantilla, string.Join(", ", resolucion.NombresDisponibles));
-
-        respuesta.EnsureSuccessStatusCode();
-
-        var detalle = (await respuesta.Content.ReadFromJsonAsync<CuadroSemanalTurnos>(ct))!;
-
-        var diasPorSemana = detalle.Dias.ToLookup(d => d.Semana);
-        var cuadro = Enumerable.Range(1, detalle.Semanas)
-            .Select(semana => ArmarSemana(semana, diasPorSemana[semana]))
-            .ToList();
-
-        return RespuestaJson.Serializar(new PlantillaSemanalDetallada(
-            detalle.Id, detalle.Nombre.Trim(), detalle.Semanas, detalle.Completa, cuadro,
-            detalle.Jornada?.Resumir(),
-            (detalle.Advertencias ?? []).Select(a => a.Descripcion).ToList()));
+        _ = api;
+        throw new NotImplementedException();
     }
 
     private static SemanaDelCuadro ArmarSemana(int semana, IEnumerable<DiaDelCuadro> dias)

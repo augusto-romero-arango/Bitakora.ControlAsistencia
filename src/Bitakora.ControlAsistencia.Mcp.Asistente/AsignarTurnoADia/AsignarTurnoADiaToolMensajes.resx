@@ -30,10 +30,10 @@
     <value>El dia '{0}' no se reconoce. Usa lunes..domingo o 1..7.</value>
   </data>
   <data name="PlantillaNoExiste" xml:space="preserve">
-    <value>No existe una plantilla semanal con el nombre '{0}'. Disponibles: {1}.</value>
+    <value>No existe una plantilla semanal con el id '{0}'. Ubicala con buscar_plantillas_semanales.</value>
   </data>
   <data name="TurnoNoExiste" xml:space="preserve">
-    <value>No existe un turno con el nombre '{0}'. Turnos disponibles: {1}.</value>
+    <value>No existe un turno con el id '{0}'. Ubicalo con buscar_turnos.</value>
   </data>
   <data name="RechazoDelDominio" xml:space="preserve">
     <value>El dominio rechazo la solicitud: {0}</value>
@@ -43,5 +43,11 @@
   </data>
   <data name="NotaVisibilidadEventual" xml:space="preserve">
     <value>El cambio se refleja en listar_plantillas_semanales unos segundos despues.</value>
+  </data>
+  <data name="PlantillaIdInvalido" xml:space="preserve">
+    <value>plantilla_id debe ser un GUID; se recibio '{0}'. Usa el id que da buscar_plantillas_semanales.</value>
+  </data>
+  <data name="TurnoIdInvalido" xml:space="preserve">
+    <value>turno_id debe ser un GUID; se recibio '{0}'. Usa el id que da buscar_turnos.</value>
   </data>
 </root>

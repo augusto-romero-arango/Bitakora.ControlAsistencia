@@ -8,7 +8,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.RetirarPlantillaSemanal;
 // ResolutorPlantillaPorNombre) + DELETE programacion/plantillas-semanales/{id} (paso 3
 // MEF-ADR-0043): referencia por nombre, mismo criterio que retirar_turno (MEF-ADR-0018). El
 // 404/409 del DELETE se devuelve como texto, nunca como excepcion (CA-ADR-0030).
-public partial class RetirarPlantillaSemanalTool(ProgramacionApi programacion, ResolutorPlantillaPorNombre resolutor)
+public partial class RetirarPlantillaSemanalTool(ProgramacionApi programacion, ResolutorPlantillaPorId resolutor)
 {
     internal const string NombreTool = "retirar_plantilla_semanal";
 
@@ -16,37 +16,18 @@ public partial class RetirarPlantillaSemanalTool(ProgramacionApi programacion, R
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Retira una plantilla semanal del catalogo por su nombre exacto (mirala con "
+            "Retira una plantilla semanal del catalogo por su id (ubicala con "
             + "buscar_plantillas_semanales): deja de poder usarse y su nombre queda libre. Los "
             + "turnos del catalogo no cambian.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "plantilla",
-            "Nombre exacto de la plantilla semanal del catalogo (mirala con buscar_plantillas_semanales).",
-            isRequired: true)]
-        string plantilla,
+            "plantilla_id", "Id de la plantilla semanal, tal como lo da buscar_plantillas_semanales.", isRequired: true)]
+        string plantillaId,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(plantilla))
-            return string.Format(Mensajes.CampoObligatorio, "plantilla");
-
-        var resolucion = await resolutor.ResolverAsync(plantilla, ct);
-        if (resolucion.FalloDeLectura is { } fallo)
-            return string.Format(Mensajes.RechazoDelDominio, fallo);
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.PlantillaNoExiste, plantilla, string.Join(", ", resolucion.NombresDisponibles));
-
-        var ficha = resolucion.Ficha;
-        var respuesta = await programacion.RetirarPlantillaSemanal(ficha.Id, ct);
-        if (await respuesta.LeerFalloAsync(ct) is { } falloDelete)
-            return string.Format(Mensajes.RechazoDelDominio, falloDelete);
-
-        return RespuestaJson.Serializar(new PlantillaRetiradaResumen(
-            Mensajes.ResultadoPlantillaRetirada,
-            new PlantillaRetiradaEco(ficha.Id, ficha.Nombre),
-            Mensajes.NotaVisibilidadEventual));
+        _ = (programacion, resolutor);
+        throw new NotImplementedException();
     }
 }
 

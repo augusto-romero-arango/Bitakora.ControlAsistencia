@@ -23,44 +23,47 @@ public class QuitarTurnoDeDiaToolTests
     private static Fakes CrearTool(
         int semana = 1,
         int diaIso = 7,
-        string? plantillasJson = null,
-        HttpStatusCode statusPlantillas = HttpStatusCode.OK,
+        HttpStatusCode statusDetalle = HttpStatusCode.OK,
         HttpStatusCode statusDelete = HttpStatusCode.NoContent,
         string cuerpoDelete = "")
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
-        handler.Responde(HttpMethod.Get, RutaPlantillas, statusPlantillas, plantillasJson ?? PlantillasJson);
+        if (statusDetalle == HttpStatusCode.OK)
+            handler.RespondeDetalleDePlantilla(PlantillasJson, PlantillaIdCocina);
+        else
+            handler.Responde(
+                HttpMethod.Get, DetalleDePlantillaFalso.RutaDetalle(PlantillaIdCocina), statusDetalle, "");
         handler.Responde(
             HttpMethod.Delete, $"{RutaPlantillas}/{PlantillaIdCocina}/dias/{semana}/{diaIso}", statusDelete, cuerpoDelete);
 
         var programacionApi = new ProgramacionApi(cliente);
         var tool = new QuitarTurnoDeDiaTool(
-            programacionApi, new ResolutorPlantillaPorNombre(programacionApi));
+            programacionApi, new ResolutorPlantillaPorId(programacionApi));
         return new Fakes(tool, handler);
     }
 
     private static Task<string> Ejecutar(
         QuitarTurnoDeDiaTool tool,
-        string plantilla = "Semana Tipo Cocina",
+        string plantillaId = PlantillaIdCocina,
         string dia = "domingo",
         int? semana = null,
         CancellationToken ct = default) =>
-        tool.Run(context: null!, plantilla: plantilla, dia: dia, semana: semana, ct: ct);
+        tool.Run(context: null!, plantillaId: plantillaId, dia: dia, semana: semana, ct: ct);
 
     private static void AsegurarNingunaRequest(Fakes fakes) =>
         fakes.Handler.Requests.Should().BeEmpty();
 
-    // CA-3: semana omitida -> 1 por defecto; resuelve la plantilla con un GET y envia el DELETE al
+    // CA-3: semana omitida -> 1 por defecto; lee el detalle de la plantilla con un GET (sin catalogo) y envia el DELETE al
     // dia exacto (domingo = ISO 7).
     [Fact]
-    public async Task QuitarTurnoDeDia_ResuelvePlantillaYEnviaElDelete_CuandoSemanaSeOmite()
+    public async Task QuitarTurnoDeDia_LeeElDetalleYEnviaElDelete_CuandoSemanaSeOmite()
     {
         var fakes = CrearTool();
 
         var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
         fakes.Handler.Requests.Select(r => (r.Metodo, r.Ruta)).Should().Equal(
-            (HttpMethod.Get, RutaPlantillas),
+            (HttpMethod.Get, DetalleDePlantillaFalso.RutaDetalle(PlantillaIdCocina)),
             (HttpMethod.Delete, $"{RutaPlantillas}/{PlantillaIdCocina}/dias/1/7"));
 
         var json = JsonNode.Parse(resultado)!;
@@ -84,28 +87,29 @@ public class QuitarTurnoDeDiaToolTests
             .Should().Be(QuitarTurnoDeDiaTool.Mensajes.ResultadoTurnoQuitado);
     }
 
+    // CA-3
     [Fact]
-    public async Task QuitarTurnoDeDia_RespondePlantillaNoExisteSinDelete_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task QuitarTurnoDeDia_RespondePlantillaNoExisteSinDelete_Cuando404EnElDetalle()
+    {
+        var fakes = CrearTool(statusDetalle: HttpStatusCode.NotFound);
+
+        var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(QuitarTurnoDeDiaTool.Mensajes.PlantillaNoExiste, PlantillaIdCocina));
+        resultado.Should().Contain(PlantillaIdCocina).And.Contain("buscar_plantillas_semanales");
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Delete);
+    }
+
+    // CA-2
+    [Fact]
+    public async Task QuitarTurnoDeDia_RechazaSinLlamarANingunDominio_CuandoPlantillaIdNoEsUnGuid()
     {
         var fakes = CrearTool();
 
         var resultado = await Ejecutar(
-            fakes.Tool, plantilla: "Plantilla Que No Existe", ct: TestContext.Current.CancellationToken);
+            fakes.Tool, plantillaId: "Semana Tipo Cocina", ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(
-            QuitarTurnoDeDiaTool.Mensajes.PlantillaNoExiste,
-            "Plantilla Que No Existe", "Semana Tipo Cocina, Turno Rotativo"));
-        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Delete);
-    }
-
-    [Fact]
-    public async Task QuitarTurnoDeDia_RechazaSinLlamarANingunDominio_CuandoPlantillaEstaEnBlanco()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(fakes.Tool, plantilla: "   ", ct: TestContext.Current.CancellationToken);
-
-        resultado.Should().Be(string.Format(QuitarTurnoDeDiaTool.Mensajes.CampoObligatorio, "plantilla"));
+        resultado.Should().Be(string.Format(QuitarTurnoDeDiaTool.Mensajes.PlantillaIdInvalido, "Semana Tipo Cocina"));
         AsegurarNingunaRequest(fakes);
     }
 
@@ -199,12 +203,12 @@ public class QuitarTurnoDeDiaToolTests
         resultado.Should().Be(string.Format(QuitarTurnoDeDiaTool.Mensajes.RechazoDelDominio, cuerpo));
     }
 
-    // Boundary del sistema: un 5xx del catalogo de plantillas se traduce a texto y corta antes de
+    // Boundary del sistema: un 5xx del detalle de la plantilla se traduce a texto y corta antes de
     // cualquier DELETE (CA-ADR-0030).
     [Fact]
-    public async Task QuitarTurnoDeDia_RespondeElRechazoDelDominioSinDelete_CuandoElCatalogoDePlantillasFalla()
+    public async Task QuitarTurnoDeDia_RespondeElRechazoDelDominioSinDelete_CuandoElDetalleDeLaPlantillaFalla()
     {
-        var fakes = CrearTool(plantillasJson: "", statusPlantillas: HttpStatusCode.ServiceUnavailable);
+        var fakes = CrearTool(statusDetalle: HttpStatusCode.ServiceUnavailable);
 
         var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 

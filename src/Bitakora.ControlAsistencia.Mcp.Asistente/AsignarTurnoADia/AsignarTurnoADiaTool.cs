@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.AsignarTurnoADia;
 // (CA-ADR-0034 decision 4, dia = slot atomico). El 404/409 del PUT se traduce a texto, nunca a
 // excepcion (CA-ADR-0030).
 public partial class AsignarTurnoADiaTool(
-    ProgramacionApi programacion, ResolutorPlantillaPorNombre resolutorPlantilla, ResolutorTurnoPorNombre resolutorTurno)
+    ProgramacionApi programacion, ResolutorPlantillaPorId resolutorPlantilla, ResolutorTurnoPorId resolutorTurno)
 {
     internal const string NombreTool = "asignar_turno_a_dia";
 
@@ -18,68 +18,26 @@ public partial class AsignarTurnoADiaTool(
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Pone o reemplaza el turno de un dia de una plantilla semanal: nombre exacto de la "
-            + "plantilla (miralo con buscar_plantillas_semanales), semana (1..N, 1 por defecto), "
-            + "dia (lunes..domingo o 1..7) y nombre exacto del turno del catalogo (miralo con "
+            "Pone o reemplaza el turno de un dia de una plantilla semanal: id de la "
+            + "plantilla (ubicala con buscar_plantillas_semanales), semana (1..N, 1 por defecto), "
+            + "dia (lunes..domingo o 1..7) y id del turno (ubicalo con "
             + "buscar_turnos). Solo admite turnos completos; el descanso es un turno mas. Si el "
             + "dia ya tenia ese mismo turno, no cambia nada.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "plantilla",
-            "Nombre exacto de la plantilla semanal del catalogo (mirala con buscar_plantillas_semanales).",
-            isRequired: true)]
-        string plantilla,
-        [McpToolProperty("turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
-        string turno,
+            "plantilla_id", "Id de la plantilla semanal, tal como lo da buscar_plantillas_semanales.", isRequired: true)]
+        string plantillaId,
+        [McpToolProperty("turno_id", "Id del turno, tal como lo da buscar_turnos.", isRequired: true)]
+        string turnoId,
         [McpToolProperty("dia", "Dia de la semana: lunes..domingo o 1..7.", isRequired: true)]
         string dia,
         [McpToolProperty("semana", "Semana de la plantilla (1..N). Por defecto 1.")]
         int? semana,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(plantilla))
-            return string.Format(Mensajes.CampoObligatorio, "plantilla");
-
-        if (string.IsNullOrWhiteSpace(turno))
-            return string.Format(Mensajes.CampoObligatorio, "turno");
-
-        if (string.IsNullOrWhiteSpace(dia))
-            return string.Format(Mensajes.CampoObligatorio, "dia");
-
-        if (!DiaSemanaMcp.TryParsear(dia, out var diaIso))
-            return string.Format(Mensajes.DiaDesconocido, dia);
-
-        var semanaValor = semana ?? 1;
-        if (semanaValor < 1)
-            return string.Format(Mensajes.SemanaInvalida, semanaValor);
-
-        var resolucionPlantilla = await resolutorPlantilla.ResolverAsync(plantilla, ct);
-        if (resolucionPlantilla.FalloDeLectura is { } falloPlantilla)
-            return string.Format(Mensajes.RechazoDelDominio, falloPlantilla);
-        if (resolucionPlantilla.Ficha is null)
-            return string.Format(
-                Mensajes.PlantillaNoExiste, plantilla, string.Join(", ", resolucionPlantilla.NombresDisponibles));
-
-        var resolucionTurno = await resolutorTurno.ResolverAsync(turno, ct);
-        if (resolucionTurno.FalloDeLectura is { } falloTurno)
-            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
-        if (resolucionTurno.Ficha is null)
-            return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucionTurno.NombresDisponibles));
-
-        var respuesta = await programacion.AsignarTurnoADia(
-            resolucionPlantilla.Ficha.Id, semanaValor, diaIso, resolucionTurno.Ficha.Id, ct);
-        if (await respuesta.LeerFalloAsync(ct) is { } motivo)
-            return string.Format(Mensajes.RechazoDelDominio, motivo);
-
-        return RespuestaJson.Serializar(new TurnoAsignadoResumen(
-            Mensajes.ResultadoTurnoAsignado,
-            resolucionPlantilla.Ficha.Nombre,
-            semanaValor,
-            DiaSemanaMcp.NombreDe(diaIso),
-            resolucionTurno.Ficha.Nombre,
-            Mensajes.NotaVisibilidadEventual));
+        _ = (programacion, resolutorPlantilla, resolutorTurno);
+        throw new NotImplementedException();
     }
 }
 
