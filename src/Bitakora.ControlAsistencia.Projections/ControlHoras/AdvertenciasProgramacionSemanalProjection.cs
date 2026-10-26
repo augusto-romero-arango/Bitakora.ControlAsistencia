@@ -127,7 +127,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         var actual = vista.Casillas[indice];
 
         var casilla = actual.AusenciaId is not null
-            ? actual with { TurnoCubierto = null, InicioCobertura = null, CierreVentanaEntrada = null, TieneVentanaDeEntrada = false, EsHorarioAbierto = false }
+            ? actual with { TurnoCubierto = null, InicioCobertura = null, CierreVentanaEntrada = null, TieneVentanaDeEntrada = false }
             : SinProgramar(actual.Fecha, actual.LimiteCoberturaVispera, actual.CierreTurnoVispera);
 
         return RecalcularOBorrar(vista with { NombreCompleto = evento.Colaborador.NombreCompleto }, indice, casilla);
