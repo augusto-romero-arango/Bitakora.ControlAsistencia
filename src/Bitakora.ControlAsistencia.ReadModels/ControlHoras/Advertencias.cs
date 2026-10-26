@@ -63,7 +63,7 @@ public static class CalculadorAdvertencias
     // El solape reemplaza al descanso entre turnos. Fin exclusivo: turnos contiguos no se solapan.
     private static IEnumerable<AdvertenciaDiaria> EntreTurnos(CasillaDia casilla)
     {
-        if (casilla is { Tipo: TipoCasilla.Trabajo, AperturaTurno: { } apertura, CierreTurnoVispera: { } cierre }
+        if (casilla is { Tipo: TipoCasilla.Trabajo, CierreVentanaEntrada: { } apertura, CierreTurnoVispera: { } cierre }
             && cierre > apertura)
         {
             yield return new(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, (int)(cierre - apertura).TotalMinutes);
