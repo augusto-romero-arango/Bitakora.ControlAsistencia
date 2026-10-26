@@ -10,34 +10,34 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.RetirarTurno;
 // los caminos de retirar_turno que no necesitan sembrar nada.
 public class RetirarTurnoSmokeTests(McpFixture mcp)
 {
-    // Error path que no toca el dominio: turno en blanco corta en el worker (mensaje .resx),
+    // Error path que no toca el dominio: turno_id que no es GUID corta en el worker (mensaje .resx),
     // prueba que los recursos embebidos viajaron en el publish.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarTurno_RespondeElMensajeDeValidacion_CuandoElTurnoEstaEnBlanco()
+    public async Task RetirarTurno_RespondeElMensajeDeValidacion_CuandoElTurnoIdEstaEnBlanco()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var resultado = await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = "   " }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = "   " }, cancellationToken: ct);
 
         resultado.Content.OfType<TextContentBlock>().Single().Text
-            .Should().Be("'turno' es obligatorio.");
+            .Should().StartWith("turno_id debe ser el id del turno");
     }
 
-    // CA-3: nombre inexistente -> TurnoNoExiste, resuelto contra el catalogo real de Programacion
-    // (sin DELETE). El guid en el nombre garantiza que no colisiona con ningun turno sembrado.
+    // CA-3: turno_id inexistente -> TurnoNoExiste (404 del detalle real de Programacion, sin DELETE),
+    // remite a buscar_turnos.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarTurno_RespondeTurnoNoExiste_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task RetirarTurno_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nombre = $"[TEST] Turno que no existe {Guid.CreateVersion7()}";
+        var turnoInexistente = Guid.CreateVersion7().ToString();
 
         var resultado = await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoInexistente }, cancellationToken: ct);
 
         resultado.Content.OfType<TextContentBlock>().Single().Text
-            .Should().StartWith($"No existe un turno con el nombre '{nombre}'.");
+            .Should().Contain(turnoInexistente).And.Contain("buscar_turnos");
     }
 }

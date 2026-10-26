@@ -55,7 +55,7 @@ public class ModificarVentanaDeEntradaSmokeTests(McpFixture mcp, ProgramacionApi
 
         var modificada = await mcp.Cliente.CallToolAsync(
             "modificar_ventana_de_entrada",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["amplitud"] = "3:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["amplitud"] = "3:00" },
             cancellationToken: ct);
         modificada.IsError.Should().NotBeTrue();
         using var eco = JsonDocument.Parse(TextoDe(modificada));
@@ -67,6 +67,6 @@ public class ModificarVentanaDeEntradaSmokeTests(McpFixture mcp, ProgramacionApi
         ventana.Should().Be(VentanaEsperada);
 
         await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombreTurno }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
     }
 }

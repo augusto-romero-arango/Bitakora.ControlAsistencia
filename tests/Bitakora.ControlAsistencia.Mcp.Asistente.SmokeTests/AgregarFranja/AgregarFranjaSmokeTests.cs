@@ -36,9 +36,9 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
         return ficha.RootElement.GetProperty("id").GetString()!;
     }
 
-    private ValueTask<CallToolResult> RetirarTurnoAsync(string nombre, CancellationToken ct) =>
+    private ValueTask<CallToolResult> RetirarTurnoAsync(string turnoId, CancellationToken ct) =>
         mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
 
     private static string TextoDe(CallToolResult resultado) =>
         resultado.Content.OfType<TextContentBlock>().Single().Text;
@@ -118,7 +118,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
                 ct),
             CatalogoDeTurnos.TimeoutPolling);
 
-        await RetirarTurnoAsync(nombreTurno, ct);
+        await RetirarTurnoAsync(turnoId, ct);
     }
 
     // Sin codigo_sede, el body no lleva sede y el eco trae solo el rango.
@@ -146,7 +146,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
                 ct),
             CatalogoDeTurnos.TimeoutPolling);
 
-        await RetirarTurnoAsync(nombreTurno, ct);
+        await RetirarTurnoAsync(turnoId, ct);
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
 
         TextoDe(resultado).Should().Be($"No existe una sede con el codigo '{codigoSede}'; usa buscar_sedes para ubicarla.");
 
-        await RetirarTurnoAsync(nombreTurno, ct);
+        await RetirarTurnoAsync(turnoId, ct);
     }
 
     // Error path que no toca el dominio: campo en blanco corta en el worker (mensaje .resx), prueba

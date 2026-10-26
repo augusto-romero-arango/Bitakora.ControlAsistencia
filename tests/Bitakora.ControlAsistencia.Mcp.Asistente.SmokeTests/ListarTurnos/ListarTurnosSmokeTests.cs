@@ -109,7 +109,7 @@ public class ListarTurnosSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
             $"todo turno devuelto con sede={codigoSede} tiene alguna franja en esa sede");
 
         await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombreTurno }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
     }
 
     private async Task<IReadOnlyList<string>> SedesDeLasFranjasAsync(string turnoId, CancellationToken ct)

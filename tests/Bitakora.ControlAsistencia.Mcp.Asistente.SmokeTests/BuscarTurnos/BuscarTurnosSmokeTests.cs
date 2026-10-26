@@ -55,7 +55,7 @@ public class BuscarTurnosSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
         finally
         {
             await mcp.Cliente.CallToolAsync(
-                "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+                "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
         }
     }
 }

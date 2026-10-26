@@ -34,9 +34,9 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
         return ficha.RootElement.GetProperty("id").GetString()!;
     }
 
-    private ValueTask<CallToolResult> RetirarTurnoAsync(string nombre, CancellationToken ct) =>
+    private ValueTask<CallToolResult> RetirarTurnoAsync(string turnoId, CancellationToken ct) =>
         mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
 
     private static string TextoDe(CallToolResult resultado) =>
         resultado.Content.OfType<TextContentBlock>().Single().Text;
@@ -107,7 +107,7 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
             () => EfectoVisibleEnFichaAsync(turnoId, ficha => SedeDeLaPrimeraFranjaEs(ficha, null), ct),
             CatalogoDeTurnos.TimeoutPolling);
 
-        await RetirarTurnoAsync(nombreTurno, ct);
+        await RetirarTurnoAsync(turnoId, ct);
     }
 
     // Error path que no toca el dominio: campo en blanco corta en el worker (mensaje .resx), prueba
@@ -178,6 +178,6 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
 
         TextoDe(resultado).Should().Be($"No existe una sede con el codigo '{codigoSede}'; usa buscar_sedes para ubicarla.");
 
-        await RetirarTurnoAsync(nombreTurno, ct);
+        await RetirarTurnoAsync(turnoId, ct);
     }
 }

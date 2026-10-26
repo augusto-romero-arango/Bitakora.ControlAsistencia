@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.SolicitarProgramacionTu
 
 public class CascadaDeSedeListaTests
 {
-    private const string RutaTurnos = "/api/programacion/turnos";
+    private const string TurnoId = "8f14e45f-ceea-4b3c-8f0a-000000000001";
     private const string RutaSolicitudes = "/api/programacion/solicitudes";
 
     private sealed record Entorno(
@@ -37,7 +37,7 @@ public class CascadaDeSedeListaTests
         HttpStatusCode statusMaestro = HttpStatusCode.OK)
     {
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
-        programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, turnosJson);
+        programacion.RespondeDetalleDeTurno(turnosJson, TurnoId);
         programacion.Responde(HttpMethod.Post, RutaSolicitudes, HttpStatusCode.Created, "");
         var (clienteSedes, sedes) = ClienteFalso.ConFuncion(r => EntornoDeSedes.RespondeSedes(r, statusMaestro));
         var (clienteColaboradores, _) = ClienteFalso.Con(directorioJson);
@@ -45,7 +45,7 @@ public class CascadaDeSedeListaTests
         var logger = new LoggerDeCaptura<SolicitarProgramacionTurnoTool>();
         var tool = new SolicitarProgramacionTurnoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorTurnoPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)), logger);
         return new Entorno(tool, programacion, sedes, logger);
@@ -56,7 +56,7 @@ public class CascadaDeSedeListaTests
             context: null!,
             desde: "2026-09-01",
             hasta: "2026-09-03",
-            turno: "Cocina Manana",
+            turnoId: TurnoId,
             sedeDeProgramacion: sedeDeProgramacion,
             identificaciones: identificaciones,
             ct: TestContext.Current.CancellationToken);

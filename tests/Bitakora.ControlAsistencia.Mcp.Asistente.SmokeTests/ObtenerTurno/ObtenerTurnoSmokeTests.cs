@@ -75,7 +75,7 @@ public class ObtenerTurnoSmokeTests(McpFixture mcp)
         json.RootElement.GetProperty("horario").GetString().Should().Be("horario abierto de 2 h");
 
         var retirado = await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
         retirado.IsError.Should().NotBeTrue();
     }
 }

@@ -24,7 +24,7 @@ public class CrearTurnoDeHorarioAbiertoSmokeTests(McpFixture mcp, ProgramacionAp
         ficha.RootElement.GetProperty("nombre").GetString().Should().Be(nombre);
 
         var retirado = await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()! }, cancellationToken: ct);
         retirado.IsError.Should().NotBeTrue();
     }
 
