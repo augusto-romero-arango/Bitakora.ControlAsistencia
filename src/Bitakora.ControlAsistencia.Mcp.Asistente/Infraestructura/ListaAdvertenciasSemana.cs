@@ -15,7 +15,7 @@ public sealed record ElementoAdvertenciasSemana(
     string NombreCompleto,
     IReadOnlyList<AdvertenciaSemana> Advertencias,
     IReadOnlyList<CasillaAdvertenciasSemana> Casillas,
-    JornadaAplicadaSemana? Jornada = null);
+    JornadaAplicadaSemana? Jornada);
 
 public sealed record JornadaAplicadaSemana(string Id, string Descripcion)
 {

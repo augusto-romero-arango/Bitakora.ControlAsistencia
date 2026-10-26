@@ -159,5 +159,5 @@ public sealed record ColaboradorConAdvertencias(
     string Codigo,
     string Nombre,
     IReadOnlyList<string> Advertencias,
-    JornadaDescritaResumen? Jornada = null,
-    bool? SinJornada = null);
+    JornadaDescritaResumen? Jornada,
+    bool? SinJornada);
