@@ -27,7 +27,7 @@
     <value>'{0}' no es una hora valida en formato HH:mm: '{1}'.</value>
   </data>
   <data name="TurnoNoExiste" xml:space="preserve">
-    <value>No existe un turno con el nombre '{0}'. Turnos disponibles: {1}.</value>
+    <value>No existe un turno con id '{0}'. Ubicalo con buscar_turnos.</value>
   </data>
   <data name="RechazoDelDominio" xml:space="preserve">
     <value>El dominio rechazo la solicitud: {0}</value>

@@ -4,7 +4,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.QuitarSubFranja;
 
-// Cliente HTTP puro que envuelve GET programacion/turnos (resolver nombre -> id + ficha vigente
+// Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno + ficha vigente
 // para el eco) + POST programacion/turnos/{id}:quitar-subfranja (paso 4 MEF-ADR-0043). El
 // 400/404/409 del POST se traduce a texto, nunca a excepcion (CA-ADR-0030).
 public partial class QuitarSubFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
@@ -22,7 +22,7 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion, Resolutor
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
+            "turno_id", "Id del turno, tal como lo da buscar_turnos.", isRequired: true)]
         string turnoId,
         [McpToolProperty(
             "franja", "Hora de inicio de la franja ordinaria que contiene la sub-franja, formato HH:mm.",
@@ -34,8 +34,8 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion, Resolutor
         string inicio,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turnoId))
-            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (!Guid.TryParse(turnoId, out var idTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
         if (string.IsNullOrWhiteSpace(franja))
             return string.Format(Mensajes.CampoObligatorio, "franja");
         if (string.IsNullOrWhiteSpace(tipo))
@@ -51,13 +51,11 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion, Resolutor
         if (!NotacionFranja.TryParseHora(inicio, out var horaInicio))
             return string.Format(Mensajes.HoraInvalida, "inicio", inicio);
 
-        var resolucion = await resolutor.ResolverAsync(turnoId, ct);
+        var resolucion = await resolutor.ResolverAsync(idTurno, ct);
         if (resolucion.FalloDeLectura is { } falloTurnos)
             return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.TurnoNoExiste, turnoId, string.Join(", ", resolucion.NombresDisponibles));
-        var fichaTurno = resolucion.Ficha;
+        if (resolucion.Ficha is not { } fichaTurno)
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         var respuestaQuitar = await programacion.QuitarSubFranja(
             fichaTurno.Id, new SubFranjaAQuitar(horaFranja, tipoNormalizado, horaInicio), ct);

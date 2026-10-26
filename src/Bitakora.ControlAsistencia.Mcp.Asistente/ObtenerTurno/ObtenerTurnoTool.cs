@@ -24,13 +24,16 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "id",
-            "Id del turno en el catalogo (obtenlo con buscar_turnos).",
+            "turno_id",
+            "Id del turno, tal como lo da buscar_turnos.",
             isRequired: true)]
         string turnoId,
         CancellationToken ct)
     {
-        var respuesta = await api.ObtenerTurno(turnoId, ct);
+        if (!Guid.TryParse(turnoId, out var idTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
+
+        var respuesta = await api.ObtenerTurno(idTurno.ToString(), ct);
 
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
             return string.Format(Mensajes.TurnoNoExiste, turnoId);
