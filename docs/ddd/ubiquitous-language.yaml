@@ -9,6 +9,14 @@
 #   turnos fijos; reemplaza al descanso entre turnos en esa casilla). Rechazado "traslape" como
 #   sinonimo de solape. El cierre de la vispera llega al dia por CierreDeLaVisperaActualizado (#1228).
 #   Tocado: Advertencias de la programacion semanal. Issues #1213, #1228, #1229.)
+# Actualizacion previa: 2026-10-23 (sesion planner, refinamiento de #1202: con Ventana de entrada el
+#   ancla se busca en la cobertura POSIBLE del turno (la de referencia extendida en la amplitud), no
+#   solo en la de referencia; una entrada tardia que la ventana admite ya no se pierde. Tocados:
+#   Cobertura de marcacion, Ventana de entrada. Issue #1202; enmienda CA-ADR-0042 decision 2.)
+# Actualizacion previa: 2026-10-23 (sesion planner, turnos sin hora de entrada: nace Turno de
+#   horario abierto -- atajo de creacion (nombre + duracion) que arma una franja desde las 04:00 y
+#   una ventana de entrada de 20 h - duracion (salida mas tardia 24:00); no es un tipo de turno.
+#   Rechazados "turno flexible", "turno de ventana maxima" y "turno de horas". Issues #1202-#1204.)
 # Actualizacion previa: 2026-10-22 (sesion planner, refinamiento de #1130: el Aprobador RESUELVE LA
 #   AMBIGUEDAD de marcaciones entre dos dias con un comando propio, antes de aprobar y del lado del
 #   calculo (ResolverAmbiguedadDeMarcaciones -> AmbiguedadDeMarcacionesResuelta); el principio de
@@ -385,7 +393,9 @@ terms:
       futuro). Decide la pertenencia (el depurador solo usa marcaciones dentro de la cobertura: la
       primera franja captura desde su inicio y la ultima hasta su fin) y el ruteo (una marcacion llega
       siempre a su dia calendario y ademas a la vispera o al dia siguiente si la cobertura de su turno
-      la contiene). Con Ventana de entrada, el ancla es la primera marcacion desde apertura - 2 h.
+      la contiene). Con Ventana de entrada, el ancla es la primera marcacion de la cobertura posible
+      (la de referencia extendida en la amplitud: desde apertura - 2 h hasta fin + amplitud + 4 h,
+      #1202), sin las del solape con un vecino.
     context: ControlHoras
     date_added: 2026-10-21
     rejected_synonyms: [tolerancia de marcacion, ventana de captura, alcance del turno]
@@ -501,7 +511,7 @@ terms:
       Rango dentro del cual la entrada de un colaborador desplaza su turno. TODO turno tiene una:
       abre en el inicio de su primera franja ordinaria (horario de referencia) y dura una AMPLITUD;
       amplitud 0 = turno fijo (el comportamiento de siempre). Al depurar, el ancla es la primera
-      marcacion desde el inicio de la Cobertura de marcacion (apertura - 2 h, #1124; antes la hora de corte 04:00), acotada a la ventana: antes de
+      marcacion de la Cobertura de marcacion posible (desde apertura - 2 h, #1124, hasta fin + amplitud + 4 h, #1202; antes la hora de corte 04:00), acotada a la ventana: antes de
       la apertura se ancla a la apertura (los minutos previos no se pagan), despues del cierre se
       ancla al cierre (la diferencia es Retardo). El desplazamiento (ancla - inicio de referencia)
       corre TODAS las franjas con sus descansos y extras. Sin marcacion no hay desplazamiento.
@@ -539,6 +549,28 @@ terms:
       de horas, y el UNICO que ve el Aprobador al investigar el dia (decision del experto 2026-10-21).
     context: ControlHoras
     date_added: 2026-10-21
+
+  - name: Turno de horario abierto
+    definition: >
+      Turno del catalogo que solo define cuantas horas se trabajan: el colaborador entra a la hora que
+      quiera del dia. Se crea con nombre y duracion, y queda como una franja ordinaria unica desde las
+      04:00 (04:00 a 04:00 + duracion) con una Ventana de entrada de amplitud 20 h - duracion: abre a las
+      04:00 y cierra en la hora maxima de entrada (24:00 - duracion), de modo que la salida mas tardia
+      son las 24:00 del mismo dia. Ej.: 6 h -> franja 04:00-10:00, entrada posible 04:00-18:00.
+    context: Programacion
+    date_added: 2026-10-23
+    rejected_synonyms: [turno flexible, turno de ventana maxima, turno de horas]
+    rejection_reason: >
+      "Flexible" ya se rechazo para la Ventana de entrada (choca con la jornada flexible del CST art.
+      161). "Ventana maxima" es preciso pero tecnico para el Programador. "Turno de horas" es generico:
+      todo turno tiene horas. "Abierto" no significa sin limite: la entrada se elige dentro del dia.
+    note: >
+      Es un ATAJO DE CREACION, no un tipo de turno (decision del experto 2026-10-23, coherente con
+      "Ventana de entrada": no hay tipo nuevo): emite TurnoCreado + VentanaDeEntradaModificada y el
+      resultado se edita como cualquier turno; si se cambia la franja, la ventana no se recalcula. La
+      apertura 04:00 es ad hoc y no se configura. Endpoint propio POST programacion/turnos/horario-abierto
+      (divergencia consciente del paso 1 de MEF-ADR-0043) y tool crear_turno_de_horario_abierto.
+      Requiere que el ancla se busque en la cobertura posible (#1202). Issues #1202-#1204.
 
   - name: Plantilla de turnos
     definition: >
