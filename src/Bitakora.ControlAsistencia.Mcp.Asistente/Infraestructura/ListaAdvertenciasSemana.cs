@@ -14,7 +14,13 @@ public sealed record ElementoAdvertenciasSemana(
     string CodigoColaborador,
     string NombreCompleto,
     IReadOnlyList<AdvertenciaSemana> Advertencias,
-    IReadOnlyList<CasillaAdvertenciasSemana> Casillas);
+    IReadOnlyList<CasillaAdvertenciasSemana> Casillas,
+    JornadaAplicadaSemana? Jornada = null);
+
+public sealed record JornadaAplicadaSemana(string Id, string Descripcion)
+{
+    public JornadaDescritaResumen Resumir() => throw new NotImplementedException();
+}
 
 public sealed record CasillaAdvertenciasSemana(DateOnly Fecha, IReadOnlyList<AdvertenciaSemana> Advertencias);
 

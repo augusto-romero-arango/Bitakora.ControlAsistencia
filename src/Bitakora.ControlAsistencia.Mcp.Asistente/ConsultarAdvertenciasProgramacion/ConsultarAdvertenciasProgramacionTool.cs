@@ -151,4 +151,9 @@ public sealed record AdvertenciasDeLaSemana(
     string? SiguienteCursor,
     string? Nota);
 
-public sealed record ColaboradorConAdvertencias(string Codigo, string Nombre, IReadOnlyList<string> Advertencias);
+public sealed record ColaboradorConAdvertencias(
+    string Codigo,
+    string Nombre,
+    IReadOnlyList<string> Advertencias,
+    JornadaDescritaResumen? Jornada = null,
+    bool? SinJornada = null);

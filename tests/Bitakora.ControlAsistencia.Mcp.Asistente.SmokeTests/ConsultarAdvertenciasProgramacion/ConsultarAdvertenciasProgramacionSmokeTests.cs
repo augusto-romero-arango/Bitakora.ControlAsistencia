@@ -95,5 +95,6 @@ public partial class ConsultarAdvertenciasProgramacionSmokeTests(McpFixture mcp,
         var colaborador = raiz.GetProperty("colaboradores").EnumerateArray()
             .Single(c => c.GetProperty("codigo").GetString() == codigo);
         colaborador.GetProperty("advertencias").GetArrayLength().Should().BeGreaterThan(0);
+        colaborador.GetProperty("jornada").GetProperty("jornada_id").GetString().Should().Be(jornadaId.ToString());
     }
 }
