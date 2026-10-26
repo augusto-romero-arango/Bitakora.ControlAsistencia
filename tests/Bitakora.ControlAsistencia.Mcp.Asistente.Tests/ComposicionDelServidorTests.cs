@@ -51,7 +51,8 @@ public class ComposicionDelServidorTests
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
                 "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
                 "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
-                "modificar_ventana_de_entrada", "crear_turno_de_horario_abierto"
+                "modificar_ventana_de_entrada", "crear_turno_de_horario_abierto",
+                "asignar_etiqueta", "retirar_etiqueta"
             ]);
     }
 
@@ -217,6 +218,10 @@ public class ComposicionDelServidorTests
         ("asignar_jornada_a_plantilla_semanal", "Asocia una Jornada a una plantilla semanal",
             "\"readOnlyHint\": false, \"destructiveHint\": false, \"idempotentHint\": true"),
         ("quitar_jornada_de_plantilla_semanal", "Quita la Jornada de una plantilla semanal",
+            "\"readOnlyHint\": false, \"destructiveHint\": true, \"idempotentHint\": true"),
+        ("asignar_etiqueta", "Asigna una etiqueta (categoria y valor) a colaboradores concretos",
+            "\"readOnlyHint\": false, \"destructiveHint\": false, \"idempotentHint\": true"),
+        ("retirar_etiqueta", "Retira la etiqueta de una categoria a colaboradores concretos",
             "\"readOnlyHint\": false, \"destructiveHint\": true, \"idempotentHint\": true"),
         ("consultar_programacion", "Consulta que turno rige a cada colaborador en un rango de fechas",
             "\"readOnlyHint\": true"),
@@ -677,5 +682,29 @@ public class ComposicionDelServidorTests
         hints.Should().Contain("\"readOnlyHint\": false");
         hints.Should().Contain("\"destructiveHint\": false");
         hints.Should().Contain("\"idempotentHint\": true");
+    }
+
+    [Fact]
+    public void AsignarEtiqueta_DeclaraCategoriaValorEIdentificacionesObligatoriosDeTipoString_CuandoSeInspeccionaLaTool()
+    {
+        PropiedadesDe("asignar_etiqueta").Should().BeEquivalentTo(
+            [("categoria", true), ("valor", true), ("identificaciones", true)]);
+        ParametrosDeTool("asignar_etiqueta").Should().OnlyContain(p => p.ParameterType == typeof(string));
+    }
+
+    [Fact]
+    public void RetirarEtiqueta_DeclaraCategoriaEIdentificacionesObligatoriosDeTipoString_CuandoSeInspeccionaLaTool()
+    {
+        PropiedadesDe("retirar_etiqueta").Should().BeEquivalentTo([("categoria", true), ("identificaciones", true)]);
+        ParametrosDeTool("retirar_etiqueta").Should().OnlyContain(p => p.ParameterType == typeof(string));
+    }
+
+    [Fact]
+    public void HostJson_MencionaLasToolsDeEtiquetas_CuandoSeLeenLasInstrucciones()
+    {
+        var instructions = LeerHostJson();
+
+        instructions.Should().Contain("asignar_etiqueta");
+        instructions.Should().Contain("retirar_etiqueta");
     }
 }
