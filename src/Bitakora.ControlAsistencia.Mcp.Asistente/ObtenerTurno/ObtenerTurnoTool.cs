@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -49,9 +48,9 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
             ficha.EsDescanso,
             ficha.Completo,
             horarioAbierto is null
-                ? ficha.HorarioResumido
+                ? (ficha.EsDescanso || !ficha.Completo ? ficha.HorarioResumido : NotacionFranja.Horario(ficha.Franjas))
                 : string.Format(Mensajes.HorarioAbierto, horarioAbierto.Duracion),
-            horarioAbierto is null ? [.. ficha.Franjas.Select(Compactar)] : [],
+            horarioAbierto is null ? [.. ficha.Franjas.Select(f => NotacionFranja.Compactar(f, Sede(f)))] : [],
             ficha.VentanaDeEntrada is { } v
                 ? string.Format(Mensajes.EntraEntre, $"{v.Apertura:HH\\:mm}", $"{v.Cierre:HH\\:mm}", v.Amplitud)
                 : null,
@@ -60,32 +59,7 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
         return RespuestaJson.Serializar(detalle);
     }
 
-    private static string Compactar(FranjaFicha franja)
-    {
-        // FranjaFicha no trae DiaOffsetInicio: una franja nace siempre en su propio dia y solo sus
-        // hijas pueden caer al siguiente. El formato HH:mm[+N]-HH:mm[+N] se replica como texto, no
-        // como tipo compartido, del eco de las tools de Comandos (MEF-ADR-0047 decision 3).
-        var texto = new StringBuilder(
-            Rango(franja.HoraInicio, franja.HoraFin, diaOffsetInicio: 0, franja.DiaOffsetFin));
-
-        foreach (var descanso in franja.Descansos)
-            texto.Append($", descanso {Rango(descanso.HoraInicio, descanso.HoraFin, descanso.DiaOffsetInicio, descanso.DiaOffsetFin)}");
-
-        foreach (var extra in franja.Extras)
-            texto.Append($", extra {Rango(extra.HoraInicio, extra.HoraFin, extra.DiaOffsetInicio, extra.DiaOffsetFin)}");
-
-        if (Sede(franja) is { } sede)
-            texto.Append($", sede: {sede}");
-
-        return texto.ToString();
-    }
-
     private static string? Sede(FranjaFicha franja) => franja.NombreSede ?? franja.SedeId;
-
-    private static string Rango(TimeOnly inicio, TimeOnly fin, int diaOffsetInicio, int diaOffsetFin) =>
-        $"{inicio:HH\\:mm}{Sufijo(diaOffsetInicio)}-{fin:HH\\:mm}{Sufijo(diaOffsetFin)}";
-
-    private static string Sufijo(int diaOffset) => diaOffset > 0 ? $"+{diaOffset}" : "";
 }
 
 /// <summary>Contrato de respuesta de obtener_turno hacia el asistente (remodelado, issue #502).</summary>

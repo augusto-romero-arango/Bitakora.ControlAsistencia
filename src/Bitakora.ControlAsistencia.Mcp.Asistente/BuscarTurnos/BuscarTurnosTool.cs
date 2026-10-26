@@ -152,7 +152,7 @@ public partial class BuscarTurnosTool(ProgramacionApi api)
             Turno.Nombre,
             Turno.HorarioAbierto is { } ha
                 ? string.Format(Mensajes.HorarioAbierto, ha.Duracion)
-                : string.Join(", ", Turno.Franjas.Select(Rango)),
+                : NotacionFranja.Horario(Turno.Franjas),
             Motivos,
             Turno.EsDescanso ? true : null,
             Turno.Completo || Turno.EsDescanso ? null : true,

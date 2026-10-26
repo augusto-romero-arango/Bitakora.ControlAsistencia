@@ -39,7 +39,11 @@ internal static class NotacionFranja
     }
 
     public static string Horario(IReadOnlyList<FranjaFicha> franjas) =>
-        throw new NotImplementedException();
+        string.Join(", ", franjas.Select(f => Compactar(f)));
+
+    public static string Compactar(FranjaFicha franja, string? nombreSede = null) =>
+        Compactar(
+            franja.HoraInicio, franja.HoraFin, franja.DiaOffsetFin, franja.Descansos, franja.Extras, nombreSede);
 
     public static string Hora(TimeOnly hora) => hora.ToString("HH\\:mm");
 

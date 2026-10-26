@@ -81,7 +81,7 @@ public partial class AgregarFranjaTool(
             return string.Format(Mensajes.RechazoDelDominio, falloAgregar);
 
         var franja = NotacionFranja.Compactar(
-            horaInicio, horaFin, diaOffsetFin ?? 0, [], [], sede?.Nombre);
+            horaInicio, horaFin, horaFin <= horaInicio ? 1 : 0, [], [], sede?.Nombre);
 
         return RespuestaJson.Serializar(new FranjaAgregadaResumen(
             Mensajes.ResultadoFranjaAgregada, fichaTurno.Nombre, franja, Mensajes.NotaVisibilidadEventual));
