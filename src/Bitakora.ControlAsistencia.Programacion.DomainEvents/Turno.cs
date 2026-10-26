@@ -39,7 +39,8 @@ public sealed partial class Turno : IEquatable<Turno>
         _nombre,
         _franjas.Select(f => f.ToDetalle()).ToList().AsReadOnly(),
         ToString(),
-        _amplitudVentanaEntrada.TotalMinutos());
+        _amplitudVentanaEntrada.TotalMinutos(),
+        _esHorarioAbierto);
 
     public FranjaOrdinaria? FranjaQueEmpiezaA(TimeOnly horaInicio) =>
         _franjas.FirstOrDefault(f => f.EmpiezaA(horaInicio));

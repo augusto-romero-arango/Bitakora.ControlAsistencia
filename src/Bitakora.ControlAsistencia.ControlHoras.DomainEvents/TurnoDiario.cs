@@ -11,8 +11,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// <remarks>
 /// Equals/GetHashCode propios comparan FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN
 /// Descripcion (dato derivado, no identidad del turno) -- mismo criterio que DetalleTurno y
-/// TurnoProgramado (Programacion.DomainEvents). La amplitud de la ventana de entrada SI
-/// entra: es dato de identidad (los streams legados sin la clave leen 0).
+/// TurnoProgramado (Programacion.DomainEvents). La amplitud de la ventana de entrada y la marca
+/// de horario abierto SI entran: son dato de identidad (los streams legados sin la clave leen 0
+/// y false).
 /// </remarks>
 public record TurnoDiario(
     string Nombre,
@@ -100,6 +101,7 @@ public record TurnoDiario(
         if (ReferenceEquals(this, other)) return true;
         return Nombre == other.Nombre
             && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
+            && EsHorarioAbierto == other.EsHorarioAbierto
             && FranjasOrdinarias.SequenceEqual(other.FranjasOrdinarias);
     }
 
@@ -108,6 +110,7 @@ public record TurnoDiario(
         var hash = new HashCode();
         hash.Add(Nombre);
         hash.Add(AmplitudVentanaEntradaEnMinutos);
+        hash.Add(EsHorarioAbierto);
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }
