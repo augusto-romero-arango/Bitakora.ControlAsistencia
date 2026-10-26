@@ -339,8 +339,7 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
         advertencia.GetProperty("horas").GetProperty("minutos").GetInt32().Should().Be(0);
     }
 
-    // CA-6 #1213: cadena asignacion -> reparto -> CierreDeLaVisperaActualizado -> proyeccion, con la
-    // vispera en el domingo de la semana anterior para cruzar la frontera de la semana.
+    // La vispera cae en el domingo de la semana anterior para cruzar la frontera de la semana.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAdvertenciasProgramacionSemanal_DebeMostrarSolape_CuandoElLunesEmpiezaAntesDeQueTermineElDomingoDeNoche()
@@ -381,7 +380,7 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
                 turnoId,
                 colaborador = new
                 {
-                    identificacion = "CC-866866867",
+                    identificacion = "CC-866866868",
                     codigoColaborador,
                     nombreCompleto = "[TEST] Smoke Solape Con Vispera"
                 },

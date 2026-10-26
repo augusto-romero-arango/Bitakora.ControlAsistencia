@@ -294,13 +294,20 @@ public class CalculadorAdvertenciasTests
         CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEmpty();
     }
 
-    [Theory]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public void Calcular_SinSolape_CuandoFaltaLaAperturaOElCierre(bool sinApertura, bool sinCierre)
+    [Fact]
+    public void Calcular_SinSolape_CuandoFaltaLaAperturaDelTurno()
     {
         var casillas = Semana(T(480));
-        casillas[0] = ConSolape(0, sinApertura ? null : Hora(0, 4), sinCierre ? null : Hora(0, 6));
+        casillas[0] = ConSolape(0, null, Hora(0, 6));
+
+        CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Calcular_SinSolape_CuandoFaltaElCierreDeLaVispera()
+    {
+        var casillas = Semana(T(480));
+        casillas[0] = ConSolape(0, Hora(0, 4), null);
 
         CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0].Should().BeEmpty();
     }
@@ -320,8 +327,10 @@ public class CalculadorAdvertenciasTests
         var casillas = Semana(T(480));
         casillas[0] = casillas[0] with
         {
-            InicioCobertura = Hora(0, 2), LimiteCoberturaVispera = Hora(0, 10),
-            AperturaTurno = Hora(0, 4), CierreTurnoVispera = Hora(0, 6)
+            InicioCobertura = Hora(0, 2),
+            LimiteCoberturaVispera = Hora(0, 10),
+            AperturaTurno = Hora(0, 4),
+            CierreTurnoVispera = Hora(0, 6)
         };
 
         CalculadorAdvertencias.Calcular(casillas, Jornada, false).Diarias[0]

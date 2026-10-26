@@ -48,7 +48,7 @@ public class AdvertenciasProgramacionSemanalProjectionTests
                 TurnoDiarioCancelado c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c) : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
                 CancelacionAusenciaDiariaRegistrada c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c) : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
                 CoberturaVecinaActualizada c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c) : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
-                CierreDeLaVisperaActualizado c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c)! : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
+                CierreDeLaVisperaActualizado c => v is null ? AdvertenciasProgramacionSemanalProjection.Create(c) : AdvertenciasProgramacionSemanalProjection.Apply(c, v),
                 _ => throw new InvalidOperationException()
             };
         }
@@ -541,8 +541,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
     {
         AdvertenciasProgramacionSemanalProjection.Create(Vispera(1, CincoAm(1))).Should().BeNull();
     }
-
-    // --- Solape con el turno de la vispera (#1213) ---
 
     private static FranjaProgramada FranjaNoche(int hi, int hf) =>
         new(new TimeOnly(hi, 0), new TimeOnly(hf, 0), 1, [], [], "");
