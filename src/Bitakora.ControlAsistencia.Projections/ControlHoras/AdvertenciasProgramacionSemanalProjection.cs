@@ -59,7 +59,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         var casilla = actual.AusenciaId is not null
             ? actual with
             {
-                TurnoCubierto = new TurnoCubiertoSemana(turno.Nombre, minutos, esDescanso),
+                TurnoCubierto = new TurnoCubiertoSemana(turno.Nombre, minutos, esDescanso, turno.EsHorarioAbierto),
                 InicioCobertura = inicioCobertura,
                 CierreVentanaEntrada = cierreVentana,
                 TieneVentanaDeEntrada = turno.TieneVentanaDeEntrada
@@ -71,7 +71,8 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
                 MinutosOrdinarios = minutos,
                 InicioCobertura = inicioCobertura,
                 CierreVentanaEntrada = cierreVentana,
-                TieneVentanaDeEntrada = turno.TieneVentanaDeEntrada
+                TieneVentanaDeEntrada = turno.TieneVentanaDeEntrada,
+                EsHorarioAbierto = turno.EsHorarioAbierto
             };
 
         var jornada = evento.Jornada is null
@@ -100,7 +101,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         var cubierto = actual.AusenciaId is not null
             ? actual.TurnoCubierto
             : actual.Tipo is TipoCasilla.Trabajo or TipoCasilla.Descanso
-                ? new TurnoCubiertoSemana(actual.NombreTurno, actual.MinutosOrdinarios, actual.Tipo == TipoCasilla.Descanso)
+                ? new TurnoCubiertoSemana(actual.NombreTurno, actual.MinutosOrdinarios, actual.Tipo == TipoCasilla.Descanso, actual.EsHorarioAbierto)
                 : null;
 
         var casilla = actual with
@@ -108,6 +109,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
             Tipo = TipoCasilla.Ausencia,
             NombreTurno = "",
             MinutosOrdinarios = 0,
+            EsHorarioAbierto = false,
             MotivoAusencia = evento.Motivo,
             AusenciaId = evento.AusenciaId,
             TurnoCubierto = cubierto
@@ -125,7 +127,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         var actual = vista.Casillas[indice];
 
         var casilla = actual.AusenciaId is not null
-            ? actual with { TurnoCubierto = null, InicioCobertura = null, CierreVentanaEntrada = null, TieneVentanaDeEntrada = false }
+            ? actual with { TurnoCubierto = null, InicioCobertura = null, CierreVentanaEntrada = null, TieneVentanaDeEntrada = false, EsHorarioAbierto = false }
             : SinProgramar(actual.Fecha, actual.LimiteCoberturaVispera, actual.CierreTurnoVispera);
 
         return RecalcularOBorrar(vista with { NombreCompleto = evento.Colaborador.NombreCompleto }, indice, casilla);
@@ -153,7 +155,8 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
                 LimiteCoberturaVispera: actual.LimiteCoberturaVispera,
                 CierreVentanaEntrada: actual.CierreVentanaEntrada,
                 TieneVentanaDeEntrada: actual.TieneVentanaDeEntrada,
-                CierreTurnoVispera: actual.CierreTurnoVispera);
+                CierreTurnoVispera: actual.CierreTurnoVispera,
+                EsHorarioAbierto: cubierto.EsHorarioAbierto);
 
         return RecalcularOBorrar(vista, indice, casilla);
     }

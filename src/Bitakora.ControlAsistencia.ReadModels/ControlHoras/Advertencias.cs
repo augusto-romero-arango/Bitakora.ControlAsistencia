@@ -73,6 +73,9 @@ public static class CalculadorAdvertencias
         if (casilla is { CierreVentanaEntrada: { } cierreVentana, CierreTurnoVispera: { } cierre } && cierre > cierreVentana)
             return [new(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, (int)(cierre - cierreVentana).TotalMinutes)];
 
+        if (casilla.EsHorarioAbierto)
+            return [];
+
         var faltante = casilla.TieneVentanaDeEntrada ? DescansoFaltanteConVentana(casilla) : DescansoFaltanteSinVentana(casilla);
         return faltante > TimeSpan.Zero
             ? [new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, (int)faltante.TotalMinutes)]
