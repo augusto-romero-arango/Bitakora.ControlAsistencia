@@ -118,7 +118,7 @@ public partial class ConsultarProgramacionTool(
                 t.NombreCompleto,
                 t.Fecha,
                 t.NombreTurno.Trim(),
-                [.. t.Bloques.Select(Compactar)]))
+                [.. UnirCortesDeMedianoche(t.Bloques).Select(b => Compactar(b, t.Fecha))]))
             .ToList();
 
         var notas = new[]
@@ -154,7 +154,23 @@ public partial class ConsultarProgramacionTool(
             ? null
             : [.. valor.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
 
-    private static string Compactar(BloqueVigente bloque)
+    private static IReadOnlyList<BloqueVigente> UnirCortesDeMedianoche(IReadOnlyList<BloqueVigente> bloques) =>
+        bloques.Aggregate(new List<BloqueVigente>(), (unidos, bloque) =>
+        {
+            if (unidos.Count > 0 && EsCorteDeMedianoche(unidos[^1], bloque))
+                unidos[^1] = unidos[^1] with { Fin = bloque.Fin };
+            else
+                unidos.Add(bloque);
+            return unidos;
+        });
+
+    private static bool EsCorteDeMedianoche(BloqueVigente anterior, BloqueVigente siguiente) =>
+        anterior.Fin == siguiente.Inicio
+        && anterior.Fin.TimeOfDay == TimeSpan.Zero
+        && anterior.Tipo == siguiente.Tipo
+        && anterior.SedeId == siguiente.SedeId;
+
+    private static string Compactar(BloqueVigente bloque, DateOnly fecha)
     {
         var texto = new StringBuilder();
 
@@ -163,11 +179,11 @@ public partial class ConsultarProgramacionTool(
         else if (bloque.Tipo == TipoBloque.Extra)
             texto.Append("extra ");
 
-        texto.Append($"{bloque.Inicio:HH\\:mm}-{bloque.Fin:HH\\:mm}");
-
-        var dias = (bloque.Fin.Date - bloque.Inicio.Date).Days;
-        if (dias > 0)
-            texto.Append($"(+{dias})");
+        texto.Append(NotacionFranja.Rango(
+            TimeOnly.FromDateTime(bloque.Inicio),
+            TimeOnly.FromDateTime(bloque.Fin),
+            DateOnly.FromDateTime(bloque.Inicio).DayNumber - fecha.DayNumber,
+            DateOnly.FromDateTime(bloque.Fin).DayNumber - fecha.DayNumber));
 
         var sede = bloque.NombreSede ?? bloque.SedeId;
         if (sede is not null)
