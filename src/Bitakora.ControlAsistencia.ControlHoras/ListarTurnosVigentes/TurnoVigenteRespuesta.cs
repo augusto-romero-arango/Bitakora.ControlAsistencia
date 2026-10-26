@@ -15,7 +15,8 @@ public sealed record TurnoVigenteRespuesta(
     string NombreTurno,
     string HorarioResumido,
     IReadOnlyList<Bloque> Bloques,
-    string? MotivoAusencia)
+    string? MotivoAusencia,
+    bool EsHorarioAbierto = false)
 {
     public static TurnoVigenteRespuesta Desde(TurnoVigente v) =>
         new(v.Id, v.CodigoColaborador, v.NombreCompleto, v.Fecha, v.NombreTurno,

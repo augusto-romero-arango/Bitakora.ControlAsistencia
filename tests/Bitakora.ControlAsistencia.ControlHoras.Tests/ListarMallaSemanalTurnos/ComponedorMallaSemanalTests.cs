@@ -119,3 +119,50 @@ public class ComponedorMallaSemanalTests
         filas.Single().Casillas.Should().OnlyContain(c => c.Tipo == TipoCasillaMalla.SinProgramar);
     }
 }
+
+// Issue #1236
+public class ComponedorMallaSemanalHorarioAbiertoTests
+{
+    private static readonly SemanaIso Semana = new(2027, 9, new DateOnly(2027, 3, 1), new DateOnly(2027, 3, 7));
+    private static DateOnly Dia(int d) => new(2027, 3, d);
+
+    private static Bloque Bloque1(int d) =>
+        new(TipoBloque.Ordinaria, new DateTime(2027, 3, d, 4, 0, 0), new DateTime(2027, 3, d, 6, 0, 0));
+
+    [Fact]
+    public void Componer_ExponeLaMarca_CuandoDocumentoEsDeHorarioAbierto()
+    {
+        var doc = new TurnoVigente("cd:A:20270301", "A", "N", Dia(1), "Abierto", "04:00-06:00", [Bloque1(1)],
+            EsHorarioAbierto: true);
+
+        var casillas = ComponedorMallaSemanal.Componer(Semana, [new("A", Dia(1), null)], [doc]).Single().Casillas;
+
+        casillas[0].EsHorarioAbierto.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Componer_DejaLaMarcaEnFalse_CuandoSinProgramarAusenciaYDescanso()
+    {
+        var ausencia = new TurnoVigente("cd:A:20270302", "A", "N", Dia(2), "", "", [], "Vacaciones", Guid.NewGuid(),
+            new TurnoCubierto("Abierto", "04:00-06:00", [Bloque1(2)], true));
+        var descanso = new TurnoVigente("cd:A:20270303", "A", "N", Dia(3), "Descanso", "", []);
+
+        var c = ComponedorMallaSemanal.Componer(Semana, [new("A", Dia(2), Dia(5))], [ausencia, descanso])
+            .Single().Casillas;
+
+        c[0].EsHorarioAbierto.Should().BeFalse(); // fuera de vinculacion
+        c[1].EsHorarioAbierto.Should().BeFalse(); // ausencia
+        c[2].EsHorarioAbierto.Should().BeFalse(); // descanso
+        c[4].EsHorarioAbierto.Should().BeFalse(); // sin programar
+    }
+
+    [Fact]
+    public void Desde_ExponeLaMarca_CuandoDocumentoEsDeHorarioAbierto()
+    {
+        var doc = new TurnoVigente("cd:A:20270301", "A", "N", Dia(1), "Abierto", "04:00-06:00", [Bloque1(1)],
+            EsHorarioAbierto: true);
+
+        Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes.TurnoVigenteRespuesta.Desde(doc)
+            .EsHorarioAbierto.Should().BeTrue();
+    }
+}
