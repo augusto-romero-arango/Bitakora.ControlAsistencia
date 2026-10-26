@@ -42,7 +42,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
         }
 
         var dias = $$"""
-            [{"semana":1,"dia":"lunes","turno":"{{turnoLunes}}"},{"semana":1,"dia":"martes","turno":"{{turnoMartes}}"}]
+            [{"semana":1,"dia":"lunes","turno_id":"{{idsDeTurnos[turnoLunes]}}"},{"semana":1,"dia":"martes","turno_id":"{{idsDeTurnos[turnoMartes]}}"}]
             """;
 
         var creada = await mcp.Cliente.CallToolAsync(
@@ -105,8 +105,8 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
     {
         var ct = TestContext.Current.CancellationToken;
         var nombrePlantilla = $"[TEST] Plantilla MCP {Guid.CreateVersion7()}";
-        var turnoInexistente = $"[TEST] Turno inexistente {Guid.CreateVersion7()}";
-        var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{turnoInexistente}}"}]""";
+        var turnoInexistente = Guid.CreateVersion7().ToString();
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno_id":"{{turnoInexistente}}"}]""";
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "crear_plantilla_semanal",
@@ -168,7 +168,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
             new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()!, ["inicio"] = "06:00", ["fin"] = "14:00" },
             cancellationToken: ct)).IsError.Should().NotBeTrue();
 
-        var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{turno}}"}]""";
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno_id":"{{ficha.RootElement.GetProperty("id").GetString()}}"}]""";
         var creada = await mcp.Cliente.CallToolAsync(
             "crear_plantilla_semanal",
             new Dictionary<string, object?>
