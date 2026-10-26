@@ -54,14 +54,15 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         var indice = Indice(vista, evento.Fecha);
         var actual = vista.Casillas[indice];
         var inicioCobertura = turno.Cobertura(evento.Fecha)?.Inicio;
-        var aperturaTurno = turno.TieneVentanaDeEntrada ? null : turno.Apertura(evento.Fecha);
+        var cierreVentana = turno.CierreDeLaVentana(evento.Fecha);
 
         var casilla = actual.AusenciaId is not null
             ? actual with
             {
                 TurnoCubierto = new TurnoCubiertoSemana(turno.Nombre, minutos, esDescanso),
                 InicioCobertura = inicioCobertura,
-                CierreVentanaEntrada = aperturaTurno
+                CierreVentanaEntrada = cierreVentana,
+                TieneVentanaDeEntrada = turno.TieneVentanaDeEntrada
             }
             : actual with
             {
@@ -69,7 +70,8 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
                 NombreTurno = turno.Nombre,
                 MinutosOrdinarios = minutos,
                 InicioCobertura = inicioCobertura,
-                CierreVentanaEntrada = aperturaTurno
+                CierreVentanaEntrada = cierreVentana,
+                TieneVentanaDeEntrada = turno.TieneVentanaDeEntrada
             };
 
         var jornada = evento.Jornada is null
@@ -123,7 +125,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         var actual = vista.Casillas[indice];
 
         var casilla = actual.AusenciaId is not null
-            ? actual with { TurnoCubierto = null, InicioCobertura = null, CierreVentanaEntrada = null }
+            ? actual with { TurnoCubierto = null, InicioCobertura = null, CierreVentanaEntrada = null, TieneVentanaDeEntrada = false }
             : SinProgramar(actual.Fecha, actual.LimiteCoberturaVispera, actual.CierreTurnoVispera);
 
         return RecalcularOBorrar(vista with { NombreCompleto = evento.Colaborador.NombreCompleto }, indice, casilla);
@@ -150,6 +152,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
                 InicioCobertura: actual.InicioCobertura,
                 LimiteCoberturaVispera: actual.LimiteCoberturaVispera,
                 CierreVentanaEntrada: actual.CierreVentanaEntrada,
+                TieneVentanaDeEntrada: actual.TieneVentanaDeEntrada,
                 CierreTurnoVispera: actual.CierreTurnoVispera);
 
         return RecalcularOBorrar(vista, indice, casilla);
@@ -202,7 +205,8 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         AdvertenciasProgramacionSemanal vista, int indice, CasillaDia casilla)
     {
         var resultado = Recalcular(vista, indice, casilla);
-        return resultado.Casillas.All(c => c.Tipo == TipoCasilla.SinProgramar && c.AusenciaId is null)
+        return resultado.Casillas.All(c => c.Tipo == TipoCasilla.SinProgramar && c.AusenciaId is null
+            && c.CierreTurnoVispera is null && c.LimiteCoberturaVispera is null)
             ? null
             : resultado;
     }

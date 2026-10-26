@@ -60,17 +60,35 @@ public static class CalculadorAdvertencias
     private static IReadOnlyList<AdvertenciaDiaria> AdvertenciasDelDia(CasillaDia casilla, JornadaAplicada? jornada) =>
         [.. ContraLaJornada(casilla, jornada), .. EntreTurnos(casilla)];
 
+    // 2 h + 4 h de margenes de la Cobertura de marcacion (CA-ADR-0042). Si cambian, cambia esta constante.
+    private static readonly TimeSpan DescansoMinimoEntreTurnos = TimeSpan.FromHours(6);
+
     // El solape reemplaza al descanso entre turnos. Fin exclusivo: turnos contiguos no se solapan.
+    // Con ventana se juzga contra el cierre de la ventana (entrada mas tardia posible).
     private static IEnumerable<AdvertenciaDiaria> EntreTurnos(CasillaDia casilla)
     {
-        if (casilla is { Tipo: TipoCasilla.Trabajo, CierreVentanaEntrada: { } apertura, CierreTurnoVispera: { } cierre }
-            && cierre > apertura)
-        {
-            yield return new(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, (int)(cierre - apertura).TotalMinutes);
+        if (casilla.Tipo != TipoCasilla.Trabajo)
             yield break;
+
+        if (casilla is { CierreVentanaEntrada: { } cierreVentana, CierreTurnoVispera: { } cierre })
+        {
+            if (cierre > cierreVentana)
+            {
+                yield return new(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, (int)(cierre - cierreVentana).TotalMinutes);
+                yield break;
+            }
+
+            if (casilla.TieneVentanaDeEntrada)
+            {
+                var entradaMinima = cierre + DescansoMinimoEntreTurnos;
+                if (entradaMinima > cierreVentana)
+                    yield return new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, (int)(entradaMinima - cierreVentana).TotalMinutes);
+                yield break;
+            }
         }
 
-        if (casilla is { Tipo: TipoCasilla.Trabajo, InicioCobertura: { } inicio, LimiteCoberturaVispera: { } limite }
+        if (!casilla.TieneVentanaDeEntrada
+            && casilla is { InicioCobertura: { } inicio, LimiteCoberturaVispera: { } limite }
             && limite > inicio)
             yield return new(TipoAdvertenciaDiaria.PorDebajoDelDescansoEntreTurnos, (int)(limite - inicio).TotalMinutes);
     }
