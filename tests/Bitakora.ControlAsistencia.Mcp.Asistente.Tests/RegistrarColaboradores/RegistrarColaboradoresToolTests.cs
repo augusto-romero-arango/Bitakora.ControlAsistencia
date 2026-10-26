@@ -105,6 +105,25 @@ public class RegistrarColaboradoresToolTests
     }
 
     [Fact]
+    public async Task RegistrarColaboradores_PoneLaFilaEnRechazadosConElStatus_CuandoElDominioFallaSinCuerpo()
+    {
+        var (cliente, handler) = ClienteConStatusPorNumero(
+            n => n == "222" ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.Created);
+
+        var resultado = await Ejecutar(cliente, Lista(Fila("111"), Fila("222"), Fila("333")));
+
+        handler.Requests.Should().HaveCount(3);
+        var json = JsonNode.Parse(resultado)!;
+        json["registrados"]!.GetValue<int>().Should().Be(2);
+        json.AsObject().ContainsKey("ya_registrados").Should().BeFalse();
+        var rechazado = json["rechazados"]!.AsArray().Single()!;
+        rechazado["fila"]!.GetValue<int>().Should().Be(2);
+        rechazado["identificacion"]!.GetValue<string>().Should().Be("CC-222");
+        rechazado["motivo"]!.GetValue<string>()
+            .Should().Be(string.Format(RegistrarColaboradoresTool.Mensajes.RechazoDelDominio, "503"));
+    }
+
+    [Fact]
     public async Task RegistrarColaboradores_RechazaLaFilaSinEnviarla_CuandoFaltaFechaInicio()
     {
         var (cliente, handler) = ClienteConStatusPorNumero(_ => HttpStatusCode.Created);
@@ -151,7 +170,7 @@ public class RegistrarColaboradoresToolTests
     }
 
     [Fact]
-    public async Task RegistrarColaboradores_ResponderElMensajeSinLlamarAlBackend_CuandoColaboradoresEstaVacio()
+    public async Task RegistrarColaboradores_RespondeElMensajeSinLlamarAlBackend_CuandoColaboradoresEstaVacio()
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
 
@@ -162,7 +181,7 @@ public class RegistrarColaboradoresToolTests
     }
 
     [Fact]
-    public async Task RegistrarColaboradores_ResponderElMensajeSinLlamarAlBackend_CuandoNoEsJson()
+    public async Task RegistrarColaboradores_RespondeElMensajeSinLlamarAlBackend_CuandoNoEsJson()
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
 
@@ -173,7 +192,7 @@ public class RegistrarColaboradoresToolTests
     }
 
     [Fact]
-    public async Task RegistrarColaboradores_ResponderElMensajeSinLlamarAlBackend_CuandoLaListaEstaVacia()
+    public async Task RegistrarColaboradores_RespondeElMensajeSinLlamarAlBackend_CuandoLaListaEstaVacia()
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
 

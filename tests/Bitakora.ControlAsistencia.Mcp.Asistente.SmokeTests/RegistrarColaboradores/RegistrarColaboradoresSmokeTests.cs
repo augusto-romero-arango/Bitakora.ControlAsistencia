@@ -1,7 +1,6 @@
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.Fixtures;
-using ModelContextProtocol.Protocol;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.RegistrarColaboradores;
 

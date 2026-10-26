@@ -10,8 +10,8 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.RegistrarColaboradores;
 
 // Orquesta N POST de RegistrarColaborador sin inventar un aggregate de lote. fecha_inicio es
-// obligatoria en cada fila y nunca se completa con hoy (doctrina bitemporal, issue #574). Un 409 es
-// "ya registrado", no un fallo.
+// obligatoria en cada fila y nunca se completa con hoy (doctrina bitemporal). Un 409 es "ya
+// registrado", no un fallo.
 public partial class RegistrarColaboradoresTool(ColaboradoresApi api)
 {
     internal const string NombreTool = "registrar_colaboradores";
@@ -63,52 +63,31 @@ public partial class RegistrarColaboradoresTool(ColaboradoresApi api)
         var rechazados = new ConcurrentQueue<FilaRechazada>();
 
         await Parallel.ForEachAsync(
-            filas.Select((f, i) => (Fila: f ?? new FilaColaborador(), Posicion: i + 1)),
+            filas.Select((fila, i) => (Fila: fila ?? new FilaColaborador(), Posicion: i + 1)),
             new ParallelOptions { MaxDegreeOfParallelism = PostsSimultaneos, CancellationToken = ct },
             async (item, token) =>
             {
                 var (fila, posicion) = item;
-                var identificacion = fila.Identificacion();
-
-                if (Validar(fila) is { } motivoInvalido)
+                var (solicitud, motivoInvalido) = fila.ASolicitud();
+                if (solicitud is null)
                 {
-                    rechazados.Enqueue(new FilaRechazada(posicion, identificacion, motivoInvalido));
+                    rechazados.Enqueue(new FilaRechazada(posicion, fila.Identificacion(), motivoInvalido!));
                     return;
                 }
 
-                var fecha = DateOnly.ParseExact(fila.FechaInicio!, "yyyy-MM-dd", CultureInfo.InvariantCulture);
-                var respuesta = await api.Registrar(
-                    new RegistroColaboradorSolicitado(
-                        fila.TipoIdentificacion!, fila.NumeroIdentificacion!, fila.PrimerNombre!,
-                        fila.SegundoNombre, fila.PrimerApellido!, fila.SegundoApellido,
-                        fila.CodigoColaborador!, fecha, fila.CodigoSede),
-                    token);
-
-                switch (respuesta.StatusCode)
-                {
-                    case HttpStatusCode.Conflict:
-                        yaRegistrados.Enqueue((posicion, identificacion!));
-                        break;
-                    case HttpStatusCode.BadRequest:
-                        rechazados.Enqueue(new FilaRechazada(
-                            posicion,
-                            identificacion,
-                            string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(token))));
-                        break;
-                    default:
-                        if (respuesta.IsSuccessStatusCode)
-                            Interlocked.Increment(ref registrados);
-                        else
-                            rechazados.Enqueue(new FilaRechazada(
-                                posicion,
-                                identificacion,
-                                string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(token))));
-                        break;
-                }
+                var identificacion = $"{solicitud.TipoIdentificacion}-{solicitud.NumeroIdentificacion}";
+                var respuesta = await api.Registrar(solicitud, token);
+                if (respuesta.StatusCode == HttpStatusCode.Conflict)
+                    yaRegistrados.Enqueue((posicion, identificacion));
+                else if (await respuesta.LeerFalloAsync(token) is { } fallo)
+                    rechazados.Enqueue(new FilaRechazada(
+                        posicion, identificacion, string.Format(Mensajes.RechazoDelDominio, fallo)));
+                else
+                    Interlocked.Increment(ref registrados);
             });
 
-        var ya = yaRegistrados.OrderBy(y => y.Fila).Select(y => y.Identificacion).ToList();
-        var rech = rechazados.OrderBy(r => r.Fila).ToList();
+        List<string> ya = [.. yaRegistrados.OrderBy(y => y.Fila).Select(y => y.Identificacion)];
+        List<FilaRechazada> rech = [.. rechazados.OrderBy(r => r.Fila)];
 
         return RespuestaJson.Serializar(new ColaboradoresRegistradosResumen(
             Mensajes.ResultadoColaboradoresRegistrados,
@@ -117,30 +96,9 @@ public partial class RegistrarColaboradoresTool(ColaboradoresApi api)
             rech.Count > 0 ? rech : null,
             Mensajes.NotaVisibilidadEventual));
     }
-
-    private static string? Validar(FilaColaborador fila)
-    {
-        var obligatorios = new (string Nombre, string? Valor)[]
-        {
-            ("tipo_identificacion", fila.TipoIdentificacion),
-            ("numero_identificacion", fila.NumeroIdentificacion),
-            ("primer_nombre", fila.PrimerNombre),
-            ("primer_apellido", fila.PrimerApellido),
-            ("codigo_colaborador", fila.CodigoColaborador),
-            ("fecha_inicio", fila.FechaInicio)
-        };
-
-        if (obligatorios.FirstOrDefault(o => string.IsNullOrWhiteSpace(o.Valor)) is { Nombre: not null } vacio)
-            return string.Format(Mensajes.CampoObligatorio, vacio.Nombre);
-
-        return DateOnly.TryParseExact(
-            fila.FechaInicio, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)
-            ? null
-            : string.Format(Mensajes.FechaInvalida, fila.FechaInicio);
-    }
 }
 
-public sealed class FilaColaborador
+internal sealed class FilaColaborador
 {
     [JsonPropertyName("tipo_identificacion")] public string? TipoIdentificacion { get; init; }
     [JsonPropertyName("numero_identificacion")] public string? NumeroIdentificacion { get; init; }
@@ -156,6 +114,33 @@ public sealed class FilaColaborador
         string.IsNullOrWhiteSpace(TipoIdentificacion) || string.IsNullOrWhiteSpace(NumeroIdentificacion)
             ? null
             : $"{TipoIdentificacion}-{NumeroIdentificacion}";
+
+    public (RegistroColaboradorSolicitado? Solicitud, string? Motivo) ASolicitud()
+    {
+        if (string.IsNullOrWhiteSpace(TipoIdentificacion))
+            return Obligatorio("tipo_identificacion");
+        if (string.IsNullOrWhiteSpace(NumeroIdentificacion))
+            return Obligatorio("numero_identificacion");
+        if (string.IsNullOrWhiteSpace(PrimerNombre))
+            return Obligatorio("primer_nombre");
+        if (string.IsNullOrWhiteSpace(PrimerApellido))
+            return Obligatorio("primer_apellido");
+        if (string.IsNullOrWhiteSpace(CodigoColaborador))
+            return Obligatorio("codigo_colaborador");
+        if (string.IsNullOrWhiteSpace(FechaInicio))
+            return Obligatorio("fecha_inicio");
+
+        if (!DateOnly.TryParseExact(
+                FechaInicio, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha))
+            return (null, string.Format(RegistrarColaboradoresTool.Mensajes.FechaInvalida, FechaInicio));
+
+        return (new RegistroColaboradorSolicitado(
+            TipoIdentificacion, NumeroIdentificacion, PrimerNombre, SegundoNombre,
+            PrimerApellido, SegundoApellido, CodigoColaborador, fecha, CodigoSede), null);
+    }
+
+    private static (RegistroColaboradorSolicitado?, string?) Obligatorio(string campo) =>
+        (null, string.Format(RegistrarColaboradoresTool.Mensajes.CampoObligatorio, campo));
 }
 
 public sealed record FilaRechazada(int Fila, string? Identificacion, string Motivo);
