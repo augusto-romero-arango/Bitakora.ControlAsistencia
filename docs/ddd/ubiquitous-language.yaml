@@ -4,7 +4,12 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-23 (sesion planner, refinamiento de #1202: con Ventana de entrada el
+# Ultima actualizacion: 2026-10-25 (sesion planner, refinamiento de #1213: nueva advertencia diaria
+#   SeSolapaConTurnoDeLaVispera (el turno del dia empieza antes del cierre del de la vispera; solo
+#   turnos fijos; reemplaza al descanso entre turnos en esa casilla). Rechazado "traslape" como
+#   sinonimo de solape. El cierre de la vispera llega al dia por CierreDeLaVisperaActualizado (#1228).
+#   Tocado: Advertencias de la programacion semanal. Issues #1213, #1228, #1229.)
+# Actualizacion previa: 2026-10-23 (sesion planner, refinamiento de #1202: con Ventana de entrada el
 #   ancla se busca en la cobertura POSIBLE del turno (la de referencia extendida en la amplitud), no
 #   solo en la de referencia; una entrada tardia que la ventana admite ya no se pierde. Tocados:
 #   Cobertura de marcacion, Ventana de entrada. Issue #1202; enmienda CA-ADR-0042 decision 2.)
@@ -1353,6 +1358,11 @@ terms:
     note: >
       Distinta de la cobertura de la programacion (quien falta por programar), que es otra vista,
       todavia sin issue. Esa seria la version anticipada de "Dia sin programar".
+      Refinamiento de #1213 (2026-10-25, decisiones del experto): advertencia diaria
+      SeSolapaConTurnoDeLaVispera (magnitud = cierre de la vispera - apertura del dia, fin exclusivo).
+      Solo turnos fijos: con Ventana de entrada no es choque sino hora minima de entrada (#1229). Con
+      solape, la casilla no lleva ademas PorDebajoDelDescansoEntreTurnos. "Traslape" se rechaza como
+      sinonimo de solape (familia SeSolapaCon; "Ventana de traslape nocturno" esta retirada).
       Refinamiento 2026-10-21 (#1128): advertencia diaria PorDebajoDelDescansoEntreTurnos (ver
       "Descanso entre turnos"). Es la primera que NO se mide contra la Jornada: sale tambien en
       una semana sin Jornada y no cambia si la semana es juzgable.
