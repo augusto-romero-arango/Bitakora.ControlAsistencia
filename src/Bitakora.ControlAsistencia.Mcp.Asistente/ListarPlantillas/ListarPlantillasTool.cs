@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -10,7 +11,7 @@ public partial class ListarPlantillasTool(ProgramacionApi api)
     internal const int MaximoPlantillas = 50;
 
     [Function("ListarPlantillas")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Lista las plantillas de turnos del catalogo: nombre, dias del ciclo y si esta lista para "
@@ -22,8 +23,36 @@ public partial class ListarPlantillasTool(ProgramacionApi api)
         ToolInvocationContext context,
         [McpToolProperty("cursor", "Cursor opaco de la pagina siguiente (el siguienteCursor de la respuesta anterior); reenvialo tal cual.")]
         string? cursor,
-        CancellationToken ct) =>
-        throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        var respuesta = await api.ListarPlantillasTurnos(
+            ct, MaximoPlantillas, string.IsNullOrWhiteSpace(cursor) ? null : cursor.Trim());
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return string.Format(Mensajes.RechazoDelDominio, fallo);
+
+        var sobre = await respuesta.Content.ReadFromJsonAsync<SobreDeLista<CuadroDeTurnos>>(ct)
+            ?? new SobreDeLista<CuadroDeTurnos>([]);
+
+        if (sobre.Elementos.Count == 0)
+            return Mensajes.SinPlantillas;
+
+        var visibles = sobre.Elementos
+            .Select(c => new PlantillaResumida(
+                c.Id,
+                c.Nombre.Trim(),
+                c.DiasDelCiclo,
+                Incompleta: c.Completa ? null : true,
+                ConAdvertencias: c.Advertencias is { Count: > 0 } ? true : null))
+            .ToList();
+
+        return RespuestaJson.Serializar(new CatalogoDePlantillas(
+            visibles.Count,
+            visibles,
+            sobre.SiguienteCursor,
+            sobre.SiguienteCursor is null
+                ? null
+                : string.Format(Mensajes.NotaHayMasPlantillas, sobre.SiguienteCursor)));
+    }
 }
 
 public sealed record CatalogoDePlantillas(
