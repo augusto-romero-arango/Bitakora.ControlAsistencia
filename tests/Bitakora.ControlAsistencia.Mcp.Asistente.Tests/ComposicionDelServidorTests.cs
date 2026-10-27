@@ -42,7 +42,7 @@ public class ComposicionDelServidorTests
                 "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
                 "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
                 "buscar_plantillas", "listar_plantillas", "obtener_plantilla",
-                "crear_plantilla_semanal", "crear_plantilla",
+                "crear_plantilla_semanal", "crear_plantilla", "crear_plantilla_rotativa",
                 "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
                 "consultar_malla_turnos", "consultar_dias_sin_programar",
@@ -235,6 +235,8 @@ public class ComposicionDelServidorTests
         ("crear_plantilla_semanal", "Crea una plantilla semanal de turnos: un molde de 1 a 6 semanas",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("crear_plantilla", "Crea una plantilla de turnos: un ciclo de N dias (1 a 42)",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("crear_plantilla_rotativa", "Crea una plantilla de turnos rotativa a partir de bloques de dias consecutivos",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("retirar_plantilla_semanal", "Retira una plantilla semanal del catalogo por su id",
             "\"readOnlyHint\": false, \"destructiveHint\": true"),
@@ -479,6 +481,24 @@ public class ComposicionDelServidorTests
     public void CrearPlantilla_DeclaraNombreDiasDelCicloYDiasComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("crear_plantilla").Should().BeEquivalentTo(
             [("nombre", true), ("dias_del_ciclo", true), ("dias", true), ("jornada_id", false)]);
+
+    [Fact]
+    public void CrearPlantillaRotativa_DeclaraNombreYBloquesComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("crear_plantilla_rotativa").Should().BeEquivalentTo(
+            [("nombre", true), ("bloques", true), ("jornada_id", false)]);
+
+    [Fact]
+    public void CrearPlantillaRotativa_DeclaraJornadaIdComoStringYBloquesConTurnoIdOFranja_CuandoSeInspeccionaLaTool()
+    {
+        ParametrosDeTool("crear_plantilla_rotativa")
+            .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "jornada_id")
+            .ParameterType.Should().Be(typeof(string));
+
+        var descripcion = ParametrosDeTool("crear_plantilla_rotativa")
+            .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "bloques")
+            .GetCustomAttribute<McpToolPropertyAttribute>()!.Description;
+        descripcion.Should().Contain("turno_id").And.Contain("franja");
+    }
 
     [Fact]
     public void CrearPlantilla_DeclaraJornadaIdComoStringYDiasConTurnoIdOFranja_CuandoSeInspeccionaLaTool()

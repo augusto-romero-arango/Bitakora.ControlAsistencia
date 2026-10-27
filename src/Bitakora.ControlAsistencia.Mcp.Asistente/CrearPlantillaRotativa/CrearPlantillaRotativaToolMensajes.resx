@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="CampoObligatorio" xml:space="preserve">
+    <value>'{0}' es obligatorio.</value>
+  </data>
+  <data name="BloquesJsonInvalido" xml:space="preserve">
+    <value>'bloques' no es un JSON valido. Usa una lista como [{"dias":6,"turno_id":"&lt;id&gt;"}].</value>
+  </data>
+  <data name="BloquesVacio" xml:space="preserve">
+    <value>'bloques' debe tener al menos un bloque.</value>
+  </data>
+  <data name="BloqueDiasInvalido" xml:space="preserve">
+    <value>El bloque {0} debe traer 'dias' como entero mayor o igual que 1; se recibio '{1}'.</value>
+  </data>
+  <data name="SumaDeDiasFueraDeRango" xml:space="preserve">
+    <value>Los bloques suman {0} dias; el ciclo debe durar entre 1 y 42 dias. Reduce los dias de los bloques.</value>
+  </data>
+  <data name="TurnoPorNombreNoSoportado" xml:space="preserve">
+    <value>El bloque {0} trae turno por nombre. Usa turno_id con el id que da buscar_turnos, o franja.</value>
+  </data>
+  <data name="TurnoOFranjaObligatorio" xml:space="preserve">
+    <value>El bloque {0} debe traer turno_id o franja.</value>
+  </data>
+  <data name="TurnoYFranjaExcluyentes" xml:space="preserve">
+    <value>El bloque {0} trae turno_id y franja a la vez; usa solo uno.</value>
+  </data>
+  <data name="TurnoIdInvalido" xml:space="preserve">
+    <value>turno_id debe ser un GUID; se recibio '{0}'. Usa el id que da buscar_turnos.</value>
+  </data>
+  <data name="FranjaInvalida" xml:space="preserve">
+    <value>La franja "{1}" del bloque {0} no es valida; usa el formato HH:mm-HH:mm.</value>
+  </data>
+  <data name="TurnosNoExisten" xml:space="preserve">
+    <value>No existen turnos con estos ids: {0}. Ubicalos con buscar_turnos; no se creo nada.</value>
+  </data>
+  <data name="JornadaIdInvalido" xml:space="preserve">
+    <value>'jornada_id' no es un identificador valido: '{0}'.</value>
+  </data>
+  <data name="JornadaNoExiste" xml:space="preserve">
+    <value>La Jornada no existe; mirala con listar_jornadas.</value>
+  </data>
+  <data name="RechazoDelDominio" xml:space="preserve">
+    <value>El dominio rechazo la solicitud: {0}</value>
+  </data>
+  <data name="ResultadoPlantillaCreada" xml:space="preserve">
+    <value>Plantilla de turnos rotativa creada</value>
+  </data>
+  <data name="NotaVisibilidadEventual" xml:space="preserve">
+    <value>La plantilla aparece en listar_plantillas unos segundos despues. Aplicala con aplicar_plantilla, con fecha_inicio = el primer dia del primer bloque.</value>
+  </data>
+  <data name="TurnoInlineEnConflicto" xml:space="preserve">
+    <value>El turno "{0}" ya existe en el catalogo con otro contenido. Usalo por su id o disena el turno aparte.</value>
+  </data>
+  <data name="TurnoInlineNombreDuplicado" xml:space="preserve">
+    <value>El turno "{0}" ya existe o se creo hace unos segundos; reintenta en unos segundos. Turnos en linea ya creados: {1}.</value>
+  </data>
+  <data name="FalloTurnoInline" xml:space="preserve">
+    <value>No se pudo preparar el turno "{0}": {1}. Turnos en linea ya creados: {2}.</value>
+  </data>
+  <data name="NingunTurnoInlineCreado" xml:space="preserve">
+    <value>ninguno</value>
+  </data>
+</root>

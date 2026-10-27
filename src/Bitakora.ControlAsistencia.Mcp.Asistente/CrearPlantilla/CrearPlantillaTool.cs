@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
@@ -7,10 +6,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.CrearPlantilla;
 
-// Cliente HTTP puro: CrearPlantillaTurnos (POST programacion/plantillas-turnos) + un
-// AsignarTurnoADiaDePlantillaTurnos por entrada (PUT .../dias/{dia}), secuenciales porque tocan el
-// mismo stream. Valida todo y resuelve turnos (por id y franja en linea) antes de escribir la
-// plantilla; el rechazo de un dia no detiene al resto (CA-ADR-0030).
+// Valida la forma de la entrada y delega la escritura en CreadorDePlantillaTurnos.
 public partial class CrearPlantillaTool(
     ProgramacionApi programacion, ResolutorTurnoPorId resolutorPorId, ResolutorTurnoPorNombre resolutor)
 {
@@ -125,86 +121,38 @@ public partial class CrearPlantillaTool(
         }
 
         Guid? jornadaGuid = null;
-        JornadaDescritaResumen? jornadaResumen = null;
         if (!string.IsNullOrWhiteSpace(jornadaId))
         {
             if (!Guid.TryParse(jornadaId, out var parseado))
                 return string.Format(Mensajes.JornadaIdInvalido, jornadaId);
-
-            var respuestaJornada = await programacion.ObtenerJornada(parseado, ct);
-            if (respuestaJornada.StatusCode == HttpStatusCode.NotFound)
-                return Mensajes.JornadaNoExiste;
-            if (await respuestaJornada.LeerFalloAsync(ct) is { } falloJornada)
-                return string.Format(Mensajes.RechazoDelDominio, falloJornada);
-
             jornadaGuid = parseado;
-            jornadaResumen = (await respuestaJornada.LeerDescritaAsync(ct)).Resumir();
         }
 
-        var turnoIdPorReferencia = new Dictionary<string, string>();
-        var nombreDeTurnoPorId = new Dictionary<string, string>();
-        var inexistentes = new List<string>();
-        foreach (var idTurno in validadas.Where(v => v.Inline is null).Select(v => v.Referencia).Distinct())
-        {
-            var resolucionTurno = await resolutorPorId.ResolverAsync(Guid.Parse(idTurno), ct);
-            if (resolucionTurno.FalloDeLectura is { } falloLectura)
-                return string.Format(Mensajes.RechazoDelDominio, falloLectura);
-            if (resolucionTurno.Ficha is { } fichaTurno)
-            {
-                turnoIdPorReferencia[idTurno] = fichaTurno.Id;
-                nombreDeTurnoPorId[idTurno] = fichaTurno.Nombre;
-            }
-            else
-                inexistentes.Add(idTurno);
-        }
-
-        if (inexistentes.Count > 0)
-            return string.Format(Mensajes.TurnosNoExisten, string.Join(", ", inexistentes));
-
-        var preparados = await new PreparadorDeTurnosEnLinea(programacion, resolutor).PrepararAsync(
-            [.. validadas.Where(v => v.Inline is not null).Select(v => v.Inline!)],
-            new MensajesDeTurnoEnLinea(
-                Mensajes.RechazoDelDominio, Mensajes.TurnoInlineEnConflicto, Mensajes.TurnoInlineNombreDuplicado,
-                Mensajes.FalloTurnoInline, Mensajes.NingunTurnoInlineCreado),
+        var creacion = await new CreadorDePlantillaTurnos(programacion, resolutorPorId, resolutor).CrearAsync(
+            nombre, ciclo,
+            [.. validadas.Select(v => new AsignacionDeDia(v.Dia, v.Inline is null ? v.Referencia : null, v.Inline))],
+            jornadaGuid,
+            new MensajesDeCreacion(
+                Mensajes.RechazoDelDominio,
+                Mensajes.TurnosNoExisten,
+                Mensajes.JornadaNoExiste,
+                new MensajesDeTurnoEnLinea(
+                    Mensajes.RechazoDelDominio, Mensajes.TurnoInlineEnConflicto, Mensajes.TurnoInlineNombreDuplicado,
+                    Mensajes.FalloTurnoInline, Mensajes.NingunTurnoInlineCreado)),
             ct);
-        if (preparados.Rechazo is { } rechazoInline)
-            return rechazoInline;
+        if (creacion.Rechazo is { } rechazo)
+            return rechazo;
 
-        foreach (var (nombreInline, idInline) in preparados.TurnoIdPorNombre)
-            turnoIdPorReferencia[nombreInline] = idInline;
-
-        var plantillaId = Guid.CreateVersion7();
-        var respuestaPost = await programacion.CrearPlantillaTurnos(plantillaId, nombre, ciclo, jornadaGuid, ct);
-        if (await respuestaPost.LeerFalloAsync(ct) is { } falloPost)
-            return string.Format(Mensajes.RechazoDelDominio, falloPost);
-
-        var diasAsignados = 0;
-        var diasRechazados = new List<DiaDeCicloRechazado>();
-
-        foreach (var validada in validadas)
-        {
-            var turnoId = turnoIdPorReferencia[validada.Referencia];
-            var respuestaPut = await programacion.AsignarTurnoADiaDePlantillaTurnos(
-                plantillaId.ToString(), validada.Dia, turnoId, ct);
-
-            if (await respuestaPut.LeerFalloAsync(ct) is { } motivo)
-                diasRechazados.Add(new DiaDeCicloRechazado(
-                    validada.Dia,
-                    nombreDeTurnoPorId.GetValueOrDefault(validada.Referencia, validada.Referencia),
-                    motivo));
-            else
-                diasAsignados++;
-        }
-
+        var creada = creacion.Plantilla!;
         return RespuestaJson.Serializar(new PlantillaTurnosCreadaResumen(
             Mensajes.ResultadoPlantillaCreada,
-            new PlantillaTurnosResumen(plantillaId.ToString(), nombre, ciclo),
-            diasAsignados,
-            diasRechazados.Count > 0 ? diasRechazados : null,
-            diasAsignados == ciclo,
+            new PlantillaTurnosResumen(creada.PlantillaId.ToString(), nombre, ciclo),
+            creada.DiasAsignados,
+            creada.DiasRechazados.Count > 0 ? creada.DiasRechazados : null,
+            creada.DiasAsignados == ciclo,
             Mensajes.NotaVisibilidadEventual,
-            preparados.Resumen.Count > 0 ? preparados.Resumen : null,
-            jornadaResumen));
+            creada.TurnosEnLinea.Count > 0 ? creada.TurnosEnLinea : null,
+            creada.Jornada));
     }
 
     // Referencia: el turno_id canonico, o el nombre derivado de la franja si el dia es inline.
