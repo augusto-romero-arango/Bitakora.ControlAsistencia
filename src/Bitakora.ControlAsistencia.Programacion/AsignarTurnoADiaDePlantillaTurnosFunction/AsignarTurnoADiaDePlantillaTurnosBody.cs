@@ -1,0 +1,3 @@
+namespace Bitakora.ControlAsistencia.Programacion.AsignarTurnoADiaDePlantillaTurnosFunction;
+
+public record AsignarTurnoADiaDePlantillaTurnosBody(Guid TurnoId);

@@ -191,6 +191,7 @@ public class ComposicionServiciosTests
             [typeof(SedeDeFranjaRetirada)] = "sede_de_franja_retirada",
             [typeof(PlantillaSemanalCreada)] = "plantilla_semanal_creada",
             [typeof(PlantillaDeTurnosCreada)] = "plantilla_de_turnos_creada",
+            [typeof(DiaDePlantillaDeTurnosAsignado)] = "dia_de_plantilla_de_turnos_asignado",
             [typeof(DiaDePlantillaSemanalAsignado)] = "dia_de_plantilla_semanal_asignado",
             [typeof(DiaDePlantillaSemanalQuitado)] = "dia_de_plantilla_semanal_quitado",
             [typeof(PlantillaSemanalRetirada)] = "plantilla_semanal_retirada"
