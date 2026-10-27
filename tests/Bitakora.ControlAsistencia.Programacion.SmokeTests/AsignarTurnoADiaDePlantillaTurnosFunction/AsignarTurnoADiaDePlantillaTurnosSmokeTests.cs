@@ -50,6 +50,16 @@ public class AsignarTurnoADiaDePlantillaTurnosSmokeTests(ApiFixture api, Postgre
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task HealthCheck_DebeResponder200()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/health", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task AsignarTurnoADia_DebeRetornar204YPersistirElDia_CuandoLaPlantillaYElTurnoExisten()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
@@ -140,6 +150,33 @@ public class AsignarTurnoADiaDePlantillaTurnosSmokeTests(ApiFixture api, Postgre
         var response = await _client.PutAsJsonAsync(
             $"/api/programacion/plantillas-turnos/{plantillaId}/dias/1",
             new { turnoId = Guid.CreateVersion7() }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarTurnoADia_DebeRetornar204_CuandoElDiaEsElUltimoDelCiclo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var plantillaId = await CrearPlantillaAsync(ct, diasDelCiclo: 8);
+        var turnoId = await CrearTurnoAsync(ct);
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/programacion/plantillas-turnos/{plantillaId}/dias/8", new { turnoId }, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarTurnoADia_DebeRetornar404_CuandoLaPlantillaNoExiste()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = await CrearTurnoAsync(ct);
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/programacion/plantillas-turnos/{Guid.CreateVersion7()}/dias/1", new { turnoId }, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
