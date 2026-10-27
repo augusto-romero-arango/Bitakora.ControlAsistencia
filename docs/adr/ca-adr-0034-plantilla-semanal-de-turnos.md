@@ -53,9 +53,12 @@ Enmienda 2026-10-27 (#1302). Reemplaza la decision original (molde semanal de 1.
 - Se toma el nombre generico `PlantillaTurnos` a proposito: revierte el anti-squatting del 2026-09-04 porque el
   molde ciclico ES el general. El alias de un evento persistido es el nombre simple de la clase; una futura
   plantilla regida por el calendario (dia del mes, festivos) tomaria otro nombre.
-- Eventos (`Programacion.DomainEvents`, registrados en `IdentidadEventosProgramacion`, CA-ADR-0029 #6):
-  `PlantillaTurnosCreada`, `DiaDePlantillaTurnosAsignado`, `DiaDePlantillaTurnosQuitado`,
-  `PlantillaTurnosRetirada`. Ninguno cruza bus.
+- Eventos de diseno (`Programacion.DomainEvents`, registrados en `IdentidadEventosProgramacion`, CA-ADR-0029 #6):
+  `PlantillaDeTurnosCreada`, `DiaDePlantillaDeTurnosAsignado`, `PlantillaDeTurnosRetirada`; mas los de Jornada,
+  advertencias y sincronizacion (`JornadaDePlantillaDeTurnosAsignada`/`Quitada`,
+  `AdvertenciasDePlantillaDeTurnosCalculadas`, `TurnoDePlantillaDeTurnosSincronizado`,
+  `LimitesDeJornadaDePlantillaDeTurnosSincronizados`). Ninguno cruza bus. No hay evento de quitar dia (#1282,
+  decision 4).
 
 ### 2. Referencia por identidad + copia de valor sincronizada
 
@@ -106,12 +109,13 @@ Enmienda 2026-10-06 (#886). Reescribe la decision original ("referencia viva, no
 - Nace vacia (`CrearPlantillaTurnos`, `POST programacion/plantillas-turnos`, paso 1 de MEF-ADR-0043),
   se disena por pasos, es editable siempre, sin estados ni publicacion.
 - A diferencia de las franjas del turno (hora `HH:mm` no URL-safe -> `:verbo`), el dia **si** tiene clave
-  URL-safe (su numero en el ciclo) y es un slot atomico: `PUT .../{id}/dias/{dia}` reemplaza (paso 2) y
-  `DELETE .../dias/{dia}` vacia (paso 3). Corregir = reemplazar, no quitar + agregar.
+  URL-safe (su numero en el ciclo) y es un slot atomico: `PUT .../{id}/dias/{dia}` reemplaza (paso 2).
+  Corregir = reemplazar, no quitar + agregar. **Vaciar un dia (`DELETE .../dias/{dia}`) se descarto en la
+  generica (#1282)**: el PUT ya cubre el reemplazo y, como el descanso es un turno, una plantilla terminada no
+  tiene dias vacios; si un front lo necesita, se reabre.
 - **Codigos de exito (enmienda 2026-09-05, CA-ADR-0035)**: `201 Created` + `Location` en el `POST`, `204 No
   Content` en `PUT`/`DELETE` -- la transaccion confirma antes de responder; el 202 heredado del marco era
-  impreciso. **Idempotencia**: PUT con el mismo turno, DELETE sobre un dia ya vacio y retirar una plantilla ya
-  retirada son no-ops -> exito sin evento (`SinCambios`), nunca 409 (precision 2026-10-06, decision 2: el PUT
+  impreciso. **Idempotencia**: PUT con el mismo turno y retirar una plantilla ya retirada son no-ops -> exito sin evento (`SinCambios`), nunca 409 (precision 2026-10-06, decision 2: el PUT
   con el mismo turno solo es no-op si la copia esta al dia; si la version del catalogo es mayor, actualiza la
   copia). El 409 queda para conflictos reales (plantilla retirada, dia fuera del ciclo, turno
   retirado/incompleto) y el 404 para recurso inexistente.
@@ -165,12 +169,14 @@ Enmienda 2026-10-27 (#1302; #1288, #1300). Las tools componen sobre el ciclo (ME
 
 - **Nombres**: *Horario* (lo que dice el trabajador; roza con `HorarioResumido`), *Esquema de turnos*,
   *Semana tipo* (muere con N>1), *Malla/Sabana* (nombran la grilla asignada, no el molde), *Patron*
-  (= empleador en derecho laboral). El experto eligio **Plantilla de turnos**; "Semanal" se sumo al
-  reconocer que los ciclos posicionales quedan fuera.
-- **`PlantillaTurnos` generico**: descartado -- renombrar eventos persistidos despues es caro y el
-  generico debe quedar como paraguas.
-- **Modelo posicional (ciclo de N dias)** unificando semana y rotacion: cubre 4x2 pero pierde el
-  vocabulario "lunes/martes" con el que el experto define la plantilla. Diferido: sera otro aggregate.
+  (= empleador en derecho laboral). El experto eligio **Plantilla de turnos**; "Semanal" se sumo el
+  2026-09-04 al reconocer que los ciclos posicionales quedaban fuera, y se quito en la enmienda 2026-10-27.
+- **`PlantillaTurnos` generico** (2026-09-04): descartado entonces -- renombrar eventos persistidos despues es
+  caro y el generico debia quedar como paraguas. **Revertido el 2026-10-27 (#1302)**: el molde ciclico ES el
+  general (decision 1).
+- **Modelo posicional (ciclo de N dias)** unificando semana y rotacion (2026-09-04): cubria 4x2 pero perdia
+  el vocabulario "lunes/martes"; se difirio como otro aggregate. **Adoptado el 2026-10-27 (#1302)**: el
+  vocabulario "lunes/martes" pasa a la interfaz semanal del asistente (decision 6).
 - **Turno inline sin nombre**: ver decision 6.
 - **Evento gordo escuchado en el `Apply` / bloquear el retiro del turno**: ver decision 2 (la copia sincronizada
   por reaccion + comando la reemplaza desde 2026-10-06).
@@ -179,7 +185,7 @@ Enmienda 2026-10-27 (#1302; #1288, #1300). Las tools componen sobre el ciclo (ME
   2026-09-05 por N1 **sin copia** + composicion en lectura y, el 2026-10-06, por N1 con datos propios
   (decision 5 enmendada).
 - **Dia vacio = "sin plan" deliberado**: descartado; descanso es turno, vacio es incompleto.
-- **`AgregarSemana`/`QuitarSemana`**: sin caso de uso; retirar + crear.
+- **`AgregarSemana`/`QuitarSemana`** (hoy: cambiar N): sin caso de uso; retirar + crear.
 
 ## Consecuencias
 
@@ -189,10 +195,11 @@ Enmienda 2026-10-27 (#1302; #1288, #1300). Las tools componen sobre el ciclo (ME
 - Un solo lugar donde se edita un turno; la plantilla lo copia y se mantiene al dia por sincronizacion
   (consistencia eventual con autocorreccion, decision 2) y puede auditarse a si misma al decidir (#868/#889).
 - El GET del cuadro lee un solo documento, sin composicion (#882).
-- La puerta a la modalidad ciclica queda abierta sin renombrar nada.
+- Un solo molde cubre semanas y rotaciones de cualquier largo hasta 42 dias (enmienda 2026-10-27); el
+  vocabulario de cada interfaz vive en el asistente, no en el dominio.
 
 ### Negativas
-- 4 tipos de evento persistidos y 4 comandos nuevos en Programacion, mas los artefactos de sincronizacion
+- Tipos de evento persistidos y comandos nuevos en Programacion, mas los artefactos de sincronizacion
   (evento privado plano, reaccion, comando y evento por plantilla; #883, #884, #888).
 - Verificaciones best-effort entre streams (turno existe/activo, nombre unico) sin atomicidad -- mismo
   perfil que #497.
@@ -228,11 +235,17 @@ Enmienda 2026-10-04 (#828). Reescrita 2026-10-27 (#1302) para el ciclo generico.
 Enmienda 2026-10-27 (#1302; ejecutado en #1289).
 
 - Los tipos de evento de la modalidad semanal (`PlantillaSemanalCreada`, `DiaDePlantillaSemanalAsignado`,
-  `DiaDePlantillaSemanalQuitado`, `PlantillaSemanalRetirada` y sus eventos de advertencias y sincronizacion) y
-  el aggregate `PlantillaSemanalTurnos` se **borraron sin purga**. Las filas de `mt_events` quedan
+  `DiaDePlantillaSemanalQuitado`, `PlantillaSemanalRetirada` y sus eventos de Jornada, advertencias y sincronizacion) y
+  el aggregate `PlantillaSemanalTurnos` se **borraron sin purga** (tampoco `/purge-store`: borraria todo el
+  schema de Programacion). Las filas de `mt_events` quedan
   **huerfanas**: ningun lector las carga (no hay aggregate ni proyeccion que las pida) y el daemon de
-  proyecciones filtra por los tipos que conoce y **salta los tipos desconocidos** (fuentes de Marten citadas en
-  #1289).
+  proyecciones solo carga los tipos que declara cada proyeccion y, en procesamiento continuo, **salta los tipos
+  desconocidos** (`SkipUnknownEvents` = true por defecto; el repo no lo cambia). Fuentes (citadas en #1289):
+  [Marten, async daemon](https://martendb.io/events/projections/async-daemon) (manejo de errores,
+  `SkipUnknownEvents`), [Marten, optimizacion](https://martendb.io/events/optimizing) (consulta del daemon
+  filtrada por tipo) y [marten#5477](https://github.com/JasperFx/marten/issues/5477) (remedios de
+  `UnknownEventTypeException`).
+- La tabla del read model `CuadroSemanalTurnos` y su fila de progreso quedan en la base sin uso.
 - **No se usa SQL contra el store** para limpiarlas (CA-ADR-0040): ningun script borra de `mt_events` ni
   `mt_streams`.
 - **MEF-ADR-0036 no aplica.** Su protocolo (dos despliegues, purga) rige **mover o renombrar un tipo que se
@@ -245,13 +258,15 @@ Enmienda 2026-10-27 (#1302; ejecutado en #1289).
 - Issues: #620 (crear), #621 (asignar dia), #622 (quitar dia), #623 (retirar), #624 (vista N1), #625
   (GET + composicion), #626 (nombre unico), #627-#628 (tools de Comandos), #629 (tools de Consultas), #651
   (turno inline), #640 (correccion de codigos HTTP de los endpoints existentes); #886 (enmienda de copia
-  sincronizada); #1280-#1300 (plantilla generica), #1289 (retiro de la semanal), #1302 (esta enmienda), #887 (VO `Turno`), #888, #883, #884, #867, #868, #889, #882; harness#849, harness#850.
+  sincronizada); #887 (VO `Turno`), #888, #883, #884, #867, #868, #889, #882; #1280-#1300 (plantilla
+  generica), #1282 (quitar dia, descartado), #1289 (retiro de la semanal), #1302 (esta enmienda); harness#849,
+  harness#850.
 - MEF-ADR-0004, MEF-ADR-0011, MEF-ADR-0012, MEF-ADR-0018, MEF-ADR-0034, MEF-ADR-0035, MEF-ADR-0036,
   MEF-ADR-0041, MEF-ADR-0042, MEF-ADR-0043, MEF-ADR-0046 (citado para declarar que no aplica, decision 2),
   MEF-ADR-0047, MEF-ADR-0048;
-  CA-ADR-0028, CA-ADR-0029, CA-ADR-0030, CA-ADR-0031, CA-ADR-0033, CA-ADR-0035.
-- Glosario: Plantilla de turnos, Plantilla semanal de turnos (historica), Cuadro semanal de turnos (historica), Turno (enmienda),
-  Ventana de trabajo, Programador de turnos.
+  CA-ADR-0028, CA-ADR-0029, CA-ADR-0030, CA-ADR-0031, CA-ADR-0033, CA-ADR-0035, CA-ADR-0040.
+- Glosario: Plantilla de turnos, Plantilla semanal de turnos (historica), Cuadro semanal de turnos
+  (historica), Dia de la semana (historica), Turno (enmienda), Ventana de trabajo, Programador de turnos.
 - Skill `projections`, `modelos-marten.md` (regla de procedencia: un metodo de proyeccion no lee estado externo;
   regla 3 sobre N2 con grouper, descartada aqui) y `read-apis.md` (DTO de respuesta por composicion).
 
@@ -274,5 +289,6 @@ Enmienda 2026-10-27 (#1302; ejecutado en #1289).
   semanal de 1..6 semanas a ciclo de dias 1..N (N <= 42) con `PlantillaTurnos` en `programacion/plantillas-turnos`.
   Decisiones 2 a 5 conservadas con la generica como sujeto (`CuadroDeTurnos` en la 5). "Aplicar una plantilla":
   fecha de inicio y dia del ciclo `((fecha - inicio) mod N) + 1`. Decision 6: interfaces semanal (7 dias, alineada
-  al lunes) y rotativa (bloques). Nueva seccion "Retiro de la plantilla semanal": borrado sin purga, sin SQL
+  al lunes) y rotativa (bloques). Decision 4: vaciar un dia descartado (#1282). Alternativas: `PlantillaTurnos`
+  generico y modelo posicional, revertido/adoptado. Nueva seccion "Retiro de la plantilla semanal": borrado sin purga, sin SQL
   (CA-ADR-0040), MEF-ADR-0036 no aplica.

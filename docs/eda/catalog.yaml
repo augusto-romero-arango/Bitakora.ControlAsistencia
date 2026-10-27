@@ -400,7 +400,7 @@ aggregates:
     context: Programacion
     description: "Molde reutilizable: ciclo de dias 1..N (N <= 42, sin fechas); cada dia referencia un TurnoId del catalogo y guarda una copia sincronizada (CA-ADR-0034, enmendado #1302). Nace vacia y se disena por pasos. Reemplaza a PlantillaSemanalTurnos (retirada sin purga, #1289)."
     identity: "PlantillaId (Guid canonico \"D\", generado por el cliente)"
-    used_in: ["#620"]
+    used_in: ["#620", "#1280"]
 
   - name: ControlDiarioAggregateRoot
     context: ControlHoras
