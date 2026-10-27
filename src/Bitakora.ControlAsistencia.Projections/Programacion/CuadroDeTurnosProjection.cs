@@ -31,6 +31,9 @@ public sealed partial class CuadroDeTurnosProjection
         };
     }
 
+    public static CuadroDeTurnos Apply(TurnoDePlantillaDeTurnosSincronizado e, CuadroDeTurnos vista) =>
+        throw new NotImplementedException();
+
     public static CuadroDeTurnos Apply(JornadaDePlantillaDeTurnosAsignada e, CuadroDeTurnos vista) =>
         vista with { JornadaId = e.JornadaId, Limites = ALimites(e.Limites) };
 

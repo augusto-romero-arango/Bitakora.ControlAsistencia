@@ -2,7 +2,7 @@ using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
-public sealed record DiaDePlantillaTurnosAuditado(int Dia, Turno Turno);
+public sealed record DiaDePlantillaTurnosAuditado(int Dia, Turno Turno, bool Retirado = false);
 
 public static class AuditoriaPlantillaTurnos
 {

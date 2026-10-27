@@ -77,6 +77,15 @@ public partial class PlantillaTurnos : AggregateRoot
         return ResultadoQuitarJornada.Quitada;
     }
 
+    public void Apply(TurnoDePlantillaDeTurnosSincronizado evento) => throw new NotImplementedException();
+
+    internal long VersionDelTurno(Guid turnoId) => throw new NotImplementedException();
+
+    internal bool DiaEstaRetirado(int dia) => throw new NotImplementedException();
+
+    internal ResultadoSincronizarTurno SincronizarTurno(Guid turnoId, Turno copia, long version, bool retirado) =>
+        throw new NotImplementedException();
+
     internal ResultadoRetiroPlantilla Retirar()
     {
         if (!_estaActiva)

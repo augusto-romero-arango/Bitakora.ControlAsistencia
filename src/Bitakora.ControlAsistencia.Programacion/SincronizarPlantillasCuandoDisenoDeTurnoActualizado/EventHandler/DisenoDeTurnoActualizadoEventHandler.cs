@@ -9,11 +9,14 @@ namespace Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDis
 public class DisenoDeTurnoActualizadoEventHandler : IPrivateEventHandlerAsync<DisenoDeTurnoActualizado>
 {
     private readonly ILectorPlantillasPorTurno _lector;
+    private readonly ILectorPlantillasTurnosPorTurno _lectorPlantillasTurnos;
     private readonly ICommandRouter _commandRouter;
 
-    public DisenoDeTurnoActualizadoEventHandler(ILectorPlantillasPorTurno lector, ICommandRouter commandRouter)
+    public DisenoDeTurnoActualizadoEventHandler(
+        ILectorPlantillasPorTurno lector, ILectorPlantillasTurnosPorTurno lectorPlantillasTurnos, ICommandRouter commandRouter)
     {
         _lector = lector;
+        _lectorPlantillasTurnos = lectorPlantillasTurnos;
         _commandRouter = commandRouter;
     }
 

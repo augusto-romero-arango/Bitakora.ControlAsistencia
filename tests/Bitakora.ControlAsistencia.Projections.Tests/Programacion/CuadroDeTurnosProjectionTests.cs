@@ -177,4 +177,58 @@ public class CuadroDeTurnosProjectionTests
     {
         CuadroDeTurnosProjection.ShouldDelete(PlantillaDeTurnosRetirada.Crear(Guid.NewGuid())).Should().BeTrue();
     }
+
+    [Fact]
+    public void Apply_ActualizaLaCopiaEnTodosLosDiasConEseTurnoId_CuandoTurnoDePlantillaDeTurnosSincronizado()
+    {
+        var turnoNuevo = Turno.Crear("Turno Tarde", false, [FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0))]);
+        var previa = Vista([DiaCompleto(1, TurnoA), DiaCompleto(2, TurnoB), DiaCompleto(3, TurnoA)]);
+        var evento = TurnoDePlantillaDeTurnosSincronizado.Crear(Guid.NewGuid(), TurnoA, turnoNuevo, 2, false);
+
+        var vista = CuadroDeTurnosProjection.Apply(evento, previa);
+
+        vista.Dias.Should().BeEquivalentTo(
+            [
+                new DiaDelCuadroDeTurnos(1, TurnoA.ToString("D"), "Turno Tarde", "14:00-22:00", true, false),
+                DiaCompleto(2, TurnoB),
+                new DiaDelCuadroDeTurnos(3, TurnoA.ToString("D"), "Turno Tarde", "14:00-22:00", true, false),
+            ],
+            o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public void Apply_MarcaRetiradoYQuitaCompleta_CuandoTurnoDePlantillaDeTurnosSincronizadoRetirado()
+    {
+        var previa = Vista([DiaCompleto(1, TurnoA), DiaCompleto(2, TurnoA), DiaCompleto(3, TurnoA)], completa: true);
+        var evento = TurnoDePlantillaDeTurnosSincronizado.Crear(Guid.NewGuid(), TurnoA, CopiaTurno, 3, true);
+
+        var vista = CuadroDeTurnosProjection.Apply(evento, previa);
+
+        vista.Completa.Should().BeFalse();
+        vista.Dias.Should().OnlyContain(d => d.Retirado);
+    }
+
+    [Fact]
+    public void Apply_RecalculaCompleta_CuandoTurnoDePlantillaDeTurnosSincronizadoCompletaElTurno()
+    {
+        var dias = Enumerable.Range(1, 3)
+            .Select(d => new DiaDelCuadroDeTurnos(d, TurnoA.ToString("D"), "Turno Nuevo", CopiaIncompleta.ToString(), false, false))
+            .ToList();
+        var evento = TurnoDePlantillaDeTurnosSincronizado.Crear(Guid.NewGuid(), TurnoA, CopiaTurno, 2, false);
+
+        var vista = CuadroDeTurnosProjection.Apply(evento, Vista(dias));
+
+        vista.Completa.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Apply_DejaLaVistaIgual_CuandoTurnoDePlantillaDeTurnosSincronizadoDeTurnoSinDias()
+    {
+        var previa = Vista([DiaCompleto(1, TurnoA)]);
+        var evento = TurnoDePlantillaDeTurnosSincronizado.Crear(Guid.NewGuid(), TurnoB, CopiaTurno, 2, false);
+
+        var vista = CuadroDeTurnosProjection.Apply(evento, previa);
+
+        vista.Should().BeEquivalentTo(previa);
+    }
 }

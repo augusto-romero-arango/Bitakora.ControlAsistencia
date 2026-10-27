@@ -214,6 +214,31 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeTurnoDePlantillaDeTurnosSincronizado()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(TurnoDePlantillaDeTurnosSincronizado)).Alias;
+
+        alias.Should().Be("turno_de_plantilla_de_turnos_sincronizado");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElLectorDePlantillasDeTurnosPorTurno()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var lector = () => scope.ServiceProvider.GetRequiredService<
+            Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDisenoDeTurnoActualizado.ILectorPlantillasTurnosPorTurno>();
+
+        lector.Should().NotThrow();
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_CongelaElAliasDeLimitesDeJornadaDePlantillaSemanalSincronizados()
     {
         await using var provider = ComponerServiceProvider();
