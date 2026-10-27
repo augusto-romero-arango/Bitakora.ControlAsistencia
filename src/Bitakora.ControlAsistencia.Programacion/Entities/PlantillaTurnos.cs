@@ -23,6 +23,54 @@ public partial class PlantillaTurnos : AggregateRoot
 
     public void Apply(PlantillaDeTurnosRetirada evento) => _estaActiva = false;
 
+    public void Apply(JornadaDePlantillaDeTurnosAsignada evento)
+    {
+        JornadaId = evento.JornadaId;
+        Limites = evento.Limites;
+        VersionJornada = evento.VersionJornada;
+    }
+
+    public void Apply(JornadaDePlantillaDeTurnosQuitada evento)
+    {
+        JornadaId = null;
+        Limites = null;
+        VersionJornada = 0;
+    }
+
+    internal Guid? JornadaId { get; private set; }
+
+    internal LimitesJornada? Limites { get; private set; }
+
+    internal long VersionJornada { get; private set; }
+
+    internal ResultadoAsignarJornada AsignarJornada(Guid jornadaId, LimitesJornada limites, long version)
+    {
+        if (!_estaActiva)
+            return ResultadoAsignarJornada.PlantillaRetirada;
+
+        if (JornadaId == jornadaId && VersionJornada >= version)
+            return ResultadoAsignarJornada.SinCambios;
+
+        var evento = JornadaDePlantillaDeTurnosAsignada.Crear(Guid.Parse(Id), jornadaId, limites, version);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoAsignarJornada.Asignada;
+    }
+
+    internal ResultadoQuitarJornada QuitarJornada()
+    {
+        if (!_estaActiva)
+            return ResultadoQuitarJornada.PlantillaRetirada;
+
+        if (JornadaId is null)
+            return ResultadoQuitarJornada.SinCambios;
+
+        var evento = JornadaDePlantillaDeTurnosQuitada.Crear(Guid.Parse(Id));
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoQuitarJornada.Quitada;
+    }
+
     internal ResultadoRetiroPlantilla Retirar()
     {
         if (!_estaActiva)

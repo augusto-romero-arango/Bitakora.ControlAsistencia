@@ -1,0 +1,3 @@
+namespace Bitakora.ControlAsistencia.Programacion.QuitarJornadaDePlantillaTurnosFunction;
+
+public record QuitarJornadaDePlantillaTurnos(Guid PlantillaId);
