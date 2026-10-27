@@ -1,5 +1,4 @@
 using System.Globalization;
-using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;

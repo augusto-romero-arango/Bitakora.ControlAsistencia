@@ -1,10 +1,13 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantilla;
+
+internal sealed record MensajesDePlantilla(
+    string PlantillaNoExiste, string PlantillaIncompleta, string PlantillaConTurnoNoProgramable,
+    string RechazoDelDominio);
 
 /// <summary>Plantilla de turnos validada como aplicable; la comparten la variante por lista y la por grupo.</summary>
 internal sealed class MoldeDePlantillaTurnos
@@ -16,6 +19,8 @@ internal sealed class MoldeDePlantillaTurnos
     private MoldeDePlantillaTurnos(CuadroDeTurnos cuadro) => this.cuadro = cuadro;
 
     public string Nombre => cuadro.Nombre;
+
+    public int DiasDelCiclo => cuadro.DiasDelCiclo;
 
     public static async Task<(MoldeDePlantillaTurnos? Molde, string? Rechazo)> ResolverAsync(
         ResolutorPlantillaTurnosPorId resolutor, Guid plantillaId, MensajesDePlantilla mensajes, CancellationToken ct)

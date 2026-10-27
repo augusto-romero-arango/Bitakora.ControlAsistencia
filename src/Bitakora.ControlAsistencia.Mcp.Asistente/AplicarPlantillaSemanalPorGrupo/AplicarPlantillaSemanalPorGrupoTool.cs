@@ -1,6 +1,5 @@
 using System.Globalization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantilla;
-using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
@@ -18,7 +17,11 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
     private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
 
+    internal const int DiasPorSemana = 7;
     internal const string NombreTool = "aplicar_plantilla_semanal_por_grupo";
+
+    private static DateOnly LunesDeLaSemana(DateOnly fecha) =>
+        fecha.AddDays(-(((int)fecha.DayOfWeek + 6) % 7));
 
     [Function("AplicarPlantillaSemanalPorGrupo")]
     public async Task<string> Run(
@@ -27,7 +30,10 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
             "Aplica una plantilla semanal de turnos a todos los colaboradores de un grupo, definido por sede "
             + "y/o etiquetas (ambos criterios se combinan), durante una ventana de trabajo de maximo 35 dias. "
             + "La sede de programacion es opcional: sugierela al usuario y, si prefiere la sede de cada "
-            + "colaborador, omite el parametro; no es la sede de trabajo ni el selector sede del grupo. Para "
+            + "colaborador, omite el parametro; no es la sede de trabajo ni el selector sede del grupo. La "
+            + "plantilla se ubica con buscar_plantillas, se alinea al lunes de la semana que contiene 'desde' y "
+            + "solo aplica plantillas de 7 dias (lunes a domingo); para ciclos de otra longitud usa "
+            + "aplicar_plantilla_por_grupo con su fecha de inicio. Para "
             + "personas concretas usa aplicar_plantilla_semanal.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
@@ -35,7 +41,7 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
         string desde,
         [McpToolProperty("hasta", "Ultimo dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
         string hasta,
-        [McpToolProperty("plantilla_id", "Id de la plantilla semanal, tal como lo da buscar_plantillas_semanales.", isRequired: true)]
+        [McpToolProperty("plantilla_id", "Id de la plantilla semanal, tal como lo da buscar_plantillas.", isRequired: true)]
         string plantillaId,
         [McpToolProperty(
             "sede_de_programacion",
@@ -90,6 +96,8 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
         if (rechazoPlantilla is not null)
             return rechazoPlantilla;
         var molde = moldeResuelto!;
+        if (molde.DiasDelCiclo != DiasPorSemana)
+            return string.Format(Mensajes.PlantillaNoEsSemanal, molde.Nombre, molde.DiasDelCiclo);
 
         SedeProgramada? sedeExplicita = null;
         if (!string.IsNullOrWhiteSpace(sedeDeProgramacion))
@@ -128,7 +136,7 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
             return string.Format(Mensajes.RechazoDelDominio, falloFichas);
         var candidatos = resolucionCandidatos.Candidatos;
 
-        var asignacion = molde.AsignacionDesde(fechaDesde, turnosConFranjaSinSede);
+        var asignacion = molde.AsignacionDesde(LunesDeLaSemana(fechaDesde), turnosConFranjaSinSede);
 
         var contadores = new ContadoresDeEjecucion();
         ResultadoEjecucion ejecucion;

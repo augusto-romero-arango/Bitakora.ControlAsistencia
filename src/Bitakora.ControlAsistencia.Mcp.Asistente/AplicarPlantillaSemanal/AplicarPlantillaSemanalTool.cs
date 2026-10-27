@@ -17,18 +17,23 @@ public partial class AplicarPlantillaSemanalTool(
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
     private readonly TimeProvider relojDeEjecucion = reloj ?? TimeProvider.System;
 
+    internal const int DiasPorSemana = 7;
     internal const string NombreTool = "aplicar_plantilla_semanal";
+
+    private static DateOnly LunesDeLaSemana(DateOnly fecha) =>
+        fecha.AddDays(-(((int)fecha.DayOfWeek + 6) % 7));
 
     [Function("AplicarPlantillaSemanal")]
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Aplica una plantilla semanal de turnos a una lista de colaboradores durante una ventana de "
-            + "trabajo de maximo 35 dias. A cada dia le programa el turno que el molde asigna a esa semana "
-            + "y dia; el molde se alinea a la semana (lunes a domingo) que contiene 'desde'. Recibe el "
-            + "id de la plantilla (miralo con buscar_plantillas_semanales), opcionalmente el codigo de "
-            + "la sede de programacion -- distinta de la sede de trabajo de cada colaborador; sugierela al "
-            + "usuario y, si prefiere la sede de cada colaborador, omite el parametro -- y las "
+            + "trabajo de maximo 35 dias. A cada dia le programa el turno que la plantilla asigna a su dia de "
+            + "la semana; la plantilla se alinea al lunes de la semana que contiene 'desde'. Solo aplica "
+            + "plantillas de 7 dias (lunes a domingo); para ciclos de otra longitud usa aplicar_plantilla con "
+            + "su fecha de inicio. Recibe el id de la plantilla (miralo con buscar_plantillas), opcionalmente "
+            + "el codigo de la sede de programacion -- distinta de la sede de trabajo de cada colaborador; "
+            + "sugierela al usuario y, si prefiere la sede de cada colaborador, omite el parametro -- y las "
             + "identificaciones completas separadas por coma, tal como las devuelven buscar_colaboradores "
             + "o listar_colaboradores. A cada colaborador le programa solo los dias que su vinculacion "
             + "cubre y respeta sus ausencias.")]
@@ -38,7 +43,7 @@ public partial class AplicarPlantillaSemanalTool(
         string desde,
         [McpToolProperty("hasta", "Ultimo dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
         string hasta,
-        [McpToolProperty("plantilla_id", "Id de la plantilla semanal, tal como lo da buscar_plantillas_semanales.", isRequired: true)]
+        [McpToolProperty("plantilla_id", "Id de la plantilla semanal, tal como lo da buscar_plantillas.", isRequired: true)]
         string plantillaId,
         [McpToolProperty("sede_de_programacion", "Opcional. Codigo de la sede donde se registra la programacion; sugierela al usuario. Si prefiere la de cada colaborador, omitela.", isRequired: false)]
         string? sedeDeProgramacion,
@@ -89,6 +94,8 @@ public partial class AplicarPlantillaSemanalTool(
         if (rechazoPlantilla is not null)
             return rechazoPlantilla;
         var molde = moldeResuelto!;
+        if (molde.DiasDelCiclo != DiasPorSemana)
+            return string.Format(Mensajes.PlantillaNoEsSemanal, molde.Nombre, molde.DiasDelCiclo);
 
         SedeProgramada? sedeExplicita = null;
         if (!string.IsNullOrWhiteSpace(sedeDeProgramacion))
@@ -121,7 +128,7 @@ public partial class AplicarPlantillaSemanalTool(
             return string.Format(Mensajes.RechazoDelDominio, falloDirectorio);
         var candidatos = resolucionCandidatos.Candidatos;
 
-        var asignacion = molde.AsignacionDesde(fechaDesde, turnosConFranjaSinSede);
+        var asignacion = molde.AsignacionDesde(LunesDeLaSemana(fechaDesde), turnosConFranjaSinSede);
 
         var omitidosPorDirectorio = solicitadas.Count - candidatos.Count;
         var contadores = new ContadoresDeEjecucion { Omitidos = omitidosPorDirectorio };
