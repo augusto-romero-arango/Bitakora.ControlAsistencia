@@ -199,7 +199,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     }
 
     [Fact]
-    public async Task AsignarTurnoADiaDePlantillaTurnos_LanzaPlantillaRetirada_CuandoElDiaEstaFueraDelCiclo()
+    public async Task AsignarTurnoADiaDePlantillaTurnos_LanzaReglaDeNegocioDeclinadaPorRetiro_CuandoLaPlantillaEstaRetiradaYElDiaFueraDelCiclo()
     {
         Given(CrearEventoPlantilla(), PlantillaDeTurnosRetirada.Crear(GuidAggregateId));
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());

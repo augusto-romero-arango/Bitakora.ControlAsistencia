@@ -27,9 +27,7 @@ public class PlantillaDeTurnosRetiradaSerializacionTests
         restaurado!.PlantillaId.Should().Be(PlantillaId);
     }
 
-    // CA-regresion: si nadie registra PlantillaDeTurnosRetirada.ConfigurarSerializacion en
-    // ConfiguracionSerializacionProgramacion.ConfigurarResolver, el ctor privado impide a STJ
-    // reconstruirlo -- este test hace visible el olvido.
+    // Sin ConfigurarSerializacion registrado, el ctor privado impide a STJ reconstruir el evento.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDePlantillaDeTurnosRetirada()
     {

@@ -12,7 +12,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.RetirarPlantillaTurnosFu
 
 public class FunctionEndpointTests
 {
-    private static readonly Guid PlantillaId = Guid.Parse("019600a0-0000-7000-8000-000000000623");
+    private static readonly Guid PlantillaId = Guid.Parse("019600a0-0000-7000-8000-000000001283");
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
@@ -24,7 +24,6 @@ public class FunctionEndpointTests
             .Select(parametro => parametro.GetCustomAttribute<HttpTriggerAttribute>())
             .Single(trigger => trigger is not null)!;
 
-    // CA-6
     [Fact]
     public void RetirarPlantillaTurnos_ExponeElVerboYLaRutaPactadosEnElIssue()
     {
@@ -34,7 +33,6 @@ public class FunctionEndpointTests
         trigger.Route.Should().Be("programacion/plantillas-turnos/{id}");
     }
 
-    // CA-6
     [Fact]
     public async Task RetirarPlantillaTurnos_Retorna204_CuandoComandoEsValido()
     {
@@ -46,7 +44,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<NoContentResult>();
     }
 
-    // El DELETE nunca es asincrono diferido, a diferencia del resto de comandos del dominio.
     [Fact]
     public async Task RetirarPlantillaTurnos_NuncaRetornaAcceptedResult_CuandoComandoEsValido()
     {
@@ -58,7 +55,6 @@ public class FunctionEndpointTests
         result.Should().NotBeOfType<AcceptedResult>();
     }
 
-    // CA-6
     [Fact]
     public async Task RetirarPlantillaTurnos_Retorna400_CuandoElIdDeRutaNoEsUnGuidValido()
     {
@@ -71,7 +67,6 @@ public class FunctionEndpointTests
         router.Invocado.Should().BeFalse();
     }
 
-    // CA-6
     [Fact]
     public async Task RetirarPlantillaTurnos_Retorna404_CuandoElRouterLanzaRecursoNoEncontradoException()
     {
@@ -129,4 +124,3 @@ internal sealed class FakeCommandRouter(Exception? excepcion = null) : ICommandR
         where TCommand : class =>
         throw new NotImplementedException();
 }
-

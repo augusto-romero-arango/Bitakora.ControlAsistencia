@@ -20,7 +20,6 @@ public class RetirarPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest
     private static PlantillaDeTurnosCreada CrearEventoPlantilla(int dias = 8) =>
         PlantillaDeTurnosCreada.Crear(PlantillaId, NombrePlantilla, dias);
 
-    // CA-4
     [Fact]
     public async Task RetirarPlantillaTurnos_EmitePlantillaDeTurnosRetirada_CuandoLaPlantillaEstaActiva()
     {
@@ -32,7 +31,6 @@ public class RetirarPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest
         And<PlantillaTurnos, string>(PlantillaId.ToString(), p => p.Id, PlantillaId.ToString());
     }
 
-    // CA-4: plantilla sin stream -> 404
     [Fact]
     public async Task RetirarPlantillaTurnos_LanzaRecursoNoEncontradoException_CuandoLaPlantillaNoExiste()
     {
@@ -43,7 +41,6 @@ public class RetirarPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest
         Then(PlantillaId.ToString());
     }
 
-    // CA-4: idempotencia (harness#850) -- retirar una plantilla ya retirada no re-emite ni lanza.
     [Fact]
     public async Task RetirarPlantillaTurnos_NoEmiteEvento_CuandoLaPlantillaYaEstaRetirada()
     {
