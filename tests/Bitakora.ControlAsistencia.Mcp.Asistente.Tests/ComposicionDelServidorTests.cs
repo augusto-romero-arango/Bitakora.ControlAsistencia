@@ -52,6 +52,8 @@ public class ComposicionDelServidorTests
                 "programar_ausencia", "cancelar_ausencia",
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
                 "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
+                "asignar_turno_a_dia_de_plantilla", "asignar_jornada_a_plantilla",
+                "quitar_jornada_de_plantilla", "retirar_plantilla",
                 "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
                 "modificar_ventana_de_entrada", "crear_turno_de_horario_abierto",
                 "asignar_etiqueta", "retirar_etiqueta"
@@ -242,6 +244,14 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": false, \"destructiveHint\": false, \"idempotentHint\": true"),
         ("quitar_jornada_de_plantilla_semanal", "Quita la Jornada de una plantilla semanal",
             "\"readOnlyHint\": false, \"destructiveHint\": true, \"idempotentHint\": true"),
+        ("asignar_turno_a_dia_de_plantilla", "Pone o reemplaza el turno de un dia de una plantilla de turnos",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("asignar_jornada_a_plantilla", "Asocia una Jornada a una plantilla de turnos",
+            "\"readOnlyHint\": false, \"destructiveHint\": false, \"idempotentHint\": true"),
+        ("quitar_jornada_de_plantilla", "Quita la Jornada de una plantilla de turnos",
+            "\"readOnlyHint\": false, \"destructiveHint\": false, \"idempotentHint\": true"),
+        ("retirar_plantilla", "Retira una plantilla de turnos del catalogo",
+            "\"readOnlyHint\": false, \"destructiveHint\": true"),
         ("asignar_etiqueta", "Asigna una etiqueta (categoria y valor) a colaboradores concretos",
             "\"readOnlyHint\": false, \"destructiveHint\": false, \"idempotentHint\": true"),
         ("retirar_etiqueta", "Retira la etiqueta de una categoria a colaboradores concretos",
@@ -506,6 +516,27 @@ public class ComposicionDelServidorTests
         ParametrosDeTool("crear_plantilla_semanal")
             .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "jornada_id")
             .ParameterType.Should().Be(typeof(string));
+
+    [Fact]
+    public void ToolsDeEdicionDePlantillaDeTurnos_DeclaranSusParametrosRequeridosComoString_CuandoSeInspeccionanLasTools()
+    {
+        PropiedadesDe("asignar_turno_a_dia_de_plantilla").Should().BeEquivalentTo(
+            [("plantilla_id", true), ("dia", true), ("turno_id", true)]);
+        PropiedadesDe("asignar_jornada_a_plantilla").Should().BeEquivalentTo(
+            [("plantilla_id", true), ("jornada_id", true)]);
+        PropiedadesDe("quitar_jornada_de_plantilla").Should().BeEquivalentTo([("plantilla_id", true)]);
+        PropiedadesDe("retirar_plantilla").Should().BeEquivalentTo([("plantilla_id", true)]);
+
+        foreach (var (nombre, propiedad) in new[]
+        {
+            ("asignar_turno_a_dia_de_plantilla", "plantilla_id"), ("asignar_turno_a_dia_de_plantilla", "turno_id"),
+            ("asignar_jornada_a_plantilla", "plantilla_id"), ("asignar_jornada_a_plantilla", "jornada_id"),
+            ("quitar_jornada_de_plantilla", "plantilla_id"), ("retirar_plantilla", "plantilla_id"),
+        })
+            ParametrosDeTool(nombre)
+                .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == propiedad)
+                .ParameterType.Should().Be(typeof(string), $"{nombre}.{propiedad} viaja como texto (MEF-ADR-0047)");
+    }
 
     [Fact]
     public void AsignarJornadaAPlantillaSemanal_DeclaraPlantillaIdYJornadaIdObligatoriosDeTipoString_CuandoSeInspeccionaLaTool()
