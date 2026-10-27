@@ -17,7 +17,7 @@ public class PlantillaTurnosAdvertenciasTests
         Turno.Crear("Turno", false, [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(6 + horas, 0))]);
 
     private static LimitesJornada Limites(int tope) =>
-        LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(tope, 0),
+        LimitesJornada.Crear(HorasYMinutos.Crear(36, 0), HorasYMinutos.Crear(tope, 0),
             HorasYMinutos.Crear(0, 0), 1);
 
     private static PlantillaTurnos Plantilla() =>

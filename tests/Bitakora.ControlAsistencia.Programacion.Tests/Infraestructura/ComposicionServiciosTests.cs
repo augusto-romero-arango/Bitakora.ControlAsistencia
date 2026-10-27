@@ -160,7 +160,8 @@ public class ComposicionServiciosTests
              typeof(DescansoQuitado), typeof(ExtraQuitado), typeof(SedeDeFranjaAsignada),
              typeof(SedeDeFranjaRetirada), typeof(PlantillaSemanalCreada),
              typeof(PlantillaDeTurnosCreada), typeof(DiaDePlantillaSemanalAsignado), typeof(DiaDePlantillaSemanalQuitado),
-             typeof(PlantillaSemanalRetirada), typeof(VentanaDeEntradaModificada)]);
+             typeof(PlantillaSemanalRetirada), typeof(VentanaDeEntradaModificada),
+             typeof(AdvertenciasDePlantillaDeTurnosCalculadas)]);
     }
 
     // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las
@@ -194,7 +195,8 @@ public class ComposicionServiciosTests
             [typeof(DiaDePlantillaDeTurnosAsignado)] = "dia_de_plantilla_de_turnos_asignado",
             [typeof(DiaDePlantillaSemanalAsignado)] = "dia_de_plantilla_semanal_asignado",
             [typeof(DiaDePlantillaSemanalQuitado)] = "dia_de_plantilla_semanal_quitado",
-            [typeof(PlantillaSemanalRetirada)] = "plantilla_semanal_retirada"
+            [typeof(PlantillaSemanalRetirada)] = "plantilla_semanal_retirada",
+            [typeof(AdvertenciasDePlantillaDeTurnosCalculadas)] = "advertencias_de_plantilla_de_turnos_calculadas"
         });
     }
 
