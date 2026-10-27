@@ -20,14 +20,11 @@ public class QuitarJornadaDePlantillaTurnosSmokeTests(ApiFixture api, PostgresFi
     private static string Ruta(Guid plantillaId) =>
         $"/api/programacion/plantillas-turnos/{plantillaId}/jornada";
 
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task QuitarJornada_DebeRetornar204YPersistirElEvento_CuandoLaPlantillaTieneJornada()
+    private async Task<Guid> CrearPlantillaConJornadaAsync(FirmaDeLimites firma, CancellationToken ct)
     {
-        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
-        var ct = TestContext.Current.CancellationToken;
         var plantillaId = Guid.CreateVersion7();
         var jornadaId = Guid.CreateVersion7();
+
         (await _client.PostAsJsonAsync("/api/programacion/plantillas-turnos", new
         {
             plantillaId,
@@ -35,12 +32,23 @@ public class QuitarJornadaDePlantillaTurnosSmokeTests(ApiFixture api, PostgresFi
             diasDelCiclo = 7
         }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange depende de que CrearPlantillaTurnos funcione");
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas",
-                LimitesDePrueba.QuitarJornadaDePlantillaTurnosPersiste.PayloadCrear(jornadaId), ct))
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created, "el arrange depende de que CrearJornada funcione");
         (await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct))
             .StatusCode.Should().Be(HttpStatusCode.NoContent,
                 "el arrange depende de que AsignarJornadaAPlantillaTurnos funcione");
+
+        return plantillaId;
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task QuitarJornada_DebeRetornar204YPersistirElEvento_CuandoLaPlantillaTieneJornada()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var ct = TestContext.Current.CancellationToken;
+        var plantillaId = await CrearPlantillaConJornadaAsync(
+            LimitesDePrueba.QuitarJornadaDePlantillaTurnosPersiste, ct);
 
         var response = await _client.DeleteAsync(Ruta(plantillaId), ct);
 
@@ -56,21 +64,8 @@ public class QuitarJornadaDePlantillaTurnosSmokeTests(ApiFixture api, PostgresFi
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var ct = TestContext.Current.CancellationToken;
-        var plantillaId = Guid.CreateVersion7();
-        var jornadaId = Guid.CreateVersion7();
-        (await _client.PostAsJsonAsync("/api/programacion/plantillas-turnos", new
-        {
-            plantillaId,
-            nombre = $"[TEST] Plantilla {plantillaId}",
-            diasDelCiclo = 7
-        }, ct)).StatusCode.Should().Be(HttpStatusCode.Created,
-            "el arrange depende de que CrearPlantillaTurnos funcione");
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas",
-                LimitesDePrueba.QuitarJornadaDePlantillaTurnosSinNuevosEventos.PayloadCrear(jornadaId), ct))
-            .StatusCode.Should().Be(HttpStatusCode.Created, "el arrange depende de que CrearJornada funcione");
-        (await _client.PutAsJsonAsync(Ruta(plantillaId), new { jornadaId }, ct))
-            .StatusCode.Should().Be(HttpStatusCode.NoContent,
-                "el arrange depende de que AsignarJornadaAPlantillaTurnos funcione");
+        var plantillaId = await CrearPlantillaConJornadaAsync(
+            LimitesDePrueba.QuitarJornadaDePlantillaTurnosSinNuevosEventos, ct);
         (await _client.DeleteAsync(Ruta(plantillaId), ct)).StatusCode.Should().Be(HttpStatusCode.NoContent);
         var streamId = plantillaId.ToString();
         var eventosTrasPrimera = await postgres.ContarEventosDeStreamAsync(

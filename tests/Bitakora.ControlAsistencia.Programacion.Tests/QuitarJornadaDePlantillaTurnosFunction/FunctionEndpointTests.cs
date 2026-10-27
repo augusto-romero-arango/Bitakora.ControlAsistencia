@@ -1,7 +1,6 @@
-using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using System.Reflection;
 using AwesomeAssertions;
-using Cosmos.EventSourcing.Abstractions.Commands;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.QuitarJornadaDePlantillaTurnosFunction;
 using Bitakora.ControlAsistencia.Programacion.QuitarJornadaDePlantillaTurnosFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.Tests.AsignarTurnoADiaDePlantillaSemanalFunction;
@@ -77,5 +76,16 @@ public class FunctionEndpointTests
             .Run(Request(), PlantillaId.ToString(), CancellationToken.None);
 
         resultado.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
+    public async Task QuitarJornadaDePlantillaTurnos_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+
+        var act = async () => await new FunctionEndpoint(new FakeCommandRouter(fallo))
+            .Run(Request(), PlantillaId.ToString(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 }
