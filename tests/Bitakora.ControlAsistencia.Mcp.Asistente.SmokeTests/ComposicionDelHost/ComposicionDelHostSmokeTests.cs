@@ -12,7 +12,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
         "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
         "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
-        "crear_plantilla_semanal", "buscar_plantillas", "listar_plantillas", "obtener_plantilla",
+        "crear_plantilla_semanal", "crear_plantilla", "buscar_plantillas", "listar_plantillas", "obtener_plantilla",
         "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
         "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
         "consultar_malla_turnos", "consultar_dias_sin_programar",
@@ -61,6 +61,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["listar_plantillas"] = [],
         ["obtener_plantilla"] = ["plantilla_id"],
         ["crear_plantilla_semanal"] = ["nombre", "dias"],
+        ["crear_plantilla"] = ["nombre", "dias_del_ciclo", "dias"],
         ["retirar_plantilla_semanal"] = ["plantilla_id"],
         ["asignar_turno_a_dia"] = ["plantilla_id", "turno_id", "dia"],
         ["quitar_turno_de_dia"] = ["plantilla_id", "dia"],
@@ -141,7 +142,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
             var esEscritura = nombre is "registrar_sede" or "registrar_colaborador" or "registrar_colaboradores" or "crear_turno" or "retirar_turno"
                 or "agregar_franja" or "quitar_franja" or "agregar_subfranja" or "quitar_subfranja"
-                or "asignar_sede_franja" or "crear_plantilla_semanal" or "retirar_plantilla_semanal"
+                or "asignar_sede_franja" or "crear_plantilla_semanal" or "crear_plantilla" or "retirar_plantilla_semanal"
                 or "asignar_turno_a_dia" or "quitar_turno_de_dia" or "solicitar_programacion_turno"
                 or "solicitar_programacion_turno_por_grupo" or "aplicar_plantilla_semanal"
                 or "aplicar_plantilla_semanal_por_grupo" or "aplicar_plantilla" or "aplicar_plantilla_por_grupo"

@@ -100,6 +100,10 @@ public sealed class ProgramacionApi(HttpClient http)
         Guid plantillaId, string nombre, int semanas, Guid? jornadaId, CancellationToken ct) =>
         http.PostAsJsonAsync("api/programacion/plantillas-semanales", new { plantillaId, nombre, semanas, jornadaId }, ct);
 
+    public Task<HttpResponseMessage> CrearPlantillaTurnos(
+        Guid plantillaId, string nombre, int diasDelCiclo, Guid? jornadaId, CancellationToken ct) =>
+        http.PostAsJsonAsync("api/programacion/plantillas-turnos", new { plantillaId, nombre, diasDelCiclo, jornadaId }, ct);
+
     public Task<HttpResponseMessage> AsignarTurnoADia(
         string plantillaId, int semana, int dia, string turnoId, CancellationToken ct) =>
         http.PutAsJsonAsync(
