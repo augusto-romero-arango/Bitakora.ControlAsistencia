@@ -51,8 +51,8 @@ public sealed record DiaDelCuadroDeTurnosRespuesta(int Dia, TurnoDelCuadroDeTurn
 
 public sealed record TurnoDelCuadroDeTurnosRespuesta(
     string Id,
-    string? Nombre,
-    string? Descripcion,
+    string Nombre,
+    string Descripcion,
     bool Completo,
     bool Retirado);
 

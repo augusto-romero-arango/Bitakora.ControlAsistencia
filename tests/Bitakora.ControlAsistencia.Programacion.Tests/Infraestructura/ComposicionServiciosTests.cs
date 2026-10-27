@@ -717,7 +717,6 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(CuadroSemanalTurnos.Id));
     }
 
-    // Issue #1294 CA-4: GET de la plantilla de turnos y par 2 (UseNumericRevisions) de CuadroDeTurnos.
     [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeObtenerCuadroDeTurnos_CuandoElContenedorEstaCompuesto()
     {
@@ -755,6 +754,20 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveCuadroDeTurnosSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(CuadroDeTurnos));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_cuadrodeturnos");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(CuadroDeTurnos.Id));
+    }
+
+    [Fact]
     public void ObtenerYListarCuadrosDeTurnos_DeclaranExactamenteSuVerboYRuta()
     {
         static (string Funcion, string Metodo, string Ruta) Leer(Type endpoint)
@@ -765,7 +778,7 @@ public class ComposicionServiciosTests
             var trigger = run.GetParameters()
                 .SelectMany(p => p.GetCustomAttributes(typeof(Microsoft.Azure.Functions.Worker.HttpTriggerAttribute), false))
                 .Cast<Microsoft.Azure.Functions.Worker.HttpTriggerAttribute>().Single();
-            return (funcion, string.Join(",", trigger.Methods), trigger.Route!);
+            return (funcion, string.Join(",", trigger.Methods ?? []), trigger.Route!);
         }
 
         Leer(typeof(ObtenerCuadroDeTurnosEndpoint)).Should()

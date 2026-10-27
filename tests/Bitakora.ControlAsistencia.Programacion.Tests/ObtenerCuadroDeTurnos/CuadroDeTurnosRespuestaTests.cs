@@ -89,18 +89,39 @@ public class CuadroDeTurnosRespuestaTests
         advertencia.Magnitud.Should().Be(new HorasYMinutosRespuesta(0, 0));
     }
 
-    [Theory]
-    [InlineData("PlantillaSinJornada")]
-    [InlineData("DiaSinTurno")]
-    [InlineData("SuperaTopeDiario")]
-    [InlineData("PorDebajoDelMinimoDiario")]
-    public void Componer_DescribeLaAdvertenciaDesdeResx_CuandoCadaTipo(string tipo)
+    [Fact]
+    public void Componer_DescribeLaAdvertenciaSinDia_CuandoEsPlantillaSinJornada()
     {
-        var vista = Vista(advertencias: [new AdvertenciaDelCuadroDeTurnos(tipo, 1, 60)]);
+        var vista = Vista(advertencias: [new AdvertenciaDelCuadroDeTurnos("PlantillaSinJornada", null, 0)]);
 
-        var advertencia = CuadroDeTurnosRespuesta.Componer(vista).Advertencias.Single();
+        CuadroDeTurnosRespuesta.Componer(vista).Advertencias.Single().Descripcion
+            .Should().Be("La plantilla no tiene Jornada asignada contra la cual auditarse");
+    }
 
-        advertencia.Descripcion.Should().NotBeNullOrWhiteSpace();
-        advertencia.Descripcion.Should().NotBe(tipo);
+    [Fact]
+    public void Componer_DescribeLaAdvertenciaConSuDia_CuandoEsDiaSinTurno()
+    {
+        var vista = Vista(advertencias: [new AdvertenciaDelCuadroDeTurnos("DiaSinTurno", 3, 0)]);
+
+        CuadroDeTurnosRespuesta.Componer(vista).Advertencias.Single().Descripcion
+            .Should().Be("Dia 3: no tiene turno asignado");
+    }
+
+    [Fact]
+    public void Componer_DescribeLaAdvertenciaConSuDiaYMagnitudEnHorasYMinutos_CuandoSuperaTopeDiario()
+    {
+        var vista = Vista(advertencias: [new AdvertenciaDelCuadroDeTurnos("SuperaTopeDiario", 2, 90)]);
+
+        CuadroDeTurnosRespuesta.Componer(vista).Advertencias.Single().Descripcion
+            .Should().Be("Dia 2: supera el tope diario por 1:30 h:min");
+    }
+
+    [Fact]
+    public void Componer_DescribeLaAdvertenciaConSuDiaYMagnitudEnHorasYMinutos_CuandoQuedaPorDebajoDelMinimoDiario()
+    {
+        var vista = Vista(advertencias: [new AdvertenciaDelCuadroDeTurnos("PorDebajoDelMinimoDiario", 1, 45)]);
+
+        CuadroDeTurnosRespuesta.Componer(vista).Advertencias.Single().Descripcion
+            .Should().Be("Dia 1: queda por debajo del minimo diario por 0:45 h:min");
     }
 }

@@ -24,12 +24,12 @@
     <value>La plantilla no tiene Jornada asignada contra la cual auditarse</value>
   </data>
   <data name="DiaSinTurno" xml:space="preserve">
-    <value>Dia {1}: no tiene turno asignado</value>
+    <value>Dia {0}: no tiene turno asignado</value>
   </data>
   <data name="SuperaTopeDiario" xml:space="preserve">
-    <value>Dia {1}: supera el tope diario por {2} h:min</value>
+    <value>Dia {0}: supera el tope diario por {1} h:min</value>
   </data>
   <data name="PorDebajoDelMinimoDiario" xml:space="preserve">
-    <value>Dia {1}: queda por debajo del minimo diario por {2} h:min</value>
+    <value>Dia {0}: queda por debajo del minimo diario por {1} h:min</value>
   </data>
 </root>

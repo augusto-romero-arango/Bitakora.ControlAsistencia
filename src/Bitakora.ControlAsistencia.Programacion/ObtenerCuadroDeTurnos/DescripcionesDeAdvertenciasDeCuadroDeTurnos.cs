@@ -12,6 +12,6 @@ internal static class DescripcionesDeAdvertenciasDeCuadroDeTurnos
     public static string Describir(string tipo, int? dia, HorasYMinutosRespuesta magnitud)
     {
         var plantilla = ResourceManager.GetString(tipo) ?? tipo;
-        return string.Format(plantilla, null, dia, $"{magnitud.Horas}:{magnitud.Minutos:00}");
+        return string.Format(plantilla, dia, $"{magnitud.Horas}:{magnitud.Minutos:00}");
     }
 }
