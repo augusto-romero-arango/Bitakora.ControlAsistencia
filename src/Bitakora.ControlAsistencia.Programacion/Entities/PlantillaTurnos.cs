@@ -5,7 +5,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 public partial class PlantillaTurnos : AggregateRoot
 {
-    private sealed record DiaAsignado(Guid TurnoId, Turno Turno, long VersionTurno);
+    private sealed record DiaAsignado(Guid TurnoId, Turno Turno, long VersionTurno, bool Retirado = false);
 
     private int _diasDelCiclo;
     private bool _estaActiva;
@@ -77,6 +77,34 @@ public partial class PlantillaTurnos : AggregateRoot
         return ResultadoQuitarJornada.Quitada;
     }
 
+    public void Apply(TurnoDePlantillaDeTurnosSincronizado evento)
+    {
+        foreach (var (dia, actual) in _dias.Where(d => d.Value.TurnoId == evento.TurnoId).ToList())
+            _dias[dia] = actual with { Turno = evento.Turno, VersionTurno = evento.VersionTurno, Retirado = evento.Retirado };
+    }
+
+    internal long VersionDelTurno(Guid turnoId) =>
+        _dias.Values.Where(d => d.TurnoId == turnoId).Select(d => d.VersionTurno).DefaultIfEmpty(0).Max();
+
+    internal bool DiaEstaRetirado(int dia) => _dias.TryGetValue(dia, out var d) && d.Retirado;
+
+    private bool UsaElTurno(Guid turnoId) => _dias.Values.Any(d => d.TurnoId == turnoId);
+
+    internal ResultadoSincronizarTurno SincronizarTurno(Guid turnoId, Turno copia, long version, bool retirado)
+    {
+        if (!_estaActiva)
+            return ResultadoSincronizarTurno.PlantillaRetirada;
+
+        if (!UsaElTurno(turnoId) || VersionDelTurno(turnoId) >= version)
+            return ResultadoSincronizarTurno.SinCambios;
+
+        var evento = TurnoDePlantillaDeTurnosSincronizado.Crear(Guid.Parse(Id), turnoId, copia, version, retirado);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        Auditar();
+        return ResultadoSincronizarTurno.Sincronizado;
+    }
+
     internal ResultadoRetiroPlantilla Retirar()
     {
         if (!_estaActiva)
@@ -92,7 +120,7 @@ public partial class PlantillaTurnos : AggregateRoot
     {
         var calculadas = AuditoriaPlantillaTurnos.Auditar(
             _diasDelCiclo,
-            _dias.Select(d => new DiaDePlantillaTurnosAuditado(d.Key, d.Value.Turno)),
+            _dias.Select(d => new DiaDePlantillaTurnosAuditado(d.Key, d.Value.Turno, d.Value.Retirado)),
             Limites);
         if (calculadas.SequenceEqual(Advertencias))
             return;

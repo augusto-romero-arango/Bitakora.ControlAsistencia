@@ -255,4 +255,12 @@ public class AliasEventosProgramacionTests
 
         AliasDe<JornadaDePlantillaDeTurnosQuitada>(options).Should().Be("jornada_de_plantilla_de_turnos_quitada");
     }
+
+    [Fact]
+    public void TurnoDePlantillaDeTurnosSincronizado_TieneAliasTurnoDePlantillaDeTurnosSincronizado()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<TurnoDePlantillaDeTurnosSincronizado>(options).Should().Be("turno_de_plantilla_de_turnos_sincronizado");
+    }
 }

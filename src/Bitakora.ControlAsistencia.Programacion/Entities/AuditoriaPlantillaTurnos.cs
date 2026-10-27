@@ -2,7 +2,7 @@ using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
-public sealed record DiaDePlantillaTurnosAuditado(int Dia, Turno Turno);
+public sealed record DiaDePlantillaTurnosAuditado(int Dia, Turno Turno, bool Retirado = false);
 
 public static class AuditoriaPlantillaTurnos
 {
@@ -18,7 +18,7 @@ public static class AuditoriaPlantillaTurnos
         return Enumerable.Range(1, diasDelCiclo)
             .SelectMany(dia => AuditarDia(
                 dia,
-                ocupados.TryGetValue(dia, out var d) && d.Turno.EstaCompleto() ? d.Turno : null,
+                ocupados.TryGetValue(dia, out var d) && !d.Retirado && d.Turno.EstaCompleto() ? d.Turno : null,
                 limites))
             .Order()
             .ToList()

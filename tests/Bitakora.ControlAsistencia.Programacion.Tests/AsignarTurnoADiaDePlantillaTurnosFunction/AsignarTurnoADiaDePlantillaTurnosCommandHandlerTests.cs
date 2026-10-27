@@ -213,4 +213,20 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
         Then(GuidAggregateId.ToString());
         And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
+
+    [Fact]
+    public async Task AsignarTurnoADiaDePlantillaTurnos_QuitaLaMarcaDeRetirado_CuandoElDiaSeReasignaConOtroTurno()
+    {
+        var retiradoId = Guid.Parse("019600a0-0000-7000-8000-000000001283");
+        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId),
+            DiaDePlantillaDeTurnosAsignado.Crear(GuidAggregateId, 3, retiradoId, CopiaTurnoDescanso, VersionEnElHarness),
+            TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, retiradoId, CopiaTurnoDescanso, 2, true));
+        Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
+
+        await WhenAsync(new AsignarTurnoADiaDePlantillaTurnos(GuidAggregateId, 3, TurnoId));
+
+        Then(DiaDePlantillaDeTurnosAsignado.Crear(
+            GuidAggregateId, 3, TurnoId, CopiaTurnoCompleto, VersionEnElHarness));
+        And<PlantillaTurnos, bool>(p => p.DiaEstaRetirado(3), false);
+    }
 }

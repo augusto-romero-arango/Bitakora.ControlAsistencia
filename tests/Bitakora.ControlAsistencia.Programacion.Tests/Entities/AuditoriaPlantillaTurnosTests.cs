@@ -102,4 +102,15 @@ public class AuditoriaPlantillaTurnosTests
             AdvertenciaPlantillaTurnos.DiaSinTurno(3),
             AdvertenciaPlantillaTurnos.SuperaTopeDiario(4, 60));
     }
+
+    [Fact]
+    public void Auditar_ReportaDiaSinTurno_CuandoElDiaTieneElTurnoRetirado()
+    {
+        var resultado = AuditoriaPlantillaTurnos.Auditar(
+            2,
+            [new DiaDePlantillaTurnosAuditado(1, Trabajo(6), Retirado: true), new DiaDePlantillaTurnosAuditado(2, Trabajo(6))],
+            Limites());
+
+        resultado.Should().Equal(AdvertenciaPlantillaTurnos.DiaSinTurno(1));
+    }
 }
