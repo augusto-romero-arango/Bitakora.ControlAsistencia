@@ -63,7 +63,7 @@ public class RetirarPlantillaTurnosSmokeTests(ApiFixture api, PostgresFixture po
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarPlantillaTurnos_DebeRetornar204YPersistirPlantillaSemanalRetirada_CuandoLaPlantillaExiste()
+    public async Task RetirarPlantillaTurnos_DebeRetornar204YPersistirPlantillaDeTurnosRetirada_CuandoLaPlantillaExiste()
     {
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
 
@@ -84,8 +84,10 @@ public class RetirarPlantillaTurnosSmokeTests(ApiFixture api, PostgresFixture po
     // DELETE es idempotente (RFC 9110 seccion 9.2.2): el segundo retiro no re-emite ni conflictua.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task RetirarPlantillaTurnos_DebeRetornar204_CuandoSeRepiteSobreUnaPlantillaYaRetirada()
+    public async Task RetirarPlantillaTurnos_DebeRetornar204SinNuevosEventos_CuandoSeRepiteSobreUnaPlantillaYaRetirada()
     {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
         var ct = TestContext.Current.CancellationToken;
         var plantillaId = await CrearPlantillaAsync(ct);
         var ruta = $"/api/programacion/plantillas-turnos/{plantillaId}";
@@ -94,9 +96,19 @@ public class RetirarPlantillaTurnosSmokeTests(ApiFixture api, PostgresFixture po
         primeraRespuesta.StatusCode.Should().Be(HttpStatusCode.NoContent,
             "el arrange de este smoke test depende de que el primer retiro funcione");
 
+        var streamId = plantillaId.ToString();
+        (await postgres.ExisteEventoAsync(
+            SchemaProgramacion, streamId, TipoEventoPlantillaRetirada, Timeout))
+            .Should().BeTrue("el primer retiro debe quedar persistido antes de la linea base");
+        var eventosAntes = await postgres.ContarEventosDeStreamAsync(
+            SchemaProgramacion, postgres.TenantId, streamId);
+
         var response = await _client.DeleteAsync(ruta, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var eventosDespues = await postgres.ContarEventosDeStreamAsync(
+            SchemaProgramacion, postgres.TenantId, streamId);
+        eventosDespues.Should().Be(eventosAntes);
     }
 
     [Fact]
