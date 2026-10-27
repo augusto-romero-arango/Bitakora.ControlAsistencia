@@ -5,7 +5,6 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
-using Bitakora.ControlAsistencia.Programacion.SincronizarLimitesDeJornadaDePlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.SincronizarLimitesDeJornadaDePlantillaTurnosFunction;
 using Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoLimitesDeJornadaActualizados.EventHandler;
 using Cosmos.EventDriven.Abstractions;
@@ -17,15 +16,14 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.SincronizarPlantillasCua
 public class LimitesDeJornadaActualizadosEventHandlerTests : PrivateEventHandlerAsyncTest<LimitesDeJornadaActualizados>
 {
     private static readonly Guid JornadaId = Guid.Parse("019600a0-0000-7000-8000-000000000a01");
-    private static readonly Guid PlantillaA = Guid.Parse("019600a0-0000-7000-8000-0000000000a1");
-    private static readonly Guid PlantillaB = Guid.Parse("019600a0-0000-7000-8000-0000000000b2");
+    private static readonly Guid TurnosA = Guid.Parse("019600a0-0000-7000-8000-0000000012a1");
+    private static readonly Guid TurnosB = Guid.Parse("019600a0-0000-7000-8000-0000000012b2");
 
-    private readonly FakeLectorPlantillasPorJornada _lector = new();
     private readonly FakeLectorPlantillasTurnosPorJornada _lectorTurnos = new();
     private readonly FakeRouterRegistrador _router = new();
 
     protected override IPrivateEventHandlerAsync<LimitesDeJornadaActualizados> Handler =>
-        new LimitesDeJornadaActualizadosEventHandler(_lector, _lectorTurnos, _router);
+        new LimitesDeJornadaActualizadosEventHandler(_lectorTurnos, _router);
 
     // 42 h semanales, tope 9 h, minimo 2 h 30, 2 descansos.
     private static LimitesDeJornadaActualizados Evento(long version = 4) =>
@@ -33,23 +31,6 @@ public class LimitesDeJornadaActualizadosEventHandlerTests : PrivateEventHandler
 
     private static LimitesJornada LimitesEsperados() =>
         LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(9, 0), HorasYMinutos.Crear(2, 30), 2);
-
-    [Fact]
-    public async Task LimitesDeJornadaActualizados_EnviaElComandoACadaPlantillaDeLaJornada_CuandoCambianLosLimites()
-    {
-        _lector.PlantillaIds = [PlantillaA.ToString(), PlantillaB.ToString()];
-
-        await WhenAsync(Evento());
-
-        _lector.JornadasConsultadas.Should().Equal(JornadaId);
-        var esperados = LimitesEsperados();
-        _router.Comandos.Should().Equal(
-            new SincronizarLimitesDeJornadaDePlantillaSemanal(PlantillaA, JornadaId, esperados, 4),
-            new SincronizarLimitesDeJornadaDePlantillaSemanal(PlantillaB, JornadaId, esperados, 4));
-    }
-
-    private static readonly Guid TurnosA = Guid.Parse("019600a0-0000-7000-8000-0000000012a1");
-    private static readonly Guid TurnosB = Guid.Parse("019600a0-0000-7000-8000-0000000012b2");
 
     [Fact]
     public async Task LimitesDeJornadaActualizados_EnviaElComandoACadaPlantillaDeTurnosDeLaJornada_CuandoCambianLosLimites()
@@ -66,52 +47,26 @@ public class LimitesDeJornadaActualizadosEventHandlerTests : PrivateEventHandler
     }
 
     [Fact]
-    public async Task LimitesDeJornadaActualizados_EnviaPrimeroLasSemanalesYLuegoLasDeTurnos_CuandoLaJornadaTieneAmbas()
-    {
-        _lector.PlantillaIds = [PlantillaA.ToString()];
-        _lectorTurnos.PlantillaIds = [TurnosA.ToString()];
-
-        await WhenAsync(Evento());
-
-        var esperados = LimitesEsperados();
-        _router.Comandos.Should().Equal(
-            new SincronizarLimitesDeJornadaDePlantillaSemanal(PlantillaA, JornadaId, esperados, 4),
-            new SincronizarLimitesDeJornadaDePlantillaTurnos(TurnosA, JornadaId, esperados, 4));
-    }
-
-    [Fact]
     public async Task LimitesDeJornadaActualizados_NoEnviaComandos_CuandoNingunaPlantillaUsaLaJornada()
     {
-        _lector.PlantillaIds = [];
+        _lectorTurnos.PlantillaIds = [];
 
         await WhenAsync(Evento());
 
-        _lector.JornadasConsultadas.Should().Equal(JornadaId);
+        _lectorTurnos.JornadasConsultadas.Should().Equal(JornadaId);
         _router.Comandos.Should().BeEmpty();
     }
 
     [Fact]
     public async Task LimitesDeJornadaActualizados_Lanza_CuandoLosDatosNoSePuedenReinstanciar()
     {
-        _lector.PlantillaIds = [PlantillaA.ToString()];
+        _lectorTurnos.PlantillaIds = [TurnosA.ToString()];
         var invalido = new LimitesDeJornadaActualizados(JornadaId, 3, 2520, 540, 150, 7);
 
         var act = async () => await WhenAsync(invalido);
 
         await act.Should().ThrowAsync<Exception>();
         _router.Comandos.Should().BeEmpty();
-    }
-
-    private sealed class FakeLectorPlantillasPorJornada : ILectorPlantillasPorJornada
-    {
-        public IReadOnlyList<string> PlantillaIds { get; set; } = [];
-        public List<Guid> JornadasConsultadas { get; } = [];
-
-        public Task<IReadOnlyList<string>> ObtenerPlantillaIdsAsync(Guid jornadaId, CancellationToken ct)
-        {
-            JornadasConsultadas.Add(jornadaId);
-            return Task.FromResult(PlantillaIds);
-        }
     }
 
     private sealed class FakeLectorPlantillasTurnosPorJornada : ILectorPlantillasTurnosPorJornada

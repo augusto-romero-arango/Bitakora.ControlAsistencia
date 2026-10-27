@@ -194,10 +194,9 @@ public class ConfiguracionMartenProjectionsTests
                 typeof(ExtraQuitado),
                 typeof(SedeDeFranjaAsignada),
                 typeof(SedeDeFranjaRetirada),
-                typeof(PlantillaSemanalCreada),
-                typeof(DiaDePlantillaSemanalAsignado),
-                typeof(DiaDePlantillaSemanalQuitado),
-                typeof(PlantillaSemanalRetirada),
+                typeof(PlantillaDeTurnosCreada),
+                typeof(DiaDePlantillaDeTurnosAsignado),
+                typeof(PlantillaDeTurnosRetirada),
                 typeof(VentanaDeEntradaModificada)
             ]);
     }
@@ -321,48 +320,6 @@ public class ConfiguracionMartenProjectionsTests
         mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_ausenciavigente");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(AusenciaVigente.Id));
-    }
-
-    // CA-5, mismo criterio que el test de FichaTurno de arriba.
-    [Fact]
-    public void ConfigurarProgramacion_RegistraCuadroSemanalTurnosProjectionComoAsync()
-    {
-        using var provider = ProviderDeProgramacion();
-
-        provider.GetRequiredService<IProgramacionProjectionStore>()
-            .AssertProyeccionAsyncRegistrada("CuadroSemanalTurnos");
-    }
-
-    // Issue #625: el par de compatibilidad write-side/read-side (mt_version bigint, Schema.For en
-    // ComposicionServicios) llega con el GET que empieza a leer la tabla -- hasta este issue solo
-    // el worker tocaba CuadroSemanalTurnos. Mismo criterio que
-    // ConfigurarProgramacion_MaterializaFichaTurnoConRevisionNumerica de arriba.
-    [Fact]
-    public void ConfigurarProgramacion_MaterializaCuadroSemanalTurnosConRevisionNumerica()
-    {
-        using var provider = ProviderDeProgramacion();
-
-        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
-            .Options.FindOrResolveDocumentType(typeof(CuadroSemanalTurnos));
-
-        mapping.Metadata.Revision.Enabled.Should().BeTrue();
-        mapping.Metadata.Revision.Type.Should().Be("bigint");
-        mapping.Metadata.Version.Enabled.Should().BeFalse();
-    }
-
-    // Mitad worker del par 2 para CuadroSemanalTurnos, mismo criterio que
-    // ConfigurarProgramacion_MaterializaFichaTurnoSobreLaTablaQueConsultaElWriteSide de arriba.
-    [Fact]
-    public void ConfigurarProgramacion_MaterializaCuadroSemanalTurnosSobreLaTablaQueConsultaElWriteSide()
-    {
-        using var provider = ProviderDeProgramacion();
-
-        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
-            .Options.FindOrResolveDocumentType(typeof(CuadroSemanalTurnos));
-
-        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_cuadrosemanalturnos");
-        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
-        mapping.IdMember.Name.Should().Be(nameof(CuadroSemanalTurnos.Id));
     }
 
     [Fact]

@@ -17,11 +17,10 @@ public class DesactivarJornadaCommandHandlerTests : CommandHandlerAsyncTest<Desa
     private static readonly Guid JornadaY = Guid.Parse("019600a0-0000-7000-8000-000000000871");
     private static readonly string StreamPreferencias = PreferenciasProgramacion.ComputarStreamId(Tenant);
 
-    private readonly FakeLectorPlantillas _lector = new();
-    private readonly FakeLectorPlantillasTurnos _lectorTurnos = new();
+    private readonly FakeLectorPlantillasTurnos _lector = new();
 
     protected override ICommandHandlerAsync<DesactivarJornada> Handler =>
-        new DesactivarJornadaCommandHandler(EventStore, _lector, _lectorTurnos, new FakeTenantContext());
+        new DesactivarJornadaCommandHandler(EventStore, _lector, new FakeTenantContext());
 
     private static JornadaCreada Creada(Guid id) => JornadaCreada.Crear(id,
         LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 0),
@@ -95,33 +94,6 @@ public class DesactivarJornadaCommandHandlerTests : CommandHandlerAsyncTest<Desa
     }
 
     [Fact]
-    public async Task DesactivarJornada_LanzaReglaDeNegocioDeclinadaConIds_CuandoLaUsaUnaPlantillaDeTurnos()
-    {
-        Given(JornadaX.ToString(), Creada(JornadaX));
-        _lectorTurnos.Plantillas = ["t1"];
-        var act = async () => await WhenAsync(new DesactivarJornada(JornadaX));
-        var excepcion = (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()).Which;
-        excepcion.Message.Should().Contain(DesactivarJornadaCommandHandler.Mensajes.JornadaEnUsoPorPlantillas)
-            .And.Contain("t1");
-        Then(JornadaX.ToString());
-        And<Jornada, bool>(JornadaX.ToString(), j => j.Activa, true);
-        _lectorTurnos.JornadaConsultada.Should().Be(JornadaX);
-    }
-
-    [Fact]
-    public async Task DesactivarJornada_ListaLosIdsDeAmbosTiposDePlantilla_CuandoLaUsanSemanalesYDeTurnos()
-    {
-        Given(JornadaX.ToString(), Creada(JornadaX));
-        _lector.Plantillas = ["p1"];
-        _lectorTurnos.Plantillas = ["t1"];
-        var act = async () => await WhenAsync(new DesactivarJornada(JornadaX));
-        var excepcion = (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()).Which;
-        excepcion.Message.Should().Contain("p1").And.Contain("t1");
-        Then(JornadaX.ToString());
-        And<Jornada, bool>(JornadaX.ToString(), j => j.Activa, true);
-    }
-
-    [Fact]
     public void Mensajes_TienenTextoEnElResx_CuandoSeConsultanPorResourceManager()
     {
         DesactivarJornadaCommandHandler.Mensajes.JornadaNoEncontrada.Should().NotBeNullOrWhiteSpace();
@@ -129,7 +101,7 @@ public class DesactivarJornadaCommandHandlerTests : CommandHandlerAsyncTest<Desa
         DesactivarJornadaCommandHandler.Mensajes.JornadaEnUsoPorPlantillas.Should().NotBeNullOrWhiteSpace();
     }
 
-    private sealed class FakeLectorPlantillas : ILectorPlantillasPorJornada
+    private sealed class FakeLectorPlantillasTurnos : ILectorPlantillasTurnosPorJornada
     {
         public IReadOnlyList<string> Plantillas { get; set; } = [];
         public int Consultas { get; private set; }
@@ -138,18 +110,6 @@ public class DesactivarJornadaCommandHandlerTests : CommandHandlerAsyncTest<Desa
         public Task<IReadOnlyList<string>> ObtenerPlantillaIdsAsync(Guid jornadaId, CancellationToken ct)
         {
             Consultas++;
-            JornadaConsultada = jornadaId;
-            return Task.FromResult(Plantillas);
-        }
-    }
-
-    private sealed class FakeLectorPlantillasTurnos : ILectorPlantillasTurnosPorJornada
-    {
-        public IReadOnlyList<string> Plantillas { get; set; } = [];
-        public Guid? JornadaConsultada { get; private set; }
-
-        public Task<IReadOnlyList<string>> ObtenerPlantillaIdsAsync(Guid jornadaId, CancellationToken ct)
-        {
             JornadaConsultada = jornadaId;
             return Task.FromResult(Plantillas);
         }

@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
-using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaTurnosFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -88,12 +87,9 @@ public static class ComposicionServicios
         services.AgregarWolverineEventSender();
         services.AgregarWolverinePrivateEventRouter();
         services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
-        services.AddScoped<ILectorNombresPlantillaSemanal, LectorReadSideProgramacion>();
         services.AddScoped<ILectorNombresPlantillaTurnos, LectorReadSideProgramacion>();
         services.AddScoped<ILectorLimitesJornada, LectorReadSideProgramacion>();
-        services.AddScoped<ILectorPlantillasPorJornada, LectorReadSideProgramacion>();
         services.AddScoped<ILectorPlantillasTurnosPorJornada, LectorReadSideProgramacion>();
-        services.AddScoped<ILectorPlantillasPorTurno, LectorReadSideProgramacion>();
         services.AddScoped<ILectorPlantillasTurnosPorTurno, LectorReadSideProgramacion>();
         services.AddScoped<IAlmacenPreferenciasProgramacion, AlmacenPreferenciasProgramacion>();
         services.AddScoped<IAseguradorJornadaPredeterminada, AseguradorJornadaPredeterminada>();
@@ -120,15 +116,7 @@ public static class ComposicionServicios
             // y los GET en 500 permanente. El par de config-tests congela ambos literales.
             options.Schema.For<FichaTurno>().UseNumericRevisions(true);
 
-            // Issue #625: par 2 para CuadroSemanalTurnos -- este GET (ObtenerCuadroSemanalTurnos/
-            // ListarCuadrosSemanalesTurnos) es el primer consumidor write-side de la vista que #624
-            // materializo. Mismo motivo que FichaTurno arriba: sin esta linea el store esperaria
-            // mt_version uuid sobre la MISMA tabla que el worker ya escribe con mt_version bigint,
-            // 500 permanente en el primer request real.
-            options.Schema.For<CuadroSemanalTurnos>().UseNumericRevisions(true);
-
-            // Issue #1286: par 2 para CuadroDeTurnos, mismo motivo; se declara ya con la vista para
-            // que el consumidor GET de #1294 no pueda olvidarlo.
+            // Issue #1286: par 2 para CuadroDeTurnos, mismo motivo.
             options.Schema.For<CuadroDeTurnos>().UseNumericRevisions(true);
 
             // Issue #755: par 2 para AusenciaVigente (ListarAusenciasDelEquipo), mismo motivo.

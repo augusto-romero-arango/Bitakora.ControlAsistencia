@@ -1,7 +1,6 @@
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
-using Bitakora.ControlAsistencia.Programacion.SincronizarLimitesDeJornadaDePlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.SincronizarLimitesDeJornadaDePlantillaTurnosFunction;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -10,15 +9,12 @@ namespace Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoLim
 
 public class LimitesDeJornadaActualizadosEventHandler : IPrivateEventHandlerAsync<LimitesDeJornadaActualizados>
 {
-    private readonly ILectorPlantillasPorJornada _lectorPlantillasSemanales;
     private readonly ILectorPlantillasTurnosPorJornada _lectorPlantillasTurnos;
     private readonly ICommandRouter _commandRouter;
 
     public LimitesDeJornadaActualizadosEventHandler(
-        ILectorPlantillasPorJornada lectorPlantillasSemanales, ILectorPlantillasTurnosPorJornada lectorPlantillasTurnos,
-        ICommandRouter commandRouter)
+        ILectorPlantillasTurnosPorJornada lectorPlantillasTurnos, ICommandRouter commandRouter)
     {
-        _lectorPlantillasSemanales = lectorPlantillasSemanales;
         _lectorPlantillasTurnos = lectorPlantillasTurnos;
         _commandRouter = commandRouter;
     }
@@ -26,11 +22,6 @@ public class LimitesDeJornadaActualizadosEventHandler : IPrivateEventHandlerAsyn
     public async Task HandleAsync(LimitesDeJornadaActualizados @event, CancellationToken ct = default)
     {
         var limites = Reinstanciar(@event);
-        var plantillasSemanales = await _lectorPlantillasSemanales.ObtenerPlantillaIdsAsync(@event.JornadaId, ct);
-        foreach (var plantillaId in plantillasSemanales)
-            await _commandRouter.InvokeAsync(new SincronizarLimitesDeJornadaDePlantillaSemanal(
-                Guid.Parse(plantillaId), @event.JornadaId, limites, @event.Version), ct);
-
         var plantillasTurnos = await _lectorPlantillasTurnos.ObtenerPlantillaIdsAsync(@event.JornadaId, ct);
         foreach (var plantillaId in plantillasTurnos)
             await _commandRouter.InvokeAsync(new SincronizarLimitesDeJornadaDePlantillaTurnos(

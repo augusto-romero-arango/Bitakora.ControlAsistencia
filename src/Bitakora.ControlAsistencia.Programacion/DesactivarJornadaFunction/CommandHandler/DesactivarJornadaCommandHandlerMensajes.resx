@@ -6,5 +6,5 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
   <data name="JornadaNoEncontrada" xml:space="preserve"><value>La Jornada no existe</value></data>
   <data name="JornadaPredeterminada" xml:space="preserve"><value>La Jornada es la predeterminada de las Preferencias de programacion; asigna otra como predeterminada antes de desactivarla</value></data>
-  <data name="JornadaEnUsoPorPlantillas" xml:space="preserve"><value>La Jornada esta en uso por plantillas semanales vigentes; reasignalas antes de desactivarla. Plantillas:</value></data>
+  <data name="JornadaEnUsoPorPlantillas" xml:space="preserve"><value>La Jornada esta en uso por plantillas de turnos vigentes; reasignalas antes de desactivarla. Plantillas:</value></data>
 </root>

@@ -77,7 +77,7 @@ seccion 2 verificacion 3) -- `ejemplo_listar` lo demuestra con `fecha_referencia
 
 ## Tools
 
-27 tools, pineadas por reflexion en `ComposicionDelServidorTests` y en vivo en
+53 tools, pineadas por reflexion en `ComposicionDelServidorTests` y en vivo en
 `ComposicionDelHostSmokeTests`:
 
 | Grupo | Lectura | Escritura |
@@ -86,7 +86,7 @@ seccion 2 verificacion 3) -- `ejemplo_listar` lo demuestra con `fecha_referencia
 | Sedes | `buscar_sedes`, `listar_sedes` | `registrar_sede` |
 | Colaboradores | `listar_colaboradores` (por grupo), `buscar_colaboradores` (por persona) | `registrar_colaborador` |
 | Turnos | `buscar_turnos`, `listar_turnos`, `obtener_turno` | `crear_turno`, `retirar_turno`, `agregar_franja`, `quitar_franja`, `agregar_subfranja`, `quitar_subfranja`, `asignar_sede_franja` |
-| Plantillas semanales | `buscar_plantillas_semanales`, `listar_plantillas_semanales`, `obtener_plantilla_semanal` | `crear_plantilla_semanal`, `retirar_plantilla_semanal`, `asignar_turno_a_dia`, `quitar_turno_de_dia` |
+| Plantillas de turnos | `buscar_plantillas`, `listar_plantillas`, `obtener_plantilla` | `crear_plantilla`, `crear_plantilla_rotativa`, `crear_plantilla_semanal`, `retirar_plantilla`, `asignar_turno_a_dia_de_plantilla`, `asignar_jornada_a_plantilla`, `quitar_jornada_de_plantilla`, `aplicar_plantilla`, `aplicar_plantilla_por_grupo`, `aplicar_plantilla_semanal`, `aplicar_plantilla_semanal_por_grupo` |
 | Programacion | `consultar_programacion` | `solicitar_programacion_turno` |
 | Ausencias | `consultar_ausencias` | `programar_ausencia`, `cancelar_ausencia` |
 

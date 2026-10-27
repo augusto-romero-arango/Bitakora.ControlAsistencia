@@ -6,7 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.RetirarPlantillaTurnosFunction;
 
 // El evento no cruza ningun bus: mt_events es la unica ventana black-box al efecto secundario del
-// handler (mismo criterio que QuitarTurnoDeDiaDePlantillaSemanalSmokeTests).
+// handler.
 public class RetirarPlantillaTurnosSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private const string SchemaProgramacion = "programacion";

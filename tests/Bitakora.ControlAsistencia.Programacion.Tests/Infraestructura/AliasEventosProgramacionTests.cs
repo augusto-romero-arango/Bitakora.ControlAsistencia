@@ -141,37 +141,11 @@ public class AliasEventosProgramacionTests
     }
 
     [Fact]
-    public void PlantillaSemanalCreada_TieneAliasPlantillaSemanalCreada()
-    {
-        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
-
-        AliasDe<PlantillaSemanalCreada>(options).Should().Be("plantilla_semanal_creada");
-    }
-
-    [Fact]
     public void DiaDePlantillaDeTurnosAsignado_TieneAliasDiaDePlantillaDeTurnosAsignado()
     {
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();
 
         AliasDe<DiaDePlantillaDeTurnosAsignado>(options).Should().Be("dia_de_plantilla_de_turnos_asignado");
-    }
-
-    // Issue #621
-    [Fact]
-    public void DiaDePlantillaSemanalAsignado_TieneAliasDiaDePlantillaSemanalAsignado()
-    {
-        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
-
-        AliasDe<DiaDePlantillaSemanalAsignado>(options).Should().Be("dia_de_plantilla_semanal_asignado");
-    }
-
-    // Issue #622
-    [Fact]
-    public void DiaDePlantillaSemanalQuitado_TieneAliasDiaDePlantillaSemanalQuitado()
-    {
-        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
-
-        AliasDe<DiaDePlantillaSemanalQuitado>(options).Should().Be("dia_de_plantilla_semanal_quitado");
     }
 
     [Fact]
@@ -180,14 +154,6 @@ public class AliasEventosProgramacionTests
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();
 
         AliasDe<PlantillaDeTurnosRetirada>(options).Should().Be("plantilla_de_turnos_retirada");
-    }
-
-    [Fact]
-    public void PlantillaSemanalRetirada_TieneAliasPlantillaSemanalRetirada()
-    {
-        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
-
-        AliasDe<PlantillaSemanalRetirada>(options).Should().Be("plantilla_semanal_retirada");
     }
 
     [Fact]
@@ -220,15 +186,6 @@ public class AliasEventosProgramacionTests
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();
 
         AliasDe<JornadaPredeterminadaAsignada>(options).Should().Be("jornada_predeterminada_asignada");
-    }
-
-    [Fact]
-    public void AdvertenciasDePlantillaSemanalCalculadas_TieneAliasAdvertenciasDePlantillaSemanalCalculadas()
-    {
-        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
-
-        AliasDe<AdvertenciasDePlantillaSemanalCalculadas>(options)
-            .Should().Be("advertencias_de_plantilla_semanal_calculadas");
     }
 
     [Fact]
