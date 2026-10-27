@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaTurnosFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
@@ -14,11 +15,11 @@ namespace Bitakora.ControlAsistencia.Programacion.Infraestructura;
 // de LectorReadSideSedes (#477): la QuerySession se abre siempre acotada al tenant que resuelve
 // ITenantContext (MEF-ADR-0028/CA-ADR-0027).
 //
-// Los dos puertos declaran ObtenerNombresAsync con la misma firma, asi que ambos se implementan de
-// forma explicita: la clase no expone superficie publica propia y ninguna de las dos vistas queda
-// arbitrariamente privilegiada como "la" del tipo concreto. Solo se resuelve por interfaz (DI).
+// Los puertos de nombres declaran ObtenerNombresAsync con la misma firma, asi que todos se
+// implementan de forma explicita: la clase no expone superficie publica propia y ninguna vista
+// queda arbitrariamente privilegiada como "la" del tipo concreto. Solo se resuelve por interfaz (DI).
 public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext tenantContext)
-    : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorLimitesJornada, ILectorPlantillasPorJornada, ILectorPlantillasPorTurno, ILectorPlantillasTurnosPorTurno
+    : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorNombresPlantillaTurnos, ILectorLimitesJornada, ILectorPlantillasPorJornada, ILectorPlantillasPorTurno, ILectorPlantillasTurnosPorTurno
 {
     async Task<IReadOnlyList<string>> ILectorNombresTurno.ObtenerNombresAsync(CancellationToken ct)
     {
@@ -30,6 +31,12 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
     {
         await using var session = store.QuerySession(tenantContext.TenantId);
         return await session.Query<CuadroSemanalTurnos>().Select(c => c.Nombre).ToListAsync(ct);
+    }
+
+    async Task<IReadOnlyList<string>> ILectorNombresPlantillaTurnos.ObtenerNombresAsync(CancellationToken ct)
+    {
+        await using var session = store.QuerySession(tenantContext.TenantId);
+        return await session.Query<CuadroDeTurnos>().Select(c => c.Nombre).ToListAsync(ct);
     }
 
     async Task<IReadOnlyList<string>> ILectorPlantillasPorJornada.ObtenerPlantillaIdsAsync(

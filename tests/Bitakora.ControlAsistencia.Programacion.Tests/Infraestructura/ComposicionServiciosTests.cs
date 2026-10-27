@@ -25,6 +25,8 @@ using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaTurnosFunction;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaTurnosFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels;
@@ -830,6 +832,28 @@ public class ComposicionServiciosTests
         await using var scope = provider.CreateAsyncScope();
 
         var act = () => ActivatorUtilities.CreateInstance<CrearPlantillaSemanalCommandHandler>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveILectorNombresPlantillaTurnos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var lector = scope.ServiceProvider.GetRequiredService<ILectorNombresPlantillaTurnos>();
+
+        lector.Should().BeOfType<LectorReadSideProgramacion>();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElHandlerDeCrearPlantillaTurnos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<CrearPlantillaTurnosCommandHandler>(scope.ServiceProvider);
 
         act.Should().NotThrow();
     }

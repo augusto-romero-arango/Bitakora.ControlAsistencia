@@ -161,4 +161,64 @@ public class CrearPlantillaTurnosSmokeTests(ApiFixture api, PostgresFixture post
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    private async Task<bool> PlantillaEstaMaterializadaAsync(Guid plantillaId, CancellationToken ct)
+    {
+        var response = await _client.GetAsync($"{Ruta}/{plantillaId}", ct);
+        return response.StatusCode == HttpStatusCode.OK;
+    }
+
+    private async Task<HttpResponseMessage> CrearConNombreAsync(Guid plantillaId, string nombre, CancellationToken ct) =>
+        await _client.PostAsJsonAsync(Ruta, new { plantillaId, nombre, diasDelCiclo = 8 }, ct);
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_DebeRetornar409_CuandoElNombreYaExisteEnElCatalogo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sufijo = Guid.CreateVersion7();
+        var plantillaExistenteId = Guid.CreateVersion7();
+
+        var arrange = await CrearConNombreAsync(plantillaExistenteId, $"[TEST] Ciclo {sufijo}", ct);
+        arrange.StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange de este smoke test depende de que CrearPlantillaTurnos funcione");
+        (await Polling.WaitUntilTrueAsync(
+            async () => await PlantillaEstaMaterializadaAsync(plantillaExistenteId, ct), Timeout))
+            .Should().BeTrue("la vista debe materializar la plantilla antes de comparar nombres");
+
+        var duplicado = await CrearConNombreAsync(Guid.CreateVersion7(), $"  [test]  ciclo {sufijo} ", ct);
+
+        duplicado.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var conAcento = await CrearConNombreAsync(Guid.CreateVersion7(), $"[TEST] Ciclé {sufijo}", ct);
+
+        conAcento.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_LiberaElNombre_CuandoLaPlantillaSeRetira()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nombreOriginal = $"[TEST] Ciclo Liberado {Guid.CreateVersion7()}";
+        var plantillaOriginalId = Guid.CreateVersion7();
+
+        var arrange = await CrearConNombreAsync(plantillaOriginalId, nombreOriginal, ct);
+        arrange.StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange de este smoke test depende de que CrearPlantillaTurnos funcione");
+        (await Polling.WaitUntilTrueAsync(
+            async () => await PlantillaEstaMaterializadaAsync(plantillaOriginalId, ct), Timeout))
+            .Should().BeTrue("la vista debe materializar la plantilla antes de retirarla");
+
+        var retiro = await _client.DeleteAsync($"{Ruta}/{plantillaOriginalId}", ct);
+        retiro.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            "el arrange de este smoke test depende de que el retiro de la plantilla funcione");
+        (await Polling.WaitUntilTrueAsync(
+            async () => !await PlantillaEstaMaterializadaAsync(plantillaOriginalId, ct), Timeout))
+            .Should().BeTrue("la vista debe borrar la plantilla retirada");
+
+        var reutilizado = await CrearConNombreAsync(Guid.CreateVersion7(), nombreOriginal, ct);
+
+        reutilizado.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
 }

@@ -8,10 +8,13 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearPlantillaTurnosFunction.C
 public partial class CrearPlantillaTurnosCommandHandler : ICommandHandlerAsync<CrearPlantillaTurnos>
 {
     private readonly IEventStore _eventStore;
+    private readonly ILectorNombresPlantillaTurnos _lectorNombres;
 
-    public CrearPlantillaTurnosCommandHandler(IEventStore eventStore)
+    public CrearPlantillaTurnosCommandHandler(
+        IEventStore eventStore, ILectorNombresPlantillaTurnos lectorNombres)
     {
         _eventStore = eventStore;
+        _lectorNombres = lectorNombres;
     }
 
     public async Task HandleAsync(CrearPlantillaTurnos command, CancellationToken ct = default)
@@ -19,6 +22,10 @@ public partial class CrearPlantillaTurnosCommandHandler : ICommandHandlerAsync<C
         var existe = await _eventStore.ExistsAsync<PlantillaTurnos>(command.PlantillaId, ct);
         if (existe)
             throw new RecursoYaExisteException(Mensajes.PlantillaYaExiste);
+
+        var nombresVigentes = await _lectorNombres.ObtenerNombresAsync(ct);
+        if (NombreDeCatalogo.EstaRepetido(command.Nombre, nombresVigentes))
+            throw new ReglaDeNegocioDeclinadaException(Mensajes.NombreDuplicado);
 
         Jornada? jornada = null;
         if (command.JornadaId is { } jornadaId)

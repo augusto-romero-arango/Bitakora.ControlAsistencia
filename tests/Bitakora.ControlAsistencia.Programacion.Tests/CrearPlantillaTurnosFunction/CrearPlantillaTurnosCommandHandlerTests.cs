@@ -14,8 +14,10 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
 {
     private const string NombrePlantilla = "Ciclo 8 dias";
 
+    private FakeLectorNombresPlantillaTurnos _lector = new();
+
     protected override ICommandHandlerAsync<CrearPlantillaTurnos> Handler =>
-        new CrearPlantillaTurnosCommandHandler(EventStore);
+        new CrearPlantillaTurnosCommandHandler(EventStore, _lector);
 
     [Fact]
     public async Task CrearPlantillaTurnos_EmitePlantillaDeTurnosCreadaYEstableceId_CuandoPlantillaNoExiste()
@@ -126,9 +128,111 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
     }
 
     [Fact]
+    public async Task CrearPlantillaTurnos_LanzaReglaDeNegocioDeclinadaException_CuandoElNombreCoincideConUnoVigente()
+    {
+        _lector = new FakeLectorNombresPlantillaTurnos("Ciclo Noche");
+        Given();
+
+        var act = async () => await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, "Ciclo Noche", 8));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{CrearPlantillaTurnosCommandHandler.Mensajes.NombreDuplicado}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaTurnos, string>(p => p.Id, string.Empty);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_LanzaReglaDeNegocioDeclinadaException_CuandoElNombreDifiereSoloEnMayusculasYEspacios()
+    {
+        _lector = new FakeLectorNombresPlantillaTurnos("Ciclo Noche");
+        Given();
+
+        var act = async () => await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, "  ciclo   NOCHE ", 8));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{CrearPlantillaTurnosCommandHandler.Mensajes.NombreDuplicado}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaTurnos, string>(p => p.Id, string.Empty);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_EmitePlantillaDeTurnosCreada_CuandoElNombreDifiereSoloEnAcentos()
+    {
+        _lector = new FakeLectorNombresPlantillaTurnos("Ciclo Noche");
+        Given();
+
+        await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, "Ciclo Noché", 8));
+
+        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, "Ciclo Noché", 8),
+            EventoSinJornada(GuidAggregateId));
+        And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_EmitePlantillaDeTurnosCreada_CuandoNingunNombreVigenteCoincide()
+    {
+        _lector = new FakeLectorNombresPlantillaTurnos("Ciclo Dia", "Ciclo Tarde");
+        Given();
+
+        await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8));
+
+        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8),
+            EventoSinJornada(GuidAggregateId));
+        And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_LanzaPlantillaYaExiste_CuandoPlantillaYaExisteYElNombreEstaDuplicado()
+    {
+        Given(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8));
+        _lector = new FakeLectorNombresPlantillaTurnos(NombrePlantilla);
+
+        var act = async () => await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8));
+
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
+            .WithMessage($"*{CrearPlantillaTurnosCommandHandler.Mensajes.PlantillaYaExiste}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_LanzaNombreDuplicado_CuandoNombreEstaDuplicadoYDiasDelCicloEsInvalido()
+    {
+        _lector = new FakeLectorNombresPlantillaTurnos(NombrePlantilla);
+        Given();
+
+        var act = async () => await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 0));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{CrearPlantillaTurnosCommandHandler.Mensajes.NombreDuplicado}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaTurnos, string>(p => p.Id, string.Empty);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_LanzaNombreDuplicado_CuandoNombreEstaDuplicadoYLaJornadaNoExiste()
+    {
+        _lector = new FakeLectorNombresPlantillaTurnos(NombrePlantilla);
+        Given();
+
+        var act = async () => await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8, JornadaId));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{CrearPlantillaTurnosCommandHandler.Mensajes.NombreDuplicado}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaTurnos, string>(p => p.Id, string.Empty);
+    }
+
+    [Fact]
     public void Mensajes_JornadaNoEncontradaYDesactivadaTienenTextoEnElResx_CuandoSeConsultaPorResourceManager()
     {
         CrearPlantillaTurnosCommandHandler.Mensajes.JornadaNoEncontrada.Should().NotBeNullOrWhiteSpace();
         CrearPlantillaTurnosCommandHandler.Mensajes.JornadaDesactivada.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public void Mensajes_NombreDuplicadoTieneTextoEnElResx_CuandoSeConsultaPorResourceManager()
+    {
+        CrearPlantillaTurnosCommandHandler.Mensajes.NombreDuplicado.Should().NotBeNullOrWhiteSpace();
     }
 }
