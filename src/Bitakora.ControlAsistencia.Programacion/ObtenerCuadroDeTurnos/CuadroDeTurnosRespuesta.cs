@@ -12,8 +12,39 @@ public sealed record CuadroDeTurnosRespuesta(
     JornadaDelCuadroDeTurnosRespuesta? Jornada,
     IReadOnlyList<AdvertenciaDelCuadroDeTurnosRespuesta> Advertencias)
 {
-    public static CuadroDeTurnosRespuesta Componer(CuadroDeTurnos cuadro) =>
-        throw new NotImplementedException();
+    private const int MinutosPorHora = 60;
+
+    public static CuadroDeTurnosRespuesta Componer(CuadroDeTurnos cuadro) => new(
+        cuadro.Id,
+        cuadro.Nombre,
+        cuadro.DiasDelCiclo,
+        cuadro.Completa,
+        cuadro.Dias
+            .Select(d => new DiaDelCuadroDeTurnosRespuesta(
+                d.Dia,
+                new TurnoDelCuadroDeTurnosRespuesta(d.TurnoId, d.Nombre, d.Descripcion, d.Completo, d.Retirado)))
+            .ToList(),
+        cuadro.JornadaId is { } jornadaId && cuadro.Limites is { } l
+            ? new JornadaDelCuadroDeTurnosRespuesta(
+                jornadaId,
+                AHorasYMinutos(l.HorasSemanalesEnMinutos),
+                AHorasYMinutos(l.TopeDiarioEnMinutos),
+                AHorasYMinutos(l.MinimoDiarioEnMinutos),
+                l.DiasDescansoPorSemana,
+                l.Descripcion)
+            : null,
+        cuadro.Advertencias.Select(ComponerAdvertencia).ToList());
+
+    private static AdvertenciaDelCuadroDeTurnosRespuesta ComponerAdvertencia(AdvertenciaDelCuadroDeTurnos a)
+    {
+        var magnitud = AHorasYMinutos(a.Magnitud);
+        return new AdvertenciaDelCuadroDeTurnosRespuesta(
+            a.Tipo, a.Dia, magnitud,
+            DescripcionesDeAdvertenciasDeCuadroDeTurnos.Describir(a.Tipo, a.Dia, magnitud));
+    }
+
+    private static HorasYMinutosRespuesta AHorasYMinutos(int minutos) =>
+        new(minutos / MinutosPorHora, minutos % MinutosPorHora);
 }
 
 public sealed record DiaDelCuadroDeTurnosRespuesta(int Dia, TurnoDelCuadroDeTurnosRespuesta Turno);
