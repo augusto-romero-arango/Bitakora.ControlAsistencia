@@ -27,6 +27,10 @@ public partial class CrearPlantillaSemanalTool
         public static string SemanasFueraDeRango =>
             ResourceManager.GetString(nameof(SemanasFueraDeRango))!;
 
+        /// <summary>{0}: semana recibida en la entrada.</summary>
+        public static string SemanaDistintaDeUno =>
+            ResourceManager.GetString(nameof(SemanaDistintaDeUno))!;
+
         public static string DiasJsonInvalido =>
             ResourceManager.GetString(nameof(DiasJsonInvalido))!;
 

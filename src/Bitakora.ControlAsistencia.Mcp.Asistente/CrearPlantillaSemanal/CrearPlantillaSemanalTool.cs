@@ -47,8 +47,6 @@ public partial class CrearPlantillaSemanalTool(
         ToolInvocationContext context,
         [McpToolProperty("nombre", "Nombre unico de la plantilla semanal en el catalogo.", isRequired: true)]
         string nombre,
-        [McpToolProperty("semanas", "Numero de semanas de la plantilla (1 a 6). Por defecto 1.")]
-        int? semanas,
         [McpToolProperty(
             "dias",
             "Composicion de la plantilla como JSON: lista de objetos con semana (opcional, 1 por "
@@ -63,7 +61,7 @@ public partial class CrearPlantillaSemanalTool(
         if (string.IsNullOrWhiteSpace(nombre))
             return string.Format(Mensajes.CampoObligatorio, "nombre");
 
-        var semanasValor = semanas ?? MinimoSemanas;
+        var semanasValor = MinimoSemanas;
         if (semanasValor < MinimoSemanas || semanasValor > MaximoSemanas)
             return string.Format(Mensajes.SemanasFueraDeRango, semanasValor);
 

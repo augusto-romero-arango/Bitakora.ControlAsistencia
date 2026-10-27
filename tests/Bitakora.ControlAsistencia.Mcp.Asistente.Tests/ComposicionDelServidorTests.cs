@@ -475,7 +475,7 @@ public class ComposicionDelServidorTests
     [Fact]
     public void CrearPlantillaSemanal_DeclaraNombreYDiasComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("crear_plantilla_semanal").Should().BeEquivalentTo(
-            [("nombre", true), ("semanas", false), ("dias", true), ("jornada_id", false)]);
+            [("nombre", true), ("dias", true), ("jornada_id", false)]);
 
     [Fact]
     public void CrearPlantilla_DeclaraNombreDiasDelCicloYDiasComoObligatorios_CuandoSeInspeccionaLaTool() =>
@@ -535,6 +535,34 @@ public class ComposicionDelServidorTests
 
         descripcion.Should().Contain("turno_id").And.Contain("buscar_turnos").And.Contain("franja");
         descripcion.Should().NotContain("\"turno\":");
+    }
+
+    [Fact]
+    public void CrearPlantillaSemanal_DescribeUnCicloDeSieteDiasYRemiteACrearPlantilla_CuandoSeInspeccionaSuDescripcion()
+    {
+        var descripcion = ParametroTrigger(MetodoDe("crear_plantilla_semanal"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!.Description;
+
+        descripcion.Should().Contain("7 dias").And.Contain("crear_plantilla").And.Contain("crear_plantilla_rotativa")
+            .And.Contain("asignar_turno_a_dia_de_plantilla").And.Contain("listar_plantillas").And.Contain("aplicar_plantilla_semanal");
+        descripcion.Should().NotContain("1 a 6 semanas").And.NotContain("asignar_turno_a_dia.");
+    }
+
+    [Fact]
+    public void AplicarPlantillaSemanal_SoloAplicaPlantillasDeSieteDiasYRemiteAAplicarPlantilla_CuandoSeInspeccionanSusDescripciones()
+    {
+        foreach (var nombreTool in new[] { "aplicar_plantilla_semanal", "aplicar_plantilla_semanal_por_grupo" })
+        {
+            var metodo = MetodoDe(nombreTool);
+            var descripcion = ParametroTrigger(metodo)!.GetCustomAttribute<McpToolTriggerAttribute>()!.Description;
+            var parametro = metodo.GetParameters()
+                .Select(p => p.GetCustomAttribute<McpToolPropertyAttribute>())
+                .Single(a => a?.PropertyName == "plantilla_id")!.Description;
+
+            descripcion.Should().Contain("7 dias").And.Contain("aplicar_plantilla").And.Contain("fecha de inicio");
+            descripcion.Should().NotContain("buscar_plantillas_semanales");
+            parametro.Should().Contain("buscar_plantillas").And.NotContain("buscar_plantillas_semanales");
+        }
     }
 
     [Fact]

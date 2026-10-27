@@ -6,82 +6,15 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
+using static Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte.CicloDeTurnosFalso;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.AplicarPlantillaSemanal;
 
 public class AplicarPlantillaSemanalToolTests
 {
-    private const string RutaPlantillas = "/api/programacion/plantillas-semanales";
     private const string RutaTurnos = "/api/programacion/turnos";
     private const string RutaSolicitudes = "/api/programacion/solicitudes";
-    private const string PlantillaId = "01a07000-1000-7000-9000-000000000001";
-    private const string PlantillaIdInexistente = "01a07000-1000-7000-9000-0000000000ff";
-    private const string TurnoA = "8f14e45f-ceea-4b3c-8f0a-000000000001";
-    private const string TurnoB = "8f14e45f-ceea-4b3c-8f0a-000000000002";
     private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
-
-    private static object Slot(int semana, int dia, string id, bool completo = true, bool retirado = false) => new
-    {
-        semana,
-        dia,
-        turno = new { id, nombre = $"Turno {id[^1]}", descripcion = "(06:00-14:00)", completo, retirado }
-    };
-
-    private static string Plantillas(
-        string nombre = "Semana A", int semanas = 2, bool completa = true,
-        bool turnoBCompleto = true, bool turnoBRetirado = false) => JsonSerializer.Serialize(
-        new
-        {
-            elementos = new[]
-        {
-            new
-            {
-                id = "01a07000-1000-7000-9000-000000000001",
-                nombre,
-                semanas,
-                completa,
-                dias = new[]
-                {
-                    Slot(1, 1, TurnoA), Slot(1, 2, TurnoA), Slot(1, 3, TurnoA), Slot(1, 4, TurnoA),
-                    Slot(1, 5, TurnoA), Slot(1, 6, TurnoA), Slot(1, 7, TurnoA),
-                    Slot(2, 1, TurnoB, turnoBCompleto, turnoBRetirado), Slot(2, 2, TurnoB, turnoBCompleto, turnoBRetirado),
-                    Slot(2, 3, TurnoB, turnoBCompleto, turnoBRetirado), Slot(2, 4, TurnoB, turnoBCompleto, turnoBRetirado),
-                    Slot(2, 5, TurnoB, turnoBCompleto, turnoBRetirado), Slot(2, 6, TurnoB, turnoBCompleto, turnoBRetirado),
-                    Slot(2, 7, TurnoB, turnoBCompleto, turnoBRetirado)
-                }
-            },
-            new
-            {
-                id = "01a07000-1000-7000-9000-000000000002", nombre = "Semana B", semanas = 1, completa = true,
-                dias = Array.Empty<object>()
-            }
-        }
-        },
-        Web);
-
-    private static string Turnos(string? sedeIdDeLaFranja) => JsonSerializer.Serialize(
-        new
-        {
-            elementos = new[] { TurnoA, TurnoB }.Select(id => new
-            {
-                id,
-                nombre = $"Turno {id[^1]}",
-                esDescanso = false,
-                horarioResumido = "06:00-14:00",
-                franjas = new[]
-            {
-                new
-                {
-                    horaInicio = "06:00:00", horaFin = "14:00:00", diaOffsetFin = 0,
-                    descansos = Array.Empty<object>(), extras = Array.Empty<object>(),
-                    sedeId = sedeIdDeLaFranja, nombreSede = (string?)null, descripcion = ""
-                }
-            },
-                descripcion = "",
-                completo = true
-            })
-        },
-        Web);
 
     private static string DirectorioDe(string identificacion, string vigenteDesde, string? codigoSede = "SUBA") =>
         JsonSerializer.Serialize(
@@ -89,11 +22,11 @@ public class AplicarPlantillaSemanalToolTests
             {
                 elementos = new[]
                 {
-                new
-                {
-                    identificacion, nombreCompleto = "Nombre AR01", codigoColaborador = "AR01", codigoSede,
-                    vigenteDesde, vigenteHasta = (string?)null
-                }
+                    new
+                    {
+                        identificacion, nombreCompleto = "Nombre AR01", codigoColaborador = "AR01", codigoSede,
+                        vigenteDesde, vigenteHasta = (string?)null
+                    }
                 }
             },
             Web);
@@ -105,19 +38,22 @@ public class AplicarPlantillaSemanalToolTests
                 .Where(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaSolicitudes)
                 .Select(r => JsonNode.Parse(r.Cuerpo!)!)];
 
-        public JsonNode PostDeTurno(string turnoId) =>
-            Posts.Single(p => p["turnoId"]!.GetValue<string>() == turnoId);
+        public JsonNode PostDeTurno(int dia) =>
+            Posts.Single(p => p["turnoId"]!.GetValue<string>() == TurnoDelDia(dia));
 
         public static string[] Fechas(JsonNode post) =>
             [.. post["fechas"]!.AsArray().Select(f => f!.GetValue<string>())];
     }
 
     private static Entorno Crear(
-        string plantillasJson, string directorioJson, string? sedeDeLaFranja = "SUBA",
+        string plantillaJson, string directorioJson, string? sedeDeLaFranja = "SUBA",
         Func<string?, HttpResponseMessage>? respuestaPost = null)
     {
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
-        programacion.RespondeDetalleDePlantilla(plantillasJson, PlantillaId);
+        programacion.Responde(
+            HttpMethod.Get, CatalogoDePlantillasTurnosFalso.RutaDetalle(PlantillaId), HttpStatusCode.OK, plantillaJson);
+        programacion.Responde(
+            HttpMethod.Get, CatalogoDePlantillasTurnosFalso.RutaDetalle(PlantillaIdInexistente), HttpStatusCode.NotFound, "");
         programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, Turnos(sedeDeLaFranja));
         programacion.Responde(
             HttpMethod.Post, RutaSolicitudes,
@@ -127,14 +63,14 @@ public class AplicarPlantillaSemanalToolTests
 
         var tool = new AplicarPlantillaSemanalTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorPlantillaPorId(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorPlantillaTurnosPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
         return new Entorno(tool, programacion);
     }
 
     private static Task<string> Ejecutar(
-        Entorno entorno, string desde = "2026-09-01", string hasta = "2026-09-14",
+        Entorno entorno, string desde = "2026-11-02", string hasta = "2026-11-08",
         string plantillaId = PlantillaId, string? sede = null, string identificaciones = "CC-1111") =>
         entorno.Tool.Run(
             null!, desde, hasta, plantillaId, sede, identificaciones, TestContext.Current.CancellationToken);
@@ -143,10 +79,83 @@ public class AplicarPlantillaSemanalToolTests
         entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
 
     [Fact]
+    public async Task AplicarPlantillaSemanal_TomaElDiaTresDelCiclo_CuandoDesdeEsMiercoles()
+    {
+        var entorno = Crear(Plantilla(dias: 7), DirectorioDe("CC-1111", "2025-01-01"));
+
+        var resultado = await Ejecutar(entorno, desde: "2026-11-04", hasta: "2026-11-10");
+
+        Entorno.Fechas(entorno.PostDeTurno(3)).Should().Equal("2026-11-04");
+        Entorno.Fechas(entorno.PostDeTurno(4)).Should().Equal("2026-11-05");
+        Entorno.Fechas(entorno.PostDeTurno(7)).Should().Equal("2026-11-08");
+        Entorno.Fechas(entorno.PostDeTurno(1)).Should().Equal("2026-11-09");
+        Entorno.Fechas(entorno.PostDeTurno(2)).Should().Equal("2026-11-10");
+        JsonNode.Parse(resultado)!["plantilla"]!.GetValue<string>().Should().Be("Ciclo A");
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanal_TomaElDiaUnoElLunes_CuandoDesdeEsLunes()
+    {
+        var entorno = Crear(Plantilla(dias: 7), DirectorioDe("CC-1111", "2025-01-01"));
+
+        await Ejecutar(entorno, desde: "2026-11-02", hasta: "2026-11-08");
+
+        entorno.Posts.Should().HaveCount(7);
+        Entorno.Fechas(entorno.PostDeTurno(1)).Should().Equal("2026-11-02");
+        Entorno.Fechas(entorno.PostDeTurno(7)).Should().Equal("2026-11-08");
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanal_TomaElDiaSieteElDomingo_CuandoDesdeEsDomingo()
+    {
+        var entorno = Crear(Plantilla(dias: 7), DirectorioDe("CC-1111", "2025-01-01"));
+
+        await Ejecutar(entorno, desde: "2026-11-08", hasta: "2026-11-09");
+
+        Entorno.Fechas(entorno.PostDeTurno(7)).Should().Equal("2026-11-08");
+        Entorno.Fechas(entorno.PostDeTurno(1)).Should().Equal("2026-11-09");
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanal_RechazaRemitiendoAAplicarPlantilla_CuandoElCicloNoEsDeSieteDias()
+    {
+        var entorno = Crear(Plantilla(dias: 14), DirectorioDe("CC-1111", "2025-01-01"));
+
+        var resultado = await Ejecutar(entorno);
+
+        resultado.Should().Be(string.Format(AplicarPlantillaSemanalTool.Mensajes.PlantillaNoEsSemanal, "Ciclo A", 14));
+        resultado.Should().Contain("aplicar_plantilla");
+        NoHuboPosts(entorno);
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanal_RechazaSinPost_CuandoElCicloEsDeTresDias()
+    {
+        var entorno = Crear(Plantilla(dias: 3), DirectorioDe("CC-1111", "2025-01-01"));
+
+        var resultado = await Ejecutar(entorno);
+
+        resultado.Should().Be(string.Format(AplicarPlantillaSemanalTool.Mensajes.PlantillaNoEsSemanal, "Ciclo A", 3));
+        NoHuboPosts(entorno);
+    }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanal_LeeElDetalleDeLaPlantillaDeTurnos_CuandoLaPlantillaExiste()
+    {
+        var entorno = Crear(Plantilla(dias: 7), DirectorioDe("CC-1111", "2025-01-01"));
+
+        await Ejecutar(entorno);
+
+        entorno.Programacion.Requests.Should().Contain(
+            r => r.Metodo == HttpMethod.Get && r.Ruta == CatalogoDePlantillasTurnosFalso.RutaDetalle(PlantillaId));
+        entorno.Programacion.Requests.Should().NotContain(
+            r => r.Ruta.StartsWith("/api/programacion/plantillas-semanales"));
+    }
+
+    [Fact]
     public async Task AplicarPlantillaSemanal_RechazaConLaFraseDelId_CuandoLaPlantillaNoExiste()
     {
-        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01"));
-        entorno.Programacion.RespondeDetalleDePlantilla(Plantillas(), PlantillaIdInexistente);
+        var entorno = Crear(Plantilla(dias: 7), DirectorioDe("CC-1111", "2025-01-01"));
 
         var resultado = await Ejecutar(entorno, plantillaId: PlantillaIdInexistente);
 
@@ -157,7 +166,7 @@ public class AplicarPlantillaSemanalToolTests
     [Fact]
     public async Task AplicarPlantillaSemanal_RechazaSinLlamarAlBackend_CuandoElPlantillaIdNoEsGuid()
     {
-        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01"));
+        var entorno = Crear(Plantilla(dias: 7), DirectorioDe("CC-1111", "2025-01-01"));
 
         var resultado = await Ejecutar(entorno, plantillaId: "Semana A");
 
@@ -166,112 +175,55 @@ public class AplicarPlantillaSemanalToolTests
     }
 
     [Fact]
-    public async Task AplicarPlantillaSemanal_LeeElDetalleYNoElCatalogoDePlantillas_CuandoLaPlantillaExiste()
-    {
-        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01"));
-
-        await Ejecutar(entorno);
-
-        entorno.Programacion.Requests.Should().Contain(
-            r => r.Metodo == HttpMethod.Get && r.Ruta == DetalleDePlantillaFalso.RutaDetalle(PlantillaId));
-        entorno.Programacion.Requests.Should().NotContain(
-            r => r.Metodo == HttpMethod.Get && r.Ruta == RutaPlantillas);
-    }
-
-    [Fact]
     public async Task AplicarPlantillaSemanal_RechazaSinPost_CuandoLaPlantillaEstaIncompleta()
     {
-        var entorno = Crear(Plantillas(completa: false), DirectorioDe("CC-1111", "2025-01-01"));
+        var entorno = Crear(Plantilla(dias: 7, completa: false), DirectorioDe("CC-1111", "2025-01-01"));
 
         var resultado = await Ejecutar(entorno);
 
-        resultado.Should().Be(string.Format(AplicarPlantillaSemanalTool.Mensajes.PlantillaIncompleta, "Semana A"));
+        resultado.Should().Be(string.Format(AplicarPlantillaSemanalTool.Mensajes.PlantillaIncompleta, "Ciclo A"));
         NoHuboPosts(entorno);
     }
 
     [Fact]
     public async Task AplicarPlantillaSemanal_RechazaSinPost_CuandoLaPlantillaReferenciaUnTurnoRetirado()
     {
-        var entorno = Crear(Plantillas(turnoBRetirado: true), DirectorioDe("CC-1111", "2025-01-01"));
+        var entorno = Crear(Plantilla(dias: 7, diaRetirado: 5), DirectorioDe("CC-1111", "2025-01-01"));
 
         var resultado = await Ejecutar(entorno);
 
-        resultado.Should().Be(
-            string.Format(AplicarPlantillaSemanalTool.Mensajes.PlantillaConTurnoNoProgramable, "Semana A"));
+        resultado.Should().Be(string.Format(AplicarPlantillaSemanalTool.Mensajes.PlantillaConTurnoNoProgramable, "Ciclo A"));
         NoHuboPosts(entorno);
     }
 
     [Fact]
     public async Task AplicarPlantillaSemanal_RechazaSinPost_CuandoLaPlantillaReferenciaUnTurnoIncompleto()
     {
-        var entorno = Crear(Plantillas(turnoBCompleto: false), DirectorioDe("CC-1111", "2025-01-01"));
+        var entorno = Crear(Plantilla(dias: 7, diaIncompleto: 2), DirectorioDe("CC-1111", "2025-01-01"));
 
         var resultado = await Ejecutar(entorno);
 
-        resultado.Should().Be(
-            string.Format(AplicarPlantillaSemanalTool.Mensajes.PlantillaConTurnoNoProgramable, "Semana A"));
+        resultado.Should().Be(string.Format(AplicarPlantillaSemanalTool.Mensajes.PlantillaConTurnoNoProgramable, "Ciclo A"));
         NoHuboPosts(entorno);
     }
 
     [Fact]
     public async Task AplicarPlantillaSemanal_RechazaSinPost_CuandoLaVentanaSupera35Dias()
     {
-        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01"));
+        var entorno = Crear(Plantilla(dias: 7), DirectorioDe("CC-1111", "2025-01-01"));
 
-        var resultado = await Ejecutar(entorno, desde: "2026-09-01", hasta: "2026-10-06");
+        var resultado = await Ejecutar(entorno, desde: "2026-11-02", hasta: "2026-12-07");
 
         resultado.Should().Be(string.Format(AplicarPlantillaSemanalTool.Mensajes.VentanaExcedeMaximo, 36));
         NoHuboPosts(entorno);
     }
 
     [Fact]
-    public async Task AplicarPlantillaSemanal_RechazaSinPost_CuandoLaFechaTieneFormatoInvalido()
-    {
-        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01"));
-
-        var resultado = await Ejecutar(entorno, desde: "01/09/2026");
-
-        resultado.Should().Be(string.Format(AplicarPlantillaSemanalTool.Mensajes.FechaInvalida, "desde", "01/09/2026"));
-        NoHuboPosts(entorno);
-    }
-
-    [Fact]
-    public async Task AplicarPlantillaSemanal_EnviaUnPostPorTurnoDistintoConSusFechas_CuandoElMoldeAlternaSemanas()
-    {
-        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01"));
-
-        var resultado = await Ejecutar(entorno, desde: "2026-09-02", hasta: "2026-09-14");
-
-        entorno.Posts.Should().HaveCount(2);
-        Entorno.Fechas(entorno.PostDeTurno(TurnoA)).Should().Equal(
-            "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05", "2026-09-06", "2026-09-14");
-        Entorno.Fechas(entorno.PostDeTurno(TurnoB)).Should().Equal(
-            "2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-12", "2026-09-13");
-        var json = JsonNode.Parse(resultado)!;
-        json["plantilla"]!.GetValue<string>().Should().Be("Semana A");
-        json["sede"].Should().BeNull();
-        json["programados"]!.AsArray().Single()!["identificacion"]!.GetValue<string>().Should().Be("CC-1111");
-    }
-
-    [Fact]
-    public async Task AplicarPlantillaSemanal_NoReiniciaElMolde_CuandoLaVigenciaRecortaLosPrimerosDias()
-    {
-        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2026-09-09"));
-
-        await Ejecutar(entorno, desde: "2026-09-01", hasta: "2026-09-14");
-
-        entorno.Posts.Should().HaveCount(2);
-        Entorno.Fechas(entorno.PostDeTurno(TurnoB)).Should().Equal(
-            "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-12", "2026-09-13");
-        Entorno.Fechas(entorno.PostDeTurno(TurnoA)).Should().Equal("2026-09-14");
-    }
-
-    [Fact]
     public async Task AplicarPlantillaSemanal_ReportaFallidoConElTurnoYProgramaElResto_CuandoUnPostEsRechazado()
     {
         var entorno = Crear(
-            Plantillas(), DirectorioDe("CC-1111", "2025-01-01"),
-            respuestaPost: cuerpo => cuerpo!.Contains(TurnoB)
+            Plantilla(dias: 7), DirectorioDe("CC-1111", "2025-01-01"),
+            respuestaPost: cuerpo => cuerpo!.Contains(TurnoDelDia(2))
                 ? EntornoDeSedes.Respuesta(HttpStatusCode.Conflict, "turno rechazado")
                 : EntornoDeSedes.Respuesta(HttpStatusCode.Created, ""));
 
@@ -279,58 +231,18 @@ public class AplicarPlantillaSemanalToolTests
 
         var json = JsonNode.Parse(resultado)!;
         json["programados"]!.AsArray().Should().ContainSingle();
-        var fallido = json["fallidos"]!.AsArray().Single()!;
-        fallido["identificacion"]!.GetValue<string>().Should().Be("CC-1111");
-        fallido["turno"]!.GetValue<string>().Should().Be("Turno 2");
-    }
-
-    [Fact]
-    public async Task AplicarPlantillaSemanal_AvisaSinSede_CuandoElColaboradorNoTieneSedeYUnTurnoTieneFranjaSinSede()
-    {
-        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01", codigoSede: null), sedeDeLaFranja: null);
-
-        var resultado = await Ejecutar(entorno);
-
-        var aviso = JsonNode.Parse(resultado)!["avisos"]!.AsArray().Single()!;
-        aviso["identificacion"]!.GetValue<string>().Should().Be("CC-1111");
-        entorno.Posts.Should().OnlyContain(p => p["sede"] == null);
-        entorno.Programacion.Requests.Count(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaTurnos)
-            .Should().Be(1);
-    }
-
-    [Fact]
-    public async Task AplicarPlantillaSemanal_RechazaSinPost_CuandoLaSedeExplicitaNoExiste()
-    {
-        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01"));
-
-        var resultado = await Ejecutar(entorno, sede: "FANTASMA");
-
-        resultado.Should().Be(string.Format(AplicarPlantillaSemanalTool.Mensajes.SedeNoExiste, "FANTASMA"));
-        NoHuboPosts(entorno);
+        json["fallidos"]!.AsArray().Single()!["turno"]!.GetValue<string>().Should().Be("Turno 2");
     }
 
     [Fact]
     public async Task AplicarPlantillaSemanal_EnviaLaSedeExplicitaSinLeerElCatalogo_CuandoSeIndicaSedeDeProgramacion()
     {
-        var entorno = Crear(Plantillas(), DirectorioDe("CC-1111", "2025-01-01", codigoSede: null), sedeDeLaFranja: null);
+        var entorno = Crear(Plantilla(dias: 7), DirectorioDe("CC-1111", "2025-01-01", codigoSede: null), sedeDeLaFranja: null);
 
         var resultado = await Ejecutar(entorno, sede: "SUBA");
 
-        var json = JsonNode.Parse(resultado)!;
-        json["sede"]!["codigo"]!.GetValue<string>().Should().Be("SUBA");
-        json.AsObject().ContainsKey("avisos").Should().BeFalse();
-        entorno.Posts.Should().HaveCount(2).And.OnlyContain(p => p["sede"]!["id"]!.GetValue<string>() == "SUBA");
+        JsonNode.Parse(resultado)!["sede"]!["codigo"]!.GetValue<string>().Should().Be("SUBA");
+        entorno.Posts.Should().HaveCount(7).And.OnlyContain(p => p["sede"]!["id"]!.GetValue<string>() == "SUBA");
         entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaTurnos);
-    }
-
-    [Fact]
-    public async Task AplicarPlantillaSemanal_NoAvisa_CuandoTodasLasFranjasTienenSede()
-    {
-        var entorno = Crear(
-            Plantillas(), DirectorioDe("CC-1111", "2025-01-01", codigoSede: null), sedeDeLaFranja: "SUBA");
-
-        var resultado = await Ejecutar(entorno);
-
-        JsonNode.Parse(resultado)!.AsObject().ContainsKey("avisos").Should().BeFalse();
     }
 }

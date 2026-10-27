@@ -1,4 +1,5 @@
 using System.Globalization;
+using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantilla;
 using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanal;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
@@ -11,7 +12,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanalPorGru
 
 public partial class AplicarPlantillaSemanalPorGrupoTool(
     ProgramacionApi programacion, SedesApi sedes,
-    ResolutorPlantillaPorId resolutorPlantillas, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorGrupo resolutorCandidatos,
+    ResolutorPlantillaTurnosPorId resolutorPlantillas, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorGrupo resolutorCandidatos,
     ILogger<AplicarPlantillaSemanalPorGrupoTool>? logger = null, TimeProvider? reloj = null)
 {
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
@@ -81,7 +82,7 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
 
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
-        var (moldeResuelto, rechazoPlantilla) = await MoldeDePlantilla.ResolverAsync(
+        var (moldeResuelto, rechazoPlantilla) = await MoldeDePlantillaTurnos.ResolverAsync(
             resolutorPlantillas, plantillaGuid,
             new MensajesDePlantilla(
                 Mensajes.PlantillaNoExiste, Mensajes.PlantillaIncompleta, Mensajes.PlantillaConTurnoNoProgramable,

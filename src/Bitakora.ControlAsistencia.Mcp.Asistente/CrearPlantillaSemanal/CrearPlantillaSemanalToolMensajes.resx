@@ -86,4 +86,5 @@
   <data name="JornadaNoExiste" xml:space="preserve">
     <value>La Jornada no existe; mirala con listar_jornadas.</value>
   </data>
+  <data name="SemanaDistintaDeUno" xml:space="preserve"><value>La plantilla semanal es de una sola semana (lunes a domingo); se recibio semana {0}. Para ciclos de otra longitud usa crear_plantilla o crear_plantilla_rotativa.</value></data>
 </root>

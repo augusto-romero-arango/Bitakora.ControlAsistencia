@@ -1,4 +1,5 @@
 using System.Globalization;
+using Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantilla;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
@@ -10,7 +11,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanal;
 
 public partial class AplicarPlantillaSemanalTool(
     ProgramacionApi programacion, SedesApi sedes,
-    ResolutorPlantillaPorId resolutorPlantillas, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorLista resolutorCandidatos,
+    ResolutorPlantillaTurnosPorId resolutorPlantillas, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorLista resolutorCandidatos,
     ILogger<AplicarPlantillaSemanalTool>? logger = null, TimeProvider? reloj = null)
 {
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
@@ -80,7 +81,7 @@ public partial class AplicarPlantillaSemanalTool(
 
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
-        var (moldeResuelto, rechazoPlantilla) = await MoldeDePlantilla.ResolverAsync(
+        var (moldeResuelto, rechazoPlantilla) = await MoldeDePlantillaTurnos.ResolverAsync(
             resolutorPlantillas, plantillaGuid,
             new MensajesDePlantilla(
                 Mensajes.PlantillaNoExiste, Mensajes.PlantillaIncompleta, Mensajes.PlantillaConTurnoNoProgramable,

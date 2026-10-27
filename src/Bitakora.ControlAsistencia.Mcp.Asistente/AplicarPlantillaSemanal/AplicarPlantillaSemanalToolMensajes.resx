@@ -35,4 +35,5 @@
   <data name="AvisoSinSede" xml:space="preserve"><value>sin sede asignada</value></data>
   <data name="AvisoSedeInactiva" xml:space="preserve"><value>sede {0} inactiva</value></data>
   <data name="AvisoSedeNoExiste" xml:space="preserve"><value>sede {0} no existe</value></data>
+  <data name="PlantillaNoEsSemanal" xml:space="preserve"><value>La plantilla '{0}' tiene un ciclo de {1} dias, no de 7: no es semanal. Para ciclos de otra longitud usa aplicar_plantilla con su fecha de inicio.</value></data>
 </root>
