@@ -20,11 +20,9 @@ public class SincronizarLimitesDeJornadaDePlantillaTurnosCommandHandlerTests
     protected override ICommandHandlerAsync<SincronizarLimitesDeJornadaDePlantillaTurnos> Handler =>
         new SincronizarLimitesDeJornadaDePlantillaTurnosCommandHandler(EventStore);
 
-    // 480 minutos ordinarios
     private static readonly Turno TurnoDeOchoHoras = Turno.Crear("Turno Manana", false,
         [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))]);
 
-    // 600 minutos ordinarios
     private static readonly Turno TurnoDeDiezHoras = Turno.Crear("Turno Largo", false,
         [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(16, 0))]);
 
