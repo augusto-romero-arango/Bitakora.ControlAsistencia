@@ -365,7 +365,6 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(CuadroSemanalTurnos.Id));
     }
 
-    // CA-6 (#1286), mismo criterio que el test de CuadroSemanalTurnos.
     [Fact]
     public void ConfigurarProgramacion_RegistraCuadroDeTurnosProjectionComoAsync()
     {

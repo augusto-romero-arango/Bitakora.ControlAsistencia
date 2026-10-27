@@ -17,7 +17,7 @@ public sealed partial class CuadroDeTurnosProjection
     public static CuadroDeTurnos Apply(DiaDePlantillaDeTurnosAsignado e, CuadroDeTurnos vista)
     {
         var dia = new DiaDelCuadroDeTurnos(
-            e.Dia, e.TurnoId.ToString("D"), e.Turno.Nombre,
+            e.Dia, e.TurnoId.ToString(), e.Turno.Nombre,
             e.Turno.ToString(), e.Turno.EstaCompleto(), false);
         var dias = vista.Dias
             .Where(d => d.Dia != e.Dia)
