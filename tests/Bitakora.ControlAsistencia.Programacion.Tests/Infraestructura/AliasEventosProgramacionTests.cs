@@ -133,6 +133,14 @@ public class AliasEventosProgramacionTests
     }
 
     [Fact]
+    public void PlantillaDeTurnosCreada_TieneAliasPlantillaDeTurnosCreada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<PlantillaDeTurnosCreada>(options).Should().Be("plantilla_de_turnos_creada");
+    }
+
+    [Fact]
     public void PlantillaSemanalCreada_TieneAliasPlantillaSemanalCreada()
     {
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();

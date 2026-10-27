@@ -42,6 +42,7 @@ public static class ConfiguracionSerializacionProgramacion
         SedeDeFranjaAsignada.ConfigurarSerializacion(resolver);
         SedeDeFranjaRetirada.ConfigurarSerializacion(resolver);
         PlantillaSemanalCreada.ConfigurarSerializacion(resolver);
+        PlantillaDeTurnosCreada.ConfigurarSerializacion(resolver);
         DiaDePlantillaSemanalAsignado.ConfigurarSerializacion(resolver);
         DiaDePlantillaSemanalQuitado.ConfigurarSerializacion(resolver);
         PlantillaSemanalRetirada.ConfigurarSerializacion(resolver);
