@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
+using static Bitakora.ControlAsistencia.Programacion.Tests.Entities.AdvertenciasEsperadasPlantillaTurnos;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearPlantillaTurnosFunction;
 
@@ -22,7 +23,8 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
         Given();
         await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8));
 
-        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8));
+        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8),
+            EventoSinJornada(GuidAggregateId));
         And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -33,7 +35,8 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
         await WhenAsync(new CrearPlantillaTurnos(
             GuidAggregateId, NombrePlantilla, PlantillaDeTurnosCreada.MaximoDiasDelCiclo));
 
-        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 42));
+        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 42),
+            EventoSinJornada(GuidAggregateId));
         And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 

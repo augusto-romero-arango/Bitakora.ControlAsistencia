@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
+using static Bitakora.ControlAsistencia.Programacion.Tests.Entities.AdvertenciasEsperadasPlantillaTurnos;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.AsignarJornadaAPlantillaTurnosFunction;
 
@@ -36,20 +37,22 @@ public class AsignarJornadaAPlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarJornadaAPlantillaTurnos_EmiteJornadaAsignada_CuandoLaJornadaExiste()
     {
-        Given(PlantillaCreada());
+        Given(PlantillaCreada(), EventoSinJornada(GuidAggregateId));
         GivenJornada(42);
 
         await WhenAsync(new AsignarJornadaAPlantillaTurnos(GuidAggregateId, JornadaId));
 
-        Then(JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness));
+        Then(JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness),
+            EventoDiasSinTurno(GuidAggregateId, 8));
         And<PlantillaTurnos, Guid?>(p => p.JornadaId, JornadaId);
     }
 
     [Fact]
     public async Task AsignarJornadaAPlantillaTurnos_NoEmiteEventos_CuandoLaCopiaYaEstaAlDia()
     {
-        Given(PlantillaCreada(),
-            JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness));
+        Given(PlantillaCreada(), EventoSinJornada(GuidAggregateId),
+            JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness),
+            EventoDiasSinTurno(GuidAggregateId, 8));
         GivenJornada(42);
 
         await WhenAsync(new AsignarJornadaAPlantillaTurnos(GuidAggregateId, JornadaId));
@@ -61,8 +64,9 @@ public class AsignarJornadaAPlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarJornadaAPlantillaTurnos_NoEmiteEventos_CuandoLaPlantillaYaTieneLaJornadaDesactivada()
     {
-        Given(PlantillaCreada(),
-            JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness));
+        Given(PlantillaCreada(), EventoSinJornada(GuidAggregateId),
+            JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness),
+            EventoDiasSinTurno(GuidAggregateId, 8));
         GivenJornadaDesactivada(42);
 
         await WhenAsync(new AsignarJornadaAPlantillaTurnos(GuidAggregateId, JornadaId));
