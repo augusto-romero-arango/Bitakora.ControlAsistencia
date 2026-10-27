@@ -35,8 +35,10 @@ public class AplicarPlantillaPorGrupoToolTests
                 .Where(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaSolicitudes)
                 .Select(r => JsonNode.Parse(r.Cuerpo!)!)];
 
-        public JsonNode PostDeTurno(int dia) =>
-            Posts.Single(p => p["turnoId"]!.GetValue<string>() == TurnoDelDia(dia));
+        public List<JsonNode> PostsDeTurno(int dia) =>
+            [.. Posts.Where(p => p["turnoId"]!.GetValue<string>() == TurnoDelDia(dia))];
+
+        public JsonNode PostDeTurno(int dia) => PostsDeTurno(dia).Single();
 
         public static string[] Fechas(JsonNode post) =>
             [.. post["fechas"]!.AsArray().Select(f => f!.GetValue<string>())];
@@ -86,9 +88,12 @@ public class AplicarPlantillaPorGrupoToolTests
 
         var resultado = await Ejecutar(entorno);
 
-        entorno.Posts.Should().HaveCount(3);
-        Entorno.Fechas(entorno.PostDeTurno(1)).Should().Equal("2026-09-01", "2026-09-04", "2026-09-07");
-        entorno.PostDeTurno(1)["colaboradores"]!.AsArray().Should().HaveCount(2);
+        entorno.Posts.Should().HaveCount(6, "un POST por colaborador y turno distinto");
+        var postsDelDiaUno = entorno.PostsDeTurno(1);
+        postsDelDiaUno.Select(p => p["colaborador"]!["identificacion"]!.GetValue<string>())
+            .Should().BeEquivalentTo("CC-0001", "CC-0002");
+        postsDelDiaUno.Should().AllSatisfy(
+            p => Entorno.Fechas(p).Should().Equal("2026-09-01", "2026-09-04", "2026-09-07"));
         var json = JsonNode.Parse(resultado)!;
         json["grupoResuelto"]!.GetValue<int>().Should().Be(2);
         json["fechaInicio"]!.GetValue<string>().Should().Be("2026-09-01");

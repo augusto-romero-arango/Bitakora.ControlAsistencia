@@ -25,7 +25,9 @@ public partial class AplicarPlantillaPorGrupoTool(
         [McpToolTrigger(
             NombreTool,
             "Aplica una plantilla de turnos a todos los colaboradores de un grupo, definido por sede y/o etiquetas, "
-            + "durante una ventana de trabajo de maximo 35 dias; el ciclo empieza en fecha_inicio (dia 1). "
+            + "durante una ventana de trabajo de maximo 35 dias; el ciclo empieza en fecha_inicio (dia 1) y se repite cada N dias. "
+            + "fecha_inicio puede ser anterior a la ventana; para continuar una rotacion ya aplicada, usa la misma fecha_inicio "
+            + "de la vez anterior (preguntala al usuario). Los dias de la ventana anteriores a fecha_inicio no se programan. "
             + "Para personas concretas usa aplicar_plantilla. Ubica la plantilla con buscar_plantillas.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
