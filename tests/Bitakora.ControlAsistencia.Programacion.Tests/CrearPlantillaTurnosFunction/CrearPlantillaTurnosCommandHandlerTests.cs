@@ -229,4 +229,10 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
         CrearPlantillaTurnosCommandHandler.Mensajes.JornadaNoEncontrada.Should().NotBeNullOrWhiteSpace();
         CrearPlantillaTurnosCommandHandler.Mensajes.JornadaDesactivada.Should().NotBeNullOrWhiteSpace();
     }
+
+    [Fact]
+    public void Mensajes_NombreDuplicadoTieneTextoEnElResx_CuandoSeConsultaPorResourceManager()
+    {
+        CrearPlantillaTurnosCommandHandler.Mensajes.NombreDuplicado.Should().NotBeNullOrWhiteSpace();
+    }
 }

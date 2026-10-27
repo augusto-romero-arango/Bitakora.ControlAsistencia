@@ -68,6 +68,20 @@ public class FunctionEndpointTests
     }
 
     [Fact]
+    public async Task CrearPlantillaTurnos_Retorna409_CuandoElNombreEstaDuplicado()
+    {
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator(ComandoValido()),
+            new FakeCommandRouter(excepcion: new ReglaDeNegocioDeclinadaException(
+                CrearPlantillaTurnosCommandHandler.Mensajes.NombreDuplicado)));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeOfType<ConflictObjectResult>()
+            .Which.Value.Should().Be(CrearPlantillaTurnosCommandHandler.Mensajes.NombreDuplicado);
+    }
+
+    [Fact]
     public async Task CrearPlantillaTurnos_Retorna404_CuandoLaJornadaNoExiste()
     {
         var function = new FunctionEndpoint(

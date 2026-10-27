@@ -15,9 +15,9 @@ namespace Bitakora.ControlAsistencia.Programacion.Infraestructura;
 // de LectorReadSideSedes (#477): la QuerySession se abre siempre acotada al tenant que resuelve
 // ITenantContext (MEF-ADR-0028/CA-ADR-0027).
 //
-// Los dos puertos declaran ObtenerNombresAsync con la misma firma, asi que ambos se implementan de
-// forma explicita: la clase no expone superficie publica propia y ninguna de las dos vistas queda
-// arbitrariamente privilegiada como "la" del tipo concreto. Solo se resuelve por interfaz (DI).
+// Los puertos de nombres declaran ObtenerNombresAsync con la misma firma, asi que todos se
+// implementan de forma explicita: la clase no expone superficie publica propia y ninguna vista
+// queda arbitrariamente privilegiada como "la" del tipo concreto. Solo se resuelve por interfaz (DI).
 public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext tenantContext)
     : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorNombresPlantillaTurnos, ILectorLimitesJornada, ILectorPlantillasPorJornada, ILectorPlantillasPorTurno, ILectorPlantillasTurnosPorTurno
 {
