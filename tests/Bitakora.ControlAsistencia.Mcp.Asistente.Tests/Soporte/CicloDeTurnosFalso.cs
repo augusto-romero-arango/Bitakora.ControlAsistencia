@@ -24,8 +24,11 @@ public static class CicloDeTurnosFalso
                     dia = d,
                     turno = new
                     {
-                        id = TurnoDelDia(d), nombre = $"Turno {d}", descripcion = "(06:00-14:00)",
-                        completo = d != diaIncompleto, retirado = d == diaRetirado
+                        id = TurnoDelDia(d),
+                        nombre = $"Turno {d}",
+                        descripcion = "(06:00-14:00)",
+                        completo = d != diaIncompleto,
+                        retirado = d == diaRetirado
                     }
                 })
             },
