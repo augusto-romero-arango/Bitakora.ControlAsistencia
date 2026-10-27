@@ -4,7 +4,11 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-26 (sesion planner, explorar plantillas: un cliente programa en ciclos
+# Ultima actualizacion: 2026-10-27 (sesion planner, refinar #1288: la interfaz SEMANAL es un ciclo
+#   de exactamente 7 dias (dia 1 = lunes); quincenal o de 3 semanas es un ciclo generico de 14/21 dias.
+#   La interfaz ROTATIVA se disena por bloques de dias consecutivos. Tocada: Plantilla de turnos.
+#   Issues #1288, #1300.)
+# Actualizacion previa: 2026-10-26 (sesion planner, explorar plantillas: un cliente programa en ciclos
 #   de 8 dias. La Plantilla de turnos deja de ser solo paraguas y nombra el molde GENERICO de dias
 #   1..N (N <= 42) que se aplica con una fecha de inicio; semanal y rotativa pasan a ser interfaces.
 #   Se toma el nombre generico a proposito (revierte el anti-squatting). La Plantilla semanal de turnos
@@ -591,11 +595,16 @@ terms:
       es un CICLO de N dias (dia 1..N, N entre 1 y 42), cada dia con un turno del catalogo (el descanso
       es un turno); no tiene fechas. APLICARLA es dar la fecha de inicio (cae el dia 1) y la ventana:
       cada fecha toma el turno de su dia del ciclo y se programa como hoy. Cubre todo lo que se repite
-      cada N dias: semanal (7, 14... dias), 6x2, 4x4, 24x24, 14x14, 20x10. "Semanal" y "rotativa" son
-      INTERFACES del asistente/front sobre este molde, no conceptos del dominio.
+      cada N dias: semanal, 6x2, 4x4, 24x24, 14x14, 20x10. "Semanal" y "rotativa" son
+      INTERFACES del asistente/front sobre este molde, no conceptos del dominio. Enmienda 2026-10-27
+      (#1288): SEMANAL es un ciclo de exactamente 7 dias, dia 1 = lunes ... dia 7 = domingo, que se
+      aplica alineado al lunes de la semana de la ventana; un ciclo quincenal o de 3 semanas NO es
+      semanal: es una plantilla de 14 o 21 dias aplicada con su fecha de inicio. ROTATIVA se disena por
+      bloques de dias consecutivos con el mismo turno, en orden (6x2 = 6 dias de un turno + 2 de
+      descanso); el ciclo dura la suma de los bloques (#1300).
     context: Programacion
     date_added: 2026-09-04
-    date_updated: 2026-10-26
+    date_updated: 2026-10-27
     rejected_synonyms: [Horario, Esquema de turnos, Semana tipo, Malla de turnos, Sabana de turnos, Patron de turnos]
     rejection_reason: >
       Horario roza con HorarioResumido (las horas de UN turno). Semana tipo muere con mas de una
