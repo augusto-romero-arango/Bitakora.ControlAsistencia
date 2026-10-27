@@ -32,4 +32,25 @@
   <data name="NotaVisibilidadEventual" xml:space="preserve">
     <value>El turno aparece en listar_turnos unos segundos despues.</value>
   </data>
+  <data name="FranjasJsonInvalido" xml:space="preserve">
+    <value>'franjas' no es un JSON valido.</value>
+  </data>
+  <data name="FranjaObligatoria" xml:space="preserve">
+    <value>El elemento {0} de 'franjas' no trae 'franja'.</value>
+  </data>
+  <data name="FranjaInvalida" xml:space="preserve">
+    <value>La franja "{1}" del elemento {0} no es valida; usa el formato HH:mm-HH:mm.</value>
+  </data>
+  <data name="DescansoInvalido" xml:space="preserve">
+    <value>El descanso "{1}" del elemento {0} no es valido; usa el formato HH:mm-HH:mm.</value>
+  </data>
+  <data name="ExtraInvalido" xml:space="preserve">
+    <value>El extra "{1}" del elemento {0} no es valido; usa el formato HH:mm-HH:mm.</value>
+  </data>
+  <data name="SedeNoExiste" xml:space="preserve">
+    <value>La sede con codigo '{0}' no existe; miralo con buscar_sedes.</value>
+  </data>
+  <data name="SedeInactiva" xml:space="preserve">
+    <value>La sede con codigo '{0}' esta inactiva.</value>
+  </data>
 </root>

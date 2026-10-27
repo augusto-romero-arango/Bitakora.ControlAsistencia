@@ -34,7 +34,8 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
             evento.Fecha,
             evento.DetalleTurno.Nombre,
             evento.DetalleTurno.Descripcion,
-            MapearBloques(evento));
+            MapearBloques(evento),
+            EsHorarioAbierto: evento.DetalleTurno.EsHorarioAbierto);
 
     // "El ultimo gana": una reasignacion sobre el mismo (colaborador, fecha) sobrescribe turno,
     // horario y bloques. NombreCompleto SI se refresca (cada evento trae la terna de identidad).
@@ -46,14 +47,16 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
             {
                 NombreCompleto = evento.InformacionColaborador.NombreCompleto,
                 TurnoCubierto = new TurnoCubierto(
-                    evento.DetalleTurno.Nombre, evento.DetalleTurno.Descripcion, MapearBloques(evento))
+                    evento.DetalleTurno.Nombre, evento.DetalleTurno.Descripcion, MapearBloques(evento),
+                    evento.DetalleTurno.EsHorarioAbierto)
             }
             : vista with
             {
                 NombreCompleto = evento.InformacionColaborador.NombreCompleto,
                 NombreTurno = evento.DetalleTurno.Nombre,
                 HorarioResumido = evento.DetalleTurno.Descripcion,
-                Bloques = MapearBloques(evento)
+                Bloques = MapearBloques(evento),
+                EsHorarioAbierto = evento.DetalleTurno.EsHorarioAbierto
             };
 
     // La ausencia cubre el turno sin reemplazarlo (CA-ADR-0036 decision 3): el dia se muestra como
@@ -77,11 +80,13 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
             NombreTurno = "",
             HorarioResumido = "",
             Bloques = [],
+            EsHorarioAbierto = false,
             MotivoAusencia = evento.Motivo,
             AusenciaId = evento.AusenciaId,
             TurnoCubierto = vista.AusenciaId is not null
                 ? vista.TurnoCubierto
-                : new TurnoCubierto(vista.NombreTurno, vista.HorarioResumido, vista.Bloques)
+                : new TurnoCubierto(
+                    vista.NombreTurno, vista.HorarioResumido, vista.Bloques, vista.EsHorarioAbierto)
         };
 
     // Una cancelacion como primer evento del stream (#747) no crea documento: sin este Create el
@@ -110,6 +115,7 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
             NombreTurno = vista.TurnoCubierto.NombreTurno,
             HorarioResumido = vista.TurnoCubierto.HorarioResumido,
             Bloques = vista.TurnoCubierto.Bloques,
+            EsHorarioAbierto = vista.TurnoCubierto.EsHorarioAbierto,
             MotivoAusencia = null,
             AusenciaId = null,
             TurnoCubierto = null

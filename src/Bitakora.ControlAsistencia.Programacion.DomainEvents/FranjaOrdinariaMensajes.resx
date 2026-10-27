@@ -26,7 +26,4 @@
   <data name="DuracionExcedeUnDia" xml:space="preserve">
     <value>La franja ordinaria no puede durar mas de 24 horas</value>
   </data>
-  <data name="LabelSede" xml:space="preserve">
-    <value>sede</value>
-  </data>
 </root>

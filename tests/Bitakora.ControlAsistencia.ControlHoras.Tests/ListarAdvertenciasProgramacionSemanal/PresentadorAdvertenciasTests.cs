@@ -148,4 +148,19 @@ public class PresentadorAdvertenciasTests
         adv.Horas.Should().Be(new TiempoHM(1, 0));
         adv.Descripcion.Should().Be("1 h por debajo del descanso mínimo entre turnos");
     }
+
+    [Fact]
+    public void Presentar_ArmaDescripcionDelSolape_CuandoLaCasillaSeSolapaConLaVispera()
+    {
+        var doc = Doc(Jornada, 2160, 0, false, true,
+            Enumerable.Range(0, 7).Select(i => i == 1
+                ? Casilla(i, 480, new AdvertenciaDiaria(TipoAdvertenciaDiaria.SeSolapaConTurnoDeLaVispera, 120))
+                : Casilla(i, 480)).ToList());
+
+        var adv = PresentadorAdvertencias.Presentar(doc).Casillas[1].Advertencias.Single();
+
+        adv.Tipo.Should().Be("SeSolapaConTurnoDeLaVispera");
+        adv.Horas.Should().Be(new TiempoHM(2, 0));
+        adv.Descripcion.Should().Be("Se solapa 2 h con el turno de la víspera");
+    }
 }

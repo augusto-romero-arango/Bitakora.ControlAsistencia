@@ -62,6 +62,9 @@ public sealed partial class Retardo : IEquatable<Retardo>
         return Crear(tiempoRetardado, tiempoCompensado);
     }
 
+    // Turno de horario abierto: el retardo se conserva como traza pero no castiga.
+    public Retardo SinCastigo() => Crear(_tiempoRetardado, _tiempoRetardado);
+
     public override string ToString()
     {
         if (_tiempoRetardado.Count == 0 && _tiempoCompensado.Count == 0)

@@ -10,14 +10,16 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// ProgramacionTurnoSolicitada; el FA lo mapea campo a campo a DetalleTurno para el bus.
 ///
 /// Equals/GetHashCode comparan FranjasOrdinarias POR VALOR (SequenceEqual), incluyen
-/// AmplitudVentanaEntradaEnMinutos (identidad del turno) y EXCLUYEN Descripcion (dato derivado) --
+/// AmplitudVentanaEntradaEnMinutos y EsHorarioAbierto (identidad del turno) y EXCLUYEN Descripcion
+/// (dato derivado) --
 /// mismo criterio que DetalleTurno y TurnoDiario.
 /// </remarks>
 public record TurnoProgramado(
     string Nombre,
     IReadOnlyList<FranjaProgramada> FranjasOrdinarias,
     string Descripcion,
-    int AmplitudVentanaEntradaEnMinutos = 0)
+    int AmplitudVentanaEntradaEnMinutos = 0,
+    bool EsHorarioAbierto = false)
 {
     /// <summary>
     /// Los eventos anteriores a este record no llevan el campo: STJ deja null en el parametro
@@ -32,6 +34,7 @@ public record TurnoProgramado(
         if (ReferenceEquals(this, other)) return true;
         return Nombre == other.Nombre
             && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
+            && EsHorarioAbierto == other.EsHorarioAbierto
             && FranjasOrdinarias.SequenceEqual(other.FranjasOrdinarias);
     }
 
@@ -40,6 +43,7 @@ public record TurnoProgramado(
         var hash = new HashCode();
         hash.Add(Nombre);
         hash.Add(AmplitudVentanaEntradaEnMinutos);
+        hash.Add(EsHorarioAbierto);
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }

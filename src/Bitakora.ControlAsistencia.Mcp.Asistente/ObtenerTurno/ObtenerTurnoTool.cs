@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -25,60 +24,45 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "id",
-            "Id del turno en el catalogo (obtenlo con buscar_turnos).",
+            "turno_id",
+            "Id del turno, tal como lo da buscar_turnos.",
             isRequired: true)]
-        string id,
+        string turnoId,
         CancellationToken ct)
     {
-        var respuesta = await api.ObtenerTurno(id, ct);
+        if (!Guid.TryParse(turnoId, out var idTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
+
+        var respuesta = await api.ObtenerTurno(idTurno.ToString(), ct);
 
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
-            return string.Format(Mensajes.TurnoNoExiste, id);
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         respuesta.EnsureSuccessStatusCode();
 
         var ficha = (await respuesta.Content.ReadFromJsonAsync<FichaTurno>(ct))!;
 
+        // Un turno de horario abierto controla horas y no horarios: su franja es detalle de diseno,
+        // asi que solo se conserva su sede.
+        var horarioAbierto = ficha.HorarioAbierto;
         var detalle = new TurnoDetallado(
             ficha.Id,
             ficha.Nombre.Trim(),
             ficha.EsDescanso,
             ficha.Completo,
-            ficha.HorarioResumido,
-            [.. ficha.Franjas.Select(Compactar)],
+            horarioAbierto is not null ? string.Format(Mensajes.HorarioAbierto, horarioAbierto.Duracion)
+                : ficha.EsDescanso || !ficha.Completo ? ficha.HorarioResumido
+                : NotacionFranja.Horario(ficha.Franjas),
+            horarioAbierto is null ? [.. ficha.Franjas.Select(f => NotacionFranja.Compactar(f, Sede(f)))] : [],
             ficha.VentanaDeEntrada is { } v
                 ? string.Format(Mensajes.EntraEntre, $"{v.Apertura:HH\\:mm}", $"{v.Cierre:HH\\:mm}", v.Amplitud)
-                : null);
+                : null,
+            horarioAbierto is null ? null : ficha.Franjas.Select(Sede).FirstOrDefault(s => s is not null));
 
         return RespuestaJson.Serializar(detalle);
     }
 
-    private static string Compactar(FranjaFicha franja)
-    {
-        // FranjaFicha no trae DiaOffsetInicio: una franja nace siempre en su propio dia y solo sus
-        // hijas pueden caer al siguiente. El formato HH:mm[+N]-HH:mm[+N] se replica como texto, no
-        // como tipo compartido, del eco de las tools de Comandos (MEF-ADR-0047 decision 3).
-        var texto = new StringBuilder(
-            Rango(franja.HoraInicio, franja.HoraFin, diaOffsetInicio: 0, franja.DiaOffsetFin));
-
-        foreach (var descanso in franja.Descansos)
-            texto.Append($", descanso {Rango(descanso.HoraInicio, descanso.HoraFin, descanso.DiaOffsetInicio, descanso.DiaOffsetFin)}");
-
-        foreach (var extra in franja.Extras)
-            texto.Append($", extra {Rango(extra.HoraInicio, extra.HoraFin, extra.DiaOffsetInicio, extra.DiaOffsetFin)}");
-
-        var sede = franja.NombreSede ?? franja.SedeId;
-        if (sede is not null)
-            texto.Append($", sede: {sede}");
-
-        return texto.ToString();
-    }
-
-    private static string Rango(TimeOnly inicio, TimeOnly fin, int diaOffsetInicio, int diaOffsetFin) =>
-        $"{inicio:HH\\:mm}{Sufijo(diaOffsetInicio)}-{fin:HH\\:mm}{Sufijo(diaOffsetFin)}";
-
-    private static string Sufijo(int diaOffset) => diaOffset > 0 ? $"+{diaOffset}" : "";
+    private static string? Sede(FranjaFicha franja) => franja.NombreSede ?? franja.SedeId;
 }
 
 /// <summary>Contrato de respuesta de obtener_turno hacia el asistente (remodelado, issue #502).</summary>
@@ -89,4 +73,5 @@ public sealed record TurnoDetallado(
     bool Completo,
     string Horario,
     IReadOnlyList<string> Franjas,
-    string? VentanaDeEntrada);
+    string? VentanaDeEntrada,
+    string? Sede = null);

@@ -25,5 +25,8 @@ public partial class AgregarFranjaCommandHandler
 
         public static string CierrePasaMedianoche =>
             ResourceManager.GetString(nameof(CierrePasaMedianoche))!;
+
+        public static string TurnoDeHorarioAbierto =>
+            ResourceManager.GetString(nameof(TurnoDeHorarioAbierto))!;
     }
 }

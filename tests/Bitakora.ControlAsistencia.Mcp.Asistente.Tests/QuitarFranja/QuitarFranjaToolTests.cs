@@ -11,11 +11,12 @@ public class QuitarFranjaToolTests
 {
     private const string Turno = "Nocturno";
     private const string TurnoId = "8f14e45f-ceea-4b3c-8f0a-000000000020";
-    private const string RutaTurnos = "/api/programacion/turnos";
+    private const string RutaCatalogo = "/api/programacion/turnos";
+    private const string RutaTurno = $"/api/programacion/turnos/{TurnoId}";
     private const string RutaQuitarFranja = $"/api/programacion/turnos/{TurnoId}:quitar-franja";
 
-    private static string TurnosConFranjaJson => Fixtures.Leer("QuitarFranja", "turnos-con-franja.json");
-    private static string TurnosSinLaFranjaJson => Fixtures.Leer("QuitarFranja", "turnos-sin-la-franja.json");
+    private static string TurnosConFranjaJson => Fixtures.Leer("QuitarFranja", "turno-con-franja.json");
+    private static string TurnosSinLaFranjaJson => Fixtures.Leer("QuitarFranja", "turno-sin-la-franja.json");
     private static string Validacion400Json => Fixtures.Leer("QuitarFranja", "validacion-400.json");
 
     private sealed record Fakes(QuitarFranjaTool Tool, HandlerPorRuta Programacion);
@@ -29,18 +30,18 @@ public class QuitarFranjaToolTests
         string cuerpoQuitar = "")
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();
-        handlerProgramacion.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosConFranjaJson);
+        handlerProgramacion.Responde(HttpMethod.Get, RutaTurno, statusTurnos, turnosJson ?? TurnosConFranjaJson);
         handlerProgramacion.Responde(HttpMethod.Post, RutaQuitarFranja, statusQuitar, cuerpoQuitar);
 
         var programacionApi = new ProgramacionApi(clienteProgramacion);
-        var tool = new QuitarFranjaTool(programacionApi, new ResolutorTurnoPorNombre(programacionApi));
+        var tool = new QuitarFranjaTool(programacionApi, new ResolutorTurnoPorId(programacionApi));
 
         return new Fakes(tool, handlerProgramacion);
     }
 
     private static Task<string> Ejecutar(
-        QuitarFranjaTool tool, string turno = Turno, string franja = "15:00", CancellationToken ct = default) =>
-        tool.Run(context: null!, turno: turno, franja: franja, ct: ct);
+        QuitarFranjaTool tool, string turnoId = TurnoId, string franja = "15:00", CancellationToken ct = default) =>
+        tool.Run(context: null!, turnoId: turnoId, franja: franja, ct: ct);
 
     private static void AsegurarNingunaRequest(Fakes fakes) =>
         fakes.Programacion.Requests.Should().BeEmpty();
@@ -77,28 +78,55 @@ public class QuitarFranjaToolTests
         JsonNode.Parse(resultado)!["franjaQuitada"]!.GetValue<string>().Should().Be("15:00");
     }
 
+    // CA-3: el detalle por identidad responde 404 -> frase con el id que remite a buscar_turnos,
+    // sin lista de nombres y sin invocar el comando.
     [Fact]
-    public async Task QuitarFranja_RespondeTurnoNoExisteSinPost_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task QuitarFranja_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
-        var fakes = CrearTool();
+        var fakes = CrearTool(turnosJson: "", statusTurnos: HttpStatusCode.NotFound);
 
-        var resultado = await Ejecutar(
-            fakes.Tool, turno: "Turno Que No Existe", ct: TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(
-            QuitarFranjaTool.Mensajes.TurnoNoExiste, "Turno Que No Existe", "Nocturno"));
+        resultado.Should().Be(string.Format(QuitarFranjaTool.Mensajes.TurnoNoExiste, TurnoId));
+        resultado.Should().Contain(TurnoId).And.Contain("buscar_turnos").And.NotContain("disponibles");
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
+    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
-    public async Task QuitarFranja_RechazaSinLlamarANingunDominio_CuandoTurnoEstaEnBlanco()
+    public async Task QuitarFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidConNombre()
+    {
+        const string Valor = "Nocturno";
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, turnoId: Valor, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(QuitarFranjaTool.Mensajes.TurnoIdInvalido, Valor));
+        AsegurarNingunaRequest(fakes);
+    }
+
+    [Fact]
+    public async Task QuitarFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidEnBlanco()
+    {
+        const string Valor = "   ";
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, turnoId: Valor, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(QuitarFranjaTool.Mensajes.TurnoIdInvalido, Valor));
+        AsegurarNingunaRequest(fakes);
+    }
+
+    // CA-5: la tool lee el detalle por identidad, nunca el catalogo completo.
+    [Fact]
+    public async Task QuitarFranja_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
     {
         var fakes = CrearTool();
 
-        var resultado = await Ejecutar(fakes.Tool, turno: "   ", ct: TestContext.Current.CancellationToken);
+        await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(QuitarFranjaTool.Mensajes.CampoObligatorio, "turno"));
-        AsegurarNingunaRequest(fakes);
+        fakes.Programacion.Requests.Should().Contain(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaTurno);
+        fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaCatalogo);
     }
 
     [Fact]

@@ -101,11 +101,12 @@ public partial class ConsultarMallaTurnosTool(
     {
         var estado = c.Tipo switch
         {
+            "Trabajo" when c.EsHorarioAbierto => string.Format(Mensajes.DiaHorarioAbierto, c.NombreTurno, SedesDe(c)),
             "Trabajo" => string.Format(
                 Mensajes.DiaTrabajo,
                 c.NombreTurno,
                 c.HorarioResumido,
-                string.Join(", ", c.Bloques.Select(b => b.NombreSede).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())),
+                SedesDe(c)),
             "Descanso" => Mensajes.DiaDescanso,
             "Ausencia" => string.Format(Mensajes.DiaAusencia, c.MotivoAusencia),
             "FueraDeVinculacion" => Mensajes.DiaFueraDeVinculacion,
@@ -114,6 +115,9 @@ public partial class ConsultarMallaTurnosTool(
 
         return $"{Formatear(c.Fecha)} {DiasAbreviados[IndiceIso(c.Fecha)]}: {estado}";
     }
+
+    private static string SedesDe(CasillaMallaSemanal c) =>
+        string.Join(", ", c.Bloques.Select(b => b.NombreSede).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct());
 
     private (DateOnly Fecha, string? Error) ResolverFecha(string? fecha)
     {

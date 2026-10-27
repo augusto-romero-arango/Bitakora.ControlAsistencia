@@ -8,4 +8,7 @@
   <data name="TurnoRetirado" xml:space="preserve"><value>El turno fue retirado y no admite cambios en su ventana de entrada</value></data>
   <data name="TurnoSinFranjas" xml:space="preserve"><value>Un turno sin franjas solo admite una ventana de entrada de amplitud cero</value></data>
   <data name="CierrePasaMedianoche" xml:space="preserve"><value>La ventana de entrada haria que la ultima franja empezara a las 24:00 o despues; debe quedar antes de las 24:00</value></data>
+  <data name="TurnoDeHorarioAbierto" xml:space="preserve">
+    <value>Un turno de horario abierto no se rediseña: solo define cuántas horas se trabajan. Para otra duración, crea otro turno de horario abierto.</value>
+  </data>
 </root>

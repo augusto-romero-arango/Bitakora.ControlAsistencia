@@ -32,4 +32,7 @@
   <data name="DejariaVentanaSinFranjas" xml:space="preserve">
     <value>Quitar la unica franja dejaria la ventana de entrada sin franjas; pon primero la ventana de entrada en 0</value>
   </data>
+  <data name="TurnoDeHorarioAbierto" xml:space="preserve">
+    <value>Un turno de horario abierto no se rediseña: solo define cuántas horas se trabajan. Para otra duración, crea otro turno de horario abierto.</value>
+  </data>
 </root>

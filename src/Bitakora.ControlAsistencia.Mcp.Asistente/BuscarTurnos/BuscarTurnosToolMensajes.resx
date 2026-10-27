@@ -59,4 +59,7 @@
   <data name="CriterioSede" xml:space="preserve">
     <value>sede: {0}</value>
   </data>
+  <data name="HorarioAbierto" xml:space="preserve">
+    <value>horario abierto de {0}</value>
+  </data>
 </root>

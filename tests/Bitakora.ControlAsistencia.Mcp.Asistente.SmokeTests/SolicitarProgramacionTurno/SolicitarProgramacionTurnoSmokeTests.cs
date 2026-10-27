@@ -93,7 +93,8 @@ public partial class SolicitarProgramacionTurnoSmokeTests(
                 ["fecha_inicio"] = "2026-09-01"
             },
             cancellationToken: ct);
-        await SembrarTurnoAsync(Guid.CreateVersion7(), nombreTurno, ct);
+        var turnoId = Guid.CreateVersion7();
+        await SembrarTurnoAsync(turnoId, nombreTurno, ct);
 
         using var ausencia = await Polling.WaitUntilAsync(
             async () =>
@@ -120,7 +121,7 @@ public partial class SolicitarProgramacionTurnoSmokeTests(
         {
             ["desde"] = "2026-09-01",
             ["hasta"] = "2026-09-03",
-            ["turno"] = nombreTurno,
+            ["turno_id"] = turnoId.ToString(),
             ["sede_de_programacion"] = codigoSede,
             ["identificaciones"] = identificacion
         };
@@ -158,13 +159,14 @@ public partial class SolicitarProgramacionTurnoSmokeTests(
         var codigoSede = await Sembrado.RegistrarSedeAsync(mcp.Cliente, ct);
         var (identificacion, codigoColaborador) = await Sembrado.RegistrarColaboradorAsync(mcp.Cliente, codigoSede, ct);
         var nombreTurno = $"[TEST] Turno MCP {Guid.CreateVersion7()}";
-        await SembrarTurnoAsync(Guid.CreateVersion7(), nombreTurno, ct);
+        var turnoId = Guid.CreateVersion7();
+        await SembrarTurnoAsync(turnoId, nombreTurno, ct);
 
         var argumentos = new Dictionary<string, object?>
         {
             ["desde"] = "2026-09-01",
             ["hasta"] = "2026-09-03",
-            ["turno"] = nombreTurno,
+            ["turno_id"] = turnoId.ToString(),
             ["identificaciones"] = identificacion
         };
 
@@ -205,7 +207,8 @@ public partial class SolicitarProgramacionTurnoSmokeTests(
             TimeoutPolling);
 
         var nombreTurno = $"[TEST] Turno MCP {Guid.CreateVersion7()}";
-        await SembrarTurnoAsync(Guid.CreateVersion7(), nombreTurno, ct);
+        var turnoId = Guid.CreateVersion7();
+        await SembrarTurnoAsync(turnoId, nombreTurno, ct);
 
         var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
         var dia = hoy.AddDays((8 - (int)hoy.DayOfWeek) % 7 + 14).ToString("yyyy-MM-dd");
@@ -213,7 +216,7 @@ public partial class SolicitarProgramacionTurnoSmokeTests(
         {
             ["desde"] = dia,
             ["hasta"] = dia,
-            ["turno"] = nombreTurno,
+            ["turno_id"] = turnoId.ToString(),
             ["identificaciones"] = identificacion
         };
 

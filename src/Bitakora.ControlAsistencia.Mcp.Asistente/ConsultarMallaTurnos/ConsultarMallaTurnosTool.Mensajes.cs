@@ -36,6 +36,8 @@ public partial class ConsultarMallaTurnosTool
 
         public static string DiaTrabajo => ResourceManager.GetString(nameof(DiaTrabajo))!;
 
+        public static string DiaHorarioAbierto => ResourceManager.GetString(nameof(DiaHorarioAbierto))!;
+
         public static string DiaDescanso => ResourceManager.GetString(nameof(DiaDescanso))!;
 
         public static string DiaAusencia => ResourceManager.GetString(nameof(DiaAusencia))!;

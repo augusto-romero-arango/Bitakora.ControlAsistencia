@@ -90,11 +90,42 @@ sede? }`; hija `{ inicio, fin }` (record, no tupla). Verbo y ruta no cambian (pa
 - `FichaTurno` sigue los 9 eventos de diseno, lee `EsDescanso` del evento y gana `Completo` (derivado
   de lectura, MEF-ADR-0041). Franjas ordenadas por hora de inicio; incompleto = "Sin franjas". Sin
   filtro server-side: el catalogo es acotado y el cliente filtra (MEF-ADR-0042 seccion 1); el listado
-  incluye los incompletos porque el resolutor por nombre los necesita.
-- Tools MCP de Comandos: referencia al turno **por nombre** (resolutor compartido), horas `HH:mm` sin
-  offsets (`inicio == fin` en `agregar_franja` significa 24 h), eco = lo enviado + nota de visibilidad
-  eventual (nunca se relee la ficha tras el POST). Consultas: `enConstruccion` solo cuando aplica;
+  incluye los incompletos (originalmente porque los necesitaba el resolutor por nombre, retirado por
+  CA-ADR-0039 decision 18).
+- Tools MCP de Comandos: referencia al turno por `turno_id` (CA-ADR-0039 decision 18), horas `HH:mm`
+  sin offsets (`inicio == fin` en `agregar_franja` significa 24 h), eco = lo enviado + nota de
+  visibilidad eventual (nunca se relee la ficha tras el POST). Consultas: `enConstruccion` solo cuando aplica;
   notacion unificada `HH:mm[+N]-HH:mm[+N]` en ambos servidores (islas: se replica el formato).
+
+### 8. El turno de horario abierto no se redisena
+
+Enmienda de #1233 (2026-10-25). El turno de horario abierto (`crear_turno_de_horario_abierto`,
+`POST programacion/turnos/horario-abierto`, #1203) **controla horas, no horarios**: define cuantas
+horas se trabajan (franja 04:00 + duracion y ventana de 20 h - duracion; con 20:00, sin ventana). Es
+un concepto distinto del turno con **ventana limitada**, que sigue siendo control de programacion.
+
+- **Marca explicita**: `TurnoCreado` gana `bool EsHorarioAbierto` (plano, ultimo campo; legado sin la
+  clave = `false`, mismo camino que la decision 2: sin `TurnoCreadoV2` ni purga, MEF-ADR-0036) y el VO
+  `Turno` gana `EsHorarioAbierto()` (serializado, conservado por `Copiar`, parte de la igualdad). La
+  da el comando de creacion para **toda** duracion valida, incluida 20:00; se rechazo derivarla de la
+  regla 04:00 + ventana. Las copias de valor de las plantillas la transportan
+  (`DiaDePlantillaSemanalAsignado`, `TurnoDePlantillaSemanalSincronizado`) y `DisenoDeTurnoActualizado`
+  la lleva para que la sincronizacion de plantillas no la pierda.
+- **Declinan con `409`** (CA-ADR-0030, sin evento) sobre un abierto: `:agregar-franja`,
+  `:quitar-franja`, `:agregar-subfranja` y `:quitar-subfranja` (descanso y extra) y
+  `PUT .../ventana-entrada` con una amplitud distinta de la vigente. Mensaje: "Un turno de horario
+  abierto no se rediseña: solo define cuántas horas se trabajan. Para otra duración, crea otro turno
+  de horario abierto." Precedencia: retirado > (solo ventana) estado ya alcanzado > horario abierto >
+  reglas actuales. Repetir la amplitud vigente sigue siendo `204` sin eventos.
+- **Siguen admitidos**: `:asignar-sede-franja` (asignar o retirar la sede) y `RetirarTurno`.
+- **Otra duracion = otro turno**. Los abiertos creados antes de la marca no se migran: se retiran, se
+  recrean y se reprograman (#1222).
+- **Controla horas, no horarios**: sin control de descanso entre turnos, sin hora fija en las vistas y
+  sin novedades por hora; si `NoSePresento` y los topes de horas. Conserva su franja y su ventana porque
+  el calculo de horas las necesita para ubicar el horario efectivo. La ficha y ControlHoras lo
+  reconocen en #1234, #1235 y #1237.
+- Revierte la decision 2 de #1203, que lo trataba como un atajo de creacion indistinguible de un turno
+  con ventana limitada.
 
 ## Alternativas consideradas
 
@@ -110,6 +141,10 @@ sede? }`; hija `{ inicio, fin }` (record, no tupla). Verbo y ruta no cambian (pa
 - **Filtro `?completo=` y parametro `solo_programables`**: sin necesidad que los justifique.
 - **Enum en DTO HTTP / `inputSchema`**: sin precedente en el repo y con gate de binding; string validado.
 - **Tope `< 24 h`**: descartado por el experto (24x24).
+- **Horario abierto derivado de la regla 04:00 + ventana** (decision 8): descartado -- confunde al abierto
+  con un turno con ventana limitada legitimo. **Marca solo en el aggregate** o **evento propio
+  `TurnoDeHorarioAbiertoCreado`**: descartados -- el primero rompe Tell-don't-Ask frente a `EsDescanso()`
+  y obliga a llevarla luego al VO; el segundo duplica `TurnoCreado` para todos sus consumidores.
 
 ## Consecuencias
 
@@ -133,6 +168,7 @@ sede? }`; hija `{ inicio, fin }` (record, no tupla). Verbo y ruta no cambian (pa
 - Issues: #598 (invariantes), #599 (evento/aggregate/DTO), #613 (guarda de solicitud), #600
   (inferencia), #601 (DTO), #602-#606 (comandos de diseno), #607 (ficha), #608-#611 (tools de
   Comandos), #612 (tools de Consultas). Reemplazan/enmiendan: #423, #500, #501.
+  Horario abierto (decision 8): #1203, #1222, #1233, #1234, #1235, #1237.
 - MEF-ADR-0004, MEF-ADR-0012, MEF-ADR-0018, MEF-ADR-0034, MEF-ADR-0036, MEF-ADR-0041, MEF-ADR-0042,
   MEF-ADR-0043, MEF-ADR-0047, MEF-ADR-0048; CA-ADR-0029, CA-ADR-0030.
 - Glosario: Turno, Turno incompleto, Diseno de turno, Franja Ordinaria, Franja de Descanso, Franja
@@ -141,3 +177,7 @@ sede? }`; hija `{ inicio, fin }` (record, no tupla). Verbo y ruta no cambian (pa
 ## Control de cambios
 
 - 2026-09-04: creado (sesion planner; refinamiento de #598-#612, creacion de #613).
+- 2026-10-25: decision 8, el turno de horario abierto se marca (`EsHorarioAbierto`) y no se redisena
+  (#1233, refinamiento de #1222).
+- 2026-10-25: seccion 7, las tools MCP refieren el turno por `turno_id` y no por nombre; se retira el
+  resolutor por nombre (CA-ADR-0039 decision 18, #1241).

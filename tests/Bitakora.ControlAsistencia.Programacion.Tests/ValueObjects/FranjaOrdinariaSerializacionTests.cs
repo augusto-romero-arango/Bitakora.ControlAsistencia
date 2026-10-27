@@ -28,7 +28,7 @@ public class FranjaOrdinariaSerializacionTests
 
         restaurado.Should().NotBeNull();
         restaurado!.DuracionEnMinutos().Should().Be(360);
-        restaurado.ToString().Should().Be("(06:00-12:00)");
+        restaurado.ToString().Should().Be("06:00-12:00");
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public class FranjaOrdinariaSerializacionTests
 
         restaurado.Should().NotBeNull();
         restaurado!.DuracionEnMinutos().Should().Be(480);
-        restaurado.ToString().Should().Be("(22:00-06:00+1)");
+        restaurado.ToString().Should().Be("22:00-06:00+1");
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class FranjaOrdinariaSerializacionTests
         var restaurado = JsonSerializer.Deserialize<FranjaOrdinaria>(json, opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.ToString().Should().Be("(06:00-12:00)[Descansos:(10:00-10:15)][Extras:(06:00-08:00)]");
+        restaurado!.ToString().Should().Be("06:00-12:00, descanso 10:00-10:15, extra 06:00-08:00");
     }
 
     [Fact]

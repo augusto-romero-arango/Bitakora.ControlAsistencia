@@ -4,11 +4,10 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.RetirarTurno;
 
-// Cliente HTTP puro de GET programacion/turnos (resolver nombre -> id, via
-// ResolutorTurnoPorNombre) + DELETE programacion/turnos/{id} (paso 3 MEF-ADR-0043): referencia
-// por nombre, mismo resolutor que solicitar_programacion_turno (MEF-ADR-0018). El 404/409 del
-// DELETE se devuelve como texto, nunca como excepcion (CA-ADR-0030).
-public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
+// Cliente HTTP puro de GET programacion/turnos/{id} (ResolutorTurnoPorId, CA-ADR-0039 decision 18)
+// + DELETE programacion/turnos/{id} (paso 3 MEF-ADR-0043). El 404/409 del DELETE se devuelve como
+// texto, nunca como excepcion (CA-ADR-0030).
+public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
 {
     internal const string NombreTool = "retirar_turno";
 
@@ -16,30 +15,26 @@ public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTur
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Retira un turno del catalogo por su nombre exacto (miralo con buscar_turnos): deja "
+            "Retira un turno del catalogo por su id (ubicalo con buscar_turnos): deja "
             + "de poder programarse y su nombre queda libre para reutilizarse. Los dias ya "
             + "programados con ese turno no cambian. Usalo tambien para descartar un turno "
             + "incompleto o un diseno a medias.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno",
-            "Nombre exacto del turno del catalogo (miralo con buscar_turnos).",
-            isRequired: true)]
-        string turno,
+            "turno_id", "Id del turno, tal como lo da buscar_turnos.", isRequired: true)]
+        string turnoId,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turno))
-            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (!Guid.TryParse(turnoId, out var idDelTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
-        if (resolucion.FalloDeLectura is { } fallo)
-            return string.Format(Mensajes.RechazoDelDominio, fallo);
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
+        var resolucion = await resolutor.ResolverAsync(idDelTurno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurno)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
+        if (resolucion.Ficha is not { } ficha)
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
-        var ficha = resolucion.Ficha;
         var respuesta = await programacion.RetirarTurno(ficha.Id, ct);
 
         if (!respuesta.IsSuccessStatusCode)
@@ -53,8 +48,8 @@ public partial class RetirarTurnoTool(ProgramacionApi programacion, ResolutorTur
 }
 
 /// <summary>
-/// Eco compacto de retirar_turno hacia el asistente: el 202 del dominio no trae body, asi que el
-/// turno retirado se reconstruye con la ficha ya resuelta por nombre.
+/// Eco compacto de retirar_turno hacia el asistente: el DELETE no trae body, asi que el turno
+/// retirado se reconstruye con la ficha leida del detalle.
 /// </summary>
 public sealed record TurnoRetiradoResumen(string Resultado, TurnoRetiradoEco Turno, string Nota);
 

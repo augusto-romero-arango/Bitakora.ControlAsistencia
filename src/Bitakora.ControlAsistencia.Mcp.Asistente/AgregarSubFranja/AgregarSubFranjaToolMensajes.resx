@@ -30,7 +30,7 @@
     <value>'{0}' no es un tipo de sub-franja valido. Usa 'descanso' o 'extra'.</value>
   </data>
   <data name="TurnoNoExiste" xml:space="preserve">
-    <value>No existe un turno con el nombre '{0}'. Turnos disponibles: {1}.</value>
+    <value>No existe un turno con id '{0}'. Ubicalo con buscar_turnos.</value>
   </data>
   <data name="RechazoDelDominio" xml:space="preserve">
     <value>El dominio rechazo la solicitud: {0}</value>
@@ -40,5 +40,8 @@
   </data>
   <data name="NotaVisibilidadEventual" xml:space="preserve">
     <value>La sub-franja aparece en obtener_turno unos segundos despues.</value>
+  </data>
+  <data name="TurnoIdInvalido" xml:space="preserve">
+    <value>turno_id debe ser el id del turno (un GUID), tal como lo da buscar_turnos; se recibio: {0}</value>
   </data>
 </root>

@@ -150,11 +150,13 @@ public partial class BuscarTurnosTool(ProgramacionApi api)
         public TurnoEncontrado Remodelar() => new(
             Turno.Id,
             Turno.Nombre,
-            string.Join(", ", Turno.Franjas.Select(Rango)),
+            Turno.HorarioAbierto is { } ha
+                ? string.Format(Mensajes.HorarioAbierto, ha.Duracion)
+                : NotacionFranja.Horario(Turno.Franjas),
             Motivos,
             Turno.EsDescanso ? true : null,
             Turno.Completo || Turno.EsDescanso ? null : true,
-            Turno.VentanaDeEntrada is not null ? true : null);
+            Turno.VentanaDeEntrada is not null && Turno.HorarioAbierto is null ? true : null);
     }
 }
 

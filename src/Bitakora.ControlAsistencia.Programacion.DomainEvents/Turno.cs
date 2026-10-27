@@ -7,6 +7,7 @@ public sealed partial class Turno : IEquatable<Turno>
 {
     private string _nombre = string.Empty;
     private bool _esDescanso;
+    private bool _esHorarioAbierto;
     private List<FranjaOrdinaria> _franjas = [];
     private HorasYMinutos _amplitudVentanaEntrada = HorasYMinutos.Crear(0, 0);
 
@@ -14,12 +15,21 @@ public sealed partial class Turno : IEquatable<Turno>
     {
     }
 
-    public static Turno Crear(string nombre, bool esDescanso, IEnumerable<FranjaOrdinaria> franjas) =>
-        new() { _nombre = nombre, _esDescanso = esDescanso, _franjas = franjas.ToList() };
+    public static Turno Crear(
+        string nombre, bool esDescanso, IEnumerable<FranjaOrdinaria> franjas, bool esHorarioAbierto = false) =>
+        new()
+        {
+            _nombre = nombre,
+            _esDescanso = esDescanso,
+            _esHorarioAbierto = esHorarioAbierto,
+            _franjas = franjas.ToList()
+        };
 
     public string Nombre => _nombre;
 
     public bool EsDescanso() => _esDescanso;
+
+    public bool EsHorarioAbierto() => _esHorarioAbierto;
 
     public int MinutosOrdinarios() => _esDescanso ? 0 : _franjas.Sum(f => f.MinutosOrdinarios());
 
@@ -29,7 +39,8 @@ public sealed partial class Turno : IEquatable<Turno>
         _nombre,
         _franjas.Select(f => f.ToDetalle()).ToList().AsReadOnly(),
         ToString(),
-        _amplitudVentanaEntrada.TotalMinutos());
+        _amplitudVentanaEntrada.TotalMinutos(),
+        _esHorarioAbierto);
 
     public FranjaOrdinaria? FranjaQueEmpiezaA(TimeOnly horaInicio) =>
         _franjas.FirstOrDefault(f => f.EmpiezaA(horaInicio));
@@ -68,28 +79,30 @@ public sealed partial class Turno : IEquatable<Turno>
         {
             _nombre = _nombre,
             _esDescanso = _esDescanso,
+            _esHorarioAbierto = _esHorarioAbierto,
             _franjas = (franjas ?? _franjas).ToList(),
             _amplitudVentanaEntrada = amplitud ?? _amplitudVentanaEntrada
         };
 
     public override string ToString() => (_esDescanso, _franjas.Count) switch
     {
-        (true, _) => $"{_nombre} {Mensajes.LabelDescanso}",
-        (false, 0) => $"{_nombre} {Mensajes.LabelIncompleto}",
-        _ => $"{_nombre} {string.Join("", _franjas)}"
+        (true, _) => Mensajes.LabelDescanso,
+        (false, 0) => Mensajes.LabelIncompleto,
+        _ => string.Join(", ", _franjas)
     };
 
     public bool Equals(Turno? other) =>
         other is not null
         && _nombre == other._nombre
         && _esDescanso == other._esDescanso
+        && _esHorarioAbierto == other._esHorarioAbierto
         && _amplitudVentanaEntrada.Equals(other._amplitudVentanaEntrada)
         && _franjas.SequenceEqual(other._franjas);
 
     public override bool Equals(object? obj) => Equals(obj as Turno);
 
     public override int GetHashCode() =>
-        _franjas.Aggregate(HashCode.Combine(_nombre, _esDescanso, _amplitudVentanaEntrada), HashCode.Combine);
+        _franjas.Aggregate(HashCode.Combine(_nombre, _esDescanso, _esHorarioAbierto, _amplitudVentanaEntrada), HashCode.Combine);
 
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
@@ -105,6 +118,7 @@ public sealed partial class Turno : IEquatable<Turno>
 
             Registrar<string>(typeInfo, "_nombre", "nombre");
             Registrar<bool>(typeInfo, "_esDescanso", "esDescanso");
+            Registrar<bool>(typeInfo, "_esHorarioAbierto", "esHorarioAbierto");
             Registrar<List<FranjaOrdinaria>>(typeInfo, "_franjas", "franjas");
             Registrar<HorasYMinutos>(typeInfo, "_amplitudVentanaEntrada", "amplitudVentanaEntrada");
         });

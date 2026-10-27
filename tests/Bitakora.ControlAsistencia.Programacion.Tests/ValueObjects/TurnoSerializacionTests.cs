@@ -38,7 +38,7 @@ public class TurnoSerializacionTests
         var restaurado = RoundTrip(Turno.Crear("Libre", true, []));
 
         restaurado.EstaCompleto().Should().BeTrue();
-        restaurado.ToString().Should().Be($"Libre {Turno.Mensajes.LabelDescanso}");
+        restaurado.ToString().Should().Be(Turno.Mensajes.LabelDescanso);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class TurnoSerializacionTests
         var restaurado = RoundTrip(Turno.Crear("Nuevo", false, []));
 
         restaurado.EstaCompleto().Should().BeFalse();
-        restaurado.ToString().Should().Be($"Nuevo {Turno.Mensajes.LabelIncompleto}");
+        restaurado.ToString().Should().Be(Turno.Mensajes.LabelIncompleto);
     }
 
     [Fact]

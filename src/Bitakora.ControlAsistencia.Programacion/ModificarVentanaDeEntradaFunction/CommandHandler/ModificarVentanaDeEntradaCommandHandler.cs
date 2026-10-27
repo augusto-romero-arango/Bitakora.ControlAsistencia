@@ -20,6 +20,7 @@ public partial class ModificarVentanaDeEntradaCommandHandler(IEventStore eventSt
         var rechazo = catalogo.ModificarVentanaDeEntrada(amplitud) switch
         {
             ResultadoModificarVentanaDeEntrada.TurnoRetirado => Mensajes.TurnoRetirado,
+            ResultadoModificarVentanaDeEntrada.TurnoDeHorarioAbierto => Mensajes.TurnoDeHorarioAbierto,
             ResultadoModificarVentanaDeEntrada.TurnoSinFranjas => Mensajes.TurnoSinFranjas,
             ResultadoModificarVentanaDeEntrada.CierrePasaMedianoche => Mensajes.CierrePasaMedianoche,
             _ => null

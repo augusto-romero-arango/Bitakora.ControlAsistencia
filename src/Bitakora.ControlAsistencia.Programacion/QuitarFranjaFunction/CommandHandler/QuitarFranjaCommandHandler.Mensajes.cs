@@ -22,5 +22,8 @@ public partial class QuitarFranjaCommandHandler
 
         public static string DejariaVentanaSinFranjas =>
             ResourceManager.GetString(nameof(DejariaVentanaSinFranjas))!;
+
+        public static string TurnoDeHorarioAbierto =>
+            ResourceManager.GetString(nameof(TurnoDeHorarioAbierto))!;
     }
 }

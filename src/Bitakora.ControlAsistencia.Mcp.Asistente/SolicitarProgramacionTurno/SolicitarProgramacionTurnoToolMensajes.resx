@@ -32,8 +32,11 @@
   <data name="VentanaExcedeMaximo" xml:space="preserve">
     <value>La ventana no puede superar 35 dias; se recibieron {0}.</value>
   </data>
+  <data name="TurnoIdInvalido" xml:space="preserve">
+    <value>turno_id debe ser el id del turno (un GUID), tal como lo da buscar_turnos; se recibio: {0}</value>
+  </data>
   <data name="TurnoNoExiste" xml:space="preserve">
-    <value>No existe un turno con el nombre '{0}'. Turnos disponibles: {1}.</value>
+    <value>No existe un turno con id '{0}'. Ubicalo con buscar_turnos.</value>
   </data>
   <data name="SedeNoExiste" xml:space="preserve">
     <value>No existe una sede con el codigo '{0}'; usa buscar_sedes para ubicarla.</value>

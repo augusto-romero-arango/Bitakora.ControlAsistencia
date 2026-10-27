@@ -30,13 +30,20 @@ public sealed record FichaTurno(
     IReadOnlyList<FranjaFicha> Franjas,
     string Descripcion,
     bool Completo,
-    VentanaDeEntradaFicha? VentanaDeEntrada = null);
+    VentanaDeEntradaFicha? VentanaDeEntrada = null,
+    HorarioAbiertoFicha? HorarioAbierto = null);
 
 /// <summary>
 /// Ventana de entrada de un turno no fijo: entre Apertura y Cierre el colaborador puede entrar.
 /// Amplitud es texto legible ("3 h", "2 h 30 min"); null en la ficha = turno fijo.
 /// </summary>
 public sealed record VentanaDeEntradaFicha(TimeOnly Apertura, TimeOnly Cierre, string Amplitud);
+
+/// <summary>
+/// Marca de turno de horario abierto: Duracion es texto legible ("2 h", "6 h 30 min"); null en la
+/// ficha = turno que no es de horario abierto.
+/// </summary>
+public sealed record HorarioAbiertoFicha(string Duracion);
 
 /// <summary>
 /// Franja completa de un turno del catalogo: el consumidor responde "hay descansos o extras dentro

@@ -4,13 +4,13 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AsignarSedeFranja;
 
-// Cliente HTTP puro que envuelve GET programacion/turnos (resolver nombre -> id, via
-// ResolutorTurnoPorNombre) + GET sedes/fichas/{codigo} (solo con codigo_sede) + POST
+// Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno, via
+// ResolutorTurnoPorId) + GET sedes/fichas/{codigo} (solo con codigo_sede) + POST
 // programacion/turnos/{id}:asignar-sede-franja (paso 4 MEF-ADR-0043). Sin codigo_sede la tool
 // retira la sede prearmada (body sin la clave sede); el 400/404/409 del POST -- incluido
 // FranjaSinSede al retirar sin sede -- se traduce a texto, nunca a excepcion (CA-ADR-0030).
 public partial class AsignarSedeFranjaTool(
-    ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor, ResolutorSedePorCodigo resolutorSedes)
+    ProgramacionApi programacion, ResolutorTurnoPorId resolutor, ResolutorSedePorCodigo resolutorSedes)
 {
     internal const string NombreTool = "asignar_sede_franja";
 
@@ -19,14 +19,14 @@ public partial class AsignarSedeFranjaTool(
         [McpToolTrigger(
             NombreTool,
             "Asigna o cambia la sede prearmada de una franja ordinaria de un turno, indicando el "
-            + "turno por su nombre exacto, la franja por su hora de inicio (HH:mm) y la sede por "
+            + "turno por su id, la franja por su hora de inicio (HH:mm) y la sede por "
             + "su codigo (obtenlo con buscar_sedes). Sin codigo_sede, retira la sede prearmada de "
             + "esa franja. No cambia el horario ni los descansos de la franja.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
-        string turno,
+            "turno_id", "Id del turno, tal como lo da buscar_turnos.", isRequired: true)]
+        string turnoId,
         [McpToolProperty("franja", "Hora de inicio de la franja, formato HH:mm.", isRequired: true)]
         string franja,
         [McpToolProperty(
@@ -36,21 +36,19 @@ public partial class AsignarSedeFranjaTool(
         string? codigoSede,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turno))
-            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (!Guid.TryParse(turnoId, out var idTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
         if (string.IsNullOrWhiteSpace(franja))
             return string.Format(Mensajes.CampoObligatorio, "franja");
 
         if (!NotacionFranja.TryParseHora(franja, out var horaFranja))
             return string.Format(Mensajes.HoraInvalida, "franja", franja);
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
+        var resolucion = await resolutor.ResolverAsync(idTurno, ct);
         if (resolucion.FalloDeLectura is { } falloTurnos)
             return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
-        var fichaTurno = resolucion.Ficha;
+        if (resolucion.Ficha is not { } fichaTurno)
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         SedeProgramada? sede = null;
         if (!string.IsNullOrWhiteSpace(codigoSede))
