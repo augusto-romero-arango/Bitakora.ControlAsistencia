@@ -39,6 +39,8 @@ using Wolverine.Runtime;
 using ObtenerFichaTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerFichaTurno.FunctionEndpoint;
 using ListarFichasTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ListarFichasTurno.FunctionEndpoint;
 using ObtenerCuadroSemanalTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerCuadroSemanalTurnos.FunctionEndpoint;
+using ObtenerCuadroDeTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerCuadroDeTurnos.FunctionEndpoint;
+using ListarCuadrosDeTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ListarCuadrosDeTurnos.FunctionEndpoint;
 using ListarCuadrosSemanalesTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ListarCuadrosSemanalesTurnos.FunctionEndpoint;
 
 using ListarLimitesDeJornadaEndpoint = Bitakora.ControlAsistencia.Programacion.ListarLimitesDeJornada.FunctionEndpoint;
@@ -713,6 +715,76 @@ public class ComposicionServiciosTests
         mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_cuadrosemanalturnos");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
         mapping.IdMember.Name.Should().Be(nameof(CuadroSemanalTurnos.Id));
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeObtenerCuadroDeTurnos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ObtenerCuadroDeTurnosEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeListarCuadrosDeTurnos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarCuadrosDeTurnosEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaCuadroDeTurnos()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(CuadroDeTurnos));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveCuadroDeTurnosSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(CuadroDeTurnos));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_cuadrodeturnos");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(CuadroDeTurnos.Id));
+    }
+
+    [Fact]
+    public void ObtenerYListarCuadrosDeTurnos_DeclaranExactamenteSuVerboYRuta()
+    {
+        static (string Funcion, string Metodo, string Ruta) Leer(Type endpoint)
+        {
+            var run = endpoint.GetMethod("Run")!;
+            var funcion = ((Microsoft.Azure.Functions.Worker.FunctionAttribute)run.GetCustomAttributes(
+                typeof(Microsoft.Azure.Functions.Worker.FunctionAttribute), false).Single()).Name;
+            var trigger = run.GetParameters()
+                .SelectMany(p => p.GetCustomAttributes(typeof(Microsoft.Azure.Functions.Worker.HttpTriggerAttribute), false))
+                .Cast<Microsoft.Azure.Functions.Worker.HttpTriggerAttribute>().Single();
+            return (funcion, string.Join(",", trigger.Methods ?? []), trigger.Route!);
+        }
+
+        Leer(typeof(ObtenerCuadroDeTurnosEndpoint)).Should()
+            .Be(("ObtenerCuadroDeTurnos", "get", "programacion/plantillas-turnos/{id}"));
+        Leer(typeof(ListarCuadrosDeTurnosEndpoint)).Should()
+            .Be(("ListarCuadrosDeTurnos", "get", "programacion/plantillas-turnos"));
     }
 
     // Issue #626 CA-5: el handler de CrearPlantillaSemanal gana el puerto de lookup de nombres
