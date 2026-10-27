@@ -89,6 +89,8 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites AsignarAPlantillaTurnosJornadaNoExiste = Firma(34, 3);
     public static readonly FirmaDeLimites QuitarJornadaDePlantillaTurnosPersiste = Firma(34, 4);
     public static readonly FirmaDeLimites QuitarJornadaDePlantillaTurnosSinNuevosEventos = Firma(34, 5);
+    public static readonly FirmaDeLimites CrearPlantillaTurnosConJornada = Firma(34, 6);
+    public static readonly FirmaDeLimites CrearPlantillaTurnosJornadaDesactivada = Firma(34, 7);
     public static readonly FirmaDeLimites ActivarJornadaPersiste = Firma(30, 27);
     public static readonly FirmaDeLimites SolicitarProgramacion = Firma(42, 1, topeHoras: 8, topeMinutos: 30,
         minimoHoras: 4);
