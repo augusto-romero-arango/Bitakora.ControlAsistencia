@@ -20,7 +20,20 @@ public partial class CrearPlantillaTurnosCommandHandler : ICommandHandlerAsync<C
         if (existe)
             throw new RecursoYaExisteException(Mensajes.PlantillaYaExiste);
 
+        Jornada? jornada = null;
+        if (command.JornadaId is { } jornadaId)
+        {
+            jornada = await _eventStore.GetAggregateRootAsync<Jornada>(jornadaId, ct);
+            if (jornada is null)
+                throw new RecursoNoEncontradoException(Mensajes.JornadaNoEncontrada);
+            if (!jornada.Activa)
+                throw new ReglaDeNegocioDeclinadaException(Mensajes.JornadaDesactivada);
+        }
+
         var evento = PlantillaDeTurnosCreada.Crear(command.PlantillaId, command.Nombre, command.DiasDelCiclo);
-        _eventStore.StartStream(PlantillaTurnos.Iniciar(evento));
+        var plantilla = jornada is null
+            ? PlantillaTurnos.Iniciar(evento)
+            : PlantillaTurnos.IniciarConJornada(evento, command.JornadaId!.Value, jornada.Limites, jornada.Version);
+        _eventStore.StartStream(plantilla);
     }
 }

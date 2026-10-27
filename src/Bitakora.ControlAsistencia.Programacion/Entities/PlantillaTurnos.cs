@@ -152,7 +152,16 @@ public partial class PlantillaTurnos : AggregateRoot
 
     internal static PlantillaTurnos IniciarConJornada(
         PlantillaDeTurnosCreada evento, Guid jornadaId, LimitesJornada limites, long version)
-        => throw new NotImplementedException();
+    {
+        var plantilla = new PlantillaTurnos();
+        plantilla._uncommittedEvents.Add(evento);
+        plantilla.Apply(evento);
+        var asignada = JornadaDePlantillaDeTurnosAsignada.Crear(evento.PlantillaId, jornadaId, limites, version);
+        plantilla._uncommittedEvents.Add(asignada);
+        plantilla.Apply(asignada);
+        plantilla.Auditar();
+        return plantilla;
+    }
 
     public static PlantillaTurnos Iniciar(PlantillaDeTurnosCreada evento)
     {

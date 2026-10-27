@@ -8,5 +8,6 @@ public class CrearPlantillaTurnosValidator : AbstractValidator<CrearPlantillaTur
     {
         RuleFor(x => x.PlantillaId).NotEmpty();
         RuleFor(x => x.Nombre).NotEmpty();
+        RuleFor(x => x.JornadaId).NotEqual(Guid.Empty).When(x => x.JornadaId.HasValue);
     }
 }
