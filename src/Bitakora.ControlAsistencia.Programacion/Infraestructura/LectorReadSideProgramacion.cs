@@ -19,7 +19,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Infraestructura;
 // implementan de forma explicita: la clase no expone superficie publica propia y ninguna vista
 // queda arbitrariamente privilegiada como "la" del tipo concreto. Solo se resuelve por interfaz (DI).
 public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext tenantContext)
-    : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorNombresPlantillaTurnos, ILectorLimitesJornada, ILectorPlantillasPorJornada, ILectorPlantillasPorTurno, ILectorPlantillasTurnosPorTurno
+    : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorNombresPlantillaTurnos, ILectorLimitesJornada, ILectorPlantillasPorJornada, ILectorPlantillasTurnosPorJornada, ILectorPlantillasPorTurno, ILectorPlantillasTurnosPorTurno
 {
     async Task<IReadOnlyList<string>> ILectorNombresTurno.ObtenerNombresAsync(CancellationToken ct)
     {
@@ -48,6 +48,10 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
             .Select(c => c.Id)
             .ToListAsync(ct);
     }
+
+    Task<IReadOnlyList<string>> ILectorPlantillasTurnosPorJornada.ObtenerPlantillaIdsAsync(
+        Guid jornadaId, CancellationToken ct) =>
+        throw new NotImplementedException();
 
     async Task<IReadOnlyList<string>> ILectorPlantillasPorTurno.ObtenerPlantillaIdsAsync(
         Guid turnoId, CancellationToken ct)

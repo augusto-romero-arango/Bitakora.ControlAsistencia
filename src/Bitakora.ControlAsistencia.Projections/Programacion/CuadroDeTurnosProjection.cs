@@ -58,6 +58,9 @@ public sealed partial class CuadroDeTurnosProjection
                 .ToList()
         };
 
+    public static CuadroDeTurnos Apply(LimitesDeJornadaDePlantillaDeTurnosSincronizados e, CuadroDeTurnos vista) =>
+        throw new NotImplementedException();
+
     public static bool ShouldDelete(PlantillaDeTurnosRetirada e) => true;
 
     private static bool EstaCompleta(IReadOnlyCollection<DiaDelCuadroDeTurnos> dias, int diasDelCiclo) =>

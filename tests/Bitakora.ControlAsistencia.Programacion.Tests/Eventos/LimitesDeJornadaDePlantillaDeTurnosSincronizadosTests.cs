@@ -1,0 +1,24 @@
+using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+
+namespace Bitakora.ControlAsistencia.Programacion.Tests.Eventos;
+
+public class LimitesDeJornadaDePlantillaDeTurnosSincronizadosTests
+{
+    private static readonly Guid PlantillaId = Guid.Parse("019600a0-0000-7000-8000-000000001296");
+    private static readonly Guid JornadaId = Guid.Parse("019600a0-0000-7000-8000-000000000a01");
+
+    [Fact]
+    public void Crear_ExponeDatosRecibidos()
+    {
+        var limites = LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 0),
+            HorasYMinutos.Crear(4, 0), 1);
+
+        var evento = LimitesDeJornadaDePlantillaDeTurnosSincronizados.Crear(PlantillaId, JornadaId, limites, 3);
+
+        evento.PlantillaId.Should().Be(PlantillaId);
+        evento.JornadaId.Should().Be(JornadaId);
+        evento.Limites.Should().Be(limites);
+        evento.VersionJornada.Should().Be(3);
+    }
+}

@@ -7,7 +7,8 @@ using Comando = Bitakora.ControlAsistencia.Programacion.DesactivarJornadaFunctio
 namespace Bitakora.ControlAsistencia.Programacion.DesactivarJornadaFunction.CommandHandler;
 
 public partial class DesactivarJornadaCommandHandler(
-    IEventStore eventStore, ILectorPlantillasPorJornada lectorPlantillas, ITenantContext tenantContext)
+    IEventStore eventStore, ILectorPlantillasPorJornada lectorPlantillas,
+    ILectorPlantillasTurnosPorJornada lectorPlantillasTurnos, ITenantContext tenantContext)
     : ICommandHandlerAsync<Comando>
 {
     public async Task HandleAsync(Comando command, CancellationToken ct = default)
@@ -29,6 +30,7 @@ public partial class DesactivarJornadaCommandHandler(
             throw new ReglaDeNegocioDeclinadaException(
                 $"{Mensajes.JornadaEnUsoPorPlantillas} {string.Join(", ", plantillas)}");
 
+        _ = lectorPlantillasTurnos;
         jornada.Desactivar();
     }
 }

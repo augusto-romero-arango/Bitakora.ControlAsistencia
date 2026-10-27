@@ -105,6 +105,13 @@ public partial class PlantillaTurnos : AggregateRoot
         return ResultadoSincronizarTurno.Sincronizado;
     }
 
+    public void Apply(LimitesDeJornadaDePlantillaDeTurnosSincronizados evento) =>
+        throw new NotImplementedException();
+
+    internal ResultadoSincronizarLimitesDeJornada SincronizarLimitesDeJornada(
+        Guid jornadaId, LimitesJornada limites, long version) =>
+        throw new NotImplementedException();
+
     internal ResultadoRetiroPlantilla Retirar()
     {
         if (!_estaActiva)

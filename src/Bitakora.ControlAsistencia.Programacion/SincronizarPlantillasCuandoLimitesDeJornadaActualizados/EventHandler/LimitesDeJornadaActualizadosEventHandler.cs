@@ -10,11 +10,14 @@ namespace Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoLim
 public class LimitesDeJornadaActualizadosEventHandler : IPrivateEventHandlerAsync<LimitesDeJornadaActualizados>
 {
     private readonly ILectorPlantillasPorJornada _lector;
+    private readonly ILectorPlantillasTurnosPorJornada _lectorPlantillasTurnos;
     private readonly ICommandRouter _commandRouter;
 
-    public LimitesDeJornadaActualizadosEventHandler(ILectorPlantillasPorJornada lector, ICommandRouter commandRouter)
+    public LimitesDeJornadaActualizadosEventHandler(
+        ILectorPlantillasPorJornada lector, ILectorPlantillasTurnosPorJornada lectorPlantillasTurnos, ICommandRouter commandRouter)
     {
         _lector = lector;
+        _lectorPlantillasTurnos = lectorPlantillasTurnos;
         _commandRouter = commandRouter;
     }
 
@@ -22,6 +25,7 @@ public class LimitesDeJornadaActualizadosEventHandler : IPrivateEventHandlerAsyn
     {
         var limites = Reinstanciar(@event);
         var plantillaIds = await _lector.ObtenerPlantillaIdsAsync(@event.JornadaId, ct);
+        _ = _lectorPlantillasTurnos;
 
         foreach (var plantillaId in plantillaIds)
             await _commandRouter.InvokeAsync(new SincronizarLimitesDeJornadaDePlantillaSemanal(

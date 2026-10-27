@@ -231,4 +231,20 @@ public class CuadroDeTurnosProjectionTests
 
         vista.Should().BeEquivalentTo(previa);
     }
+
+    [Fact]
+    public void Apply_ActualizaLimites_CuandoLimitesDeJornadaDePlantillaDeTurnosSincronizados()
+    {
+        var nuevos = LimitesJornada.Crear(
+            HorasYMinutos.Crear(40, 30), HorasYMinutos.Crear(9, 0), HorasYMinutos.Crear(2, 0), 2);
+        var dias = new[] { DiaCompleto(1, TurnoA) };
+        var previa = Vista(dias, jornadaId: JornadaId, limites: new LimitesDelCuadro(2640, 600, 240, 1, "x"));
+        var evento = LimitesDeJornadaDePlantillaDeTurnosSincronizados.Crear(Guid.NewGuid(), JornadaId, nuevos, 5);
+
+        var vista = CuadroDeTurnosProjection.Apply(evento, previa);
+
+        vista.Limites.Should().BeEquivalentTo(new LimitesDelCuadro(2430, 540, 120, 2, nuevos.ToString()));
+        vista.JornadaId.Should().Be(JornadaId);
+        vista.Dias.Should().BeEquivalentTo(dias);
+    }
 }
