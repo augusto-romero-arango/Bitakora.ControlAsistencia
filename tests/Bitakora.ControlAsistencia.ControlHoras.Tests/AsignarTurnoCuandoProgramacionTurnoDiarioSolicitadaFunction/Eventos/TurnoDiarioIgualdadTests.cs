@@ -28,6 +28,8 @@ public class TurnoDiarioIgualdadTests : IgualdadTestBase<TurnoDiario>
             new TurnoDiario("Turno Tarde", [FranjaOrdinaria()], "Turno Tarde (06:00-14:00)"));
         yield return ("AmplitudVentanaEntradaEnMinutos",
             new TurnoDiario("Turno Manana", [FranjaOrdinaria()], "Turno Manana (06:00-14:00)", 180));
+        yield return ("EsHorarioAbierto",
+            new TurnoDiario("Turno Manana", [FranjaOrdinaria()], "Turno Manana (06:00-14:00)", 0, true));
         yield return ("FranjasOrdinarias",
             new TurnoDiario("Turno Manana", [], "Turno Manana"));
     }

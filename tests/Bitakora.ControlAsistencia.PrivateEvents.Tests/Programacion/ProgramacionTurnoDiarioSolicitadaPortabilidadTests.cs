@@ -55,6 +55,34 @@ public class ProgramacionTurnoDiarioSolicitadaPortabilidadTests
     }
 
     [Fact]
+    public void RoundTrip_PreservaLaMarcaDeHorarioAbierto_ConSerializadorPorDefectoDelBus()
+    {
+        var evento = new ProgramacionTurnoDiarioSolicitada(
+            SolicitudId, Colaborador, Fecha, Turno with { EsHorarioAbierto = true });
+        var opciones = CrearOpcionesBus();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoDiarioSolicitada>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.DetalleTurno.EsHorarioAbierto.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Deserializar_DejaLaMarcaEnFalse_CuandoElMensajeViejoNoLlevaLaClave()
+    {
+        var opciones = CrearOpcionesBus();
+        var evento = new ProgramacionTurnoDiarioSolicitada(SolicitudId, Colaborador, Fecha, Turno);
+        var nodo = JsonNode.Parse(JsonSerializer.Serialize(evento, opciones))!.AsObject();
+        nodo["detalleTurno"]!.AsObject().Remove("esHorarioAbierto");
+
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoDiarioSolicitada>(nodo.ToJsonString(), opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.DetalleTurno.EsHorarioAbierto.Should().BeFalse();
+    }
+
+    [Fact]
     public void Deserializar_DejaAmplitudEnCero_CuandoElMensajeViejoNoLlevaLaClave()
     {
         var opciones = CrearOpcionesBus();

@@ -641,4 +641,70 @@ public class AsignarTurnoViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresF
             "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
             codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ProgramacionTurnoDiarioSolicitada_PersisteLaMarcaDeHorarioAbierto_CuandoElEventoLaTrae()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured,
+            postgres.SkipReason ?? "Postgres no disponible.");
+
+        var solicitudId = Guid.CreateVersion7();
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var fecha = new DateOnly(2026, 4, 14);
+        var evento = new
+        {
+            SolicitudId = solicitudId,
+            Colaborador = new
+            {
+                Identificacion = "CC-555666779",
+                CodigoColaborador = codigoColaborador,
+                NombreCompleto = "[TEST] Smoke Horario [TEST] Abierto"
+            },
+            Fecha = fecha.ToString("yyyy-MM-dd"),
+            DetalleTurno = new
+            {
+                Nombre = "[TEST] Turno Horario Abierto",
+                FranjasOrdinarias = new[]
+                {
+                    new
+                    {
+                        HoraInicio = "08:00:00", HoraFin = "16:00:00", DiaOffsetFin = 0,
+                        Descansos = Array.Empty<object>(), Extras = Array.Empty<object>()
+                    }
+                },
+                EsHorarioAbierto = true
+            }
+        };
+
+        await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, Guid.CreateVersion7().ToString());
+
+        var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
+        var existe = await postgres.ExisteEventoAsync(
+            SchemaControlHoras, streamId, "turno_diario_asignado", Timeout,
+            campoJson: "SolicitudId", valorJson: solicitudId.ToString());
+        existe.Should().BeTrue($"turno_diario_asignado deberia existir en {streamId}");
+
+        var persistido = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaControlHoras, streamId, "turno_diario_asignado",
+            "SolicitudId", solicitudId.ToString(), TimeSpan.FromSeconds(5));
+        persistido.GetProperty("DetalleTurno").GetProperty("EsHorarioAbierto")
+            .GetBoolean().Should().BeTrue();
+
+        var existeDeadLetter = await serviceBus.ExisteDeadLetterDeEstaCorridaAsync<ProgramacionTurnoDiarioSolicitadaMinimo>(
+            TopicEntrada, SuscripcionConsumidor, e => e.SolicitudId == solicitudId);
+
+        existeDeadLetter.Should().BeFalse(
+            "no deberia haber un dead letter de esta corrida (SolicitudId {0}) en '{1}' - si lo hay, el consumidor fallo al procesar la marca",
+            solicitudId, SuscripcionConsumidor);
+
+        var existeDeadLetterEnQueue = await serviceBus.ExisteDeadLetterEnQueueDeColaboradorAsync(
+            ServiceBusFixture.QueueFanIn, codigoColaborador);
+
+        existeDeadLetterEnQueue.Should().BeFalse(
+            "no deberia haber un dead letter del colaborador {0} en el queue '{1}'",
+            codigoColaborador, ServiceBusFixture.QueueFanIn);
+    }
 }

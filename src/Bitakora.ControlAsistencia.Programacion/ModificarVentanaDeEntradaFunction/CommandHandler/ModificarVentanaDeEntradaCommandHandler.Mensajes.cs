@@ -14,5 +14,8 @@ public partial class ModificarVentanaDeEntradaCommandHandler
         public static string TurnoRetirado => ResourceManager.GetString(nameof(TurnoRetirado))!;
         public static string TurnoSinFranjas => ResourceManager.GetString(nameof(TurnoSinFranjas))!;
         public static string CierrePasaMedianoche => ResourceManager.GetString(nameof(CierrePasaMedianoche))!;
+
+        public static string TurnoDeHorarioAbierto =>
+            ResourceManager.GetString(nameof(TurnoDeHorarioAbierto))!;
     }
 }

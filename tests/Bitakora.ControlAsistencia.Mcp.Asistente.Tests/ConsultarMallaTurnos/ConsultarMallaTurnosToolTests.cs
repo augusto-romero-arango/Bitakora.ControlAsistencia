@@ -216,7 +216,7 @@ public class ConsultarMallaTurnosToolTests
         dias[1].Should().Be("2026-10-13 mar: descanso");
         dias[2].Should().Be("2026-10-14 mié: ausencia (Vacaciones)");
         dias[3].Should().Be("2026-10-15 jue: sin programar");
-        dias[4].Should().Be("2026-10-16 vie: Tarde 14:00-22:00 (Norte)");
+        dias[4].Should().Be("2026-10-16 vie: Tarde 14:00-22:00, descanso 18:00-18:30 (Norte)");
         dias[5].Should().Be("2026-10-17 sáb: sin programar");
         dias[6].Should().Be("2026-10-18 dom: fuera de vinculación");
 

@@ -281,6 +281,19 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosControlHoras_CongelaElAliasDeCierreDeLaVisperaActualizado()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(CierreDeLaVisperaActualizado)).Alias;
+
+        alias.Should().Be("cierre_de_la_vispera_actualizado");
+    }
+
+    [Fact]
     public async Task AgregarServiciosControlHoras_CongelaElAliasDeResolucionDeAmbiguedadDescartada()
     {
         await using var provider = ComponerServiceProvider();

@@ -14,8 +14,14 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> ObtenerTurno(string id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
 
-    public Task<HttpResponseMessage> CrearTurno(Guid turnoId, string nombre, bool esDescanso, CancellationToken ct) =>
-        http.PostAsJsonAsync("api/programacion/turnos", new { turnoId, nombre, esDescanso }, ct);
+    public Task<HttpResponseMessage> CrearTurno(
+        Guid turnoId,
+        string nombre,
+        bool esDescanso,
+        CancellationToken ct,
+        IReadOnlyList<OrdinariaACrear>? ordinarias = null) =>
+        http.PostAsJsonAsync(
+            "api/programacion/turnos", new TurnoACrear(turnoId, nombre, esDescanso, ordinarias), ct);
 
     public Task<HttpResponseMessage> RetirarTurno(string id, CancellationToken ct) =>
         http.DeleteAsync($"api/programacion/turnos/{Uri.EscapeDataString(id)}", ct);
@@ -48,6 +54,9 @@ public sealed class ProgramacionApi(HttpClient http)
                 ? $"api/programacion/jornadas?take={take}"
                 : $"api/programacion/jornadas?take={take}&cursor={Uri.EscapeDataString(cursor)}",
             ct);
+
+    public Task<HttpResponseMessage> ListarJornadasCompleto(CancellationToken ct) =>
+        http.GetAsync("api/programacion/jornadas", ct);
 
     public Task<HttpResponseMessage> ObtenerJornada(Guid id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/jornadas/{id}", ct);
@@ -210,7 +219,10 @@ public sealed record FichaTurno(
     IReadOnlyList<FranjaFicha> Franjas,
     string Descripcion,
     bool Completo,
-    VentanaDeEntradaFicha? VentanaDeEntrada = null);
+    VentanaDeEntradaFicha? VentanaDeEntrada = null,
+    HorarioAbiertoFicha? HorarioAbierto = null);
+
+public sealed record HorarioAbiertoFicha(string Duracion);
 
 public sealed record VentanaDeEntradaFicha(TimeOnly Apertura, TimeOnly Cierre, string Amplitud);
 
@@ -301,3 +313,21 @@ public sealed record SubFranjaAQuitar
 }
 
 public sealed record SedeProgramada(string Id, string Nombre, string? CentroDeCostos);
+
+public sealed record TurnoACrear(
+    Guid TurnoId,
+    string Nombre,
+    bool EsDescanso,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyList<OrdinariaACrear>? Ordinarias);
+
+public sealed record OrdinariaACrear(
+    string Inicio,
+    string Fin,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    int? DiaOffsetFin,
+    IReadOnlyList<SubFranjaACrear>? Descansos,
+    IReadOnlyList<SubFranjaACrear>? Extras,
+    SedeProgramada? Sede);
+
+public sealed record SubFranjaACrear(string Inicio, string Fin);

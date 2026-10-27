@@ -13,6 +13,10 @@ public class CrearPlantillaSemanalToolTests
 {
     private const string RutaTurnos = "/api/programacion/turnos";
     private const string RutaPlantillas = "/api/programacion/plantillas-semanales";
+    private const string TurnoManana = "8f14e45f-ceea-4b3c-8f0a-000000000001";
+    private const string TurnoTarde = "8f14e45f-ceea-4b3c-8f0a-000000000002";
+    private const string TurnoInexistente = "8f14e45f-ceea-4b3c-8f0a-0000000000e1";
+    private const string TurnoInexistente2 = "8f14e45f-ceea-4b3c-8f0a-0000000000e2";
 
     // Reuso deliberado del fixture de solicitar_programacion_turno (MEF-ADR-0018): mismo catalogo
     // (Cocina Manana id ...001, Cocina Tarde id ...002), mismo resolutor por nombre.
@@ -24,17 +28,17 @@ public class CrearPlantillaSemanalToolTests
     // usada por CA-1 y por los tests de fallo parcial (CA-4) que necesitan la plantilla completa.
     private const string SieteDiasValidosJson = """
         [
-          {"semana":1,"dia":"lunes","turno":"Cocina Manana"},
-          {"semana":1,"dia":"martes","turno":"Cocina Tarde"},
-          {"semana":1,"dia":"miercoles","turno":"Cocina Manana"},
-          {"semana":1,"dia":"jueves","turno":"Cocina Tarde"},
-          {"semana":1,"dia":"viernes","turno":"Cocina Manana"},
-          {"semana":1,"dia":"sabado","turno":"Cocina Tarde"},
-          {"semana":1,"dia":"domingo","turno":"Cocina Manana"}
+          {"semana":1,"dia":"lunes","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"},
+          {"semana":1,"dia":"martes","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000002"},
+          {"semana":1,"dia":"miercoles","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"},
+          {"semana":1,"dia":"jueves","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000002"},
+          {"semana":1,"dia":"viernes","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"},
+          {"semana":1,"dia":"sabado","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000002"},
+          {"semana":1,"dia":"domingo","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"}
         ]
         """;
 
-    private const string UnaEntradaValidaJson = """[{"semana":1,"dia":"lunes","turno":"Cocina Manana"}]""";
+    private const string UnaEntradaValidaJson = """[{"semana":1,"dia":"lunes","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"}]""";
 
     private sealed record Fakes(CrearPlantillaSemanalTool Tool, HandlerPorRuta Handler);
 
@@ -49,6 +53,10 @@ public class CrearPlantillaSemanalToolTests
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
         handler.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosJson);
+        handler.RespondeDetalleDeTurno(TurnosJson, TurnoManana);
+        handler.RespondeDetalleDeTurno(TurnosJson, TurnoTarde);
+        handler.RespondeDetalleDeTurno(TurnosJson, TurnoInexistente);
+        handler.RespondeDetalleDeTurno(TurnosJson, TurnoInexistente2);
         if (statusPost is { } status)
             handler.Responde(HttpMethod.Post, RutaPlantillas, status, cuerpoPost);
         handler.RespondeConPrefijo(HttpMethod.Put, $"{RutaPlantillas}/", statusPut, "");
@@ -60,7 +68,7 @@ public class CrearPlantillaSemanalToolTests
 
         var programacionApi = new ProgramacionApi(cliente);
         var tool = new CrearPlantillaSemanalTool(
-            programacionApi, new ResolutorTurnoPorNombre(programacionApi));
+            programacionApi, new ResolutorTurnoPorId(programacionApi), new ResolutorTurnoPorNombre(programacionApi));
         return new Fakes(tool, handler);
     }
 
@@ -83,19 +91,24 @@ public class CrearPlantillaSemanalToolTests
         var plantillaIdEnviado = ExtraerPlantillaIdEnviado(fakes);
         Guid.TryParse(plantillaIdEnviado, out _).Should().BeTrue("plantillaId debe ser un Guid v7 valido");
 
-        var esperado = new List<(HttpMethod, string)> { (HttpMethod.Get, RutaTurnos), (HttpMethod.Post, RutaPlantillas) };
+        var esperado = new List<(HttpMethod, string)>
+        {
+            (HttpMethod.Get, $"{RutaTurnos}/{TurnoManana}"),
+            (HttpMethod.Get, $"{RutaTurnos}/{TurnoTarde}"),
+            (HttpMethod.Post, RutaPlantillas)
+        };
         for (var dia = 1; dia <= 7; dia++)
             esperado.Add((HttpMethod.Put, $"{RutaPlantillas}/{plantillaIdEnviado}/dias/1/{dia}"));
         fakes.Handler.Requests.Select(r => (r.Metodo, r.Ruta)).Should().Equal(esperado);
 
-        var postBody = JsonNode.Parse(fakes.Handler.Requests[1].Cuerpo!)!;
+        var postBody = JsonNode.Parse(fakes.Handler.Requests[2].Cuerpo!)!;
         postBody["nombre"]!.GetValue<string>().Should().Be("Semana Tipo Cocina");
         postBody["semanas"]!.GetValue<int>().Should().Be(1);
 
-        var putLunes = JsonNode.Parse(fakes.Handler.Requests[2].Cuerpo!)!;
-        putLunes["turnoId"]!.GetValue<string>().Should().Be("8f14e45f-ceea-4b3c-8f0a-000000000001");
-        var putMartes = JsonNode.Parse(fakes.Handler.Requests[3].Cuerpo!)!;
-        putMartes["turnoId"]!.GetValue<string>().Should().Be("8f14e45f-ceea-4b3c-8f0a-000000000002");
+        var putLunes = JsonNode.Parse(fakes.Handler.Requests[3].Cuerpo!)!;
+        putLunes["turnoId"]!.GetValue<string>().Should().Be(TurnoManana);
+        var putMartes = JsonNode.Parse(fakes.Handler.Requests[4].Cuerpo!)!;
+        putMartes["turnoId"]!.GetValue<string>().Should().Be(TurnoTarde);
 
         var json = JsonNode.Parse(resultado)!;
         json["resultado"]!.GetValue<string>().Should().Be(CrearPlantillaSemanalTool.Mensajes.ResultadoPlantillaCreada);
@@ -105,6 +118,8 @@ public class CrearPlantillaSemanalToolTests
         json["diasAsignados"]!.GetValue<int>().Should().Be(7);
         json["completa"]!.GetValue<bool>().Should().BeTrue();
         json.AsObject().ContainsKey("diasRechazados").Should().BeFalse("filtro de relevancia: sin rechazos, la clave se omite");
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaTurnos);
+        fakes.Handler.Requests.Should().NotContain(r => r.Ruta == RutaPlantillas && r.Metodo == HttpMethod.Get);
         json["nota"]!.GetValue<string>().Should().Be(CrearPlantillaSemanalTool.Mensajes.NotaVisibilidadEventual);
     }
 
@@ -115,7 +130,7 @@ public class CrearPlantillaSemanalToolTests
         async Task<string> RutaDelPut(string valorDia)
         {
             var fakes = CrearTool();
-            var dias = $$"""[{"semana":1,"dia":{{JsonSerializer.Serialize(valorDia)}},"turno":"Cocina Manana"}]""";
+            var dias = $$"""[{"semana":1,"dia":{{JsonSerializer.Serialize(valorDia)}},"turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"}]""";
 
             await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
@@ -127,24 +142,126 @@ public class CrearPlantillaSemanalToolTests
         (await RutaDelPut("3")).Should().EndWith("/dias/1/3");
     }
 
-    // CA-2: se resuelven TODOS los nombres con una sola lectura; si alguno falta, no se escribe
-    // nada -- ni POST ni PUT -- y se listan los que faltan y los disponibles.
+    // CA-4: un turno_id que responde 404 aborta antes de escribir; el mensaje nombra los ids
+    // faltantes y remite a buscar_turnos.
     [Fact]
-    public async Task CrearPlantillaSemanal_RespondeTurnosNoExistenSinEscribirNada_CuandoAlgunTurnoNoExisteEnElCatalogo()
+    public async Task CrearPlantillaSemanal_RespondeTurnosNoExistenSinEscribirNada_CuandoAlgunTurnoIdNoExiste()
     {
         var fakes = CrearTool();
-        var dias = """
-            [{"semana":1,"dia":"lunes","turno":"Turno Que No Existe"},{"semana":1,"dia":"martes","turno":"Cocina Tarde"}]
+        var dias = $$"""
+            [{"semana":1,"dia":"lunes","turno_id":"{{TurnoInexistente}}"},{"semana":1,"dia":"martes","turno_id":"{{TurnoTarde}}"}]
+            """;
+
+        var resultado = await fakes.Tool.Run(
+            null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnosNoExisten, TurnoInexistente));
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_ListaTodosLosIdsFaltantesEnOrden_CuandoVariosTurnosNoExisten()
+    {
+        var fakes = CrearTool();
+        var dias = $$"""
+            [{"semana":1,"dia":"lunes","turno_id":"{{TurnoInexistente}}"},{"semana":1,"dia":"martes","turno_id":"{{TurnoInexistente2}}"},{"semana":1,"dia":"miercoles","turno_id":"{{TurnoInexistente}}"}]
             """;
 
         var resultado = await fakes.Tool.Run(
             null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(
-            CrearPlantillaSemanalTool.Mensajes.TurnosNoExisten, "Turno Que No Existe", "Cocina Manana, Cocina Tarde"));
-        fakes.Handler.Requests.Should().ContainSingle(r => r.Metodo == HttpMethod.Get);
-        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
-        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Put);
+            CrearPlantillaSemanalTool.Mensajes.TurnosNoExisten, $"{TurnoInexistente}, {TurnoInexistente2}"));
+        fakes.Handler.Requests.Should().OnlyContain(r => r.Metodo == HttpMethod.Get);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_LeeUnSoloDetalle_CuandoUnTurnoIdSeRepiteEnVariosDias()
+    {
+        var fakes = CrearTool();
+        var dias = $$"""
+            [{"semana":1,"dia":"lunes","turno_id":"{{TurnoManana}}"},{"semana":1,"dia":"martes","turno_id":"{{TurnoManana}}"}]
+            """;
+
+        await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
+
+        fakes.Handler.Requests.Where(r => r.Metodo == HttpMethod.Get).Should().ContainSingle()
+            .Which.Ruta.Should().Be($"{RutaTurnos}/{TurnoManana}");
+        fakes.Handler.Requests.Count(r => r.Metodo == HttpMethod.Put).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_RechazaSinLlamarAlBackend_CuandoUnTurnoIdNoEsGuid()
+    {
+        var fakes = CrearTool();
+        var dias = """[{"semana":1,"dia":"lunes","turno_id":"Cocina Manana"}]""";
+
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnoIdInvalido, "Cocina Manana"));
+        fakes.Handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_PidePorTurnoId_CuandoLaEntradaTodaviaTraeTurnoPorNombre()
+    {
+        var fakes = CrearTool();
+        var dias = """[{"semana":1,"dia":"lunes","turno":"Cocina Manana"}]""";
+
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.TurnoPorNombreNoSoportado, 1, "lunes"));
+        fakes.Handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_RechazaSinEscribir_CuandoElDetalleDelTurnoFalla()
+    {
+        var (cliente, handler) = ClienteFalso.ConRutas();
+        handler.Responde(
+            HttpMethod.Get, DetalleDeTurnoFalso.RutaDetalle(TurnoManana), HttpStatusCode.ServiceUnavailable, "");
+        var programacionApi = new ProgramacionApi(cliente);
+        var tool = new CrearPlantillaSemanalTool(
+            programacionApi, new ResolutorTurnoPorId(programacionApi), new ResolutorTurnoPorNombre(programacionApi));
+
+        var resultado = await tool.Run(
+            null!, "Plantilla X", 1, UnaEntradaValidaJson, null, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearPlantillaSemanalTool.Mensajes.RechazoDelDominio, "503"));
+        handler.Requests.Should().OnlyContain(r => r.Metodo == HttpMethod.Get);
+    }
+
+    // CA-5: turno_id e inline conviven; el catalogo se lee solo por los inline.
+    [Fact]
+    public async Task CrearPlantillaSemanal_AsignaPorIdYClasificaElInline_CuandoLaPlantillaMezclaTurnoIdYFranja()
+    {
+        var fakes = CrearTool();
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno_id":"{{TurnoManana}}"},{"semana":1,"dia":"martes","franja":"07:00-17:00"}]""";
+
+        var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
+
+        var gets = fakes.Handler.Requests.Where(r => r.Metodo == HttpMethod.Get).Select(r => r.Ruta).ToList();
+        gets.Should().BeEquivalentTo([$"{RutaTurnos}/{TurnoManana}", RutaTurnos]);
+        var turnoInlineId = PostsATurnos(fakes).Single()["turnoId"]!.GetValue<string>();
+        var puts = fakes.Handler.Requests.Where(r => r.Metodo == HttpMethod.Put).ToList();
+        puts.Should().HaveCount(2);
+        JsonNode.Parse(puts[0].Cuerpo!)!["turnoId"]!.GetValue<string>().Should().Be(TurnoManana);
+        JsonNode.Parse(puts[1].Cuerpo!)!["turnoId"]!.GetValue<string>().Should().Be(turnoInlineId);
+        JsonNode.Parse(resultado)!["turnosInline"]!.AsArray().Single()!["accion"]!.GetValue<string>().Should().Be("creo");
+    }
+
+    [Fact]
+    public async Task CrearPlantillaSemanal_LeeElCatalogoDeTurnosUnaSolaVez_CuandoHayDiasInline()
+    {
+        var fakes = CrearTool();
+
+        await fakes.Tool.Run(
+            null!, "Plantilla X", 1,
+            DiasInline(("lunes", "07:00-17:00"), ("martes", "08:00-18:00")), null, TestContext.Current.CancellationToken);
+
+        fakes.Handler.Requests.Count(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaTurnos).Should().Be(1);
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Get && r.Ruta.StartsWith($"{RutaTurnos}/"));
     }
 
     [Fact]
@@ -197,7 +314,7 @@ public class CrearPlantillaSemanalToolTests
     public async Task CrearPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoElDiaEsUnNombreDesconocido()
     {
         var fakes = CrearTool();
-        var dias = """[{"semana":1,"dia":"funes","turno":"Cocina Manana"}]""";
+        var dias = """[{"semana":1,"dia":"funes","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"}]""";
 
         var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
@@ -209,7 +326,7 @@ public class CrearPlantillaSemanalToolTests
     public async Task CrearPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoElDiaEsUnNumeroFueraDeRango()
     {
         var fakes = CrearTool();
-        var dias = """[{"semana":1,"dia":8,"turno":"Cocina Manana"}]""";
+        var dias = """[{"semana":1,"dia":8,"turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"}]""";
 
         var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
@@ -221,7 +338,7 @@ public class CrearPlantillaSemanalToolTests
     public async Task CrearPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoLaSemanaEstaFueraDeRango()
     {
         var fakes = CrearTool();
-        var dias = """[{"semana":2,"dia":"lunes","turno":"Cocina Manana"}]""";
+        var dias = """[{"semana":2,"dia":"lunes","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"}]""";
 
         var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
@@ -234,7 +351,7 @@ public class CrearPlantillaSemanalToolTests
     {
         var fakes = CrearTool();
         var dias = """
-            [{"semana":1,"dia":"lunes","turno":"Cocina Manana"},{"semana":1,"dia":1,"turno":"Cocina Tarde"}]
+            [{"semana":1,"dia":"lunes","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"},{"semana":1,"dia":1,"turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000002"}]
             """;
 
         var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
@@ -300,7 +417,8 @@ public class CrearPlantillaSemanalToolTests
     public async Task CrearPlantillaSemanal_DejaUnDiaRechazadoYAsignaLosDemas_CuandoUnPutFalla()
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
-        handler.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, TurnosJson);
+        handler.RespondeDetalleDeTurno(TurnosJson, TurnoManana);
+        handler.RespondeDetalleDeTurno(TurnosJson, TurnoTarde);
         handler.Responde(HttpMethod.Post, RutaPlantillas, HttpStatusCode.Created, "");
 
         const string motivoRechazo = "El turno esta incompleto";
@@ -312,7 +430,7 @@ public class CrearPlantillaSemanalToolTests
 
         var programacionApi = new ProgramacionApi(cliente);
         var tool = new CrearPlantillaSemanalTool(
-            programacionApi, new ResolutorTurnoPorNombre(programacionApi));
+            programacionApi, new ResolutorTurnoPorId(programacionApi), new ResolutorTurnoPorNombre(programacionApi));
 
         var resultado = await tool.Run(
             null!, "Semana Tipo Cocina", 1, SieteDiasValidosJson, null, TestContext.Current.CancellationToken);
@@ -337,7 +455,7 @@ public class CrearPlantillaSemanalToolTests
     public async Task CrearPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoLaEntradaNoTraeLaClaveDia()
     {
         var fakes = CrearTool();
-        var dias = """[{"semana":1,"turno":"Cocina Manana"}]""";
+        var dias = """[{"semana":1,"turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"}]""";
 
         var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 
@@ -553,7 +671,7 @@ public class CrearPlantillaSemanalToolTests
     public async Task CrearPlantillaSemanal_RechazaSinLlamarAlDominio_CuandoLaEntradaTraeTurnoYFranja()
     {
         var fakes = CrearTool();
-        var dias = """[{"semana":1,"dia":"lunes","turno":"Cocina Manana","franja":"07:00-17:00"}]""";
+        var dias = """[{"semana":1,"dia":"lunes","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001","franja":"07:00-17:00"}]""";
 
         var resultado = await fakes.Tool.Run(null!, "Plantilla X", 1, dias, null, TestContext.Current.CancellationToken);
 

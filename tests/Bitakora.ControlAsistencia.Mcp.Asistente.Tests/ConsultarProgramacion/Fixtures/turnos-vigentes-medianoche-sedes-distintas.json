@@ -1,0 +1,31 @@
+{
+ "desde": "2026-11-07",
+ "hasta": "2026-11-07",
+ "rangoRecortado": false,
+ "elementos": [
+  {
+   "id": "cd:col-1:20261107",
+   "codigoColaborador": "COL-1",
+   "nombreCompleto": null,
+   "fecha": "2026-11-07",
+   "nombreTurno": "Turno Dos Sedes",
+   "horarioResumido": "Turno Dos Sedes",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-11-07T16:00:00",
+     "fin": "2026-11-08T00:00:00",
+     "sedeId": "s:A",
+     "nombreSede": "A"
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-11-08T00:00:00",
+     "fin": "2026-11-08T08:00:00",
+     "sedeId": "s:B",
+     "nombreSede": "B"
+    }
+   ]
+  }
+ ]
+}

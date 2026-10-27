@@ -24,7 +24,7 @@ public class CrearTurnoDeHorarioAbiertoCommandHandlerTests : CommandHandlerAsync
         new(GuidAggregateId, Nombre, new HorasYMinutosSolicitadas(horas, minutos));
 
     private TurnoCreado TurnoCreadoEsperado(TimeOnly fin, int diaOffsetFin = 0) =>
-        TurnoCreado.Crear(GuidAggregateId, Nombre,
+        TurnoCreado.CrearDeHorarioAbierto(GuidAggregateId, Nombre,
             [new DatosFranja(new TimeOnly(4, 0), fin, [], [], null, diaOffsetFin)]);
 
     [Fact]
@@ -37,7 +37,28 @@ public class CrearTurnoDeHorarioAbiertoCommandHandlerTests : CommandHandlerAsync
             VentanaDeEntradaModificada.Crear(GuidAggregateId, HorasYMinutos.Crear(14, 0)));
         And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
         And<CatalogoTurnos, int>(c => c.ObtenerDetalle().AmplitudVentanaEntradaEnMinutos, 14 * 60);
-        And<CatalogoTurnos, string>(c => c.ToString(), $"{Nombre} (04:00-10:00)");
+        And<CatalogoTurnos, string>(c => c.ToString(), "04:00-10:00");
+    }
+
+    [Fact]
+    public async Task CrearTurnoDeHorarioAbierto_MarcaElTurnoComoHorarioAbierto_CuandoDuracionEsSeisHoras()
+    {
+        Given();
+        await WhenAsync(Comando(6));
+
+        Then(TurnoCreadoEsperado(new TimeOnly(10, 0)),
+            VentanaDeEntradaModificada.Crear(GuidAggregateId, HorasYMinutos.Crear(14, 0)));
+        And<CatalogoTurnos, bool>(c => c.Turno.EsHorarioAbierto(), true);
+    }
+
+    [Fact]
+    public async Task CrearTurnoDeHorarioAbierto_MarcaElTurnoComoHorarioAbierto_CuandoDuracionEsVeinteHoras()
+    {
+        Given();
+        await WhenAsync(Comando(20));
+
+        Then(TurnoCreadoEsperado(new TimeOnly(0, 0), diaOffsetFin: 1));
+        And<CatalogoTurnos, bool>(c => c.Turno.EsHorarioAbierto(), true);
     }
 
     [Fact]
@@ -70,7 +91,7 @@ public class CrearTurnoDeHorarioAbiertoCommandHandlerTests : CommandHandlerAsync
 
         Then(TurnoCreadoEsperado(new TimeOnly(0, 0), diaOffsetFin: 1));
         And<CatalogoTurnos, int>(c => c.ObtenerDetalle().AmplitudVentanaEntradaEnMinutos, 0);
-        And<CatalogoTurnos, string>(c => c.ToString(), $"{Nombre} (04:00-00:00+1)");
+        And<CatalogoTurnos, string>(c => c.ToString(), "04:00-00:00+1");
     }
 
     [Fact]

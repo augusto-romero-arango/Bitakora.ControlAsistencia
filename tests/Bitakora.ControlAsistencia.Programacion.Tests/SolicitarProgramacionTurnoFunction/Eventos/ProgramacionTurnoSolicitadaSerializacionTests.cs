@@ -269,6 +269,28 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
     }
 
     [Fact]
+    public void Deserializar_DejaLaMarcaEnFalse_CuandoElJsonPersistidoNoLlevaLaClave()
+    {
+        var evento = Deserializar(JsonConLaFormaPersistidaEnMtEvents());
+
+        evento.DetalleTurno.EsHorarioAbierto.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RoundTrip_PreservaLaMarcaDeHorarioAbierto_CuandoElTurnoLaTrae()
+    {
+        var evento = new ProgramacionTurnoSolicitada(
+            Id, ColaboradorEsperado, [Fecha1], TurnoEsperado with { EsHorarioAbierto = true });
+        var opciones = ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoSolicitada>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.DetalleTurno.EsHorarioAbierto.Should().BeTrue();
+    }
+
+    [Fact]
     public void RoundTrip_PreservaLaAmplitudDeLaVentana_CuandoElTurnoLaTrae()
     {
         var evento = new ProgramacionTurnoSolicitada(

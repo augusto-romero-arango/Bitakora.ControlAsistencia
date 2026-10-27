@@ -36,7 +36,8 @@ public partial class CatalogoTurnos : AggregateRoot
     private static readonly HorasYMinutos DuracionMaximaHorarioAbierto =
         HorasYMinutos.Crear(24 - AperturaHorarioAbierto.Hour, 0);
 
-    // Atajo de creacion: franja 04:00 + duracion y ventana de 20 h - duracion, en un solo stream.
+    // Franja 04:00 + duracion y ventana de 20 h - duracion, en un solo stream. Nace marcado: la marca
+    // la da el comando de creacion, no la amplitud (CA-ADR-0033 decision 8).
     internal static CatalogoTurnos IniciarDeHorarioAbierto(Guid turnoId, string nombre, HorasYMinutos duracion)
     {
         var minutos = duracion.TotalMinutos();
@@ -45,11 +46,11 @@ public partial class CatalogoTurnos : AggregateRoot
 
         var fin = AperturaHorarioAbierto.Add(TimeSpan.FromMinutes(minutos), out var diaOffsetFin);
         var franja = new DatosFranja(AperturaHorarioAbierto, fin, [], [], null, diaOffsetFin);
-        var catalogo = Iniciar(TurnoCreado.Crear(turnoId, nombre, [franja]));
+        var catalogo = Iniciar(TurnoCreado.CrearDeHorarioAbierto(turnoId, nombre, [franja]));
 
         var amplitud = DuracionMaximaHorarioAbierto.TotalMinutos() - minutos;
         if (amplitud > 0)
-            catalogo.ModificarVentanaDeEntrada(HorasYMinutos.Crear(amplitud / 60, amplitud % 60));
+            catalogo.EmitirVentanaDeEntrada(HorasYMinutos.Crear(amplitud / 60, amplitud % 60));
         return catalogo;
     }
 
@@ -57,7 +58,8 @@ public partial class CatalogoTurnos : AggregateRoot
     {
         _eventosAplicados++;
         Id = evento.TurnoId.ToString();
-        _turno = Turno.Crear(evento.Nombre, evento.EsDescanso, evento.FranjasOrdinarias);
+        _turno = Turno.Crear(
+            evento.Nombre, evento.EsDescanso, evento.FranjasOrdinarias, evento.EsHorarioAbierto);
         _estaActivo = true;
     }
 
@@ -114,7 +116,7 @@ public partial class CatalogoTurnos : AggregateRoot
         _turno = _turno.ConVentanaDeEntrada(evento.Amplitud);
     }
 
-    // Precedencia: retirado > estado ya alcanzado > invariantes de la ventana.
+    // Precedencia: retirado > estado ya alcanzado > horario abierto > invariantes de la ventana.
     internal ResultadoModificarVentanaDeEntrada ModificarVentanaDeEntrada(HorasYMinutos amplitud)
     {
         if (!_estaActivo)
@@ -123,13 +125,22 @@ public partial class CatalogoTurnos : AggregateRoot
         if (_turno.TieneVentanaDeEntrada(amplitud))
             return ResultadoModificarVentanaDeEntrada.SinCambios;
 
+        if (_turno.EsHorarioAbierto())
+            return ResultadoModificarVentanaDeEntrada.TurnoDeHorarioAbierto;
+
         if (RechazosDeVentanaAlModificar.TryGetValue(_turno.EvaluarVentanaDeEntrada(amplitud), out var rechazo))
             return rechazo;
 
+        EmitirVentanaDeEntrada(amplitud);
+        return ResultadoModificarVentanaDeEntrada.Modificada;
+    }
+
+    // La ventana del abierto es parte de su creacion, no un rediseno: no pasa por la guarda.
+    private void EmitirVentanaDeEntrada(HorasYMinutos amplitud)
+    {
         var evento = VentanaDeEntradaModificada.Crear(Guid.Parse(Id!), amplitud);
         _uncommittedEvents.Add(evento);
         Apply(evento);
-        return ResultadoModificarVentanaDeEntrada.Modificada;
     }
 
     public void Apply(SedeDeFranjaAsignada evento)
@@ -163,6 +174,9 @@ public partial class CatalogoTurnos : AggregateRoot
     {
         if (!_estaActivo)
             return ResultadoAgregarFranja.TurnoRetirado;
+
+        if (_turno.EsHorarioAbierto())
+            return ResultadoAgregarFranja.TurnoDeHorarioAbierto;
 
         if (_turno.EsDescanso())
             return ResultadoAgregarFranja.TurnoEsDescanso;
@@ -220,14 +234,17 @@ public partial class CatalogoTurnos : AggregateRoot
         return ResultadoAgregarSubFranja.Agregada;
     }
 
-    // Precedencia: retirado > franja no existe > ventana sin franjas. Un descanso no necesita
-    // resultado propio: no tiene franjas ordinarias, asi que ya cae en FranjaNoExiste. De la ventana
-    // solo se declina TurnoSinFranjas: las franjas restantes no pueden romper una ventana valida, y
-    // si ya estaba rota, quitar la franja culpable es justo como se repara.
+    // Precedencia: retirado > horario abierto > franja no existe > ventana sin franjas. Un descanso
+    // no necesita resultado propio: no tiene franjas ordinarias, asi que ya cae en FranjaNoExiste. De
+    // la ventana solo se declina TurnoSinFranjas: las franjas restantes no pueden romper una ventana
+    // valida, y si ya estaba rota, quitar la franja culpable es justo como se repara.
     internal ResultadoQuitarFranja QuitarFranja(TimeOnly horaInicio)
     {
         if (!_estaActivo)
             return ResultadoQuitarFranja.TurnoRetirado;
+
+        if (_turno.EsHorarioAbierto())
+            return ResultadoQuitarFranja.TurnoDeHorarioAbierto;
 
         var franjaActual = _turno.FranjaQueEmpiezaA(horaInicio);
         if (franjaActual is null)
@@ -250,6 +267,9 @@ public partial class CatalogoTurnos : AggregateRoot
         if (!_estaActivo)
             return ResultadoQuitarSubFranja.TurnoRetirado;
 
+        if (_turno.EsHorarioAbierto())
+            return ResultadoQuitarSubFranja.TurnoDeHorarioAbierto;
+
         var franjaActual = _turno.FranjaQueEmpiezaA(horaInicioFranja);
         if (franjaActual is null)
             return ResultadoQuitarSubFranja.FranjaNoExiste;
@@ -268,6 +288,9 @@ public partial class CatalogoTurnos : AggregateRoot
     {
         if (!_estaActivo)
             return ResultadoQuitarSubFranja.TurnoRetirado;
+
+        if (_turno.EsHorarioAbierto())
+            return ResultadoQuitarSubFranja.TurnoDeHorarioAbierto;
 
         var franjaActual = _turno.FranjaQueEmpiezaA(horaInicioFranja);
         if (franjaActual is null)
@@ -313,11 +336,14 @@ public partial class CatalogoTurnos : AggregateRoot
     }
 
     // Precondiciones compartidas por AgregarDescanso/AgregarExtra (precedencia: retirado >
-    // descanso). null significa "sigue, localiza la franja".
+    // horario abierto > descanso). null significa "sigue, localiza la franja".
     private ResultadoAgregarSubFranja? EvaluarPrecondicionSubFranja()
     {
         if (!_estaActivo)
             return ResultadoAgregarSubFranja.TurnoRetirado;
+
+        if (_turno.EsHorarioAbierto())
+            return ResultadoAgregarSubFranja.TurnoDeHorarioAbierto;
 
         if (_turno.EsDescanso())
             return ResultadoAgregarSubFranja.TurnoEsDescanso;
@@ -356,7 +382,8 @@ public partial class CatalogoTurnos : AggregateRoot
             _turno.EsDescanso(),
             detalle.FranjasOrdinarias.Select(MapearFranja).ToList().AsReadOnly(),
             !_estaActivo,
-            detalle.AmplitudVentanaEntradaEnMinutos);
+            detalle.AmplitudVentanaEntradaEnMinutos,
+            _turno.EsHorarioAbierto());
     }
 
     private static DetalleFranjaOrdinaria MapearFranja(FranjaProgramada franja) =>

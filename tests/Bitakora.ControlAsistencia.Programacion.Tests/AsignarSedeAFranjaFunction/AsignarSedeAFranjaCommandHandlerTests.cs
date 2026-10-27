@@ -169,7 +169,7 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
             TurnoId, 2, "Turno Manana", false,
             [new DetalleFranjaOrdinaria(
                 new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [],
-                "(14:00-22:00)[sede:Chapinero]",
+                "14:00-22:00",
                 new DetalleSede("SEDE-CHAPINERO", "Chapinero"))],
             false));
         And<CatalogoTurnos, SedeProgramada?>(TurnoId.ToString(),
@@ -187,7 +187,7 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
             FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0))));
         ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
             TurnoId, 2, "Turno Manana", false,
-            [new DetalleFranjaOrdinaria(new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], "(14:00-22:00)")],
+            [new DetalleFranjaOrdinaria(new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], "14:00-22:00")],
             false));
         And<CatalogoTurnos, SedeProgramada?>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Sede, null);

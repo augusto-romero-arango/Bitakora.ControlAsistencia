@@ -29,7 +29,7 @@ Referencias:
 
    | Modalidad | Pregunta | Quien consume | Intencion | Tools hoy | Cuando hay mas | Tope |
    |---|---|---|---|---|---|---|
-   | **Detalle** | "Muestrame esto" | El humano, o el modelo antes de modificar | "Muestrame esto a fondo" | `obtener_turno`, `obtener_plantilla_semanal`, `listar_colaboradores` con `identificacion` | No aplica (una entidad; sus listas internas se muestran completas) | -- |
+   | **Detalle** | "Muestrame esto" | El humano, o el modelo antes de modificar | "Muestrame esto a fondo" | `obtener_turno` y `obtener_plantilla_semanal` (por su id), `listar_colaboradores` con `identificacion` | No aplica (una entidad; sus listas internas se muestran completas) | -- |
    | **Desambiguacion** | "**Cual**?" (una identidad a partir de una mencion aproximada) | El modelo, como paso intermedio para llamar a otra tool | "A quien se refiere el usuario?" | `buscar_colaboradores` | **No pagina**: acotar o preguntar al usuario. Se buscan unos pocos; hay que ser certero | 20 |
    | **Catalogo** | "**Cuales**?" (el conjunto completo de un maestro) | El humano | "Muestrame el catalogo" (todos, o todos los que cumplen un criterio exacto) | `listar_turnos`, `listar_plantillas_semanales`, `listar_sedes`, `listar_colaboradores` por sede o etiquetas | **Pagina** con `cursor`; la nota sugiere primero refinar | 50 |
    | **Ventana temporal** | "Que pasa en este periodo?" | El humano | "Que pasa en este periodo?" | `consultar_programacion`, `consultar_ausencias`, #876 | **Pagina** con `cursor`; la nota sugiere primero acotar sujetos o ventana | 50 |
@@ -67,6 +67,14 @@ Referencias:
 16. **Filtros de catalogo por recurrencia.** El catalogo solo gana **filtros exactos** (aplicados en el backend, para que el cursor sea veraz) cuando la pregunta "cuales?" sobre ese campo es recurrente. Mientras no haya evidencia de uso, decide el criterio del experto. Lo demas se expone como **senales**: marcadores booleanos en cada elemento que solo viajan cuando son verdad (`enConstruccion`, `incompleta`, `conAdvertencias`). La busqueda aproximada por texto (`filtro_nombre`) nunca es filtro de catalogo: es desambiguacion.
 17. **El backend no conoce la desambiguacion.** El codigo (front, composicion interna) solo necesita detalle por identidad y listas por criterios exactos con keyset. El puntaje aproximado vive en el MCP mientras no haya un segundo consumidor (MEF-ADR-0018).
 
+### Identidad de la entidad en las tools (enmienda 2026-10-25)
+
+18. **Las tools que operan o detallan una entidad la reciben por su identidad.**
+    1. **Que cuenta como identidad**: el id canonico del aggregate (su stream id, `Guid`; MEF-ADR-0037); o una clave de negocio que el dominio ya usa como identidad (codigo de sede, identificacion o codigo del colaborador). El nombre **no** es identidad, aunque el catalogo lo mantenga unico: es un atributo descriptivo y su unicidad se comprueba contra una proyeccion eventual (Evans, *Domain-Driven Design*, 2003, cap. 5; Vernon, *Implementing Domain-Driven Design*, 2013, cap. 10).
+    2. **Forma del parametro**: se llama `{entidad}_id` (`turno_id`, `plantilla_id`, `jornada_id`), tambien en las tools de detalle (`obtener_*`). Se declara `string` y se valida con `Guid.TryParse` (restriccion de coercion de MEF-ADR-0047). La descripcion dice de donde sale: "tal como lo da buscar_{entidades}"; nunca remite a `listar_*` para ubicar (decision 15).
+    3. **Donde vive el nombre**: solo en la desambiguacion (`buscar_*`, decision 15), el catalogo (`listar_*`) y la creacion, como clave de unicidad (`crear_*` y los turnos inline de `crear_plantilla_semanal`, que preguntan "ya existe uno con este nombre?" antes de crearlo).
+    4. **Lectura**: si la tool necesita datos de la entidad para validar o para el eco (nombre, franjas, dias), lee el **detalle por identidad** (`GET .../{id}`, decision 17). Nunca lee el catalogo completo para traducir nombre a id. Un id inexistente (404) se responde con una frase que lo nombra y remite a `buscar_*` (decision 7). Precedentes: `jornada_id`, `obtener_turno` y `ResolutorSedePorCodigo`.
+
 ## Consecuencias
 
 - **Una sola mecanica** de paginacion para el front, las tools y la composicion interna; cambiar la clave de orden de un endpoint no rompe clientes.
@@ -91,3 +99,4 @@ Referencias:
 
 - 2026-10-13: decision 14 enmendada (#1057, mefisto#2435): las modalidades que paginan piden `Take = tope` y deducen "hay mas" del `siguienteCursor`; la desambiguacion pide `tope + 1`.
 - 2026-10-14: enmienda de las modalidades (#1093): la tabla de la decision 2 gana las columnas "Pregunta" y "Quien consume"; decisiones 15 a 17 (cual = buscar, cuales = listar; filtros de catalogo por recurrencia y senales; el backend no conoce la desambiguacion). Origen: refinamiento de #879; ver tambien #1091 y #1092.
+- 2026-10-25: decision 18 (#1241, refinamiento de #1219): las tools que operan o detallan una entidad la reciben por su identidad (`{entidad}_id`); el nombre solo en buscar, listar y crear. Supera la referencia por nombre de CA-ADR-0033 seccion 7. La migracion de las 18 tools va en #1242, #1243, #1244 y #1245.

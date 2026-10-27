@@ -12,10 +12,11 @@ public class AgregarFranjaToolTests
     private const string Turno = "Nocturno";
     private const string TurnoId = "8f14e45f-ceea-4b3c-8f0a-000000000010";
     private const string SedeCodigo = "SUBA";
-    private const string RutaTurnos = "/api/programacion/turnos";
+    private const string RutaCatalogo = "/api/programacion/turnos";
+    private const string RutaTurno = $"/api/programacion/turnos/{TurnoId}";
     private const string RutaAgregarFranja = $"/api/programacion/turnos/{TurnoId}:agregar-franja";
 
-    private static string TurnosJson => Fixtures.Leer("AgregarFranja", "turnos.json");
+    private static string TurnosJson => Fixtures.Leer("AgregarFranja", "turno.json");
     private static string SedeJson => Fixtures.Leer("AgregarFranja", "sede.json");
     private static string SedeInactivaJson => Fixtures.Leer("AgregarFranja", "sede-inactiva.json");
     private static string Validacion400Json => Fixtures.Leer("AgregarFranja", "validacion-400.json");
@@ -33,26 +34,26 @@ public class AgregarFranjaToolTests
         HttpStatusCode statusSede = HttpStatusCode.OK)
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();
-        handlerProgramacion.Responde(HttpMethod.Get, RutaTurnos, statusTurnos, turnosJson ?? TurnosJson);
+        handlerProgramacion.Responde(HttpMethod.Get, RutaTurno, statusTurnos, turnosJson ?? TurnosJson);
         handlerProgramacion.Responde(HttpMethod.Post, RutaAgregarFranja, statusAgregar, cuerpoAgregar);
 
         var (clienteSedes, handlerSedes) = ClienteFalso.Con(sedeJson ?? SedeJson, statusSede);
 
         var programacionApi = new ProgramacionApi(clienteProgramacion);
         var tool = new AgregarFranjaTool(
-            programacionApi, new ResolutorTurnoPorNombre(programacionApi), new ResolutorSedePorCodigo(new SedesApi(clienteSedes)));
+            programacionApi, new ResolutorTurnoPorId(programacionApi), new ResolutorSedePorCodigo(new SedesApi(clienteSedes)));
 
         return new Fakes(tool, handlerProgramacion, handlerSedes);
     }
 
     private static Task<string> Ejecutar(
         AgregarFranjaTool tool,
-        string turno = Turno,
+        string turnoId = TurnoId,
         string inicio = "22:00",
         string fin = "06:00",
         string? codigoSede = null,
         CancellationToken ct = default) =>
-        tool.Run(context: null!, turno: turno, inicio: inicio, fin: fin, codigoSede: codigoSede, ct: ct);
+        tool.Run(context: null!, turnoId: turnoId, inicio: inicio, fin: fin, codigoSede: codigoSede, ct: ct);
 
     // CA-1/CA-3: ningun rechazo local debe tocar ninguno de los 2 dominios.
     private static void AsegurarNingunaRequest(Fakes fakes)
@@ -80,8 +81,28 @@ public class AgregarFranjaToolTests
         var json = JsonNode.Parse(resultado)!;
         json["resultado"]!.GetValue<string>().Should().Be(AgregarFranjaTool.Mensajes.ResultadoFranjaAgregada);
         json["turno"]!.GetValue<string>().Should().Be(Turno);
-        json["franja"]!.GetValue<string>().Should().Be("22:00-06:00");
+        json["franja"]!.GetValue<string>().Should().Be("22:00-06:00+1");
         json["nota"]!.GetValue<string>().Should().Be(AgregarFranjaTool.Mensajes.NotaVisibilidadEventual);
+    }
+
+    [Fact]
+    public async Task AgregarFranja_EcoSinOffset_CuandoElFinEsMayorQueElInicio()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, inicio: "08:00", fin: "16:00", ct: TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("08:00-16:00");
+    }
+
+    [Fact]
+    public async Task AgregarFranja_EcoConMasUno_CuandoInicioIgualAlFin()
+    {
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, inicio: "08:00", fin: "08:00", ct: TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("08:00-08:00+1");
     }
 
     // CA-2: con codigo_sede, el body agrega sede {id, nombre, centroDeCostos} y el eco la incluye.
@@ -99,7 +120,7 @@ public class AgregarFranjaToolTests
         body["sede"]!["nombre"]!.GetValue<string>().Should().Be("Suba");
         body["sede"]!["centroDeCostos"]!.GetValue<string>().Should().Be("CC-100");
 
-        JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("22:00-06:00, sede: Suba");
+        JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("22:00-06:00+1, sede: Suba");
     }
 
     [Fact]
@@ -162,18 +183,18 @@ public class AgregarFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
+    // CA-3: el detalle por identidad responde 404 -> frase con el id que remite a buscar_turnos,
+    // sin lista de nombres y sin invocar el comando.
     [Fact]
-    public async Task AgregarFranja_RespondeTurnoNoExisteSinPost_CuandoElNombreNoEstaEnElCatalogo()
+    public async Task AgregarFranja_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
-        var fakes = CrearTool();
+        var fakes = CrearTool(turnosJson: "", statusTurnos: HttpStatusCode.NotFound);
 
-        var resultado = await Ejecutar(
-            fakes.Tool, turno: "Turno Que No Existe", ct: TestContext.Current.CancellationToken);
+        var resultado = await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(
-            AgregarFranjaTool.Mensajes.TurnoNoExiste, "Turno Que No Existe", "Nocturno, Cocina Manana"));
+        resultado.Should().Be(string.Format(AgregarFranjaTool.Mensajes.TurnoNoExiste, TurnoId));
+        resultado.Should().Contain(TurnoId).And.Contain("buscar_turnos").And.NotContain("disponibles");
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
-        fakes.Sedes.UltimaRequest.Should().BeNull("el turno se resuelve antes que la sede");
     }
 
     [Fact]
@@ -198,15 +219,41 @@ public class AgregarFranjaToolTests
         resultado.Should().Be(string.Format(AgregarFranjaTool.Mensajes.RechazoDelDominio, fixture));
     }
 
+    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
-    public async Task AgregarFranja_RechazaSinLlamarANingunDominio_CuandoTurnoEstaEnBlanco()
+    public async Task AgregarFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidConNombre()
+    {
+        const string Valor = "Nocturno";
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, turnoId: Valor, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(AgregarFranjaTool.Mensajes.TurnoIdInvalido, Valor));
+        AsegurarNingunaRequest(fakes);
+    }
+
+    [Fact]
+    public async Task AgregarFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidEnBlanco()
+    {
+        const string Valor = "   ";
+        var fakes = CrearTool();
+
+        var resultado = await Ejecutar(fakes.Tool, turnoId: Valor, ct: TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(AgregarFranjaTool.Mensajes.TurnoIdInvalido, Valor));
+        AsegurarNingunaRequest(fakes);
+    }
+
+    // CA-5: la tool lee el detalle por identidad, nunca el catalogo completo.
+    [Fact]
+    public async Task AgregarFranja_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
     {
         var fakes = CrearTool();
 
-        var resultado = await Ejecutar(fakes.Tool, turno: "   ", ct: TestContext.Current.CancellationToken);
+        await Ejecutar(fakes.Tool, ct: TestContext.Current.CancellationToken);
 
-        resultado.Should().Be(string.Format(AgregarFranjaTool.Mensajes.CampoObligatorio, "turno"));
-        AsegurarNingunaRequest(fakes);
+        fakes.Programacion.Requests.Should().Contain(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaTurno);
+        fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaCatalogo);
     }
 
     [Fact]

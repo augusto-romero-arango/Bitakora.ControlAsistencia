@@ -31,7 +31,7 @@ public class TurnoCreadoTests
         evento.TurnoId.Should().Be(TurnoId);
         evento.Nombre.Should().Be(NombreValido);
         evento.FranjasOrdinarias.Should().HaveCount(1);
-        evento.FranjasOrdinarias[0].ToString().Should().Be("(08:00-16:00)");
+        evento.FranjasOrdinarias[0].ToString().Should().Be("08:00-16:00");
     }
 
     // ---------- CA-3: multiples ordinarias (jornada partida) ----------
@@ -48,8 +48,8 @@ public class TurnoCreadoTests
             ]);
 
         evento.FranjasOrdinarias.Should().HaveCount(2);
-        evento.FranjasOrdinarias[0].ToString().Should().Be("(06:00-12:00)");
-        evento.FranjasOrdinarias[1].ToString().Should().Be("(14:00-16:00)");
+        evento.FranjasOrdinarias[0].ToString().Should().Be("06:00-12:00");
+        evento.FranjasOrdinarias[1].ToString().Should().Be("14:00-16:00");
     }
 
     // ---------- CA-4: ordinaria con descansos y extras ----------
@@ -69,7 +69,7 @@ public class TurnoCreadoTests
 
         evento.FranjasOrdinarias.Should().HaveCount(1);
         evento.FranjasOrdinarias[0].ToString()
-            .Should().Be("(06:00-12:00)[Descansos:(10:00-10:15)][Extras:(06:00-08:00)]");
+            .Should().Be("06:00-12:00, descanso 10:00-10:15, extra 06:00-08:00");
     }
 
     // ---------- CA-5: turno nocturno que cruza medianoche ----------
@@ -83,7 +83,7 @@ public class TurnoCreadoTests
             [new DatosFranja(new TimeOnly(22, 0), new TimeOnly(6, 0), [], [])]);
 
         evento.FranjasOrdinarias.Should().HaveCount(1);
-        evento.FranjasOrdinarias[0].ToString().Should().Be("(22:00-06:00+1)");
+        evento.FranjasOrdinarias[0].ToString().Should().Be("22:00-06:00+1");
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class TurnoCreadoTests
                 [descanso], [])]);
 
         evento.FranjasOrdinarias[0].ToString()
-            .Should().Be("(22:00-06:00+1)[Descansos:(23:00-23:15)]");
+            .Should().Be("22:00-06:00+1, descanso 23:00-23:15");
     }
 
     // ---------- Turno vacio: sin franjas y sin marca de descanso ----------
@@ -388,7 +388,7 @@ public class TurnoCreadoTests
                 [descansoMadrugada], [extraMadrugada])]);
 
         evento.FranjasOrdinarias[0].ToString().Should().Be(
-            "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-05:30+1)]");
+            "22:00-06:00+1, descanso 02:00+1-02:30+1, extra 05:00+1-05:30+1");
     }
 
     [Fact]
@@ -398,7 +398,7 @@ public class TurnoCreadoTests
             TurnoId, NombreValido,
             [new DatosFranja(new TimeOnly(8, 0), new TimeOnly(8, 0), [], [], DiaOffsetFin: 1)]);
 
-        evento.FranjasOrdinarias[0].ToString().Should().Be("(08:00-08:00+1)");
+        evento.FranjasOrdinarias[0].ToString().Should().Be("08:00-08:00+1");
         evento.FranjasOrdinarias[0].DuracionEnMinutos().Should().Be(1440);
     }
 
@@ -427,6 +427,6 @@ public class TurnoCreadoTests
             TurnoId, NombreValido,
             [new DatosFranja(new TimeOnly(22, 0), new TimeOnly(6, 0), [], [], DiaOffsetFin: 0)]);
 
-        evento.FranjasOrdinarias[0].ToString().Should().Be("(22:00-06:00+1)");
+        evento.FranjasOrdinarias[0].ToString().Should().Be("22:00-06:00+1");
     }
 }

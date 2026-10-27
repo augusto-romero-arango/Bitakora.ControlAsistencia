@@ -19,20 +19,23 @@ public class BuscarPlantillasSemanalesSmokeTests(McpFixture mcp, ProgramacionApi
         var turnoCreado = await mcp.Cliente.CallToolAsync(
             "crear_turno", new Dictionary<string, object?> { ["nombre"] = turno }, cancellationToken: ct);
         turnoCreado.IsError.Should().NotBeTrue();
-        using (await programacion.Client.EsperarFichaAsync(turno, ct)) { }
+        using var fichaTurno = await programacion.Client.EsperarFichaAsync(turno, ct);
+        var turnoId = fichaTurno.RootElement.GetProperty("id").GetString()!;
 
         var franja = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = turno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "06:00", ["fin"] = "14:00" },
             cancellationToken: ct);
         franja.IsError.Should().NotBeTrue();
 
-        var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{turno}}"}]""";
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno_id":"{{turnoId}}"}]""";
         var creada = await mcp.Cliente.CallToolAsync(
             "crear_plantilla_semanal",
             new Dictionary<string, object?> { ["nombre"] = plantilla, ["dias"] = dias },
             cancellationToken: ct);
         creada.IsError.Should().NotBeTrue();
+        using var textoCreada = JsonDocument.Parse(creada.Content.OfType<TextContentBlock>().Single().Text);
+        var plantillaId = textoCreada.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
 
         try
         {
@@ -62,10 +65,10 @@ public class BuscarPlantillasSemanalesSmokeTests(McpFixture mcp, ProgramacionApi
         finally
         {
             await mcp.Cliente.CallToolAsync(
-                "retirar_plantilla_semanal", new Dictionary<string, object?> { ["plantilla"] = plantilla },
+                "retirar_plantilla_semanal", new Dictionary<string, object?> { ["plantilla_id"] = plantillaId },
                 cancellationToken: ct);
             await mcp.Cliente.CallToolAsync(
-                "retirar_turno", new Dictionary<string, object?> { ["turno"] = turno }, cancellationToken: ct);
+                "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
         }
     }
 }

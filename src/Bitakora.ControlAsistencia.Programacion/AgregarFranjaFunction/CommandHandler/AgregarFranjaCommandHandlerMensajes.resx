@@ -35,4 +35,7 @@
   <data name="CierrePasaMedianoche" xml:space="preserve">
     <value>Con esta franja, la ventana de entrada haria que la ultima franja empezara a las 24:00 o despues; reduce la ventana o adelanta la franja</value>
   </data>
+  <data name="TurnoDeHorarioAbierto" xml:space="preserve">
+    <value>Un turno de horario abierto no se rediseña: solo define cuántas horas se trabajan. Para otra duración, crea otro turno de horario abierto.</value>
+  </data>
 </root>

@@ -24,6 +24,18 @@ public class TurnoProgramadoConSedePorDefectoTests
         new("Turno Manana", franjas.ToList().AsReadOnly(), "Turno Manana (06:00-14:00)");
 
     [Fact]
+    public void ConSedePorDefecto_ConservaLaMarcaDeHorarioAbierto_CuandoAplicaLaSedeSolicitada()
+    {
+        var turno = new TurnoProgramado(
+            "Turno Abierto", [CrearFranja(null)], "Turno Abierto (06:00-14:00)", 0, true);
+
+        var resultado = turno.ConSedePorDefecto(SedeSolicitud);
+
+        resultado.EsHorarioAbierto.Should().BeTrue();
+        resultado.FranjasOrdinarias[0].Sede.Should().Be(SedeSolicitud);
+    }
+
+    [Fact]
     public void ConSedePorDefecto_ConservaLaAmplitudDeLaVentana_CuandoAplicaLaSedeSolicitada()
     {
         var turno = new TurnoProgramado(

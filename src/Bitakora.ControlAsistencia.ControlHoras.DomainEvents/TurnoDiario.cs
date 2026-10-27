@@ -11,14 +11,16 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// <remarks>
 /// Equals/GetHashCode propios comparan FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN
 /// Descripcion (dato derivado, no identidad del turno) -- mismo criterio que DetalleTurno y
-/// TurnoProgramado (Programacion.DomainEvents). La amplitud de la ventana de entrada SI
-/// entra: es dato de identidad (los streams legados sin la clave leen 0).
+/// TurnoProgramado (Programacion.DomainEvents). La amplitud de la ventana de entrada y la marca
+/// de horario abierto SI entran: son dato de identidad (los streams legados sin la clave leen 0
+/// y false).
 /// </remarks>
 public record TurnoDiario(
     string Nombre,
     IReadOnlyList<FranjaProgramada> FranjasOrdinarias,
     string Descripcion,
-    int AmplitudVentanaEntradaEnMinutos = 0)
+    int AmplitudVentanaEntradaEnMinutos = 0,
+    bool EsHorarioAbierto = false)
 {
     /// <summary>
     /// Los eventos anteriores a este record no llevan el campo: STJ deja null en el parametro
@@ -72,10 +74,13 @@ public record TurnoDiario(
     public bool SeSolapaCon(DateOnly fecha, TurnoDiario otro, DateOnly fechaOtro) =>
         Apertura(fecha) < otro.Cierre(fechaOtro) && otro.Apertura(fechaOtro) < Cierre(fecha);
 
-    private DateTime? Apertura(DateOnly fecha) =>
+    public DateTime? CierreDeLaVentana(DateOnly fecha) =>
+        Apertura(fecha)?.AddMinutes(AmplitudVentanaEntradaEnMinutos);
+
+    public DateTime? Apertura(DateOnly fecha) =>
         FranjasOrdinarias.Count == 0 ? null : FranjasOrdinarias.Min(f => fecha.ToDateTime(f.HoraInicio));
 
-    private DateTime? Cierre(DateOnly fecha) =>
+    public DateTime? Cierre(DateOnly fecha) =>
         FranjasOrdinarias.Count == 0
             ? null
             : FranjasOrdinarias.Max(f => fecha.AddDays(f.DiaOffsetFin).ToDateTime(f.HoraFin));
@@ -96,6 +101,7 @@ public record TurnoDiario(
         if (ReferenceEquals(this, other)) return true;
         return Nombre == other.Nombre
             && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
+            && EsHorarioAbierto == other.EsHorarioAbierto
             && FranjasOrdinarias.SequenceEqual(other.FranjasOrdinarias);
     }
 
@@ -104,6 +110,7 @@ public record TurnoDiario(
         var hash = new HashCode();
         hash.Add(Nombre);
         hash.Add(AmplitudVentanaEntradaEnMinutos);
+        hash.Add(EsHorarioAbierto);
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }

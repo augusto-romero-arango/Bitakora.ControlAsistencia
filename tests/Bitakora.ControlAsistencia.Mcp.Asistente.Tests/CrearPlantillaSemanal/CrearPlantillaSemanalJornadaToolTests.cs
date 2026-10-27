@@ -15,7 +15,8 @@ public class CrearPlantillaSemanalJornadaToolTests
     private const string JornadaId = "01a08700-0000-7000-9000-000000000001";
     private const string DescripcionJornada =
         "42:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana";
-    private const string UnDiaConTurnoJson = """[{"semana":1,"dia":"lunes","turno":"Cocina Manana"}]""";
+    private const string TurnoManana = "8f14e45f-ceea-4b3c-8f0a-000000000001";
+    private const string UnDiaConTurnoJson = """[{"semana":1,"dia":"lunes","turno_id":"8f14e45f-ceea-4b3c-8f0a-000000000001"}]""";
     private const string UnDiaConFranjaJson = """[{"semana":1,"dia":"lunes","franja":"07:00-17:00"}]""";
 
     private sealed record Fakes(CrearPlantillaSemanalTool Tool, HandlerPorRuta Handler);
@@ -27,13 +28,14 @@ public class CrearPlantillaSemanalJornadaToolTests
             Fixtures.Leer("AsignarJornadaAPlantillaSemanal", "obtener-jornada.json"));
         handler.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK,
             Fixtures.Leer("SolicitarProgramacionTurno", "turnos.json"));
+        handler.RespondeDetalleDeTurno(Fixtures.Leer("SolicitarProgramacionTurno", "turnos.json"), TurnoManana);
         handler.Responde(HttpMethod.Post, RutaPlantillas, HttpStatusCode.Created);
         handler.RespondeConPrefijo(HttpMethod.Put, $"{RutaPlantillas}/", HttpStatusCode.NoContent);
         handler.Responde(HttpMethod.Post, RutaTurnos, HttpStatusCode.Created);
         handler.RespondeConPrefijo(HttpMethod.Post, $"{RutaTurnos}/", HttpStatusCode.NoContent);
 
         var api = new ProgramacionApi(cliente);
-        return new Fakes(new CrearPlantillaSemanalTool(api, new ResolutorTurnoPorNombre(api)), handler);
+        return new Fakes(new CrearPlantillaSemanalTool(api, new ResolutorTurnoPorId(api), new ResolutorTurnoPorNombre(api)), handler);
     }
 
     private static Task<string> Ejecutar(Fakes fakes, string? jornadaId, string dias = UnDiaConTurnoJson) =>
@@ -48,7 +50,7 @@ public class CrearPlantillaSemanalJornadaToolTests
 
         var rutas = fakes.Handler.Requests.Select(r => (r.Metodo, r.Ruta)).ToList();
         rutas[0].Should().Be((HttpMethod.Get, $"{RutaJornadas}/{JornadaId}"));
-        rutas[1].Should().Be((HttpMethod.Get, RutaTurnos));
+        rutas[1].Should().Be((HttpMethod.Get, $"{RutaTurnos}/{TurnoManana}"));
         rutas[2].Should().Be((HttpMethod.Post, RutaPlantillas));
 
         var post = fakes.Handler.Requests.Single(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaPlantillas);
