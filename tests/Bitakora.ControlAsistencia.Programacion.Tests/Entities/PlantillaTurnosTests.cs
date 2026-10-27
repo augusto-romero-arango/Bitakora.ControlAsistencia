@@ -113,4 +113,65 @@ public class PlantillaTurnosTests
         ultimo.Turno.Should().Be(CopiaTurnoEditado);
         ultimo.VersionTurno.Should().Be(2);
     }
+
+    [Fact]
+    public void Retirar_RetornaRetirada_CuandoLaPlantillaEstaActiva()
+    {
+        var plantilla = CrearPlantilla(8);
+
+        var resultado = plantilla.Retirar();
+
+        resultado.Should().Be(ResultadoRetiroPlantilla.Retirada);
+        var evento = plantilla.UncommittedEvents.OfType<PlantillaDeTurnosRetirada>().Should().ContainSingle().Which;
+        evento.PlantillaId.Should().Be(PlantillaId);
+    }
+
+    [Fact]
+    public void Retirar_RetornaSinCambios_CuandoLaPlantillaYaEstaRetirada()
+    {
+        var plantilla = CrearPlantilla(8);
+        plantilla.Retirar();
+
+        var resultado = plantilla.Retirar();
+
+        resultado.Should().Be(ResultadoRetiroPlantilla.SinCambios);
+        plantilla.UncommittedEvents.OfType<PlantillaDeTurnosRetirada>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public void AsignarDia_RetornaPlantillaRetirada_CuandoLaPlantillaEstaRetirada()
+    {
+        var plantilla = CrearPlantilla(8);
+        plantilla.Retirar();
+
+        var resultado = plantilla.AsignarDia(3, Turno1Id, CopiaTurno, 1);
+
+        resultado.Should().Be(ResultadoAsignarDiaDePlantillaTurnos.PlantillaRetirada);
+        Emitidos(plantilla).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AsignarDia_RetornaPlantillaRetirada_CuandoEstaRetiradaYElDiaEstaFueraDelCiclo()
+    {
+        var plantilla = CrearPlantilla(8);
+        plantilla.Retirar();
+
+        var resultado = plantilla.AsignarDia(9, Turno1Id, CopiaTurno, 1);
+
+        resultado.Should().Be(ResultadoAsignarDiaDePlantillaTurnos.PlantillaRetirada);
+        Emitidos(plantilla).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AsignarDia_RetornaPlantillaRetirada_CuandoEstaRetiradaYElDiaYaTieneElMismoTurno()
+    {
+        var plantilla = CrearPlantilla(8);
+        plantilla.AsignarDia(3, Turno1Id, CopiaTurno, 1);
+        plantilla.Retirar();
+
+        var resultado = plantilla.AsignarDia(3, Turno1Id, CopiaTurno, 1);
+
+        resultado.Should().Be(ResultadoAsignarDiaDePlantillaTurnos.PlantillaRetirada);
+        Emitidos(plantilla).Should().ContainSingle();
+    }
 }

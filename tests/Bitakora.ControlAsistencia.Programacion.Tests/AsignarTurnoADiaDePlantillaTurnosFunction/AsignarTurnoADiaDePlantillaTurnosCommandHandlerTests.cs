@@ -182,4 +182,34 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
         Then(GuidAggregateId.ToString());
         And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
+
+    [Fact]
+    public async Task AsignarTurnoADiaDePlantillaTurnos_LanzaReglaDeNegocioDeclinada_CuandoLaPlantillaEstaRetirada()
+    {
+        Given(CrearEventoPlantilla(), PlantillaDeTurnosRetirada.Crear(GuidAggregateId));
+        Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
+
+        var act = async () => await WhenAsync(
+            new AsignarTurnoADiaDePlantillaTurnos(GuidAggregateId, 3, TurnoId));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{AsignarTurnoADiaDePlantillaTurnosCommandHandler.Mensajes.PlantillaRetirada}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+    }
+
+    [Fact]
+    public async Task AsignarTurnoADiaDePlantillaTurnos_LanzaPlantillaRetirada_CuandoElDiaEstaFueraDelCiclo()
+    {
+        Given(CrearEventoPlantilla(), PlantillaDeTurnosRetirada.Crear(GuidAggregateId));
+        Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
+
+        var act = async () => await WhenAsync(
+            new AsignarTurnoADiaDePlantillaTurnos(GuidAggregateId, DiasDelCiclo + 1, TurnoId));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{AsignarTurnoADiaDePlantillaTurnosCommandHandler.Mensajes.PlantillaRetirada}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+    }
 }

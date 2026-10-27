@@ -32,4 +32,7 @@
   <data name="DiaFueraDelCiclo" xml:space="preserve">
     <value>El dia especificado supera los dias del ciclo de la plantilla</value>
   </data>
+  <data name="PlantillaRetirada" xml:space="preserve">
+    <value>La plantilla fue retirada y ya no admite cambios de diseno</value>
+  </data>
 </root>

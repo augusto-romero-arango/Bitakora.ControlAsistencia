@@ -22,6 +22,9 @@ public partial class AsignarTurnoADiaDePlantillaTurnosCommandHandler
         public static string TurnoIncompleto =>
             ResourceManager.GetString(nameof(TurnoIncompleto))!;
 
+        public static string PlantillaRetirada =>
+            ResourceManager.GetString(nameof(PlantillaRetirada))!;
+
         public static string DiaFueraDelCiclo =>
             ResourceManager.GetString(nameof(DiaFueraDelCiclo))!;
     }
