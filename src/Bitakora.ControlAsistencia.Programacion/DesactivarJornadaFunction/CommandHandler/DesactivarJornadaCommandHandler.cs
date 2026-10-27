@@ -7,7 +7,8 @@ using Comando = Bitakora.ControlAsistencia.Programacion.DesactivarJornadaFunctio
 namespace Bitakora.ControlAsistencia.Programacion.DesactivarJornadaFunction.CommandHandler;
 
 public partial class DesactivarJornadaCommandHandler(
-    IEventStore eventStore, ILectorPlantillasPorJornada lectorPlantillas, ITenantContext tenantContext)
+    IEventStore eventStore, ILectorPlantillasPorJornada lectorPlantillas,
+    ILectorPlantillasTurnosPorJornada lectorPlantillasTurnos, ITenantContext tenantContext)
     : ICommandHandlerAsync<Comando>
 {
     public async Task HandleAsync(Comando command, CancellationToken ct = default)
@@ -24,7 +25,9 @@ public partial class DesactivarJornadaCommandHandler(
         if (preferencias?.JornadaPredeterminada() == command.JornadaId)
             throw new ReglaDeNegocioDeclinadaException(Mensajes.JornadaPredeterminada);
 
-        var plantillas = await lectorPlantillas.ObtenerPlantillaIdsAsync(command.JornadaId, ct);
+        var plantillas = (await lectorPlantillas.ObtenerPlantillaIdsAsync(command.JornadaId, ct))
+            .Concat(await lectorPlantillasTurnos.ObtenerPlantillaIdsAsync(command.JornadaId, ct))
+            .ToList();
         if (plantillas.Count > 0)
             throw new ReglaDeNegocioDeclinadaException(
                 $"{Mensajes.JornadaEnUsoPorPlantillas} {string.Join(", ", plantillas)}");

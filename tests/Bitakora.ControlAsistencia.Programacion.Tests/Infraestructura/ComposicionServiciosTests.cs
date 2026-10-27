@@ -815,6 +815,30 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeLimitesDeJornadaDePlantillaDeTurnosSincronizados()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(LimitesDeJornadaDePlantillaDeTurnosSincronizados)).Alias;
+
+        alias.Should().Be("limites_de_jornada_de_plantilla_de_turnos_sincronizados");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveILectorPlantillasTurnosPorJornada_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var lector = scope.ServiceProvider.GetRequiredService<ILectorPlantillasTurnosPorJornada>();
+
+        lector.Should().BeOfType<LectorReadSideProgramacion>();
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveILectorPlantillasPorJornada_CuandoElContenedorEstaCompuesto()
     {
         await using var provider = ComponerServiceProvider();

@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SincronizarLimitesDeJornadaDePlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.SincronizarLimitesDeJornadaDePlantillaTurnosFunction;
 using Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoLimitesDeJornadaActualizados.EventHandler;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -20,10 +21,11 @@ public class LimitesDeJornadaActualizadosEventHandlerTests : PrivateEventHandler
     private static readonly Guid PlantillaB = Guid.Parse("019600a0-0000-7000-8000-0000000000b2");
 
     private readonly FakeLectorPlantillasPorJornada _lector = new();
+    private readonly FakeLectorPlantillasTurnosPorJornada _lectorTurnos = new();
     private readonly FakeRouterRegistrador _router = new();
 
     protected override IPrivateEventHandlerAsync<LimitesDeJornadaActualizados> Handler =>
-        new LimitesDeJornadaActualizadosEventHandler(_lector, _router);
+        new LimitesDeJornadaActualizadosEventHandler(_lector, _lectorTurnos, _router);
 
     // 42 h semanales, tope 9 h, minimo 2 h 30, 2 descansos.
     private static LimitesDeJornadaActualizados Evento(long version = 4) =>
@@ -44,6 +46,37 @@ public class LimitesDeJornadaActualizadosEventHandlerTests : PrivateEventHandler
         _router.Comandos.Should().Equal(
             new SincronizarLimitesDeJornadaDePlantillaSemanal(PlantillaA, JornadaId, esperados, 4),
             new SincronizarLimitesDeJornadaDePlantillaSemanal(PlantillaB, JornadaId, esperados, 4));
+    }
+
+    private static readonly Guid TurnosA = Guid.Parse("019600a0-0000-7000-8000-0000000012a1");
+    private static readonly Guid TurnosB = Guid.Parse("019600a0-0000-7000-8000-0000000012b2");
+
+    [Fact]
+    public async Task LimitesDeJornadaActualizados_EnviaElComandoACadaPlantillaDeTurnosDeLaJornada_CuandoCambianLosLimites()
+    {
+        _lectorTurnos.PlantillaIds = [TurnosA.ToString(), TurnosB.ToString()];
+
+        await WhenAsync(Evento());
+
+        _lectorTurnos.JornadasConsultadas.Should().Equal(JornadaId);
+        var esperados = LimitesEsperados();
+        _router.Comandos.Should().Equal(
+            new SincronizarLimitesDeJornadaDePlantillaTurnos(TurnosA, JornadaId, esperados, 4),
+            new SincronizarLimitesDeJornadaDePlantillaTurnos(TurnosB, JornadaId, esperados, 4));
+    }
+
+    [Fact]
+    public async Task LimitesDeJornadaActualizados_EnviaPrimeroLasSemanalesYLuegoLasDeTurnos_CuandoLaJornadaTieneAmbas()
+    {
+        _lector.PlantillaIds = [PlantillaA.ToString()];
+        _lectorTurnos.PlantillaIds = [TurnosA.ToString()];
+
+        await WhenAsync(Evento());
+
+        var esperados = LimitesEsperados();
+        _router.Comandos.Should().Equal(
+            new SincronizarLimitesDeJornadaDePlantillaSemanal(PlantillaA, JornadaId, esperados, 4),
+            new SincronizarLimitesDeJornadaDePlantillaTurnos(TurnosA, JornadaId, esperados, 4));
     }
 
     [Fact]
@@ -70,6 +103,18 @@ public class LimitesDeJornadaActualizadosEventHandlerTests : PrivateEventHandler
     }
 
     private sealed class FakeLectorPlantillasPorJornada : ILectorPlantillasPorJornada
+    {
+        public IReadOnlyList<string> PlantillaIds { get; set; } = [];
+        public List<Guid> JornadasConsultadas { get; } = [];
+
+        public Task<IReadOnlyList<string>> ObtenerPlantillaIdsAsync(Guid jornadaId, CancellationToken ct)
+        {
+            JornadasConsultadas.Add(jornadaId);
+            return Task.FromResult(PlantillaIds);
+        }
+    }
+
+    private sealed class FakeLectorPlantillasTurnosPorJornada : ILectorPlantillasTurnosPorJornada
     {
         public IReadOnlyList<string> PlantillaIds { get; set; } = [];
         public List<Guid> JornadasConsultadas { get; } = [];
