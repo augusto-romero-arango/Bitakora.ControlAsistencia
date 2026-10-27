@@ -9,21 +9,47 @@ namespace Bitakora.ControlAsistencia.Projections.Programacion;
 public sealed partial class CuadroDeTurnosProjection
     : SingleStreamProjection<CuadroDeTurnos, string>
 {
-    public static CuadroDeTurnos Create(IEvent<PlantillaDeTurnosCreada> e) =>
-        throw new NotImplementedException();
+    private const int MinutosPorHora = 60;
 
-    public static CuadroDeTurnos Apply(DiaDePlantillaDeTurnosAsignado e, CuadroDeTurnos vista) =>
-        throw new NotImplementedException();
+    public static CuadroDeTurnos Create(IEvent<PlantillaDeTurnosCreada> e) =>
+        new(e.StreamKey!, e.Data.Nombre, e.Data.DiasDelCiclo, [], false, null, null, []);
+
+    public static CuadroDeTurnos Apply(DiaDePlantillaDeTurnosAsignado e, CuadroDeTurnos vista)
+    {
+        var dia = new DiaDelCuadroDeTurnos(
+            e.Dia, e.TurnoId.ToString("D"), e.Turno.Nombre,
+            e.Turno.ToString(), e.Turno.EstaCompleto(), false);
+        var dias = vista.Dias
+            .Where(d => d.Dia != e.Dia)
+            .Append(dia)
+            .OrderBy(d => d.Dia)
+            .ToList();
+        return vista with
+        {
+            Dias = dias,
+            Completa = dias.Count == vista.DiasDelCiclo && dias.All(d => d.Completo && !d.Retirado)
+        };
+    }
 
     public static CuadroDeTurnos Apply(JornadaDePlantillaDeTurnosAsignada e, CuadroDeTurnos vista) =>
-        throw new NotImplementedException();
+        vista with { JornadaId = e.JornadaId, Limites = ALimites(e.Limites) };
 
     public static CuadroDeTurnos Apply(JornadaDePlantillaDeTurnosQuitada e, CuadroDeTurnos vista) =>
-        throw new NotImplementedException();
+        vista with { JornadaId = null, Limites = null };
 
     public static CuadroDeTurnos Apply(AdvertenciasDePlantillaDeTurnosCalculadas e, CuadroDeTurnos vista) =>
-        throw new NotImplementedException();
+        vista with
+        {
+            Advertencias = e.Advertencias
+                .Select(a => new AdvertenciaDelCuadroDeTurnos(a.Tipo.ToString(), a.Dia, a.Magnitud))
+                .ToList()
+        };
 
-    public static bool ShouldDelete(PlantillaDeTurnosRetirada e) =>
-        throw new NotImplementedException();
+    public static bool ShouldDelete(PlantillaDeTurnosRetirada e) => true;
+
+    private static LimitesDelCuadro ALimites(LimitesJornada l) => new(
+        EnMinutos(l.HorasSemanales), EnMinutos(l.TopeDiario), EnMinutos(l.MinimoDiario),
+        l.DiasDescansoPorSemana, l.ToString());
+
+    private static int EnMinutos(HorasYMinutos t) => t.Horas * MinutosPorHora + t.Minutos;
 }
