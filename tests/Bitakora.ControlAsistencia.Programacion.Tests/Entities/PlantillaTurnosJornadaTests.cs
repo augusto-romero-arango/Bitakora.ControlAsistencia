@@ -156,8 +156,9 @@ public class PlantillaTurnosJornadaTests
 
         plantilla.UncommittedEvents.Should().HaveCount(3);
         plantilla.UncommittedEvents[0].Should().Be(creada);
-        plantilla.UncommittedEvents[1].Should().Be(
-            JornadaDePlantillaDeTurnosAsignada.Crear(PlantillaId, JornadaA, Limites(42, 8), 3));
+        plantilla.UncommittedEvents[1].Should().BeOfType<JornadaDePlantillaDeTurnosAsignada>()
+            .Which.Should().BeEquivalentTo(
+                JornadaDePlantillaDeTurnosAsignada.Crear(PlantillaId, JornadaA, Limites(42, 8), 3));
         var auditoria = plantilla.UncommittedEvents[2].Should()
             .BeOfType<AdvertenciasDePlantillaDeTurnosCalculadas>().Subject;
         auditoria.Advertencias.Should().Equal(
