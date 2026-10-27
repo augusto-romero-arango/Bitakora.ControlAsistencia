@@ -43,7 +43,11 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
         // FranjaOrdinaria.ToString() produce, asi que se reusa en vez de recomponerlo.
         var franjas = turnoCreado.FranjasOrdinarias.Select(f => MapearFranja(f.ToDetalle()));
 
-        return Reconstruir(e.StreamKey!, turnoCreado.Nombre, esDescanso: false, franjas);
+        var horarioAbierto = turnoCreado.EsHorarioAbierto
+            ? new HorarioAbiertoFicha(FormatearDuracion(turnoCreado.FranjasOrdinarias.Sum(f => f.MinutosOrdinarios())))
+            : null;
+
+        return Reconstruir(e.StreamKey!, turnoCreado.Nombre, esDescanso: false, franjas, horarioAbierto: horarioAbierto);
     }
 
     // Los eventos de diseno por pasos (CA-ADR-0033) traen la franja contenedora RESULTANTE, no el
@@ -93,14 +97,14 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
             .Append(MapearFranja(detalle)));
 
     private static FichaTurno Reconstruir(FichaTurno ficha, IEnumerable<FranjaFicha> franjas) =>
-        Reconstruir(ficha.Id, ficha.Nombre, ficha.EsDescanso, franjas, ficha.VentanaDeEntrada);
+        Reconstruir(ficha.Id, ficha.Nombre, ficha.EsDescanso, franjas, ficha.VentanaDeEntrada, ficha.HorarioAbierto);
 
     // Unico punto de recomputo de los derivados: evita que HorarioResumido, Descripcion y Completo
     // diverjan entre Create y los Apply. Las franjas se presentan ordenadas por HoraInicio (vista
     // para leer el dia, no el orden en que se diseno -- MEF-ADR-0041).
     private static FichaTurno Reconstruir(
         string id, string nombre, bool esDescanso, IEnumerable<FranjaFicha> franjas,
-        VentanaDeEntradaFicha? ventana = null)
+        VentanaDeEntradaFicha? ventana = null, HorarioAbiertoFicha? horarioAbierto = null)
     {
         var ordenadas = franjas.OrderBy(f => f.HoraInicio).ToList();
 
@@ -117,7 +121,7 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
             ? null
             : AbrirVentana(ordenadas, ventana.Cierre - ventana.Apertura, ventana.Amplitud);
 
-        return new FichaTurno(id, nombre, esDescanso, horarioResumido, ordenadas, descripcion, Completo: true, ventanaVigente);
+        return new FichaTurno(id, nombre, esDescanso, horarioResumido, ordenadas, descripcion, Completo: true, ventanaVigente, horarioAbierto);
     }
 
     // Unico punto de calculo de la ventana. Amplitud 0 = turno fijo; sin franjas no hay apertura y
@@ -131,6 +135,10 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
         var apertura = franjas.Min(f => f.HoraInicio);
         return new VentanaDeEntradaFicha(apertura, apertura.Add(amplitud), textoAmplitud);
     }
+
+    // El texto lo da el VO HorasYMinutos (MEF-ADR-0012), no un formateo propio.
+    private static string FormatearDuracion(int minutos) =>
+        HorasYMinutos.Crear(minutos / 60, minutos % 60).ToString();
 
     private static FranjaFicha MapearFranja(FranjaProgramada detalle) =>
         new(

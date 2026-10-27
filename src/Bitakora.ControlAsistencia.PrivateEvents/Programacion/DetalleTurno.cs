@@ -11,14 +11,15 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 ///
 /// Descripcion es la representacion textual normalizada del turno (CatalogoTurnos.ToString()),
 /// dato derivado. El record por defecto compararia FranjasOrdinarias (IReadOnlyList) por
-/// referencia: Equals/GetHashCode propios comparan Nombre, AmplitudVentanaEntradaEnMinutos y
-/// FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN Descripcion.
+/// referencia: Equals/GetHashCode propios comparan Nombre, AmplitudVentanaEntradaEnMinutos,
+/// EsHorarioAbierto y FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN Descripcion.
 /// </remarks>
 public record DetalleTurno(
     string Nombre,
     IReadOnlyList<DetalleFranjaOrdinaria> FranjasOrdinarias,
     string Descripcion,
-    int AmplitudVentanaEntradaEnMinutos = 0)
+    int AmplitudVentanaEntradaEnMinutos = 0,
+    bool EsHorarioAbierto = false)
 {
     /// <summary>
     /// Los eventos anteriores al issue #288 no llevan el campo: STJ deja null en el parametro
@@ -33,6 +34,7 @@ public record DetalleTurno(
         if (ReferenceEquals(this, other)) return true;
         return Nombre == other.Nombre
             && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
+            && EsHorarioAbierto == other.EsHorarioAbierto
             && FranjasOrdinarias.SequenceEqual(other.FranjasOrdinarias);
     }
 
@@ -41,6 +43,7 @@ public record DetalleTurno(
         var hash = new HashCode();
         hash.Add(Nombre);
         hash.Add(AmplitudVentanaEntradaEnMinutos);
+        hash.Add(EsHorarioAbierto);
         foreach (var franja in FranjasOrdinarias) hash.Add(franja);
         return hash.ToHashCode();
     }

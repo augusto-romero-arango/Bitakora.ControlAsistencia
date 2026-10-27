@@ -17,7 +17,8 @@ public static class ConsolidadorDesgloseHoras
 {
     public static DesgloseHoras Consolidar(
         IReadOnlyList<DesgloseFranja> desglosesFranja,
-        int franjasAnomalas)
+        int franjasAnomalas,
+        bool sinCastigoPorRetardo = false)
     {
         // Copia mutable de los intervalos de cada franja: la compensacion cross-franja consume
         // extras desde el final, removiendo o partiendo intervalos sin tocar el insumo original.
@@ -27,7 +28,9 @@ public static class ConsolidadorDesgloseHoras
 
         // Retardo pendiente del dia = suma de los retardos netos de cada franja (cada uno ya
         // descontada su compensacion intra-franja, calculada por separado en #136).
-        var retardoPendiente = desglosesFranja.Sum(franja => franja.Retardo.RetardoNeto);
+        var retardoPendiente = sinCastigoPorRetardo
+            ? 0
+            : desglosesFranja.Sum(franja => franja.Retardo.RetardoNeto);
 
         IReadOnlyList<IntervaloTemporal> compensacionCrossFranja = retardoPendiente > 0
             ? ConsumirExtrasDesdeElFinal(intervalosPorFranja, retardoPendiente)
@@ -38,6 +41,8 @@ public static class ConsolidadorDesgloseHoras
         var retardoTotal = Retardo.Consolidar(
             desglosesFranja.Select(franja => franja.Retardo),
             compensacionCrossFranja);
+        if (sinCastigoPorRetardo)
+            retardoTotal = retardoTotal.SinCastigo();
 
         var desglosePorFranja = desglosesFranja
             .Select((franja, indice) => franja with { Intervalos = intervalosPorFranja[indice] })

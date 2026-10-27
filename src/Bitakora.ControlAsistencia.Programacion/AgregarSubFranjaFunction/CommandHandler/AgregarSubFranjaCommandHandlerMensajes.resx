@@ -32,4 +32,7 @@
   <data name="FranjaNoExiste" xml:space="preserve">
     <value>No existe una franja ordinaria que empiece a la hora especificada</value>
   </data>
+  <data name="TurnoDeHorarioAbierto" xml:space="preserve">
+    <value>Un turno de horario abierto no se rediseña: solo define cuántas horas se trabajan. Para otra duración, crea otro turno de horario abierto.</value>
+  </data>
 </root>

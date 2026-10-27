@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -15,7 +16,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarColaboradores;
 // Sin enriquecimiento del nombre de sede (MEF-ADR-0018): codigoSede viaja tal cual. TimeProvider
 // resuelve fecha_referencia a "hoy" en America/Bogota cuando el parametro llega ausente -- el back
 // jamas resuelve "hoy" (decision #373), la tool MCP es el cliente que lo hace por el agente.
-public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider reloj)
+public partial class ListarColaboradoresTool(ColaboradoresApi api, ProgramacionApi programacion, TimeProvider reloj)
 {
     internal const string NombreTool = "listar_colaboradores";
     internal const int MaximoColaboradores = 50;
@@ -32,7 +33,9 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
             + "colaborador y los demas filtros no aplican. Sin fecha_referencia se usa el dia de "
             + "hoy. Para ver que turno le rige a alguno, pasa su codigoColaborador a "
             + "consultar_programacion. Cada colaborador trae vigenteDesde, y vigenteHasta si su "
-            + "vinculacion termino: con ellos confirmas desde y hasta cuando esta vinculado.")]
+            + "vinculacion termino: con ellos confirmas desde y hasta cuando esta vinculado. "
+            + "Cada colaborador trae su jornada (jornada_id y descripcion de sus limites); "
+            + "por_defecto indica que no tiene ninguna asignada y le rige la predeterminada.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
@@ -88,7 +91,8 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
                 fecha.ToString(FormatoFecha, CultureInfo.InvariantCulture),
                 DescribirCriterio(sedeFiltro, filtros));
 
-        var visibles = sobre.Elementos.Select(Remodelar).ToList();
+        var catalogo = await LeerCatalogoDeJornadas(ct);
+        var visibles = sobre.Elementos.Select(f => Remodelar(f, catalogo)).ToList();
 
         return RespuestaJson.Serializar(new CatalogoDeColaboradores(
             visibles.Count,
@@ -117,7 +121,16 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
 
         var ficha = (await respuesta.Content.ReadFromJsonAsync<FichaColaborador>(ct))!;
 
-        return RespuestaJson.Serializar(Remodelar(ficha));
+        return RespuestaJson.Serializar(Remodelar(ficha, await LeerCatalogoDeJornadas(ct)));
+    }
+
+    private async Task<IReadOnlyList<JornadaDelCatalogo>> LeerCatalogoDeJornadas(CancellationToken ct)
+    {
+        var respuesta = await programacion.ListarJornadasCompleto(ct);
+        respuesta.EnsureSuccessStatusCode();
+
+        var sobre = await respuesta.Content.ReadFromJsonAsync<SobreDeLista<JornadaDelCatalogo>>(ct);
+        return sobre?.Elementos ?? [];
     }
 
     // Lo que el dominio rechaza por la forma del dato (una identificacion sin el prefijo de tipo,
@@ -139,8 +152,25 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
             : (default, string.Format(Mensajes.FechaInvalida, fechaReferencia));
     }
 
+    // Sin JornadaId le rige la predeterminada (por_defecto). Un JornadaId que el catalogo no conoce
+    // (consistencia eventual) viaja solo con su id; sin asignada ni predeterminada no hay jornada.
+    private static JornadaDeColaborador? DescribirJornada(
+        Guid? asignada, IReadOnlyList<JornadaDelCatalogo> catalogo)
+    {
+        var jornada = asignada is { } id
+            ? catalogo.FirstOrDefault(j => Guid.TryParse(j.JornadaId, out var jornadaId) && jornadaId == id)
+            : catalogo.FirstOrDefault(j => j.EsPredeterminada);
 
-    private static ColaboradorFicha Remodelar(FichaColaborador ficha)
+        return (jornada, asignada) switch
+        {
+            ({ } rige, _) => new JornadaDeColaborador(
+                rige.JornadaId, rige.Descripcion, asignada is null ? true : null, rige.Activa ? null : false),
+            (null, { } desconocida) => new JornadaDeColaborador(desconocida.ToString(), null, null, null),
+            _ => null,
+        };
+    }
+
+    private static ColaboradorFicha Remodelar(FichaColaborador ficha, IReadOnlyList<JornadaDelCatalogo> catalogo)
     {
         IReadOnlyList<string>? etiquetas = ficha.Etiquetas.Count > 0
             ? [.. ficha.Etiquetas.Select(e => $"{e.Categoria}:{e.Valor}")]
@@ -153,7 +183,8 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, TimeProvider 
             ficha.CodigoSede,
             ficha.VigenteDesde,
             ficha.VigenteHasta,
-            etiquetas);
+            etiquetas,
+            DescribirJornada(ficha.JornadaId, catalogo));
     }
 
     private static string? Normalizar(string? valor) =>
@@ -181,4 +212,15 @@ public sealed record ColaboradorFicha(
     string? CodigoSede,
     DateOnly VigenteDesde,
     DateOnly? VigenteHasta,
-    IReadOnlyList<string>? Etiquetas);
+    IReadOnlyList<string>? Etiquetas,
+    JornadaDeColaborador? Jornada);
+
+/// <summary>
+/// Jornada que rige al colaborador: por_defecto solo si no tiene ninguna asignada, activa solo
+/// cuando esta desactivada, descripcion ausente si el catalogo no la conoce.
+/// </summary>
+public sealed record JornadaDeColaborador(
+    [property: JsonPropertyName("jornada_id")] string JornadaId,
+    string? Descripcion,
+    [property: JsonPropertyName("por_defecto")] bool? PorDefecto,
+    bool? Activa);

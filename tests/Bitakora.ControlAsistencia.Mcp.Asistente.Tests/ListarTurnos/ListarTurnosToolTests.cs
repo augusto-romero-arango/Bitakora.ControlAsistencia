@@ -196,4 +196,18 @@ public class ListarTurnosToolTests
         json["turnos"]![0]!["conVentanaDeEntrada"]!.GetValue<bool>().Should().BeTrue();
         json["turnos"]![1]!.AsObject().ContainsKey("conVentanaDeEntrada").Should().BeFalse();
     }
+
+    [Fact]
+    public async Task ListarTurnos_MuestraHorarioAbiertoSinVentana_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        var (json, _) = await Ejecutar(Fixtures.Leer("ListarTurnos", "listar-turnos-con-horario-abierto.json"));
+
+        var abierto = json["turnos"]![0]!.AsObject();
+        abierto["horario"]!.GetValue<string>().Should().Be("horario abierto de 2 h");
+        abierto.ContainsKey("conVentanaDeEntrada").Should().BeFalse();
+
+        var limitada = json["turnos"]![1]!.AsObject();
+        limitada["horario"]!.GetValue<string>().Should().Be("07:00-16:00");
+        limitada["conVentanaDeEntrada"]!.GetValue<bool>().Should().BeTrue();
+    }
 }

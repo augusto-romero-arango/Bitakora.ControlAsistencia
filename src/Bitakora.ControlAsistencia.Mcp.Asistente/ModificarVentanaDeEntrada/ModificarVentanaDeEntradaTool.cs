@@ -4,7 +4,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ModificarVentanaDeEntrada;
 
-public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
+public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
 {
     internal const string NombreTool = "modificar_ventana_de_entrada";
 
@@ -12,7 +12,7 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Modifica la ventana de entrada de un turno del catalogo, indicado por su nombre exacto: el rango, "
+            "Modifica la ventana de entrada de un turno del catalogo, indicado por su id: el rango, "
             + "desde el inicio de su primera franja, dentro del cual la entrada del colaborador corre todo el turno. "
             + "amplitud en formato H:mm; 0:00 = turno fijo. Una ventana mayor que cero exige un turno con franjas "
             + "y que el inicio de su ultima franja mas la amplitud quede antes de las 24:00. "
@@ -20,24 +20,22 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
-            "turno", "Nombre exacto del turno del catalogo (miralo con buscar_turnos).", isRequired: true)]
-        string turno,
+            "turno_id", "Id del turno, tal como lo da buscar_turnos.", isRequired: true)]
+        string turnoId,
         [McpToolProperty("amplitud", "Amplitud de la ventana en formato H:mm, por ejemplo 3:00.", isRequired: true)]
         string amplitud,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(turno))
-            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (!Guid.TryParse(turnoId, out var idDelTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
         if (!ValidadorDuracion.TryParsear(amplitud, out var duracion))
             return string.Format(Mensajes.AmplitudInvalida, amplitud);
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
-        if (resolucion.FalloDeLectura is { } falloTurnos)
-            return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
-        var ficha = resolucion.Ficha;
+        var resolucion = await resolutor.ResolverAsync(idDelTurno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurno)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
+        if (resolucion.Ficha is not { } ficha)
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         var respuesta = await programacion.ModificarVentanaDeEntrada(ficha.Id, duracion, ct);
         if (await respuesta.LeerFalloAsync(ct) is { } fallo)

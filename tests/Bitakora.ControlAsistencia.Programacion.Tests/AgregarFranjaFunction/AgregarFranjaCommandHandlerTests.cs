@@ -159,7 +159,7 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
             TurnoId, FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0))));
         ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
             TurnoId, 2, "Turno Manana", false,
-            [new DetalleFranjaOrdinaria(new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], "(14:00-22:00)")],
+            [new DetalleFranjaOrdinaria(new TimeOnly(14, 0), new TimeOnly(22, 0), 0, [], [], "14:00-22:00")],
             false));
         And<CatalogoTurnos, bool>(TurnoId.ToString(), c => c.EstaCompleto(), true);
     }

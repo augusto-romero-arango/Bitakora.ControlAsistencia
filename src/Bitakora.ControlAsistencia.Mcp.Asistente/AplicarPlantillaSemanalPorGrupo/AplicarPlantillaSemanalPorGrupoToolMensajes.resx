@@ -26,7 +26,8 @@
   <data name="VentanaExcedeMaximo" xml:space="preserve"><value>La ventana no puede superar 35 dias; se recibieron {0}.</value></data>
   <data name="SelectorObligatorio" xml:space="preserve"><value>Indica al menos un criterio de grupo: 'sede' o 'etiquetas'.</value></data>
   <data name="EtiquetaMalFormada" xml:space="preserve"><value>La etiqueta '{0}' no tiene la forma categoria:valor.</value></data>
-  <data name="PlantillaNoExiste" xml:space="preserve"><value>No existe la plantilla semanal '{0}'. Plantillas disponibles: {1}.</value></data>
+  <data name="PlantillaNoExiste" xml:space="preserve"><value>No existe una plantilla semanal con el id '{0}'. Ubicala con buscar_plantillas_semanales.</value></data>
+  <data name="PlantillaIdInvalido" xml:space="preserve"><value>plantilla_id debe ser un GUID; se recibio '{0}'. Usa el id que da buscar_plantillas_semanales.</value></data>
   <data name="PlantillaIncompleta" xml:space="preserve"><value>La plantilla semanal '{0}' esta incompleta: no se puede aplicar.</value></data>
   <data name="PlantillaConTurnoNoProgramable" xml:space="preserve"><value>La plantilla semanal '{0}' referencia un turno retirado o incompleto: no se puede aplicar.</value></data>
   <data name="SedeNoExiste" xml:space="preserve"><value>No existe una sede de programacion con el codigo '{0}'; usa buscar_sedes para ubicarla.</value></data>

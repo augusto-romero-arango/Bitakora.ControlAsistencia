@@ -22,5 +22,8 @@ public partial class QuitarSubFranjaCommandHandler
 
         public static string SubFranjaNoExiste =>
             ResourceManager.GetString(nameof(SubFranjaNoExiste))!;
+
+        public static string TurnoDeHorarioAbierto =>
+            ResourceManager.GetString(nameof(TurnoDeHorarioAbierto))!;
     }
 }

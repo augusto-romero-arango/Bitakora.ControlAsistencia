@@ -7,6 +7,7 @@ internal enum ResultadoAgregarSubFranja
 {
     Agregada,
     TurnoRetirado,
+    TurnoDeHorarioAbierto,
     TurnoEsDescanso,
     FranjaNoExiste
 }

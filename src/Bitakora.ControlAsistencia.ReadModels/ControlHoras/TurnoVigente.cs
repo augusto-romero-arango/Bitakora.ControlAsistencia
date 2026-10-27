@@ -31,7 +31,8 @@ public sealed record TurnoVigente(
     IReadOnlyList<Bloque> Bloques,
     string? MotivoAusencia = null,
     Guid? AusenciaId = null,
-    TurnoCubierto? TurnoCubierto = null);
+    TurnoCubierto? TurnoCubierto = null,
+    bool EsHorarioAbierto = false);
 
 /// <summary>
 /// Turno que una ausencia vigente cubre: estado interno del documento para restablecerlo al
@@ -40,14 +41,16 @@ public sealed record TurnoVigente(
 public sealed record TurnoCubierto(
     string NombreTurno,
     string HorarioResumido,
-    IReadOnlyList<Bloque> Bloques)
+    IReadOnlyList<Bloque> Bloques,
+    bool EsHorarioAbierto = false)
 {
     // Igualdad estructural: el equals sintetizado del record compara la lista por referencia.
     public bool Equals(TurnoCubierto? other) =>
         other is not null
         && NombreTurno == other.NombreTurno
         && HorarioResumido == other.HorarioResumido
-        && Bloques.SequenceEqual(other.Bloques);
+        && Bloques.SequenceEqual(other.Bloques)
+        && EsHorarioAbierto == other.EsHorarioAbierto;
 
-    public override int GetHashCode() => HashCode.Combine(NombreTurno, HorarioResumido, Bloques.Count);
+    public override int GetHashCode() => HashCode.Combine(NombreTurno, HorarioResumido, Bloques.Count, EsHorarioAbierto);
 }

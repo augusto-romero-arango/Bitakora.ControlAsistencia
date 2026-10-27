@@ -75,8 +75,24 @@ public class RemisionABusquedasTests
             .And.Contain(t => t.Contains("buscar_turnos"));
         TextosDeTools().Where(t => t.Tool == "registrar_colaborador").Select(t => t.Texto)
             .Should().Contain(t => t.Contains("buscar_sedes"));
-        TextosDeTools().Where(t => t.Tool == "aplicar_plantilla_semanal").Select(t => t.Texto)
-            .Should().Contain(t => t.Contains("buscar_plantillas_semanales"));
+        foreach (var tool in new[] { "aplicar_plantilla_semanal", "aplicar_plantilla_semanal_por_grupo" })
+            TextosDeTools().Where(t => t.Tool == tool).Select(t => t.Texto)
+                .Should().Contain(t => t.Contains("buscar_plantillas_semanales"));
+        TextosDeTools().Where(t => t.Tool == "crear_plantilla_semanal").Select(t => t.Texto)
+            .Should().Contain(t => t.Contains("buscar_turnos"));
+    }
+
+    [Fact]
+    public void MensajesResx_RemitenABuscarPlantillasYTurnos_CuandoElIdNoEsValidoONoExiste()
+    {
+        var mensajes = MensajesResx().ToList();
+
+        foreach (var clave in new[] { "PlantillaIdInvalido", "PlantillaNoExiste" })
+            mensajes.Where(m => m.Clave == clave && m.Recurso.Contains("AplicarPlantillaSemanal"))
+                .Should().HaveCount(2).And.OnlyContain(m => m.Texto.Contains("buscar_plantillas_semanales"));
+        foreach (var clave in new[] { "TurnoIdInvalido", "TurnosNoExisten", "TurnoPorNombreNoSoportado" })
+            mensajes.Where(m => m.Clave == clave && m.Recurso.Contains("CrearPlantillaSemanal"))
+                .Should().ContainSingle().Which.Texto.Should().Contain("buscar_turnos");
     }
 
     [Fact]

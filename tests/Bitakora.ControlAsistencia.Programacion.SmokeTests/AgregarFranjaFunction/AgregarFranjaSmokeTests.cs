@@ -176,6 +176,32 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres, S
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AgregarFranja_DebeRetornar409ConMensajeDelExperto_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var crear = await _client.PostAsJsonAsync(
+            $"{RutaTurnos}/horario-abierto",
+            new { turnoId, nombre = $"[TEST] Horario abierto rediseno {turnoId}", duracion = new { horas = 6, minutos = 0 } },
+            ct);
+        crear.StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange de este smoke test depende de que CrearTurnoDeHorarioAbierto funcione");
+
+        var fichaDisponible = await Polling.WaitUntilTrueAsync(async () =>
+            (await _client.GetAsync($"{RutaTurnos}/{turnoId}", ct)).StatusCode == HttpStatusCode.OK, Timeout);
+        fichaDisponible.Should().BeTrue("la ficha del turno debe materializarse antes de intentar rediseñarlo");
+
+        var payload = new { inicio = "08:00:00", fin = "16:00:00" };
+        var response = await _client.PostAsJsonAsync(RutaAgregarFranja(turnoId), payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await response.Content.ReadAsStringAsync(ct)).Should().Contain("Un turno de horario abierto no se redise");
+
+        await RetirarTurnoAsync(turnoId, ct);
+    }
+
     // Invariante del VO (FranjaOrdinaria.Crear): Inicio == Fin sin offset explicito es una
     // duracion no positiva -- el handler deja subir la ArgumentException antes de tocar el
     // aggregate (CA-ADR-0030), el endpoint la traduce a 400.

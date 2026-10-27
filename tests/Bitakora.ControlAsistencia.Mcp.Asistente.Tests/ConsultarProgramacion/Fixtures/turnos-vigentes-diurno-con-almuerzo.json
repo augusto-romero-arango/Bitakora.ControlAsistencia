@@ -1,0 +1,38 @@
+{
+ "desde": "2026-11-07",
+ "hasta": "2026-11-07",
+ "rangoRecortado": false,
+ "elementos": [
+  {
+   "id": "cd:col-1:20261107",
+   "codigoColaborador": "COL-1",
+   "nombreCompleto": null,
+   "fecha": "2026-11-07",
+   "nombreTurno": "Turno Diurno",
+   "horarioResumido": "Turno Diurno",
+   "bloques": [
+    {
+     "tipo": 0,
+     "inicio": "2026-11-07T08:00:00",
+     "fin": "2026-11-07T13:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    },
+    {
+     "tipo": 1,
+     "inicio": "2026-11-07T13:00:00",
+     "fin": "2026-11-07T14:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    },
+    {
+     "tipo": 0,
+     "inicio": "2026-11-07T14:00:00",
+     "fin": "2026-11-07T17:00:00",
+     "sedeId": null,
+     "nombreSede": null
+    }
+   ]
+  }
+ ]
+}

@@ -2,11 +2,12 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AwesomeAssertions;
+using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.AsignarSedeAFranjaFunction;
 
-public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
+public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgres, ServiceBusFixture serviceBus)
 {
     private readonly HttpClient _client = api.Client;
 
@@ -14,6 +15,8 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
     private const string SchemaProgramacion = "programacion";
     private const string TipoEventoSedeAsignada = "sede_de_franja_asignada";
     private const string TipoEventoSedeRetirada = "sede_de_franja_retirada";
+    private const string TopicDisenoDeTurno = "diseno-de-turno-actualizado";
+    private const string Suscripcion = "smoke-tests";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private static string RutaAsignarSedeAFranja(Guid turnoId) =>
@@ -88,6 +91,36 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
             RutaAsignarSedeAFranja(turnoId), payloadRetirar, ct);
 
         terceraRespuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task AsignarSedeAFranja_PublicaDisenoConMarcaDeHorarioAbierto_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var crear = await _client.PostAsJsonAsync(
+            $"{RutaTurnos}/horario-abierto",
+            new { turnoId, nombre = $"[TEST] Horario abierto sede {turnoId}", duracion = new { horas = 6, minutos = 0 } },
+            ct);
+        crear.StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange de este smoke test depende de que CrearTurnoDeHorarioAbierto funcione");
+        await serviceBus.PurgeAsync(TopicDisenoDeTurno, Suscripcion);
+
+        var payload = new { franja = "04:00", sede = new { id = "SEDE-CHAPINERO", nombre = "[TEST] Chapinero" } };
+        var response = await _client.PostAsJsonAsync(RutaAsignarSedeAFranja(turnoId), payload, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var evento = await serviceBus.WaitForMessageAsync<DisenoDeTurnoActualizado>(
+            TopicDisenoDeTurno, Suscripcion, e => e.TurnoId == turnoId, Timeout);
+
+        evento.EsHorarioAbierto.Should().BeTrue();
+
+        var retiro = await _client.DeleteAsync($"{RutaTurnos}/{turnoId}", ct);
+        retiro.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]

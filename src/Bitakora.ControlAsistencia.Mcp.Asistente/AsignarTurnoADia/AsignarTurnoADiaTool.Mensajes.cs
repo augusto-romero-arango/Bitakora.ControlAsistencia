@@ -24,11 +24,11 @@ public partial class AsignarTurnoADiaTool
         public static string DiaDesconocido =>
             ResourceManager.GetString(nameof(DiaDesconocido))!;
 
-        /// <summary>{0}: nombre de plantilla recibido; {1}: nombres disponibles en el catalogo.</summary>
+        /// <summary>{0}: id de plantilla recibido.</summary>
         public static string PlantillaNoExiste =>
             ResourceManager.GetString(nameof(PlantillaNoExiste))!;
 
-        /// <summary>{0}: nombre de turno recibido; {1}: nombres disponibles en el catalogo.</summary>
+        /// <summary>{0}: id de turno recibido.</summary>
         public static string TurnoNoExiste =>
             ResourceManager.GetString(nameof(TurnoNoExiste))!;
 
@@ -41,5 +41,13 @@ public partial class AsignarTurnoADiaTool
 
         public static string NotaVisibilidadEventual =>
             ResourceManager.GetString(nameof(NotaVisibilidadEventual))!;
+
+        /// <summary>{0}: valor recibido en plantilla_id.</summary>
+        public static string PlantillaIdInvalido =>
+            ResourceManager.GetString(nameof(PlantillaIdInvalido))!;
+
+        /// <summary>{0}: valor recibido en turno_id.</summary>
+        public static string TurnoIdInvalido =>
+            ResourceManager.GetString(nameof(TurnoIdInvalido))!;
     }
 }

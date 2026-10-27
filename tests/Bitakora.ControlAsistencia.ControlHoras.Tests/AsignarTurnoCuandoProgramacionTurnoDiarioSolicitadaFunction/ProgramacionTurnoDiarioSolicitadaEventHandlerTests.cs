@@ -88,6 +88,29 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
             StreamId, c => c.DetalleTurno!.AmplitudVentanaEntradaEnMinutos, 180);
     }
 
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_EstampaLaMarcaDeHorarioAbierto_CuandoElEventoLaTrae()
+    {
+        var detalleAbierto = DetalleTurnoTest with { EsHorarioAbierto = true };
+        var turnoDiarioEsperado = TurnoDiarioTest with { EsHorarioAbierto = true };
+
+        await WhenAsync(new ProgramacionTurnoDiarioSolicitada(SolicitudId, ColaboradorResumen, Fecha, detalleAbierto));
+
+        Then(StreamId, new TurnoDiarioAsignado(StreamId, Colaborador, Fecha, turnoDiarioEsperado, SolicitudId));
+        And<ControlDiarioAggregateRoot, bool>(
+            StreamId, c => c.DetalleTurno!.EsHorarioAbierto, true);
+    }
+
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_DejaLaMarcaEnFalse_CuandoElEventoNoLaTrae()
+    {
+        await WhenAsync(CrearEvento());
+
+        Then(StreamId, CrearTurnoDiarioAsignado());
+        And<ControlDiarioAggregateRoot, bool>(
+            StreamId, c => c.DetalleTurno!.EsHorarioAbierto, false);
+    }
+
     // CA-4: YA existe ControlDiario para CodigoColaborador+Fecha - el handler agrega al stream existente
     // CA-5: el nuevo evento contiene todos los campos actualizados
     // CA-8: el segundo mensaje opera sobre el mismo stream (mismo CodigoColaborador+Fecha = mismo StreamId)

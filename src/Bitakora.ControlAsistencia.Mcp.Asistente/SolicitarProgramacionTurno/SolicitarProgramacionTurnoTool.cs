@@ -15,7 +15,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 // detienen al resto del lote: el resto ya pudo haberse programado.
 public partial class SolicitarProgramacionTurnoTool(
     ProgramacionApi programacion, SedesApi sedes,
-    ResolutorTurnoPorNombre resolutor, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorLista resolutorCandidatos,
+    ResolutorTurnoPorId resolutor, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorLista resolutorCandidatos,
     ILogger<SolicitarProgramacionTurnoTool>? logger = null, TimeProvider? reloj = null)
 {
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
@@ -29,7 +29,7 @@ public partial class SolicitarProgramacionTurnoTool(
             NombreTool,
             "Programa un turno a una lista de colaboradores en una sede (la de programacion, opcional), "
             + "para todos los dias de una ventana de trabajo de maximo 35 dias. Recibe la ventana "
-            + "(desde, hasta), el nombre exacto del turno del catalogo (miralo con buscar_turnos), "
+            + "(desde, hasta), el id del turno (ubicalo con buscar_turnos), "
             + "opcionalmente el codigo de la sede de programacion -- distinta de la sede de trabajo de "
             + "cada colaborador; sugiere una al usuario y, si prefiere la sede de cada colaborador, "
             + "omite el parametro -- y las identificaciones completas de los colaboradores, separadas por coma, tal como las "
@@ -55,10 +55,8 @@ public partial class SolicitarProgramacionTurnoTool(
             isRequired: true)]
         string hasta,
         [McpToolProperty(
-            "turno",
-            "Nombre exacto del turno del catalogo (ej. 'Cocina manana'); miralo con buscar_turnos.",
-            isRequired: true)]
-        string turno,
+            "turno_id", "Id del turno, tal como lo da buscar_turnos.", isRequired: true)]
+        string turnoId,
         [McpToolProperty(
             "sede_de_programacion",
             "Opcional. Codigo de la sede donde se registra la programacion; sugierela al usuario. "
@@ -79,8 +77,8 @@ public partial class SolicitarProgramacionTurnoTool(
             return string.Format(Mensajes.CampoObligatorio, "desde");
         if (string.IsNullOrWhiteSpace(hasta))
             return string.Format(Mensajes.CampoObligatorio, "hasta");
-        if (string.IsNullOrWhiteSpace(turno))
-            return string.Format(Mensajes.CampoObligatorio, "turno");
+        if (!Guid.TryParse(turnoId, out var idDelTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
         if (string.IsNullOrWhiteSpace(identificaciones))
             return string.Format(Mensajes.CampoObligatorio, "identificaciones");
 
@@ -109,13 +107,11 @@ public partial class SolicitarProgramacionTurnoTool(
 
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
-        var resolucion = await resolutor.ResolverAsync(turno, ct);
-        if (resolucion.FalloDeLectura is { } falloTurnos)
-            return string.Format(Mensajes.RechazoDelDominio, falloTurnos);
-        if (resolucion.Ficha is null)
-            return string.Format(
-                Mensajes.TurnoNoExiste, turno, string.Join(", ", resolucion.NombresDisponibles));
-        var fichaTurno = resolucion.Ficha;
+        var resolucion = await resolutor.ResolverAsync(idDelTurno, ct);
+        if (resolucion.FalloDeLectura is { } falloTurno)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
+        if (resolucion.Ficha is not { } fichaTurno)
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
 
         SedeProgramada? sedeExplicita = null;
         if (!string.IsNullOrWhiteSpace(sedeDeProgramacion))

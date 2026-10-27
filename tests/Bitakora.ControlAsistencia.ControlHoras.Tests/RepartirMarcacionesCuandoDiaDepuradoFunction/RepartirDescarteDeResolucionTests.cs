@@ -1,5 +1,4 @@
 using AwesomeAssertions;
-using Cosmos.EventDriven.Abstractions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.ControlHoras.RepartirMarcacionesCuandoDiaDepuradoFunction;
@@ -59,6 +58,7 @@ public class RepartirDescarteDeResolucionTests : CommandHandlerAsyncTest<Reparti
             Marcacion(StreamD, D(6, 20)),
             Marcacion(StreamD, D(14, 5)),
             CoberturaVecinaActualizada.Crear(StreamD, DiaVecino.Vispera, D(5, 0)),
+            CierreDeLaVisperaActualizado.Crear(StreamD, D(1, 0)),
             AmbiguedadDeMarcacionesResuelta.Crear(StreamD, DiaVecino.Vispera, LaDeLas0430A(Dia20)),
             ResolucionDeAmbiguedadDescartada.Crear(StreamD, DiaVecino.Vispera));
     }
@@ -107,6 +107,7 @@ public class RepartirDescarteDeResolucionTests : CommandHandlerAsyncTest<Reparti
             AmbiguedadDeMarcacionesResuelta.Crear(StreamD, DiaVecino.DiaSiguiente, LaDeLas0430A(Dia22)));
         Given(StreamN,
             Marcacion(StreamN, new DateTime(2026, 10, 22, 8, 0, 0)),
+            CierreDeLaVisperaActualizado.Crear(StreamN, D(14, 0)),
             AmbiguedadDeMarcacionesResuelta.Crear(StreamN, DiaVecino.Vispera, LaDeLas0430A(Dia22)));
 
         await WhenAsync(new RepartirMarcaciones(CodigoColaborador, Dia21));

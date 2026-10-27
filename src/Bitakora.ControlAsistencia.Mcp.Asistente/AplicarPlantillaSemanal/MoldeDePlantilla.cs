@@ -21,14 +21,13 @@ internal sealed class MoldeDePlantilla
     public string Nombre => cuadro.Nombre;
 
     public static async Task<(MoldeDePlantilla? Molde, string? Rechazo)> ResolverAsync(
-        ResolutorPlantillaPorNombre resolutor, string plantilla, MensajesDePlantilla mensajes, CancellationToken ct)
+        ResolutorPlantillaPorId resolutor, Guid plantillaId, MensajesDePlantilla mensajes, CancellationToken ct)
     {
-        var resolucion = await resolutor.ResolverAsync(plantilla, ct);
+        var resolucion = await resolutor.ResolverAsync(plantillaId, ct);
         if (resolucion.FalloDeLectura is { } fallo)
             return (null, string.Format(mensajes.RechazoDelDominio, fallo));
         if (resolucion.Ficha is not { } cuadro)
-            return (null, string.Format(
-                mensajes.PlantillaNoExiste, plantilla, string.Join(", ", resolucion.NombresDisponibles)));
+            return (null, string.Format(mensajes.PlantillaNoExiste, plantillaId));
         if (!cuadro.Completa)
             return (null, string.Format(mensajes.PlantillaIncompleta, cuadro.Nombre));
         if (cuadro.Dias.Any(d => d.Turno.Retirado || !d.Turno.Completo))

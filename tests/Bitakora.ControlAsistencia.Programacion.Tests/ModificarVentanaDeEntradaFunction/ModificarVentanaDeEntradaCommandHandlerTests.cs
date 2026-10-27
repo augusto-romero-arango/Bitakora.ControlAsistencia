@@ -36,7 +36,7 @@ public class ModificarVentanaDeEntradaCommandHandlerTests : CommandHandlerAsyncT
         Then(VentanaDeEntradaModificada.Crear(GuidAggregateId, Horas(3)));
         ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
             GuidAggregateId, 2, "Turno", false,
-            [new DetalleFranjaOrdinaria(new TimeOnly(7, 0), new TimeOnly(16, 0), 0, [], [], "(07:00-16:00)")],
+            [new DetalleFranjaOrdinaria(new TimeOnly(7, 0), new TimeOnly(16, 0), 0, [], [], "07:00-16:00")],
             false, 180));
         And<CatalogoTurnos, bool>(c => c.Turno.TieneVentanaDeEntrada(Horas(3)), true);
     }

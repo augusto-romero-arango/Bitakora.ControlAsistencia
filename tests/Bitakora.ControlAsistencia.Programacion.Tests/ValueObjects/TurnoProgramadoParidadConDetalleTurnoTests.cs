@@ -24,6 +24,15 @@ public class TurnoProgramadoParidadConDetalleTurnoTests
     }
 
     [Fact]
+    public void TurnoProgramado_TipaLaMarcaDeHorarioAbiertoComoBool_IgualQueDetalleTurno()
+    {
+        typeof(TurnoProgramado).GetProperty(nameof(TurnoProgramado.EsHorarioAbierto))!
+            .PropertyType.Should().Be(typeof(bool));
+        typeof(DetalleTurno).GetProperty(nameof(DetalleTurno.EsHorarioAbierto))!
+            .PropertyType.Should().Be(typeof(bool));
+    }
+
+    [Fact]
     public void TurnoProgramado_TipaLaAmplitudDeLaVentanaDeEntradaComoInt_IgualQueDetalleTurno()
     {
         typeof(TurnoProgramado).GetProperty(nameof(TurnoProgramado.AmplitudVentanaEntradaEnMinutos))!

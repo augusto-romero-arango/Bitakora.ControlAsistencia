@@ -44,6 +44,11 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
 
         raiz.GetProperty("dias").EnumerateArray().ToList().Should().HaveCount(raiz.GetProperty("mostrando").GetInt32());
         raiz.TryGetProperty("total", out _).Should().BeFalse("la ventana temporal no reporta total (CA-ADR-0039)");
+
+        raiz.GetProperty("dias").EnumerateArray()
+            .SelectMany(d => d.GetProperty("bloques").EnumerateArray())
+            .Select(b => b.GetString()!)
+            .Should().OnlyContain(b => !b.Contains("(+"));
     }
 
     // MEF-ADR-0048 seccion 2 verificacion 3: los parametros identificador opcionales tambien

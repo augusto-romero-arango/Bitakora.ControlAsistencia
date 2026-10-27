@@ -18,13 +18,14 @@ public class BuscarTurnosSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
         var creado = await mcp.Cliente.CallToolAsync(
             "crear_turno", new Dictionary<string, object?> { ["nombre"] = nombre }, cancellationToken: ct);
         creado.IsError.Should().NotBeTrue();
-        using (await programacion.Client.EsperarFichaAsync(nombre, ct)) { }
+        using var fichaTurno = await programacion.Client.EsperarFichaAsync(nombre, ct);
+        var turnoId = fichaTurno.RootElement.GetProperty("id").GetString()!;
 
         try
         {
             var franja = await mcp.Cliente.CallToolAsync(
                 "agregar_franja",
-                new Dictionary<string, object?> { ["turno"] = nombre, ["inicio"] = "06:00", ["fin"] = "14:00" },
+                new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "06:00", ["fin"] = "14:00" },
                 cancellationToken: ct);
             franja.IsError.Should().NotBeTrue();
 
@@ -54,7 +55,7 @@ public class BuscarTurnosSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
         finally
         {
             await mcp.Cliente.CallToolAsync(
-                "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+                "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
         }
     }
 }

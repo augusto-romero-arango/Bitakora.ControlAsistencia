@@ -118,4 +118,32 @@ public class ComponedorMallaSemanalTests
 
         filas.Single().Casillas.Should().OnlyContain(c => c.Tipo == TipoCasillaMalla.SinProgramar);
     }
+
+    [Fact]
+    public void Componer_ExponeLaMarcaDeHorarioAbierto_CuandoElDocumentoLaTrae()
+    {
+        var abierto = DocTrabajo("A", 1) with { EsHorarioAbierto = true };
+
+        var filas = ComponedorMallaSemanal.Componer(Semana, [new("A", Dia(1), null)], [abierto]);
+
+        filas.Single().Casillas[0].EsHorarioAbierto.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Componer_DejaLaMarcaDeHorarioAbiertoEnFalse_CuandoLaCasillaNoMuestraUnTurno()
+    {
+        var ausenciaSobreAbierto = DocAusencia("A", 2, "Vacaciones") with
+        {
+            TurnoCubierto = new TurnoCubierto("Abierto", "04:00-06:00", [BloqueTrabajo(2)], EsHorarioAbierto: true)
+        };
+
+        var filas = ComponedorMallaSemanal.Componer(
+            Semana, [new("A", Dia(2), Dia(5))], [ausenciaSobreAbierto, DocDescanso("A", 3)]);
+
+        var c = filas.Single().Casillas;
+        c[0].EsHorarioAbierto.Should().BeFalse("fuera de vinculacion");
+        c[1].EsHorarioAbierto.Should().BeFalse("ausencia");
+        c[2].EsHorarioAbierto.Should().BeFalse("descanso");
+        c[3].EsHorarioAbierto.Should().BeFalse("sin programar");
+    }
 }

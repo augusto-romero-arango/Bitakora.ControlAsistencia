@@ -28,7 +28,7 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
         ficha.RootElement.GetProperty("esDescanso").GetBoolean().Should().BeFalse();
 
         var retirado = await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()! }, cancellationToken: ct);
         retirado.IsError.Should().NotBeTrue();
         retirado.Content.OfType<TextContentBlock>().Single().Text.Should().Contain(nombre);
 
@@ -61,7 +61,43 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
         ficha.RootElement.GetProperty("esDescanso").GetBoolean().Should().BeTrue();
 
         await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombre }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()! }, cancellationToken: ct);
+    }
+
+    // CA-6: turno completo en una sola llamada; obtener_turno con el id del eco lo muestra con
+    // la franja y el descanso (polling por la materializacion asincronica del catalogo).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearTurno_CreaElTurnoCompletoConFranjaYDescanso_CuandoLlegaFranjas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nombre = $"[TEST] Turno con franjas {Guid.CreateVersion7()}";
+
+        var creado = await mcp.Cliente.CallToolAsync(
+            "crear_turno",
+            new Dictionary<string, object?>
+            {
+                ["nombre"] = nombre,
+                ["franjas"] = """[{"franja":"06:00-14:00","descansos":["10:00-10:15"]}]"""
+            },
+            cancellationToken: ct);
+        creado.IsError.Should().NotBeTrue();
+        var eco = System.Text.Json.JsonDocument.Parse(creado.Content.OfType<TextContentBlock>().Single().Text);
+        var turnoId = eco.RootElement.GetProperty("turno").GetProperty("id").GetString()!;
+
+        var texto = await Polling.WaitUntilAsync(
+            async () =>
+            {
+                var obtenido = await mcp.Cliente.CallToolAsync(
+                    "obtener_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
+                var contenido = obtenido.Content.OfType<TextContentBlock>().Single().Text;
+                return contenido.Contains("06:00") && contenido.Contains("10:00") ? contenido : null;
+            },
+            CatalogoDeTurnos.TimeoutPolling);
+        texto.Should().Contain("06:00").And.Contain("10:15");
+
+        await mcp.Cliente.CallToolAsync(
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
     }
 
     // Error path que no toca el dominio: nombre en blanco corta en el worker (mensaje .resx),
