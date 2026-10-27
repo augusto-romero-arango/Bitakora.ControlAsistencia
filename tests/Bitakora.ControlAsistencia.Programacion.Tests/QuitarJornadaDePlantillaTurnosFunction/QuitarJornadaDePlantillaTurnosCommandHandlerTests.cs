@@ -6,6 +6,7 @@ using Bitakora.ControlAsistencia.Programacion.QuitarJornadaDePlantillaTurnosFunc
 using Bitakora.ControlAsistencia.Programacion.QuitarJornadaDePlantillaTurnosFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
+using static Bitakora.ControlAsistencia.Programacion.Tests.Entities.AdvertenciasEsperadasPlantillaTurnos;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.QuitarJornadaDePlantillaTurnosFunction;
 
@@ -30,18 +31,19 @@ public class QuitarJornadaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task QuitarJornadaDePlantillaTurnos_EmiteJornadaQuitada_CuandoLaPlantillaTieneJornada()
     {
-        Given(PlantillaCreada(), JornadaAsignada());
+        Given(PlantillaCreada(), EventoSinJornada(GuidAggregateId), JornadaAsignada(),
+            EventoDiasSinTurno(GuidAggregateId, 8));
 
         await WhenAsync(new QuitarJornadaDePlantillaTurnos(GuidAggregateId));
 
-        Then(JornadaDePlantillaDeTurnosQuitada.Crear(GuidAggregateId));
+        Then(JornadaDePlantillaDeTurnosQuitada.Crear(GuidAggregateId), EventoSinJornada(GuidAggregateId));
         And<PlantillaTurnos, Guid?>(p => p.JornadaId, null);
     }
 
     [Fact]
     public async Task QuitarJornadaDePlantillaTurnos_NoEmiteEventos_CuandoLaPlantillaNoTieneJornada()
     {
-        Given(PlantillaCreada());
+        Given(PlantillaCreada(), EventoSinJornada(GuidAggregateId));
 
         await WhenAsync(new QuitarJornadaDePlantillaTurnos(GuidAggregateId));
 
