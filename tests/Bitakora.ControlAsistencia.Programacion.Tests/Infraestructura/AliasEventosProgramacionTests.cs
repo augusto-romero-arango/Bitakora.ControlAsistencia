@@ -175,6 +175,14 @@ public class AliasEventosProgramacionTests
     }
 
     [Fact]
+    public void PlantillaDeTurnosRetirada_TieneAliasPlantillaDeTurnosRetirada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<PlantillaDeTurnosRetirada>(options).Should().Be("plantilla_de_turnos_retirada");
+    }
+
+    [Fact]
     public void PlantillaSemanalRetirada_TieneAliasPlantillaSemanalRetirada()
     {
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();

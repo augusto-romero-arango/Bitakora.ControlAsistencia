@@ -31,7 +31,12 @@ public partial class AsignarTurnoADiaDePlantillaTurnosCommandHandler
         }
 
         var resultado = plantilla.AsignarDia(command.Dia, command.TurnoId, catalogo.Turno, catalogo.Version);
-        if (resultado == ResultadoAsignarDiaDePlantillaTurnos.DiaFueraDelCiclo)
-            throw new ReglaDeNegocioDeclinadaException(Mensajes.DiaFueraDelCiclo);
+        switch (resultado)
+        {
+            case ResultadoAsignarDiaDePlantillaTurnos.PlantillaRetirada:
+                throw new ReglaDeNegocioDeclinadaException(Mensajes.PlantillaRetirada);
+            case ResultadoAsignarDiaDePlantillaTurnos.DiaFueraDelCiclo:
+                throw new ReglaDeNegocioDeclinadaException(Mensajes.DiaFueraDelCiclo);
+        }
     }
 }

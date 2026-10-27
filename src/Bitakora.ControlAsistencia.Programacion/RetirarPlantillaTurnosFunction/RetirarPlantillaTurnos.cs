@@ -1,0 +1,3 @@
+namespace Bitakora.ControlAsistencia.Programacion.RetirarPlantillaTurnosFunction;
+
+public record RetirarPlantillaTurnos(Guid PlantillaId);

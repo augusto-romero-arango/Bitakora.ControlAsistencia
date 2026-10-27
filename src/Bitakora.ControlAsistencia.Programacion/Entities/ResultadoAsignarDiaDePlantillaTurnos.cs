@@ -4,5 +4,6 @@ internal enum ResultadoAsignarDiaDePlantillaTurnos
 {
     Asignado,
     SinCambios,
-    DiaFueraDelCiclo
+    DiaFueraDelCiclo,
+    PlantillaRetirada
 }
