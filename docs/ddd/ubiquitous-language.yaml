@@ -4,7 +4,14 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-25 (sesion planner, refinamiento de #1213: nueva advertencia diaria
+# Ultima actualizacion: 2026-10-26 (sesion planner, explorar plantillas: un cliente programa en ciclos
+#   de 8 dias. La Plantilla de turnos deja de ser solo paraguas y nombra el molde GENERICO de dias
+#   1..N (N <= 42) que se aplica con una fecha de inicio; semanal y rotativa pasan a ser interfaces.
+#   Se toma el nombre generico a proposito (revierte el anti-squatting). La Plantilla semanal de turnos
+#   se retirara por reemplazo gradual. El control de jornada queda fuera (investigacion #1290).
+#   Tocadas: Plantilla de turnos, Plantilla semanal de turnos, pregunta abierta del periodo de medicion.
+#   Issues #1280-#1290.)
+# Actualizacion previa: 2026-10-25 (sesion planner, refinamiento de #1213: nueva advertencia diaria
 #   SeSolapaConTurnoDeLaVispera (el turno del dia empieza antes del cierre del de la vispera; solo
 #   turnos fijos; reemplaza al descanso entre turnos en esa casilla). Rechazado "traslape" como
 #   sinonimo de solape. El cierre de la vispera llega al dia por CierreDeLaVisperaActualizado (#1228).
@@ -579,22 +586,31 @@ terms:
 
   - name: Plantilla de turnos
     definition: >
-      Termino PARAGUAS: molde reutilizable, con nombre y en catalogo, que compone varios dias a partir
-      de turnos del catalogo -- el segundo nivel de composicion sobre el Turno (plan del dia). Tiene
-      modalidades: la semanal (construida, ver Plantilla semanal de turnos) y, a futuro y solo si un
-      cliente la necesita, la ciclica (rotaciones 4x2, 2x2, 6x1 con descanso que corre: dias por
-      posicion, no por dia de la semana; seria OTRO aggregate). Ningun tipo de codigo se llama
-      PlantillaTurnos a secas: el generico se reserva para la familia (anti-squatting).
+      Molde reutilizable, con nombre y en catalogo, que compone varios dias a partir de turnos del
+      catalogo -- el segundo nivel de composicion sobre el Turno (plan del dia). Enmienda 2026-10-26:
+      es un CICLO de N dias (dia 1..N, N entre 1 y 42), cada dia con un turno del catalogo (el descanso
+      es un turno); no tiene fechas. APLICARLA es dar la fecha de inicio (cae el dia 1) y la ventana:
+      cada fecha toma el turno de su dia del ciclo y se programa como hoy. Cubre todo lo que se repite
+      cada N dias: semanal (7, 14... dias), 6x2, 4x4, 24x24, 14x14, 20x10. "Semanal" y "rotativa" son
+      INTERFACES del asistente/front sobre este molde, no conceptos del dominio.
     context: Programacion
     date_added: 2026-09-04
+    date_updated: 2026-10-26
     rejected_synonyms: [Horario, Esquema de turnos, Semana tipo, Malla de turnos, Sabana de turnos, Patron de turnos]
     rejection_reason: >
       Horario roza con HorarioResumido (las horas de UN turno). Semana tipo muere con mas de una
       semana. Malla/Sabana nombran la grilla ya ASIGNADA (colaboradores x dias), no el molde. Patron
       significa empleador en derecho laboral colombiano. El experto eligio "plantilla" en su acepcion
       de molde reutilizable: NO contradice el rechazo de "Plantilla" como sinonimo de Colaborador
-      (ahi la acepcion rechazada era "planta de personal").
+      (ahi la acepcion rechazada era "planta de personal"). "Plantilla ciclica de turnos" se descarto
+      el 2026-10-26: agrega una palabra que el usuario no dice.
     note: >
+      2026-10-26 (sesion planner, cliente con ciclos de 8 dias): se TOMA el nombre generico a
+      proposito -- revierte el anti-squatting del 2026-09-04 porque el molde ciclico ES el general; una
+      futura plantilla regida por el calendario (dia del mes, festivos) tomaria otro nombre. Codigo
+      PlantillaTurnos, ruta programacion/plantillas-turnos, dia identificado por su numero en el ciclo.
+      Reemplazo gradual de la Plantilla semanal de turnos (#1280-#1289). Las validaciones de jornada se
+      trasladan como estan; generalizarlas es la investigacion #1290.
       REVIERTE PARCIALMENTE la decision del 2026-08-29 ("mallas/rotaciones NO son conceptos del
       dominio sino recetas del asistente"): lo que separa la receta del concepto es persistir +
       nombrar + reutilizar, y eso es lo que el experto pidio. La Ventana de trabajo sigue siendo
@@ -645,6 +661,8 @@ terms:
       turnos "pobres"; la friccion de nombrar la resuelve el asistente creando el turno en el
       catalogo (tool crear_plantilla_semanal -- diferido a #651; #627 nace con turnos por nombre).
     note: >
+      EN RETIRO (2026-10-26): la sustituye la Plantilla de turnos generica (una semanal es una plantilla
+      de 7xS dias); convive hasta que las tools migren y se retira en #1289.
       Aggregate PlantillaSemanalTurnos. Eventos: PlantillaSemanalCreada, DiaDePlantillaSemanalAsignado,
       DiaDePlantillaSemanalQuitado, PlantillaSemanalRetirada. Contratos: POST programacion/
       plantillas-semanales (paso 1); PUT .../{id}/dias/{semana}/{dia} (paso 2, slot atomico);
@@ -2039,7 +2057,7 @@ actors:
     note: "Usuario directo solo cuando se construya el modulo de registro propio. Actualmente, sus marcaciones llegan via Sistema de marcacion externo. Pregunta 'como le llamamos en el dominio?': resuelta en #330 -- colaborador."
     interacts_with: []
     open_questions:
-  - question: "Periodo de medicion de la Verificacion semanal de la programacion: configurable (semana por defecto; ciclo de N dias como alternativa -- esquemas tipo petroleras 20x10, promedio de hasta 3 semanas del art. 165 CST)? Aparcada en #850: hoy solo semana."
+  - question: "Periodo de medicion de la Verificacion semanal de la programacion: configurable (semana por defecto; ciclo de N dias como alternativa -- esquemas tipo petroleras 20x10, promedio de hasta 3 semanas del art. 165 CST)? Aparcada en #850: hoy solo semana. 2026-10-26: la reactiva la Plantilla de turnos generica (un 6x2 alterna semanas de 40 y 48 h); investigacion de todas las formas de control de jornada en #1290."
     context: Programacion
     date: 2026-10-05
     priority: low
