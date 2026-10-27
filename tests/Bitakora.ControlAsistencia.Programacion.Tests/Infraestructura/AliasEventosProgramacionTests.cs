@@ -148,6 +148,14 @@ public class AliasEventosProgramacionTests
         AliasDe<PlantillaSemanalCreada>(options).Should().Be("plantilla_semanal_creada");
     }
 
+    [Fact]
+    public void DiaDePlantillaDeTurnosAsignado_TieneAliasDiaDePlantillaDeTurnosAsignado()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<DiaDePlantillaDeTurnosAsignado>(options).Should().Be("dia_de_plantilla_de_turnos_asignado");
+    }
+
     // Issue #621
     [Fact]
     public void DiaDePlantillaSemanalAsignado_TieneAliasDiaDePlantillaSemanalAsignado()
