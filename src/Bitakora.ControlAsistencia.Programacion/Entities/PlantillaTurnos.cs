@@ -105,12 +105,27 @@ public partial class PlantillaTurnos : AggregateRoot
         return ResultadoSincronizarTurno.Sincronizado;
     }
 
-    public void Apply(LimitesDeJornadaDePlantillaDeTurnosSincronizados evento) =>
-        throw new NotImplementedException();
+    public void Apply(LimitesDeJornadaDePlantillaDeTurnosSincronizados evento)
+    {
+        Limites = evento.Limites;
+        VersionJornada = evento.VersionJornada;
+    }
 
     internal ResultadoSincronizarLimitesDeJornada SincronizarLimitesDeJornada(
-        Guid jornadaId, LimitesJornada limites, long version) =>
-        throw new NotImplementedException();
+        Guid jornadaId, LimitesJornada limites, long version)
+    {
+        if (!_estaActiva)
+            return ResultadoSincronizarLimitesDeJornada.PlantillaRetirada;
+
+        if (JornadaId != jornadaId || VersionJornada >= version)
+            return ResultadoSincronizarLimitesDeJornada.SinCambios;
+
+        var evento = LimitesDeJornadaDePlantillaDeTurnosSincronizados.Crear(Guid.Parse(Id), jornadaId, limites, version);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        Auditar();
+        return ResultadoSincronizarLimitesDeJornada.Sincronizado;
+    }
 
     internal ResultadoRetiroPlantilla Retirar()
     {

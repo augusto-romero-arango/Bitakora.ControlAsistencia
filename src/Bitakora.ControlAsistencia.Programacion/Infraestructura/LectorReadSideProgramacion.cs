@@ -49,9 +49,15 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
             .ToListAsync(ct);
     }
 
-    Task<IReadOnlyList<string>> ILectorPlantillasTurnosPorJornada.ObtenerPlantillaIdsAsync(
-        Guid jornadaId, CancellationToken ct) =>
-        throw new NotImplementedException();
+    async Task<IReadOnlyList<string>> ILectorPlantillasTurnosPorJornada.ObtenerPlantillaIdsAsync(
+        Guid jornadaId, CancellationToken ct)
+    {
+        await using var session = store.QuerySession(tenantContext.TenantId);
+        return await session.Query<CuadroDeTurnos>()
+            .Where(c => c.JornadaId == jornadaId)
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+    }
 
     async Task<IReadOnlyList<string>> ILectorPlantillasPorTurno.ObtenerPlantillaIdsAsync(
         Guid turnoId, CancellationToken ct)

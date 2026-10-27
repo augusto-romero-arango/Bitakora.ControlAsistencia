@@ -59,7 +59,7 @@ public sealed partial class CuadroDeTurnosProjection
         };
 
     public static CuadroDeTurnos Apply(LimitesDeJornadaDePlantillaDeTurnosSincronizados e, CuadroDeTurnos vista) =>
-        throw new NotImplementedException();
+        vista with { Limites = ALimites(e.Limites) };
 
     public static bool ShouldDelete(PlantillaDeTurnosRetirada e) => true;
 

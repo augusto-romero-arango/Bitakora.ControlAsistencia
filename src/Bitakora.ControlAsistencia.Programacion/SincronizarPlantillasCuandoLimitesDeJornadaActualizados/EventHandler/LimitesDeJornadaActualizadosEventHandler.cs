@@ -2,6 +2,7 @@ using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SincronizarLimitesDeJornadaDePlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.SincronizarLimitesDeJornadaDePlantillaTurnosFunction;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -25,10 +26,14 @@ public class LimitesDeJornadaActualizadosEventHandler : IPrivateEventHandlerAsyn
     {
         var limites = Reinstanciar(@event);
         var plantillaIds = await _lector.ObtenerPlantillaIdsAsync(@event.JornadaId, ct);
-        _ = _lectorPlantillasTurnos;
 
         foreach (var plantillaId in plantillaIds)
             await _commandRouter.InvokeAsync(new SincronizarLimitesDeJornadaDePlantillaSemanal(
+                Guid.Parse(plantillaId), @event.JornadaId, limites, @event.Version), ct);
+
+        var plantillasTurnos = await _lectorPlantillasTurnos.ObtenerPlantillaIdsAsync(@event.JornadaId, ct);
+        foreach (var plantillaId in plantillasTurnos)
+            await _commandRouter.InvokeAsync(new SincronizarLimitesDeJornadaDePlantillaTurnos(
                 Guid.Parse(plantillaId), @event.JornadaId, limites, @event.Version), ct);
     }
 

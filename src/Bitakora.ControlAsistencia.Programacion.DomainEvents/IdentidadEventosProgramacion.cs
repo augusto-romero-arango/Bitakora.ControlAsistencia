@@ -52,6 +52,7 @@ public static class IdentidadEventosProgramacion
         typeof(AdvertenciasDePlantillaDeTurnosCalculadas),
         typeof(TurnoDePlantillaSemanalSincronizado),
         typeof(TurnoDePlantillaDeTurnosSincronizado),
+        typeof(LimitesDeJornadaDePlantillaDeTurnosSincronizados),
         typeof(LimitesDeJornadaDePlantillaSemanalSincronizados),
         typeof(JornadaDesactivada),
         typeof(JornadaActivada),
