@@ -3,6 +3,7 @@ using System.Text.Json.Serialization.Metadata;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaTurnosFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDisenoDeTurnoActualizado;
@@ -88,6 +89,7 @@ public static class ComposicionServicios
         services.AgregarWolverinePrivateEventRouter();
         services.AddScoped<ILectorNombresTurno, LectorReadSideProgramacion>();
         services.AddScoped<ILectorNombresPlantillaSemanal, LectorReadSideProgramacion>();
+        services.AddScoped<ILectorNombresPlantillaTurnos, LectorReadSideProgramacion>();
         services.AddScoped<ILectorLimitesJornada, LectorReadSideProgramacion>();
         services.AddScoped<ILectorPlantillasPorJornada, LectorReadSideProgramacion>();
         services.AddScoped<ILectorPlantillasPorTurno, LectorReadSideProgramacion>();

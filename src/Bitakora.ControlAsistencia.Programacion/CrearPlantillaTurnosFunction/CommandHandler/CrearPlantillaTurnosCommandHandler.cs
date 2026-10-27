@@ -23,6 +23,10 @@ public partial class CrearPlantillaTurnosCommandHandler : ICommandHandlerAsync<C
         if (existe)
             throw new RecursoYaExisteException(Mensajes.PlantillaYaExiste);
 
+        var nombresVigentes = await _lectorNombres.ObtenerNombresAsync(ct);
+        if (NombreDeCatalogo.EstaRepetido(command.Nombre, nombresVigentes))
+            throw new ReglaDeNegocioDeclinadaException(Mensajes.NombreDuplicado);
+
         Jornada? jornada = null;
         if (command.JornadaId is { } jornadaId)
         {
