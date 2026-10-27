@@ -37,7 +37,7 @@ public partial class PlantillaTurnos : AggregateRoot
         VersionJornada = 0;
     }
 
-    public void Apply(AdvertenciasDePlantillaDeTurnosCalculadas evento) => throw new NotImplementedException();
+    public void Apply(AdvertenciasDePlantillaDeTurnosCalculadas evento) => Advertencias = evento.Advertencias;
 
     internal IReadOnlyList<AdvertenciaPlantillaTurnos> Advertencias { get; private set; } = [];
 
@@ -58,6 +58,7 @@ public partial class PlantillaTurnos : AggregateRoot
         var evento = JornadaDePlantillaDeTurnosAsignada.Crear(Guid.Parse(Id), jornadaId, limites, version);
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        Auditar();
         return ResultadoAsignarJornada.Asignada;
     }
 
@@ -72,6 +73,7 @@ public partial class PlantillaTurnos : AggregateRoot
         var evento = JornadaDePlantillaDeTurnosQuitada.Crear(Guid.Parse(Id));
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        Auditar();
         return ResultadoQuitarJornada.Quitada;
     }
 
@@ -84,6 +86,20 @@ public partial class PlantillaTurnos : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoRetiroPlantilla.Retirada;
+    }
+
+    private void Auditar()
+    {
+        var calculadas = AuditoriaPlantillaTurnos.Auditar(
+            _diasDelCiclo,
+            _dias.Select(d => new DiaDePlantillaTurnosAuditado(d.Key, d.Value.Turno)),
+            Limites);
+        if (calculadas.SequenceEqual(Advertencias))
+            return;
+
+        var evento = AdvertenciasDePlantillaDeTurnosCalculadas.Crear(Guid.Parse(Id), calculadas);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
     }
 
     // Mismo turno con copia atrasada no es no-op: reasignar autocorrige la copia (CA-ADR-0034, enmienda #886).
@@ -102,6 +118,7 @@ public partial class PlantillaTurnos : AggregateRoot
         var evento = DiaDePlantillaDeTurnosAsignado.Crear(Guid.Parse(Id), dia, turnoId, copia, versionTurno);
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        Auditar();
         return ResultadoAsignarDiaDePlantillaTurnos.Asignado;
     }
 
@@ -110,6 +127,7 @@ public partial class PlantillaTurnos : AggregateRoot
         var plantilla = new PlantillaTurnos();
         plantilla._uncommittedEvents.Add(evento);
         plantilla.Apply(evento);
+        plantilla.Auditar();
         return plantilla;
     }
 }

@@ -59,6 +59,8 @@ public static class ConfiguracionSerializacionProgramacion
         VentanaDeEntradaModificada.ConfigurarSerializacion(resolver);
         AdvertenciaPlantillaSemanal.ConfigurarSerializacion(resolver);
         AdvertenciasDePlantillaSemanalCalculadas.ConfigurarSerializacion(resolver);
+        AdvertenciaPlantillaTurnos.ConfigurarSerializacion(resolver);
+        AdvertenciasDePlantillaDeTurnosCalculadas.ConfigurarSerializacion(resolver);
         TurnoDePlantillaSemanalSincronizado.ConfigurarSerializacion(resolver);
         LimitesDeJornadaDePlantillaSemanalSincronizados.ConfigurarSerializacion(resolver);
     }
