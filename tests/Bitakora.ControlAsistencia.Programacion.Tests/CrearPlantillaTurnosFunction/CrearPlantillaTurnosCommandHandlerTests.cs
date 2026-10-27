@@ -64,4 +64,71 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
         Then();
         And<PlantillaTurnos, string>(p => p.Id, string.Empty);
     }
+
+    private static readonly Guid JornadaId = Guid.Parse("019600a0-0000-7000-8000-000000000b02");
+
+    private const long VersionEnElHarness = 0;
+
+    private static LimitesJornada Limites(int semanales) =>
+        LimitesJornada.Crear(HorasYMinutos.Crear(semanales, 0), HorasYMinutos.Crear(8, 0),
+            HorasYMinutos.Crear(0, 0), 1);
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_EmiteCreadaJornadaAsignadaYUnaAuditoria_CuandoLaJornadaExiste()
+    {
+        Given(JornadaId.ToString(), JornadaCreada.Crear(JornadaId, Limites(42)));
+
+        await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8, JornadaId));
+
+        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8),
+            JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness),
+            EventoDiasSinTurno(GuidAggregateId, 8));
+        And<PlantillaTurnos, Guid?>(p => p.JornadaId, JornadaId);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_LanzaRecursoNoEncontradoException_CuandoLaJornadaNoTieneStream()
+    {
+        Given();
+
+        var act = async () => await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8, JornadaId));
+
+        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
+            .WithMessage($"*{CrearPlantillaTurnosCommandHandler.Mensajes.JornadaNoEncontrada}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaTurnos, string>(p => p.Id, string.Empty);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_LanzaReglaDeNegocioDeclinadaException_CuandoLaJornadaEstaDesactivada()
+    {
+        Given(JornadaId.ToString(), JornadaCreada.Crear(JornadaId, Limites(42)), new JornadaDesactivada(JornadaId));
+
+        var act = async () => await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8, JornadaId));
+
+        await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
+            .WithMessage($"*{CrearPlantillaTurnosCommandHandler.Mensajes.JornadaDesactivada}*");
+        Then(GuidAggregateId.ToString());
+        And<Jornada, bool>(JornadaId.ToString(), j => j.Activa, false);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_LanzaPlantillaYaExiste_CuandoPlantillaYaExisteYLaJornadaNoExiste()
+    {
+        Given(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8));
+
+        var act = async () => await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8, JornadaId));
+
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
+            .WithMessage($"*{CrearPlantillaTurnosCommandHandler.Mensajes.PlantillaYaExiste}*");
+        Then(GuidAggregateId.ToString());
+        And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
+    }
+
+    [Fact]
+    public void Mensajes_JornadaNoEncontradaYDesactivadaTienenTextoEnElResx_CuandoSeConsultaPorResourceManager()
+    {
+        CrearPlantillaTurnosCommandHandler.Mensajes.JornadaNoEncontrada.Should().NotBeNullOrWhiteSpace();
+        CrearPlantillaTurnosCommandHandler.Mensajes.JornadaDesactivada.Should().NotBeNullOrWhiteSpace();
+    }
 }

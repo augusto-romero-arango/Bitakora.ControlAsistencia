@@ -60,4 +60,35 @@ public class CrearPlantillaTurnosValidatorTests
 
         resultado.Errors.Should().HaveCountGreaterThanOrEqualTo(2);
     }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_EsInvalido_CuandoJornadaIdEsGuidVacio()
+    {
+        var comando = new CrearPlantillaTurnos(Guid.NewGuid(), "Ciclo 8 dias", 8, Guid.Empty);
+
+        var resultado = await _validator.ValidateAsync(comando, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeFalse();
+        resultado.Errors.Should().Contain(e => e.PropertyName == nameof(CrearPlantillaTurnos.JornadaId));
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_EsValido_CuandoJornadaIdTieneValor()
+    {
+        var comando = new CrearPlantillaTurnos(Guid.NewGuid(), "Ciclo 8 dias", 8, Guid.NewGuid());
+
+        var resultado = await _validator.ValidateAsync(comando, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_EsValido_CuandoJornadaIdEsNulo()
+    {
+        var comando = new CrearPlantillaTurnos(Guid.NewGuid(), "Ciclo 8 dias", 8, null);
+
+        var resultado = await _validator.ValidateAsync(comando, TestContext.Current.CancellationToken);
+
+        resultado.IsValid.Should().BeTrue();
+    }
 }

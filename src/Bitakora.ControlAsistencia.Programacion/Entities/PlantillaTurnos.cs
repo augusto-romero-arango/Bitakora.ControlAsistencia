@@ -150,6 +150,19 @@ public partial class PlantillaTurnos : AggregateRoot
         return ResultadoAsignarDiaDePlantillaTurnos.Asignado;
     }
 
+    internal static PlantillaTurnos IniciarConJornada(
+        PlantillaDeTurnosCreada evento, Guid jornadaId, LimitesJornada limites, long version)
+    {
+        var plantilla = new PlantillaTurnos();
+        plantilla._uncommittedEvents.Add(evento);
+        plantilla.Apply(evento);
+        var asignada = JornadaDePlantillaDeTurnosAsignada.Crear(evento.PlantillaId, jornadaId, limites, version);
+        plantilla._uncommittedEvents.Add(asignada);
+        plantilla.Apply(asignada);
+        plantilla.Auditar();
+        return plantilla;
+    }
+
     public static PlantillaTurnos Iniciar(PlantillaDeTurnosCreada evento)
     {
         var plantilla = new PlantillaTurnos();
