@@ -45,13 +45,13 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
         var conFranja = await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = nombreTurno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+            new Dictionary<string, object?> { ["turno_id"] = turnoId, ["inicio"] = "06:00", ["fin"] = "14:00" },
             cancellationToken: ct);
         conFranja.IsError.Should().NotBeTrue();
 
         // Plantilla de un solo dia (lunes): martes queda vacio a proposito -- es el slot que este
         // test asigna y luego quita con las dos tools bajo prueba.
-        var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{nombreTurno}}"}]""";
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno_id":"{{turnoId}}"}]""";
         var creada = await mcp.Cliente.CallToolAsync(
             "crear_plantilla_semanal",
             new Dictionary<string, object?> { ["nombre"] = nombrePlantilla, ["dias"] = dias },
@@ -82,8 +82,8 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
             "asignar_turno_a_dia",
             new Dictionary<string, object?>
             {
-                ["plantilla"] = nombrePlantilla,
-                ["turno"] = nombreTurno,
+                ["plantilla_id"] = plantillaId,
+                ["turno_id"] = turnoId,
                 ["dia"] = "martes",
                 ["semana"] = 1
             },
@@ -94,7 +94,7 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
         var quitado = await mcp.Cliente.CallToolAsync(
             "quitar_turno_de_dia",
-            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla, ["dia"] = "martes", ["semana"] = 1 },
+            new Dictionary<string, object?> { ["plantilla_id"] = plantillaId, ["dia"] = "martes", ["semana"] = 1 },
             cancellationToken: ct);
         quitado.IsError.Should().NotBeTrue();
 
@@ -102,26 +102,26 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
 
         await mcp.Cliente.CallToolAsync(
             "retirar_plantilla_semanal",
-            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+            new Dictionary<string, object?> { ["plantilla_id"] = plantillaId },
             cancellationToken: ct);
         await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = nombreTurno }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
     }
 
-    // CA-2/CA-4: plantilla inexistente -> PlantillaNoExiste con el catalogo real de dev, sin PUT.
+    // CA-2/CA-4: plantilla inexistente -> PlantillaNoExiste con el id, sin PUT.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarTurnoADia_RespondePlantillaNoExiste_CuandoLaPlantillaNoExisteEnElCatalogo()
+    public async Task AsignarTurnoADia_RespondePlantillaNoExiste_CuandoLaPlantillaNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var plantillaInexistente = $"[TEST] Plantilla inexistente {Guid.CreateVersion7()}";
+        var plantillaInexistente = Guid.CreateVersion7().ToString();
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "asignar_turno_a_dia",
             new Dictionary<string, object?>
             {
-                ["plantilla"] = plantillaInexistente,
-                ["turno"] = "cualquiera",
+                ["plantilla_id"] = plantillaInexistente,
+                ["turno_id"] = Guid.CreateVersion7().ToString(),
                 ["dia"] = "lunes"
             },
             cancellationToken: ct);
@@ -129,34 +129,48 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp, ProgramacionApiFixture p
         TextoDe(resultado).Should().Contain(plantillaInexistente);
     }
 
-    // Error path que no toca el dominio: campo en blanco corta en el worker (mensaje .resx), prueba
+    // Error path que no toca el dominio: un id que no es GUID corta en el worker (mensaje .resx), prueba
     // que los recursos embebidos de cada tool viajaron en el publish (mismo patron que AgregarFranja/
-    // QuitarFranja). Ambas tools comparten 'plantilla' como primer chequeo -- un test por tool basta.
+    // QuitarFranja). Ambas tools comparten 'plantilla_id' como primer chequeo -- un test por tool basta.
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task AsignarTurnoADia_RespondeElMensajeDeValidacion_CuandoLaPlantillaEstaEnBlanco()
+    public async Task AsignarTurnoADia_RespondeElMensajeDeValidacion_CuandoElPlantillaIdNoEsUnGuid()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "asignar_turno_a_dia",
-            new Dictionary<string, object?> { ["plantilla"] = "   ", ["turno"] = "cualquiera", ["dia"] = "lunes" },
+            new Dictionary<string, object?> { ["plantilla_id"] = "no-es-guid", ["turno_id"] = Guid.CreateVersion7().ToString(), ["dia"] = "lunes" },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().Be("'plantilla' es obligatorio.");
+        TextoDe(resultado).Should().Contain("plantilla_id").And.Contain("no-es-guid");
     }
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarTurnoDeDia_RespondeElMensajeDeValidacion_CuandoLaPlantillaEstaEnBlanco()
+    public async Task AsignarTurnoADia_RespondeElMensajeDeValidacion_CuandoElTurnoIdNoEsUnGuid()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var resultado = await mcp.Cliente.CallToolAsync(
+            "asignar_turno_a_dia",
+            new Dictionary<string, object?> { ["plantilla_id"] = Guid.CreateVersion7().ToString(), ["turno_id"] = "no-es-guid", ["dia"] = "lunes" },
+            cancellationToken: ct);
+
+        TextoDe(resultado).Should().Contain("turno_id").And.Contain("no-es-guid");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task QuitarTurnoDeDia_RespondeElMensajeDeValidacion_CuandoElPlantillaIdNoEsUnGuid()
     {
         var ct = TestContext.Current.CancellationToken;
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "quitar_turno_de_dia",
-            new Dictionary<string, object?> { ["plantilla"] = "   ", ["dia"] = "lunes" },
+            new Dictionary<string, object?> { ["plantilla_id"] = "no-es-guid", ["dia"] = "lunes" },
             cancellationToken: ct);
 
-        TextoDe(resultado).Should().Be("'plantilla' es obligatorio.");
+        TextoDe(resultado).Should().Contain("plantilla_id").And.Contain("no-es-guid");
     }
 }

@@ -10,15 +10,11 @@ public partial class AsignarJornadaAPlantillaSemanalTool
 
     internal static class Mensajes
     {
-        /// <summary>{0}: nombre del campo obligatorio en blanco.</summary>
-        public static string CampoObligatorio =>
-            ResourceManager.GetString(nameof(CampoObligatorio))!;
-
         /// <summary>{0}: valor de jornada_id recibido.</summary>
         public static string JornadaIdInvalido =>
             ResourceManager.GetString(nameof(JornadaIdInvalido))!;
 
-        /// <summary>{0}: nombre de plantilla recibido; {1}: nombres disponibles.</summary>
+        /// <summary>{0}: id de plantilla recibido.</summary>
         public static string PlantillaNoExiste =>
             ResourceManager.GetString(nameof(PlantillaNoExiste))!;
 
@@ -34,5 +30,9 @@ public partial class AsignarJornadaAPlantillaSemanalTool
 
         public static string NotaAdvertenciasEventuales =>
             ResourceManager.GetString(nameof(NotaAdvertenciasEventuales))!;
+
+        /// <summary>{0}: valor recibido en plantilla_id.</summary>
+        public static string PlantillaIdInvalido =>
+            ResourceManager.GetString(nameof(PlantillaIdInvalido))!;
     }
 }

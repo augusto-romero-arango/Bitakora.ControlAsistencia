@@ -33,6 +33,7 @@ public partial class AgregarFranjaCommandHandler : ICommandHandlerAsync<AgregarF
         {
             ResultadoAgregarFranja.Agregada => null,
             ResultadoAgregarFranja.TurnoRetirado => Mensajes.TurnoRetirado,
+            ResultadoAgregarFranja.TurnoDeHorarioAbierto => Mensajes.TurnoDeHorarioAbierto,
             ResultadoAgregarFranja.TurnoEsDescanso => Mensajes.TurnoEsDescanso,
             ResultadoAgregarFranja.SeSolapaConOtraFranja => Mensajes.FranjaSeSolapa,
             ResultadoAgregarFranja.CierrePasaMedianoche => Mensajes.CierrePasaMedianoche,

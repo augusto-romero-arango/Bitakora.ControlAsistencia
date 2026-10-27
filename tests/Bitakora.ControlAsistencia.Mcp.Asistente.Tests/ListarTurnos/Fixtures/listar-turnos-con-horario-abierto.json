@@ -1,0 +1,30 @@
+{ "elementos": [
+ {
+  "id": "01a0ec12-0000-7000-9000-000000000001",
+  "nombre": "Abierto 2:00",
+  "esDescanso": false,
+  "horarioResumido": "04:00-06:00",
+  "franjas": [
+   { "horaInicio": "04:00:00", "horaFin": "06:00:00", "diaOffsetFin": 0, "descansos": [], "extras": [],
+     "sedeId": null, "nombreSede": null, "descripcion": "(04:00-06:00)" }
+  ],
+  "descripcion": "(04:00-06:00)",
+  "completo": true,
+  "ventanaDeEntrada": { "apertura": "04:00:00", "cierre": "22:00:00", "amplitud": "18 h" },
+  "horarioAbierto": { "duracion": "2 h" }
+ },
+ {
+  "id": "01a0ec11-0000-7000-9000-000000000001",
+  "nombre": "Oficina",
+  "esDescanso": false,
+  "horarioResumido": "07:00-16:00",
+  "franjas": [
+   { "horaInicio": "07:00:00", "horaFin": "16:00:00", "diaOffsetFin": 0, "descansos": [], "extras": [],
+     "sedeId": null, "nombreSede": null, "descripcion": "(07:00-16:00)" }
+  ],
+  "descripcion": "(07:00-16:00)",
+  "completo": true,
+  "ventanaDeEntrada": { "apertura": "07:00:00", "cierre": "10:00:00", "amplitud": "3 h" }
+ }
+]
+}

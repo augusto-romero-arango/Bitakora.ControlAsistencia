@@ -9,7 +9,8 @@ public record DisenoDeTurnoActualizado(
     bool EsDescanso,
     IReadOnlyList<DetalleFranjaOrdinaria> Franjas,
     bool Retirado,
-    int AmplitudVentanaEntradaEnMinutos = 0) : IPrivateEvent
+    int AmplitudVentanaEntradaEnMinutos = 0,
+    bool EsHorarioAbierto = false) : IPrivateEvent
 {
     public virtual bool Equals(DisenoDeTurnoActualizado? other)
     {
@@ -20,6 +21,7 @@ public record DisenoDeTurnoActualizado(
             && EsDescanso == other.EsDescanso
             && Retirado == other.Retirado
             && AmplitudVentanaEntradaEnMinutos == other.AmplitudVentanaEntradaEnMinutos
+            && EsHorarioAbierto == other.EsHorarioAbierto
             && Franjas.SequenceEqual(other.Franjas);
     }
 
@@ -32,6 +34,7 @@ public record DisenoDeTurnoActualizado(
         hash.Add(EsDescanso);
         hash.Add(Retirado);
         hash.Add(AmplitudVentanaEntradaEnMinutos);
+        hash.Add(EsHorarioAbierto);
         foreach (var f in Franjas) hash.Add(f);
         return hash.ToHashCode();
     }

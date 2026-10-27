@@ -39,14 +39,25 @@ public class DisenoDeTurnoActualizadoEventHandlerTests : PrivateEventHandlerAsyn
         ],
         retirado);
 
-    private static Turno TurnoMixtoEsperado() => Turno.Crear("Turno Mixto", false,
+    private static Turno TurnoMixtoEsperado(bool esHorarioAbierto = false) => Turno.Crear("Turno Mixto", false,
     [
         FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
             [SubFranja.Crear(new TimeOnly(9, 0), new TimeOnly(9, 30))],
             [SubFranja.Crear(new TimeOnly(13, 0), new TimeOnly(14, 0))],
             new SedeProgramada("s:001", "Sede Principal", "CC-100")),
         FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(5, 0), 1)
-    ]);
+    ], esHorarioAbierto);
+
+    [Fact]
+    public async Task DisenoDeTurnoActualizado_EnviaLaCopiaConLaMarcaDeHorarioAbierto_CuandoElEventoLaTrae()
+    {
+        _lector.PlantillaIds = [PlantillaA.ToString()];
+
+        await WhenAsync(DisenoMixto() with { EsHorarioAbierto = true });
+
+        _router.Comandos.Should().Equal(
+            new SincronizarTurnoDePlantillaSemanal(PlantillaA, TurnoId, TurnoMixtoEsperado(esHorarioAbierto: true), 4, false));
+    }
 
     [Fact]
     public async Task DisenoDeTurnoActualizado_EnviaElComandoACadaPlantillaQueUsaElTurno_CuandoElDisenoCambia()

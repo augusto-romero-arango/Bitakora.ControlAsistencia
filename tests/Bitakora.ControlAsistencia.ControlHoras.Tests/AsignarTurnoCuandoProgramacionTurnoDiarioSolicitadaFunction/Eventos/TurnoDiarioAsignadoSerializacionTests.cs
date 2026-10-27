@@ -405,6 +405,32 @@ public class TurnoDiarioAsignadoSerializacionTests
     }
 
     [Fact]
+    public void Deserializar_LeeMarcaEnFalse_CuandoJsonNoTraeLaClave()
+    {
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        var evento = new TurnoDiarioAsignado(StreamId, ColaboradorDePrueba, Fecha, TurnoDiarioDePrueba, SolicitudId);
+        var json = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(evento, opciones))!;
+        json["DetalleTurno"]!.AsObject().Remove("EsHorarioAbierto");
+
+        var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(json.ToJsonString(), opciones);
+
+        deserializado!.DetalleTurno.EsHorarioAbierto.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Deserializar_ConservaMarca_CuandoTurnoEsDeHorarioAbierto()
+    {
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        var turno = TurnoDiarioDePrueba with { EsHorarioAbierto = true };
+        var evento = new TurnoDiarioAsignado(StreamId, ColaboradorDePrueba, Fecha, turno, SolicitudId);
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(json, opciones);
+
+        deserializado!.DetalleTurno.EsHorarioAbierto.Should().BeTrue();
+    }
+
+    [Fact]
     public void Deserializar_ConservaAmplitud_CuandoTurnoTieneVentana()
     {
         var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();

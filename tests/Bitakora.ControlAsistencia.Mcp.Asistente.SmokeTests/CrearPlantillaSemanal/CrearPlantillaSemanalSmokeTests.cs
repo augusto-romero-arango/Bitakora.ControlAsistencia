@@ -36,13 +36,13 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
             var conFranja = await mcp.Cliente.CallToolAsync(
                 "agregar_franja",
-                new Dictionary<string, object?> { ["turno"] = turno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+                new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()!, ["inicio"] = "06:00", ["fin"] = "14:00" },
                 cancellationToken: ct);
             conFranja.IsError.Should().NotBeTrue();
         }
 
         var dias = $$"""
-            [{"semana":1,"dia":"lunes","turno":"{{turnoLunes}}"},{"semana":1,"dia":"martes","turno":"{{turnoMartes}}"}]
+            [{"semana":1,"dia":"lunes","turno_id":"{{idsDeTurnos[turnoLunes]}}"},{"semana":1,"dia":"martes","turno_id":"{{idsDeTurnos[turnoMartes]}}"}]
             """;
 
         var creada = await mcp.Cliente.CallToolAsync(
@@ -79,7 +79,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
         var retirada = await mcp.Cliente.CallToolAsync(
             "retirar_plantilla_semanal",
-            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+            new Dictionary<string, object?> { ["plantilla_id"] = plantillaId },
             cancellationToken: ct);
         retirada.IsError.Should().NotBeTrue();
 
@@ -94,7 +94,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
         foreach (var turno in new[] { turnoLunes, turnoMartes })
             await mcp.Cliente.CallToolAsync(
-                "retirar_turno", new Dictionary<string, object?> { ["turno"] = turno }, cancellationToken: ct);
+                "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = idsDeTurnos[turno] }, cancellationToken: ct);
     }
 
     // CA-2: un turno inexistente en el catalogo no crea nada -- el mensaje TurnosNoExisten llega
@@ -105,8 +105,8 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
     {
         var ct = TestContext.Current.CancellationToken;
         var nombrePlantilla = $"[TEST] Plantilla MCP {Guid.CreateVersion7()}";
-        var turnoInexistente = $"[TEST] Turno inexistente {Guid.CreateVersion7()}";
-        var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{turnoInexistente}}"}]""";
+        var turnoInexistente = Guid.CreateVersion7().ToString();
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno_id":"{{turnoInexistente}}"}]""";
 
         var resultado = await mcp.Cliente.CallToolAsync(
             "crear_plantilla_semanal",
@@ -134,6 +134,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
         creada.IsError.Should().NotBeTrue();
 
         using var texto = JsonDocument.Parse(creada.Content.OfType<TextContentBlock>().Single().Text);
+        var plantillaId = texto.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
         texto.RootElement.GetProperty("diasAsignados").GetInt32().Should().Be(1);
         var inline = texto.RootElement.GetProperty("turnosInline").EnumerateArray().Single();
         inline.GetProperty("nombre").GetString().Should().Be(franjaExclusiva);
@@ -141,7 +142,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
         var retirada = await mcp.Cliente.CallToolAsync(
             "retirar_plantilla_semanal",
-            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+            new Dictionary<string, object?> { ["plantilla_id"] = plantillaId },
             cancellationToken: ct);
         retirada.IsError.Should().NotBeTrue();
     }
@@ -164,10 +165,10 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
         using var ficha = await programacion.Client.EsperarFichaAsync(turno, ct);
         (await mcp.Cliente.CallToolAsync(
             "agregar_franja",
-            new Dictionary<string, object?> { ["turno"] = turno, ["inicio"] = "06:00", ["fin"] = "14:00" },
+            new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()!, ["inicio"] = "06:00", ["fin"] = "14:00" },
             cancellationToken: ct)).IsError.Should().NotBeTrue();
 
-        var dias = $$"""[{"semana":1,"dia":"lunes","turno":"{{turno}}"}]""";
+        var dias = $$"""[{"semana":1,"dia":"lunes","turno_id":"{{ficha.RootElement.GetProperty("id").GetString()}}"}]""";
         var creada = await mcp.Cliente.CallToolAsync(
             "crear_plantilla_semanal",
             new Dictionary<string, object?>
@@ -179,6 +180,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
             cancellationToken: ct);
         creada.IsError.Should().NotBeTrue();
         using var textoCreada = JsonDocument.Parse(SembradoDeJornadas.Texto(creada));
+        var plantillaId = textoCreada.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
         textoCreada.RootElement.GetProperty("jornada").GetProperty("jornada_id").GetString()
             .Should().Be(jornadaId);
 
@@ -187,7 +189,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
             {
                 var resultado = await mcp.Cliente.CallToolAsync(
                     "obtener_plantilla_semanal",
-                    new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+                    new Dictionary<string, object?> { ["plantilla_id"] = plantillaId },
                     cancellationToken: ct);
                 var json = JsonDocument.Parse(SembradoDeJornadas.Texto(resultado));
                 return json.RootElement.TryGetProperty("jornada", out _) ? json : null;
@@ -203,7 +205,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
         var quitada = await mcp.Cliente.CallToolAsync(
             "quitar_jornada_de_plantilla_semanal",
-            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+            new Dictionary<string, object?> { ["plantilla_id"] = plantillaId },
             cancellationToken: ct);
         quitada.IsError.Should().NotBeTrue();
         using var textoQuitada = JsonDocument.Parse(SembradoDeJornadas.Texto(quitada));
@@ -211,7 +213,7 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
         var asignada = await mcp.Cliente.CallToolAsync(
             "asignar_jornada_a_plantilla_semanal",
-            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla, ["jornada_id"] = jornadaId },
+            new Dictionary<string, object?> { ["plantilla_id"] = plantillaId, ["jornada_id"] = jornadaId },
             cancellationToken: ct);
         asignada.IsError.Should().NotBeTrue();
         using var textoAsignada = JsonDocument.Parse(SembradoDeJornadas.Texto(asignada));
@@ -220,9 +222,9 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
         await mcp.Cliente.CallToolAsync(
             "retirar_plantilla_semanal",
-            new Dictionary<string, object?> { ["plantilla"] = nombrePlantilla },
+            new Dictionary<string, object?> { ["plantilla_id"] = plantillaId },
             cancellationToken: ct);
         await mcp.Cliente.CallToolAsync(
-            "retirar_turno", new Dictionary<string, object?> { ["turno"] = turno }, cancellationToken: ct);
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()! }, cancellationToken: ct);
     }
 }

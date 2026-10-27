@@ -45,22 +45,48 @@ public class TurnoTests
         var turno = Turno.Crear("Turno Manana", false, [franja]);
 
         turno.ToString().Should().Be(
-            $"Turno Manana (06:00-14:00)[{FranjaTemporal.Mensajes.LabelDescansos}:(10:00-10:30)]"
-            + $"[{FranjaTemporal.Mensajes.LabelExtras}:(12:00-14:00)]");
+            "06:00-14:00, descanso 10:00-10:30, extra 12:00-14:00");
+    }
+
+    [Fact]
+    public void ToString_UneLasFranjasConComa_SinElNombre_CuandoTieneVariasFranjas()
+    {
+        var turno = Turno.Crear("Turno partido", false,
+        [
+            FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(10, 0)),
+            FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(18, 0))
+        ]);
+
+        turno.ToString().Should().Be("06:00-10:00, 14:00-18:00");
+    }
+
+    [Fact]
+    public void ToString_DescribeDescansoYExtraConOffset_SinSede_CuandoLaFranjaCruzaMedianoche()
+    {
+        var ocoa = new SedeProgramada("SEDE-OCOA", "Ocoa");
+        var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0), sede: ocoa)
+            .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30));
+        // El extra debe quedar contenido en la ordinaria, asi que esta termina a las 07:00+1.
+        var franjaConExtra = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(7, 0), sede: ocoa)
+            .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30))
+            .ConExtra(new TimeOnly(6, 0), new TimeOnly(7, 0));
+
+        franja.ToString().Should().Be("22:00-06:00+1, descanso 02:00+1-02:30+1");
+        franjaConExtra.ToString().Should().Be("22:00-07:00+1, descanso 02:00+1-02:30+1, extra 06:00+1-07:00+1");
     }
 
     [Fact]
     public void ToString_AgregaLabelDescanso_CuandoEsDescanso()
     {
         Turno.Crear("Libre", true, []).ToString()
-            .Should().Be($"Libre {Turno.Mensajes.LabelDescanso}");
+            .Should().Be("(descanso)");
     }
 
     [Fact]
     public void ToString_AgregaLabelIncompleto_CuandoNoTieneFranjas()
     {
         Turno.Crear("Nuevo", false, []).ToString()
-            .Should().Be($"Nuevo {Turno.Mensajes.LabelIncompleto}");
+            .Should().Be("(incompleto)");
     }
 
     [Fact]
@@ -79,7 +105,7 @@ public class TurnoTests
 
         programado.Nombre.Should().Be("Doble");
         programado.FranjasOrdinarias.Should().HaveCount(2);
-        programado.Descripcion.Should().Be("Doble (06:00-14:00)(14:00-22:00)");
+        programado.Descripcion.Should().Be("06:00-14:00, 14:00-22:00");
     }
 
     [Fact]
@@ -127,8 +153,8 @@ public class TurnoTests
 
         var resultado = original.ConFranja(Tarde());
 
-        resultado.ToString().Should().Be("Turno Manana (06:00-14:00)(14:00-22:00)");
-        original.ToString().Should().Be("Turno Manana (06:00-14:00)");
+        resultado.ToString().Should().Be("06:00-14:00, 14:00-22:00");
+        original.ToString().Should().Be("06:00-14:00");
     }
 
     [Fact]
@@ -138,7 +164,7 @@ public class TurnoTests
 
         var resultado = turno.SinFranjaQueEmpiezaA(Manana());
 
-        resultado.ToString().Should().Be("Doble (14:00-22:00)");
+        resultado.ToString().Should().Be("14:00-22:00");
     }
 
     [Fact]

@@ -196,4 +196,18 @@ public class BuscarTurnosToolTests
         conVentana["conVentanaDeEntrada"]!.GetValue<bool>().Should().BeTrue();
         fijo.ContainsKey("conVentanaDeEntrada").Should().BeFalse();
     }
+
+    [Fact]
+    public async Task BuscarTurnos_MuestraHorarioAbiertoSinVentana_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        var (texto, _) = await EjecutarTexto(
+            Fixtures.Leer("BuscarTurnos", "buscar-turnos-con-horario-abierto.json"), nombre: "abierto");
+
+        var turnos = Parsear(texto)["turnos"]!.AsArray();
+        turnos.Should().HaveCount(1);
+        var abierto = turnos[0]!.AsObject();
+        abierto["nombre"]!.GetValue<string>().Should().Be("Abierto 2:00");
+        abierto["horario"]!.GetValue<string>().Should().Be("horario abierto de 2 h");
+        abierto.ContainsKey("conVentanaDeEntrada").Should().BeFalse();
+    }
 }

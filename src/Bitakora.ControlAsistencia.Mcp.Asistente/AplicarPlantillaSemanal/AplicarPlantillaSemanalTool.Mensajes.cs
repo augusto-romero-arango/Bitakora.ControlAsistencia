@@ -15,8 +15,11 @@ public partial class AplicarPlantillaSemanalTool
         public static string VentanaInvertida => ResourceManager.GetString(nameof(VentanaInvertida))!;
         public static string VentanaExcedeMaximo => ResourceManager.GetString(nameof(VentanaExcedeMaximo))!;
 
-        /// <summary>{0}: nombre recibido; {1}: nombres disponibles.</summary>
+        /// <summary>{0}: id recibido.</summary>
         public static string PlantillaNoExiste => ResourceManager.GetString(nameof(PlantillaNoExiste))!;
+
+        /// <summary>{0}: valor de plantilla_id recibido.</summary>
+        public static string PlantillaIdInvalido => ResourceManager.GetString(nameof(PlantillaIdInvalido))!;
 
         /// <summary>{0}: nombre de la plantilla.</summary>
         public static string PlantillaIncompleta => ResourceManager.GetString(nameof(PlantillaIncompleta))!;

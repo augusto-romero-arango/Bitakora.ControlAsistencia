@@ -22,5 +22,8 @@ public partial class AgregarSubFranjaCommandHandler
 
         public static string FranjaNoExiste =>
             ResourceManager.GetString(nameof(FranjaNoExiste))!;
+
+        public static string TurnoDeHorarioAbierto =>
+            ResourceManager.GetString(nameof(TurnoDeHorarioAbierto))!;
     }
 }

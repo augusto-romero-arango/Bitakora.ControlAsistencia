@@ -163,7 +163,7 @@ public class ConfiguracionMartenProjectionsTests
         restaurado.Nombre.Should().Be("Turno Canario");
         restaurado.FranjasOrdinarias.Should().HaveCount(1);
         restaurado.FranjasOrdinarias[0].ToString()
-            .Should().Be("(06:00-14:00)[Descansos:(10:00-10:15)][Extras:(06:00-06:30)]");
+            .Should().Be("06:00-14:00, descanso 10:00-10:15, extra 06:00-06:30");
     }
 
     // Evita que el daemon lea streams preexistentes sin el tipo registrado en su propio EventGraph.
@@ -523,7 +523,8 @@ public class ConfiguracionMartenProjectionsTests
                 typeof(MarcacionAdicionada),
                 typeof(TurnoDiarioAsignado),
                 typeof(DepuracionDiaRecibida),
-                typeof(CoberturaVecinaActualizada)
+                typeof(CoberturaVecinaActualizada),
+                typeof(CierreDeLaVisperaActualizado)
             ]);
     }
 

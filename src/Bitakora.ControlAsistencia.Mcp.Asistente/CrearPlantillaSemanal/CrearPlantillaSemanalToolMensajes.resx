@@ -42,7 +42,13 @@
     <value>Hay mas de una entrada para la semana {0}, dia {1}.</value>
   </data>
   <data name="TurnosNoExisten" xml:space="preserve">
-    <value>Los siguientes turnos no existen en el catalogo: {0}. Turnos disponibles: {1}.</value>
+    <value>No existen turnos con estos ids: {0}. Ubicalos con buscar_turnos; no se creo nada.</value>
+  </data>
+  <data name="TurnoIdInvalido" xml:space="preserve">
+    <value>turno_id debe ser un GUID; se recibio '{0}'. Usa el id que da buscar_turnos.</value>
+  </data>
+  <data name="TurnoPorNombreNoSoportado" xml:space="preserve">
+    <value>La entrada de la semana {0}, dia {1} trae turno por nombre. Usa turno_id con el id que da buscar_turnos, o franja.</value>
   </data>
   <data name="RechazoDelDominio" xml:space="preserve">
     <value>El dominio rechazo la solicitud: {0}</value>
@@ -54,7 +60,7 @@
     <value>La plantilla aparece en listar_plantillas_semanales unos segundos despues.</value>
   </data>
   <data name="TurnoOFranjaObligatorio" xml:space="preserve">
-    <value>La entrada de la semana {0}, dia {1} debe traer turno o franja.</value>
+    <value>La entrada de la semana {0}, dia {1} debe traer turno_id o franja.</value>
   </data>
   <data name="TurnoYFranjaExcluyentes" xml:space="preserve">
     <value>La entrada de la semana {0}, dia {1} trae turno y franja a la vez; usa solo uno.</value>

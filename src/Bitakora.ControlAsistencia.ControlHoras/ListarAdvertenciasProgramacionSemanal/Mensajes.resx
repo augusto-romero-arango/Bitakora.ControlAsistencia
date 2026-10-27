@@ -41,6 +41,9 @@
   <data name="PorDebajoDelDescansoEntreTurnos" xml:space="preserve">
     <value>{0} por debajo del descanso mínimo entre turnos</value>
   </data>
+  <data name="SeSolapaConTurnoDeLaVispera" xml:space="preserve">
+    <value>Se solapa {0} con el turno de la víspera</value>
+  </data>
   <data name="DiaUno" xml:space="preserve">
     <value>día</value>
   </data>

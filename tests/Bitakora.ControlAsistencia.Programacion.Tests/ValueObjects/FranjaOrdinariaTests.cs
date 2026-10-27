@@ -20,7 +20,7 @@ public class FranjaOrdinariaTests
     {
         var franja = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0));
 
-        franja.ToString().Should().Be("(06:00-12:00)");
+        franja.ToString().Should().Be("06:00-12:00");
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public class FranjaOrdinariaTests
             new TimeOnly(6, 0), new TimeOnly(12, 0),
             descansos: [descanso]);
 
-        franja.ToString().Should().Be("(06:00-12:00)[Descansos:(10:00-10:15)]");
+        franja.ToString().Should().Be("06:00-12:00, descanso 10:00-10:15");
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public class FranjaOrdinariaTests
             new TimeOnly(6, 0), new TimeOnly(12, 0),
             extras: [extra]);
 
-        franja.ToString().Should().Be("(06:00-12:00)[Extras:(06:00-08:00)]");
+        franja.ToString().Should().Be("06:00-12:00, extra 06:00-08:00");
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class FranjaOrdinariaTests
             descansos: [descanso],
             extras: [extra]);
 
-        franja.ToString().Should().Be("(06:00-12:00)[Descansos:(10:00-10:15)][Extras:(06:00-08:00)]");
+        franja.ToString().Should().Be("06:00-12:00, descanso 10:00-10:15, extra 06:00-08:00");
     }
 
     // ---------- CA-7: inicio == fin es rechazado ----------
@@ -114,7 +114,7 @@ public class FranjaOrdinariaTests
         var franja = FranjaOrdinaria.Crear(new TimeOnly(8, 0), new TimeOnly(8, 0), diaOffsetFin: 1);
 
         franja.DuracionEnMinutos().Should().Be(1440);
-        franja.ToString().Should().Be("(08:00-08:00+1)");
+        franja.ToString().Should().Be("08:00-08:00+1");
     }
 
     // ---------- CA-10: duracion sin offset ----------
@@ -164,7 +164,7 @@ public class FranjaOrdinariaTests
     {
         var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0));
 
-        franja.ToString().Should().Be("(22:00-06:00+1)");
+        franja.ToString().Should().Be("22:00-06:00+1");
     }
 
     [Fact]
@@ -182,7 +182,7 @@ public class FranjaOrdinariaTests
     {
         var franja = FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(18, 0));
 
-        franja.ToString().Should().Be("(14:00-18:00)");
+        franja.ToString().Should().Be("14:00-18:00");
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public class FranjaOrdinariaTests
     {
         var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0), diaOffsetFin: 1);
 
-        franja.ToString().Should().Be("(22:00-06:00+1)");
+        franja.ToString().Should().Be("22:00-06:00+1");
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public class FranjaOrdinariaTests
             extras: [extra1, extra2]);
 
         franja.ToString().Should().Be(
-            "(06:00-14:00)[Descansos:(10:00-10:15), (11:00-11:15)][Extras:(06:00-07:00), (07:00-08:00)]");
+            "06:00-14:00, descanso 10:00-10:15, descanso 11:00-11:15, extra 06:00-07:00, extra 07:00-08:00");
     }
 
     // ---------- CA-14: contencion - descanso no contenido es rechazado ----------
@@ -252,7 +252,7 @@ public class FranjaOrdinariaTests
             new TimeOnly(6, 0), new TimeOnly(12, 0),
             extras: [extra]);
 
-        franja.ToString().Should().Be("(06:00-12:00)[Extras:(11:00-12:00)]");
+        franja.ToString().Should().Be("06:00-12:00, extra 11:00-12:00");
     }
 
     [Fact]
@@ -283,7 +283,7 @@ public class FranjaOrdinariaTests
             new TimeOnly(22, 0), new TimeOnly(6, 0), diaOffsetFin: 1,
             descansos: [descanso]);
 
-        franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:00-23:15)]");
+        franja.ToString().Should().Be("22:00-06:00+1, descanso 23:00-23:15");
     }
 
     // ---------- CA-16: franja hija que excede ordinaria nocturna ----------
@@ -350,7 +350,7 @@ public class FranjaOrdinariaTests
             descansos: [descanso],
             extras: [extra]);
 
-        franja.ToString().Should().Be("(06:00-12:00)[Descansos:(08:00-08:15)][Extras:(06:00-08:00)]");
+        franja.ToString().Should().Be("06:00-12:00, descanso 08:00-08:15, extra 06:00-08:00");
     }
 
     // ---------- CA-19: solapamiento con offsets ----------
@@ -388,7 +388,7 @@ public class FranjaOrdinariaTests
             descansos: [descanso],
             extras: [extra]);
 
-        franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:00-23:15)][Extras:(23:15-00:00+1)]");
+        franja.ToString().Should().Be("22:00-06:00+1, descanso 23:00-23:15, extra 23:15-00:00+1");
     }
 
     // ---------- Issue #335: sede prearmada por franja ----------
@@ -400,7 +400,7 @@ public class FranjaOrdinariaTests
 
         var franja = FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(12, 0), sede: sede);
 
-        franja.ToString().Should().Be($"(06:00-12:00)[{FranjaOrdinaria.Mensajes.LabelSede}:Suba]");
+        franja.ToString().Should().Be("06:00-12:00");
     }
 
     [Fact]
@@ -436,7 +436,7 @@ public class FranjaOrdinariaTests
         var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
             .ConDescanso(new TimeOnly(23, 0), new TimeOnly(23, 30));
 
-        franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:00-23:30)]");
+        franja.ToString().Should().Be("22:00-06:00+1, descanso 23:00-23:30");
     }
 
     // CA-2: hija que cruza medianoche -- offsets 0/1
@@ -446,7 +446,7 @@ public class FranjaOrdinariaTests
         var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
             .ConDescanso(new TimeOnly(23, 30), new TimeOnly(0, 30));
 
-        franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:30-00:30+1)]");
+        franja.ToString().Should().Be("22:00-06:00+1, descanso 23:30-00:30+1");
     }
 
     // CA-3: hija de madrugada -- offsets 1/1
@@ -456,7 +456,7 @@ public class FranjaOrdinariaTests
         var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
             .ConDescanso(new TimeOnly(2, 0), new TimeOnly(2, 30));
 
-        franja.ToString().Should().Be("(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
+        franja.ToString().Should().Be("22:00-06:00+1, descanso 02:00+1-02:30+1");
     }
 
     // CA-4: hija cuyo fin coincide con el borde final de la franja -- offsets 1/1
@@ -466,7 +466,7 @@ public class FranjaOrdinariaTests
         var franja = FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))
             .ConExtra(new TimeOnly(5, 30), new TimeOnly(6, 0));
 
-        franja.ToString().Should().Be("(22:00-06:00+1)[Extras:(05:30+1-06:00+1)]");
+        franja.ToString().Should().Be("22:00-06:00+1, extra 05:30+1-06:00+1");
     }
 
     // CA-5: la hija inferida cae fuera del contenedor -- rechazo por contencion
@@ -491,7 +491,7 @@ public class FranjaOrdinariaTests
 
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{FranjaTemporal.Mensajes.DuracionNoPositiva}*");
-        franjaOriginal.ToString().Should().Be("(22:00-06:00+1)");
+        franjaOriginal.ToString().Should().Be("22:00-06:00+1");
     }
 
     // CA-6: hija nueva que solapa una hija ya presente -- la franja original queda intacta
@@ -505,7 +505,7 @@ public class FranjaOrdinariaTests
 
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{FranjaTemporal.Mensajes.FranjasHijasSeSuperponen}*");
-        franjaConDescanso.ToString().Should().Be("(22:00-06:00+1)[Descansos:(23:00-23:30)]");
+        franjaConDescanso.ToString().Should().Be("22:00-06:00+1, descanso 23:00-23:30");
     }
 
     // Agregar una hija reconstruye la franja desde sus campos: la sede prearmada y las hijas ya
@@ -520,8 +520,7 @@ public class FranjaOrdinariaTests
             .ConExtra(new TimeOnly(5, 0), new TimeOnly(5, 30));
 
         franja.ToString().Should().Be(
-            "(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)][Extras:(05:00+1-05:30+1)]"
-            + $"[{FranjaOrdinaria.Mensajes.LabelSede}:Suba]");
+            "22:00-06:00+1, descanso 02:00+1-02:30+1, extra 05:00+1-05:30+1");
     }
 
     // ---------- Issue #602: SeSolapaCon publico -- pregunta que CatalogoTurnos.AgregarFranja usa
@@ -603,7 +602,7 @@ public class FranjaOrdinariaTests
 
         var resultado = franja.SinDescanso(new TimeOnly(23, 0));
 
-        resultado!.ToString().Should().Be("(22:00-06:00+1)[Descansos:(02:00+1-02:30+1)]");
+        resultado!.ToString().Should().Be("22:00-06:00+1, descanso 02:00+1-02:30+1");
     }
 
     [Fact]
@@ -637,7 +636,7 @@ public class FranjaOrdinariaTests
         franja.SinDescanso(new TimeOnly(23, 0));
 
         franja.ToString().Should().Be(
-            "(22:00-06:00+1)[Descansos:(23:00-23:30), (02:00+1-02:30+1)]");
+            "22:00-06:00+1, descanso 23:00-23:30, descanso 02:00+1-02:30+1");
     }
 
     // ---------- Issue #606: ConSede cambia (o retira) la sede prearmada sin afectar hijas ----------
@@ -651,8 +650,7 @@ public class FranjaOrdinariaTests
         var conSede = franja.ConSede(new SedeProgramada("SEDE-CHAPINERO", "Chapinero"));
 
         conSede.ToString().Should().Be(
-            "(14:00-22:00)[Descansos:(18:00-18:30)]"
-            + $"[{FranjaOrdinaria.Mensajes.LabelSede}:Chapinero]");
+            "14:00-22:00, descanso 18:00-18:30");
     }
 
     [Fact]
@@ -664,7 +662,7 @@ public class FranjaOrdinariaTests
 
         var sinSede = franja.ConSede(null);
 
-        sinSede.ToString().Should().Be("(14:00-22:00)");
+        sinSede.ToString().Should().Be("14:00-22:00");
     }
 
     [Fact]

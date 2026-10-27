@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.SolicitarProgramacionTu
 
 public class CascadaDeSedeGrupoTests
 {
-    private const string RutaTurnos = "/api/programacion/turnos";
+    private const string TurnoId = "8f14e45f-ceea-4b3c-8f0a-000000000001";
     private const string RutaSolicitudes = "/api/programacion/solicitudes";
 
     private sealed record Entorno(
@@ -32,14 +32,14 @@ public class CascadaDeSedeGrupoTests
         string turnosJson, string fichasJson, HttpStatusCode statusMaestro = HttpStatusCode.OK)
     {
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
-        programacion.Responde(HttpMethod.Get, RutaTurnos, HttpStatusCode.OK, turnosJson);
+        programacion.RespondeDetalleDeTurno(turnosJson, TurnoId);
         programacion.Responde(HttpMethod.Post, RutaSolicitudes, HttpStatusCode.Created, "");
         var (clienteSedes, sedes) = ClienteFalso.ConFuncion(r => EntornoDeSedes.RespondeSedes(r, statusMaestro));
         var (clienteColaboradores, _) = ClienteFalso.Con(fichasJson);
 
         var tool = new SolicitarProgramacionTurnoPorGrupoTool(
             new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorTurnoPorNombre(new ProgramacionApi(clienteProgramacion)),
+            new ResolutorTurnoPorId(new ProgramacionApi(clienteProgramacion)),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteColaboradores)));
         return new Entorno(tool, programacion, sedes);
@@ -50,7 +50,7 @@ public class CascadaDeSedeGrupoTests
             context: null!,
             desde: "2026-09-01",
             hasta: "2026-09-03",
-            turno: "Cocina Manana",
+            turnoId: TurnoId,
             sedeDeProgramacion: sedeDeProgramacion,
             sede: sede,
             etiquetas: "area:cocina",

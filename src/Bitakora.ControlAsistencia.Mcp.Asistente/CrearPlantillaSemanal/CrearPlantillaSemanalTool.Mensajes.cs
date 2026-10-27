@@ -45,9 +45,17 @@ public partial class CrearPlantillaSemanalTool
         public static string DiaDuplicado =>
             ResourceManager.GetString(nameof(DiaDuplicado))!;
 
-        /// <summary>{0}: nombres de turno que faltan; {1}: nombres disponibles en el catalogo.</summary>
+        /// <summary>{0}: ids de turno que faltan, separados por coma.</summary>
         public static string TurnosNoExisten =>
             ResourceManager.GetString(nameof(TurnosNoExisten))!;
+
+        /// <summary>{0}: valor de turno_id recibido.</summary>
+        public static string TurnoIdInvalido =>
+            ResourceManager.GetString(nameof(TurnoIdInvalido))!;
+
+        /// <summary>{0}: semana de la entrada; {1}: dia de la entrada.</summary>
+        public static string TurnoPorNombreNoSoportado =>
+            ResourceManager.GetString(nameof(TurnoPorNombreNoSoportado))!;
 
         /// <summary>{0}: cuerpo de la respuesta 400/409 del dominio.</summary>
         public static string RechazoDelDominio =>

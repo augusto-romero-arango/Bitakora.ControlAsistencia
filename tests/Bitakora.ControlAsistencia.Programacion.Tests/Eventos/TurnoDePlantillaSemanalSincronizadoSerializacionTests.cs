@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
+using Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoDeHorarioAbiertoFunction;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.Eventos;
 
@@ -67,5 +68,37 @@ public class TurnoDePlantillaSemanalSincronizadoSerializacionTests
         var act = () => JsonSerializer.Deserialize<TurnoDePlantillaSemanalSincronizado>(json, opciones);
 
         act.Should().Throw<NotSupportedException>();
+    }
+
+    private static readonly Turno TurnoDeHorarioAbierto = Turno.Crear(
+        "Turno Abierto", false,
+        [FranjaOrdinaria.Crear(new TimeOnly(4, 0), new TimeOnly(10, 0))],
+        esHorarioAbierto: true);
+
+    [Fact]
+    public void RoundTrip_PreservaLaMarcaDeHorarioAbierto_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        var evento = TurnoDePlantillaSemanalSincronizado.Crear(PlantillaId, TurnoId, TurnoDeHorarioAbierto, 7, false);
+        var opciones = CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<TurnoDePlantillaSemanalSincronizado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.Turno.EsHorarioAbierto().Should().BeTrue();
+    }
+
+    [Fact]
+    public void Deserializar_AsumeHorarioAbiertoFalse_CuandoLaCopiaDelTurnoNoTraeLaClave()
+    {
+        var evento = TurnoDePlantillaSemanalSincronizado.Crear(PlantillaId, TurnoId, TurnoDeHorarioAbierto, 7, false);
+        var opciones = CrearOpcionesMarten();
+        var json = TurnoDeHorarioAbiertoEventos.QuitarClave(
+            JsonSerializer.Serialize(evento, opciones), "esHorarioAbierto");
+
+        var deserializado = JsonSerializer.Deserialize<TurnoDePlantillaSemanalSincronizado>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.Turno.EsHorarioAbierto().Should().BeFalse();
     }
 }

@@ -19,7 +19,8 @@ public sealed record TurnoVigente(
     DateOnly Fecha,
     string NombreTurno,
     string HorarioResumido,
-    IReadOnlyList<BloqueVigente> Bloques);
+    IReadOnlyList<BloqueVigente> Bloques,
+    bool EsHorarioAbierto = false);
 
 /// <summary>Bloque del turno vigente; Tipo llega como numero en el JSON upstream.</summary>
 public sealed record BloqueVigente(
