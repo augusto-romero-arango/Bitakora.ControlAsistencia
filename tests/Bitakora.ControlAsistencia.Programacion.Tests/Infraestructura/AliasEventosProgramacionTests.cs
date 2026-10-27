@@ -230,4 +230,20 @@ public class AliasEventosProgramacionTests
         AliasDe<AdvertenciasDePlantillaSemanalCalculadas>(options)
             .Should().Be("advertencias_de_plantilla_semanal_calculadas");
     }
+
+    [Fact]
+    public void JornadaDePlantillaDeTurnosAsignada_TieneAliasJornadaDePlantillaDeTurnosAsignada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<JornadaDePlantillaDeTurnosAsignada>(options).Should().Be("jornada_de_plantilla_de_turnos_asignada");
+    }
+
+    [Fact]
+    public void JornadaDePlantillaDeTurnosQuitada_TieneAliasJornadaDePlantillaDeTurnosQuitada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<JornadaDePlantillaDeTurnosQuitada>(options).Should().Be("jornada_de_plantilla_de_turnos_quitada");
+    }
 }

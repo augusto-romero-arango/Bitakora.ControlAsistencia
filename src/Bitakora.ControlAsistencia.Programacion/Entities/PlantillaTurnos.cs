@@ -23,6 +23,21 @@ public partial class PlantillaTurnos : AggregateRoot
 
     public void Apply(PlantillaDeTurnosRetirada evento) => _estaActiva = false;
 
+    public void Apply(JornadaDePlantillaDeTurnosAsignada evento) => throw new NotImplementedException();
+
+    public void Apply(JornadaDePlantillaDeTurnosQuitada evento) => throw new NotImplementedException();
+
+    internal Guid? JornadaId { get; private set; }
+
+    internal LimitesJornada? Limites { get; private set; }
+
+    internal long VersionJornada { get; private set; }
+
+    internal ResultadoAsignarJornada AsignarJornada(Guid jornadaId, LimitesJornada limites, long version) =>
+        throw new NotImplementedException();
+
+    internal ResultadoQuitarJornada QuitarJornada() => throw new NotImplementedException();
+
     internal ResultadoRetiroPlantilla Retirar()
     {
         if (!_estaActiva)
