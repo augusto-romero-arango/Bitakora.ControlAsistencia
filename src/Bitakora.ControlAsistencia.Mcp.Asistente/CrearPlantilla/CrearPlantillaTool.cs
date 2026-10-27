@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
@@ -7,10 +6,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.CrearPlantilla;
 
-// Cliente HTTP puro: CrearPlantillaTurnos (POST programacion/plantillas-turnos) + un
-// AsignarTurnoADiaDePlantillaTurnos por entrada (PUT .../dias/{dia}), secuenciales porque tocan el
-// mismo stream. Valida todo y resuelve turnos (por id y franja en linea) antes de escribir la
-// plantilla; el rechazo de un dia no detiene al resto (CA-ADR-0030).
+// Valida la forma de la entrada y delega la escritura en CreadorDePlantillaTurnos.
 public partial class CrearPlantillaTool(
     ProgramacionApi programacion, ResolutorTurnoPorId resolutorPorId, ResolutorTurnoPorNombre resolutor)
 {
@@ -125,20 +121,11 @@ public partial class CrearPlantillaTool(
         }
 
         Guid? jornadaGuid = null;
-        JornadaDescritaResumen? jornadaResumen = null;
         if (!string.IsNullOrWhiteSpace(jornadaId))
         {
             if (!Guid.TryParse(jornadaId, out var parseado))
                 return string.Format(Mensajes.JornadaIdInvalido, jornadaId);
-
-            var respuestaJornada = await programacion.ObtenerJornada(parseado, ct);
-            if (respuestaJornada.StatusCode == HttpStatusCode.NotFound)
-                return Mensajes.JornadaNoExiste;
-            if (await respuestaJornada.LeerFalloAsync(ct) is { } falloJornada)
-                return string.Format(Mensajes.RechazoDelDominio, falloJornada);
-
             jornadaGuid = parseado;
-            jornadaResumen = (await respuestaJornada.LeerDescritaAsync(ct)).Resumir();
         }
 
         var creacion = await new CreadorDePlantillaTurnos(programacion, resolutorPorId, resolutor).CrearAsync(
@@ -148,6 +135,7 @@ public partial class CrearPlantillaTool(
             new MensajesDeCreacion(
                 Mensajes.RechazoDelDominio,
                 Mensajes.TurnosNoExisten,
+                Mensajes.JornadaNoExiste,
                 new MensajesDeTurnoEnLinea(
                     Mensajes.RechazoDelDominio, Mensajes.TurnoInlineEnConflicto, Mensajes.TurnoInlineNombreDuplicado,
                     Mensajes.FalloTurnoInline, Mensajes.NingunTurnoInlineCreado)),
@@ -164,7 +152,7 @@ public partial class CrearPlantillaTool(
             creada.DiasAsignados == ciclo,
             Mensajes.NotaVisibilidadEventual,
             creada.TurnosEnLinea.Count > 0 ? creada.TurnosEnLinea : null,
-            jornadaResumen));
+            creada.Jornada));
     }
 
     // Referencia: el turno_id canonico, o el nombre derivado de la franja si el dia es inline.

@@ -1,3 +1,4 @@
+using System.Net;
 using Bitakora.ControlAsistencia.Mcp.Asistente.CrearPlantilla;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
@@ -5,20 +6,21 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 internal sealed record AsignacionDeDia(int Dia, string? TurnoId, FranjaInline? Franja);
 
 internal sealed record MensajesDeCreacion(
-    string RechazoDelDominio, string TurnosNoExisten, MensajesDeTurnoEnLinea EnLinea);
+    string RechazoDelDominio, string TurnosNoExisten, string JornadaNoExiste, MensajesDeTurnoEnLinea EnLinea);
 
 internal sealed record PlantillaCreada(
     Guid PlantillaId,
     int DiasAsignados,
     IReadOnlyList<DiaDeCicloRechazado> DiasRechazados,
     IReadOnlyList<TurnoInlineResumen> TurnosEnLinea,
-    IReadOnlyDictionary<int, string> TurnoPorDia);
+    IReadOnlyDictionary<int, string> TurnoPorDia,
+    JornadaDescritaResumen? Jornada);
 
 internal sealed record ResultadoCreacion(string? Rechazo, PlantillaCreada? Plantilla);
 
-// Nucleo de creacion compartido por crear_plantilla y crear_plantilla_rotativa (MEF-ADR-0018): resuelve
-// turnos por id y franja en linea antes de escribir, hace el POST y un PUT por dia en secuencia (tocan el
-// mismo stream); el rechazo de un dia no detiene al resto (CA-ADR-0030). La Jornada la valida cada tool.
+// Nucleo de creacion compartido por crear_plantilla y crear_plantilla_rotativa (MEF-ADR-0018): lee la
+// Jornada y resuelve turnos por id y franja en linea antes de escribir, hace el POST y un PUT por dia en
+// secuencia (tocan el mismo stream); el rechazo de un dia no detiene al resto (CA-ADR-0030).
 internal sealed class CreadorDePlantillaTurnos(
     ProgramacionApi programacion, ResolutorTurnoPorId resolutorPorId, ResolutorTurnoPorNombre resolutor)
 {
@@ -26,6 +28,17 @@ internal sealed class CreadorDePlantillaTurnos(
         string nombre, int diasDelCiclo, IReadOnlyList<AsignacionDeDia> asignaciones, Guid? jornadaId,
         MensajesDeCreacion mensajes, CancellationToken ct)
     {
+        JornadaDescritaResumen? jornada = null;
+        if (jornadaId is { } idJornada)
+        {
+            var respuestaJornada = await programacion.ObtenerJornada(idJornada, ct);
+            if (respuestaJornada.StatusCode == HttpStatusCode.NotFound)
+                return Rechazado(mensajes.JornadaNoExiste);
+            if (await respuestaJornada.LeerFalloAsync(ct) is { } falloJornada)
+                return Rechazado(string.Format(mensajes.RechazoDelDominio, falloJornada));
+            jornada = (await respuestaJornada.LeerDescritaAsync(ct)).Resumir();
+        }
+
         var turnoIdPorReferencia = new Dictionary<string, string>();
         var nombreDeTurnoPorReferencia = new Dictionary<string, string>();
         var inexistentes = new List<string>();
@@ -84,7 +97,7 @@ internal sealed class CreadorDePlantillaTurnos(
 
         return new ResultadoCreacion(
             null,
-            new PlantillaCreada(plantillaId, diasAsignados, diasRechazados, preparados.Resumen, turnoPorDia));
+            new PlantillaCreada(plantillaId, diasAsignados, diasRechazados, preparados.Resumen, turnoPorDia, jornada));
     }
 
     private static ResultadoCreacion Rechazado(string texto) => new(texto, null);

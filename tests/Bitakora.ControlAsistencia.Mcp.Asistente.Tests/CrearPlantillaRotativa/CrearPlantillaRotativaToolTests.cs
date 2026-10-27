@@ -229,6 +229,19 @@ public class CrearPlantillaRotativaToolTests
     }
 
     [Fact]
+    public async Task CrearPlantillaRotativa_RechazaSinEscribir_CuandoLaSumaDesbordaUnEntero()
+    {
+        var fakes = CrearTool();
+        var bloques = $$"""[{"dias":{{int.MaxValue}},"turno_id":"{{TurnoManana}}"},{"dias":1,"turno_id":"{{TurnoTarde}}"}]""";
+
+        var resultado = await Ejecutar(fakes, bloques);
+
+        resultado.Should().Be(string.Format(
+            CrearPlantillaRotativaTool.Mensajes.SumaDeDiasFueraDeRango, (long)int.MaxValue + 1));
+        fakes.Handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task CrearPlantillaRotativa_RechazaSinEscribir_CuandoUnBloqueTraeTurnoIdYFranja()
     {
         var fakes = CrearTool();

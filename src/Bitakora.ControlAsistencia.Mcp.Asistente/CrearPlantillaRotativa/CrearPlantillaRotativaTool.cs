@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.CrearPlantilla;
@@ -12,7 +11,7 @@ public partial class CrearPlantillaRotativaTool(
     ProgramacionApi programacion, ResolutorTurnoPorId resolutorPorId, ResolutorTurnoPorNombre resolutor)
 {
     internal const string NombreTool = "crear_plantilla_rotativa";
-    internal const int MaximoDiasDelCiclo = 42;
+    internal const int MaximoDiasDelCiclo = CrearPlantillaTool.MaximoDiasDelCiclo;
 
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
@@ -21,9 +20,16 @@ public partial class CrearPlantillaRotativaTool(
         [McpToolTrigger(
             NombreTool,
             "Crea una plantilla de turnos rotativa a partir de bloques de dias consecutivos con el mismo turno, "
-            + "en orden: un 6x2 son 6 dias de un turno y 2 de descanso. Cada bloque lleva dias y turno_id "
-            + "(miralo con buscar_turnos) o franja (HH:mm-HH:mm, excluyentes). Para aplicarla usa "
-            + "aplicar_plantilla con fecha_inicio = el primer dia del primer bloque.")]
+            + "en orden: un 6x2 son 6 dias de un turno y 2 de descanso; un 2-2-2-2 son 2 de manana, 2 de "
+            + "tarde, 2 de noche y 2 de descanso. El ciclo dura la suma de los bloques (1 a 42 dias) y se "
+            + "repite. Cada bloque lleva dias y turno_id (miralo con buscar_turnos) o franja (HH:mm-HH:mm, "
+            + "excluyentes; la franja crea o reutiliza un turno nombrado con la franja, ej. 07:00-17:00, o "
+            + "22:00-06:00+1 si cruza la medianoche). Solo admite turnos completos; el descanso es un turno "
+            + "mas. Si algun turno no existe, no crea nada y te dice cuales faltan. Los dias que el dominio "
+            + "rechace quedan sin turno; corrigelos con asignar_turno_a_dia_de_plantilla. El nombre es unico "
+            + "en el catalogo. Con jornada_id (miralo con listar_jornadas) la plantilla nace asociada a esa "
+            + "Jornada. Aparece en listar_plantillas en unos segundos. Para aplicarla usa aplicar_plantilla "
+            + "con fecha_inicio = el primer dia del primer bloque.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("nombre", "Nombre unico de la plantilla de turnos en el catalogo.", isRequired: true)]
@@ -94,35 +100,27 @@ public partial class CrearPlantillaRotativaTool(
             validados.Add(new BloqueValidado(dias, null, inline));
         }
 
-        var ciclo = validados.Sum(b => b.Dias);
-        if (ciclo > MaximoDiasDelCiclo)
-            return string.Format(Mensajes.SumaDeDiasFueraDeRango, ciclo);
+        var suma = validados.Sum(b => (long)b.Dias);
+        if (suma > MaximoDiasDelCiclo)
+            return string.Format(Mensajes.SumaDeDiasFueraDeRango, suma);
+        var ciclo = (int)suma;
 
         Guid? jornadaGuid = null;
-        JornadaDescritaResumen? jornadaResumen = null;
         if (!string.IsNullOrWhiteSpace(jornadaId))
         {
             if (!Guid.TryParse(jornadaId, out var parseado))
                 return string.Format(Mensajes.JornadaIdInvalido, jornadaId);
-
-            var respuestaJornada = await programacion.ObtenerJornada(parseado, ct);
-            if (respuestaJornada.StatusCode == HttpStatusCode.NotFound)
-                return Mensajes.JornadaNoExiste;
-            if (await respuestaJornada.LeerFalloAsync(ct) is { } falloJornada)
-                return string.Format(Mensajes.RechazoDelDominio, falloJornada);
-
             jornadaGuid = parseado;
-            jornadaResumen = (await respuestaJornada.LeerDescritaAsync(ct)).Resumir();
         }
 
         var asignaciones = new List<AsignacionDeDia>();
-        var primerDiaDelBloque = new List<int>();
+        var rangos = new List<(int Primero, int Ultimo)>();
         foreach (var bloque in validados)
         {
             var primero = asignaciones.Count + 1;
-            primerDiaDelBloque.Add(primero);
             asignaciones.AddRange(Enumerable.Range(primero, bloque.Dias)
                 .Select(dia => new AsignacionDeDia(dia, bloque.TurnoId, bloque.Franja)));
+            rangos.Add((primero, asignaciones.Count));
         }
 
         var creacion = await new CreadorDePlantillaTurnos(programacion, resolutorPorId, resolutor).CrearAsync(
@@ -130,6 +128,7 @@ public partial class CrearPlantillaRotativaTool(
             new MensajesDeCreacion(
                 Mensajes.RechazoDelDominio,
                 Mensajes.TurnosNoExisten,
+                Mensajes.JornadaNoExiste,
                 new MensajesDeTurnoEnLinea(
                     Mensajes.RechazoDelDominio, Mensajes.TurnoInlineEnConflicto, Mensajes.TurnoInlineNombreDuplicado,
                     Mensajes.FalloTurnoInline, Mensajes.NingunTurnoInlineCreado)),
@@ -138,10 +137,10 @@ public partial class CrearPlantillaRotativaTool(
             return rechazo;
 
         var creada = creacion.Plantilla!;
-        var resumenDeBloques = validados
-            .Select((b, i) => new BloqueResumen(
-                b.Dias == 1 ? $"{primerDiaDelBloque[i]}" : $"{primerDiaDelBloque[i]}-{primerDiaDelBloque[i] + b.Dias - 1}",
-                creada.TurnoPorDia[primerDiaDelBloque[i]]))
+        var resumenDeBloques = rangos
+            .Select(r => new BloqueResumen(
+                r.Primero == r.Ultimo ? $"{r.Primero}" : $"{r.Primero}-{r.Ultimo}",
+                creada.TurnoPorDia[r.Primero]))
             .ToList();
 
         return RespuestaJson.Serializar(new PlantillaRotativaCreadaResumen(
@@ -153,7 +152,7 @@ public partial class CrearPlantillaRotativaTool(
             creada.DiasAsignados == ciclo,
             Mensajes.NotaVisibilidadEventual,
             creada.TurnosEnLinea.Count > 0 ? creada.TurnosEnLinea : null,
-            jornadaResumen));
+            creada.Jornada));
     }
 
     private sealed record BloqueValidado(int Dias, string? TurnoId, FranjaInline? Franja);

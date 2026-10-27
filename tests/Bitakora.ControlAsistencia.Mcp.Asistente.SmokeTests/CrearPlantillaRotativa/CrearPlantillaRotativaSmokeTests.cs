@@ -36,6 +36,36 @@ public class CrearPlantillaRotativaSmokeTests(McpFixture mcp, ProgramacionApiFix
         await RetirarAsync(plantillaId, turnoId, ct);
     }
 
+    // jornada_id valido recorre la coercion de la extension MCP (MEF-ADR-0048 seccion 6). La
+    // Jornada predeterminada solo se lee, nunca se cambia (CA-ADR-0040).
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaRotativa_NaceAsociadaALaJornada_CuandoSeIndicaJornadaId()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jornada = await SembradoDeJornadas.PredeterminadaActualAsync(mcp, ct);
+        var jornadaId = jornada.GetProperty("jornada_id").GetString()!;
+        var sufijo = Guid.CreateVersion7();
+        var turnoId = await CrearTurnoCompletoAsync($"[TEST] Turno Rotativa Jornada {sufijo}", ct);
+
+        var creada = await mcp.Cliente.CallToolAsync(
+            "crear_plantilla_rotativa",
+            new Dictionary<string, object?>
+            {
+                ["nombre"] = $"[TEST] Rotativa Jornada {sufijo}",
+                ["bloques"] = $$"""[{"dias":1,"turno_id":"{{turnoId}}"}]""",
+                ["jornada_id"] = jornadaId
+            },
+            cancellationToken: ct);
+        creada.IsError.Should().NotBeTrue();
+
+        using var texto = JsonDocument.Parse(TextoDe(creada));
+        var plantillaId = texto.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
+        texto.RootElement.GetProperty("jornada").GetProperty("jornada_id").GetString().Should().Be(jornadaId);
+
+        await RetirarAsync(plantillaId, turnoId, ct);
+    }
+
     private async Task<string> CrearTurnoCompletoAsync(string nombre, CancellationToken ct)
     {
         (await mcp.Cliente.CallToolAsync(

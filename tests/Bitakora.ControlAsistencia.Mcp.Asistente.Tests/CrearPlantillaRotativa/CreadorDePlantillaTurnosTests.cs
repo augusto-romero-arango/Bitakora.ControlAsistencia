@@ -14,7 +14,7 @@ public class CreadorDePlantillaTurnosTests
     private const string TurnoInexistente = "8f14e45f-ceea-4b3c-8f0a-0000000000e1";
 
     private static readonly MensajesDeCreacion Mensajes = new(
-        "rechazo:{0}", "faltan:{0}", new MensajesDeTurnoEnLinea("rechazo:{0}", "conflicto:{0}", "dup:{0}", "fallo:{0}", "ninguno"));
+        "rechazo:{0}", "faltan:{0}", "sin-jornada", new MensajesDeTurnoEnLinea("rechazo:{0}", "conflicto:{0}", "dup:{0}", "fallo:{0}", "ninguno"));
 
     private static string TurnosJson => Fixtures.Leer("SolicitarProgramacionTurno", "turnos.json");
 
@@ -61,6 +61,21 @@ public class CreadorDePlantillaTurnosTests
 
         resultado.Plantilla.Should().BeNull();
         resultado.Rechazo.Should().Be($"faltan:{TurnoInexistente}");
+        handler.Requests.Should().OnlyContain(r => r.Metodo == HttpMethod.Get);
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_RechazaSinEscribir_CuandoLaJornadaNoExiste()
+    {
+        var (creador, handler) = Crear();
+        var jornadaId = Guid.CreateVersion7();
+        handler.Responde(HttpMethod.Get, $"/api/programacion/jornadas/{jornadaId}", HttpStatusCode.NotFound, "");
+        var asignaciones = new List<AsignacionDeDia> { new(1, TurnoManana, null) };
+
+        var resultado = await creador.CrearAsync("Ciclo", 1, asignaciones, jornadaId, Mensajes, TestContext.Current.CancellationToken);
+
+        resultado.Plantilla.Should().BeNull();
+        resultado.Rechazo.Should().Be("sin-jornada");
         handler.Requests.Should().OnlyContain(r => r.Metodo == HttpMethod.Get);
     }
 
