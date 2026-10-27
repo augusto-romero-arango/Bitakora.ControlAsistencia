@@ -618,6 +618,9 @@ terms:
 
   - name: Plantilla semanal de turnos
     definition: >
+      HISTORICA (retirada en #1289, enmienda CA-ADR-0034 #1302): ya no existe como aggregate ni como
+      tipos de evento (borrados sin purga). Vigente: Plantilla de turnos (ciclo 1..N); la semanal es una
+      interfaz de 7 dias sobre ella. Se conserva como registro de lo que fue.
       Plantilla de turnos en modalidad semanal: 1..N semanas, siempre de lunes a domingo, donde cada
       dia (identificado por semana + dia de la semana) REFERENCIA un turno del catalogo por TurnoId.
       Nunca copia el turno: editar el turno se refleja en las asignaciones futuras; el snapshot ocurre
@@ -671,7 +674,7 @@ terms:
 
   - name: Advertencias de plantilla
     definition: >
-      Juicio que la Plantilla semanal de turnos hace de su propio diseno contra la Jornada asociada.
+      Juicio que la Plantilla de turnos hace de su propio diseno contra la Jornada asociada.
       Sin Jornada, la unica advertencia es PlantillaSinJornada (ningun otro control corre). Con Jornada,
       TODOS los controles se aplican siempre, este completa o no: DiaSinTurno (dia vacio, o con turno
       retirado o incompleto), SuperaTopeDiario / PorDebajoDelMinimoDiario (dias de trabajo, en minutos),
@@ -679,7 +682,7 @@ terms:
       SobranDiasDeDescanso (valor exacto, solo si el parametro > 0, en dias). Orientan, no bloquean.
     context: Programacion
     date_added: 2026-10-06
-    date_updated: 2026-10-06
+    date_updated: 2026-10-27
     rejected_synonyms: [Auditoria calculada al leer, DiaConTurnoIncompleto]
     rejection_reason: >
       Calcularlas en el GET dejaba las reglas fuera de la plantilla (Tell-don't-Ask, experto
@@ -694,6 +697,8 @@ terms:
 
   - name: Cuadro semanal de turnos
     definition: >
+      HISTORICA (retirada en #1289, enmienda CA-ADR-0034 #1302): la vista vigente es el CuadroDeTurnos de la
+      Plantilla de turnos. Se conserva como registro de lo que fue.
       Vista read-side de una Plantilla semanal de turnos, para que el Programador (front o asistente)
       sepa si la plantilla que necesita ya existe, elija cual usar y vea de un vistazo que turno toca
       cada dia y si esta completa. Lo que el Programador lee, por dia: el turno con su nombre y su
@@ -776,6 +781,8 @@ terms:
 
   - name: Dia de la semana
     definition: >
+      HISTORICA (retirado en #1289, enmienda CA-ADR-0034 #1302): el dia de una Plantilla de turnos se
+      identifica por su numero en el ciclo (1..N); el VO DiaSemana ya no existe. Se conserva como registro.
       Posicion de un dia dentro de la semana lunes-domingo de una Plantilla semanal de turnos, codificada
       como numero ISO 8601: 1 = lunes ... 7 = domingo. Es un CODIGO neutral (viaja igual en la ruta
       PUT/DELETE .../dias/{semana}/{dia} y en los eventos DiaDePlantillaSemanalAsignado/Quitado); la

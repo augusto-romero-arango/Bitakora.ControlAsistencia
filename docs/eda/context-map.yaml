@@ -62,10 +62,10 @@ bounded_context:
       status: en-desarrollo
       description: >
         Gestiona el catalogo de turnos (plan del dia, componible: CA-ADR-0033), las plantillas
-        semanales de turnos (molde de 1..N semanas lunes-domingo con referencias al catalogo:
-        CA-ADR-0034, #620-#629) y la solicitud de programacion de turnos a colaboradores por
-        fechas concretas. Los ciclos NO semanales (4x2, 2x2) no estan modelados.
-      aggregates: [CatalogoTurnos, SolicitudProgramacionAggregateRoot, PlantillaSemanalTurnos]
+        de turnos (ciclo de dias 1..N, N <= 42, con referencias al catalogo, que se aplica con
+        una fecha de inicio: CA-ADR-0034, #1302) y la solicitud de programacion de turnos a
+        colaboradores por fechas concretas. Semanal y rotativa son interfaces del asistente.
+      aggregates: [CatalogoTurnos, SolicitudProgramacionAggregateRoot, PlantillaTurnos]
       actors_served: [Programador de turnos]
       publishes_intra_bc: [ProgramacionTurnoDiarioSolicitada]  # privado, lo consume ControlHoras
       note: "Publica ProgramacionTurnoDiarioSolicitada (IPrivateEvent) al ASB interno para que ControlHoras lo consuma."
