@@ -77,4 +77,16 @@ public class ComposicionContenedorTests
 
         primero.Should().NotBeSameAs(segundo);
     }
+
+    [Fact]
+    public void ConfigurarServiciosMcp_RegistraResolutorPlantillaTurnosPorIdComoTransient()
+    {
+        using var proveedor = ConstruirProveedor();
+        using var alcance = proveedor.CreateScope();
+
+        var primero = alcance.ServiceProvider.GetRequiredService<ResolutorPlantillaTurnosPorId>();
+        var segundo = alcance.ServiceProvider.GetRequiredService<ResolutorPlantillaTurnosPorId>();
+
+        primero.Should().NotBeSameAs(segundo);
+    }
 }

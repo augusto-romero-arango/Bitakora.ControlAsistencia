@@ -47,7 +47,7 @@ public partial class ObtenerPlantillaTool(ProgramacionApi api)
 
         return RespuestaJson.Serializar(new PlantillaDetallada(
             detalle.Id, detalle.Nombre.Trim(), detalle.DiasDelCiclo, detalle.Completa, dias,
-            detalle.Jornada is null ? null : new JornadaDescritaResumen(detalle.Jornada.Id, detalle.Jornada.Descripcion),
+            detalle.Jornada?.Resumir(),
             (detalle.Advertencias ?? []).Select(a => a.Descripcion).ToList()));
     }
 

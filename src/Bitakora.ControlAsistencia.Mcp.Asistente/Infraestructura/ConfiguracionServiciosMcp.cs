@@ -23,6 +23,7 @@ public static class ConfiguracionServiciosMcp
         services.AddTransient<ResolutorTurnoPorNombre>();
         services.AddTransient<ResolutorTurnoPorId>();
         services.AddTransient<ResolutorPlantillaPorId>();
+        services.AddTransient<ResolutorPlantillaTurnosPorId>();
         services.AddTransient<ResolutorSedePorCodigo>();
         services.AddTransient<ResolutorCandidatosPorLista>();
         services.AddTransient<ResolutorCandidatosPorGrupo>();

@@ -18,6 +18,9 @@ public sealed record TurnoDelCuadroDeTurnos(
     bool Completo,
     bool Retirado);
 
-public sealed record JornadaDelCuadroDeTurnos(string Id, string Descripcion);
+public sealed record JornadaDelCuadroDeTurnos(string Id, string Descripcion)
+{
+    public JornadaDescritaResumen Resumir() => new(Id, Descripcion);
+}
 
 public sealed record AdvertenciaDelCuadroDeTurnos(string Descripcion);

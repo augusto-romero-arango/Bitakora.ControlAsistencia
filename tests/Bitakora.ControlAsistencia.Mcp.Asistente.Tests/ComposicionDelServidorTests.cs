@@ -492,7 +492,7 @@ public class ComposicionDelServidorTests
             .Where(x => x.PropertyName is "turno" or "plantilla")
             .ToList();
 
-        propiedades.Should().BeEquivalentTo([("buscar_plantillas_semanales", "turno")]);
+        propiedades.Should().BeEquivalentTo([("buscar_plantillas_semanales", "turno"), ("buscar_plantillas", "turno")]);
     }
 
     [Fact]
