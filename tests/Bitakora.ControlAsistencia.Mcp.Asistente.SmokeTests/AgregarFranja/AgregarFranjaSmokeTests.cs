@@ -81,7 +81,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
                 return JsonDocument.Parse(TextoDe(resultado));
             },
             CatalogoDeTurnos.TimeoutPolling);
-        ecoAgregado.RootElement.GetProperty("franja").GetString().Should().Be($"22:00-06:00, sede: {nombreSede}");
+        ecoAgregado.RootElement.GetProperty("franja").GetString().Should().Be($"22:00-06:00+1, sede: {nombreSede}");
 
         await Polling.WaitUntilAsync(
             () => EfectoVisibleEnFichaAsync(
@@ -105,8 +105,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
             cancellationToken: ct);
         quitado.IsError.Should().NotBeTrue();
         using var ecoQuitado = JsonDocument.Parse(TextoDe(quitado));
-        // El eco de agregar sale sin sufijo porque se compone con lo enviado a la tool; este lo compone
-        // quitar_franja desde la ficha vigente, donde el dominio ya infirio el +1 (CA-ADR-0033).
+        // Ambos ecos llevan el +1 de la franja que cruza la medianoche (CA-ADR-0033).
         ecoQuitado.RootElement.GetProperty("franjaQuitada").GetString()
             .Should().Be($"22:00-06:00+1, sede: {nombreSede}");
 
