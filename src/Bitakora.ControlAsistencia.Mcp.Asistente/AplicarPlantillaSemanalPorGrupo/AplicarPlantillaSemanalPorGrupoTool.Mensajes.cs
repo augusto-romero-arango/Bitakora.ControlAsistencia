@@ -17,6 +17,9 @@ public partial class AplicarPlantillaSemanalPorGrupoTool
         public static string SelectorObligatorio => ResourceManager.GetString(nameof(SelectorObligatorio))!;
         public static string EtiquetaMalFormada => ResourceManager.GetString(nameof(EtiquetaMalFormada))!;
         public static string PlantillaNoExiste => ResourceManager.GetString(nameof(PlantillaNoExiste))!;
+
+        /// <summary>{0}: valor de plantilla_id recibido.</summary>
+        public static string PlantillaIdInvalido => ResourceManager.GetString(nameof(PlantillaIdInvalido))!;
         public static string PlantillaIncompleta => ResourceManager.GetString(nameof(PlantillaIncompleta))!;
         public static string PlantillaConTurnoNoProgramable =>
             ResourceManager.GetString(nameof(PlantillaConTurnoNoProgramable))!;

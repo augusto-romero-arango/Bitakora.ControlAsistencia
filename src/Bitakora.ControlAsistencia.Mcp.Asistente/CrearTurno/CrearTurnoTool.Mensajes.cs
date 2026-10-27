@@ -25,5 +25,32 @@ public partial class CrearTurnoTool
 
         public static string NotaVisibilidadEventual =>
             ResourceManager.GetString(nameof(NotaVisibilidadEventual))!;
+
+        public static string FranjasJsonInvalido =>
+            ResourceManager.GetString(nameof(FranjasJsonInvalido))!;
+
+        /// <summary>{0}: posicion (desde 1) del elemento de franjas.</summary>
+        public static string FranjaObligatoria =>
+            ResourceManager.GetString(nameof(FranjaObligatoria))!;
+
+        /// <summary>{0}: posicion del elemento; {1}: valor de franja recibido.</summary>
+        public static string FranjaInvalida =>
+            ResourceManager.GetString(nameof(FranjaInvalida))!;
+
+        /// <summary>{0}: posicion del elemento; {1}: valor de descanso recibido.</summary>
+        public static string DescansoInvalido =>
+            ResourceManager.GetString(nameof(DescansoInvalido))!;
+
+        /// <summary>{0}: posicion del elemento; {1}: valor de extra recibido.</summary>
+        public static string ExtraInvalido =>
+            ResourceManager.GetString(nameof(ExtraInvalido))!;
+
+        /// <summary>{0}: codigo de sede recibido.</summary>
+        public static string SedeNoExiste =>
+            ResourceManager.GetString(nameof(SedeNoExiste))!;
+
+        /// <summary>{0}: codigo de sede recibido.</summary>
+        public static string SedeInactiva =>
+            ResourceManager.GetString(nameof(SedeInactiva))!;
     }
 }

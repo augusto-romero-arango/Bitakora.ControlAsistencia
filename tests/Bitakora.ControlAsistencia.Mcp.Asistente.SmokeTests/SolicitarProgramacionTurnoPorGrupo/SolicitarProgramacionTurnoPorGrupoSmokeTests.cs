@@ -11,7 +11,7 @@ public class SolicitarProgramacionTurnoPorGrupoSmokeTests(McpFixture mcp, Progra
 {
     private static readonly TimeSpan TimeoutPolling = TimeSpan.FromSeconds(30);
 
-    private async Task SembrarTurnoAsync(string nombre, CancellationToken ct)
+    private async Task<Guid> SembrarTurnoAsync(string nombre, CancellationToken ct)
     {
         var turnoId = Guid.CreateVersion7();
         var respuesta = await programacion.Client.PostAsJsonAsync(
@@ -29,6 +29,8 @@ public class SolicitarProgramacionTurnoPorGrupoSmokeTests(McpFixture mcp, Progra
                 using var candidata = await programacion.Client.BuscarFichaAsync(nombre, ct);
                 return candidata?.RootElement.GetProperty("completo").GetBoolean() == true ? new object() : null;
             }, TimeoutPolling);
+
+        return turnoId;
     }
 
     [Fact]
@@ -40,13 +42,13 @@ public class SolicitarProgramacionTurnoPorGrupoSmokeTests(McpFixture mcp, Progra
         var (_, codigoUno) = await Sembrado.RegistrarColaboradorAsync(mcp.Cliente, codigoSede, ct);
         var (_, codigoDos) = await Sembrado.RegistrarColaboradorAsync(mcp.Cliente, codigoSede, ct);
         var nombreTurno = $"[TEST] Turno MCP {Guid.CreateVersion7()}";
-        await SembrarTurnoAsync(nombreTurno, ct);
+        var turnoId = await SembrarTurnoAsync(nombreTurno, ct);
 
         var argumentos = new Dictionary<string, object?>
         {
             ["desde"] = "2026-09-01",
             ["hasta"] = "2026-09-03",
-            ["turno"] = nombreTurno,
+            ["turno_id"] = turnoId.ToString(),
             ["sede_de_programacion"] = codigoSede,
             ["sede"] = codigoSede
         };
@@ -90,7 +92,7 @@ public class SolicitarProgramacionTurnoPorGrupoSmokeTests(McpFixture mcp, Progra
             {
                 ["desde"] = "2026-09-01",
                 ["hasta"] = "2026-09-03",
-                ["turno"] = "[TEST] Turno que no existe",
+                ["turno_id"] = Guid.CreateVersion7().ToString(),
                 ["sede_de_programacion"] = "TEST-INEXISTENTE",
                 ["etiquetas"] = "area"
             },
@@ -108,13 +110,13 @@ public class SolicitarProgramacionTurnoPorGrupoSmokeTests(McpFixture mcp, Progra
         var codigoSede = await Sembrado.RegistrarSedeAsync(mcp.Cliente, ct);
         var (_, codigoUno) = await Sembrado.RegistrarColaboradorAsync(mcp.Cliente, codigoSede, ct);
         var nombreTurno = $"[TEST] Turno MCP {Guid.CreateVersion7()}";
-        await SembrarTurnoAsync(nombreTurno, ct);
+        var turnoId = await SembrarTurnoAsync(nombreTurno, ct);
 
         var argumentos = new Dictionary<string, object?>
         {
             ["desde"] = "2026-09-01",
             ["hasta"] = "2026-09-03",
-            ["turno"] = nombreTurno,
+            ["turno_id"] = turnoId.ToString(),
             ["sede"] = codigoSede
         };
 

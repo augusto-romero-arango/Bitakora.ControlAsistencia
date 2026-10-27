@@ -170,4 +170,32 @@ public class ConsolidadorDesgloseHorasConsolidacionTests
             [Concepto.ExtraDiurna] = 30,
         });
     }
+
+    [Fact]
+    public void Consolidar_NoConsumeExtrasNiCastiga_CuandoElRetardoEsSinCastigo()
+    {
+        // #1237: en un turno de horario abierto el retardo de una franja (30min) no consume la extra
+        // de otra (18:00-18:45 sobrevive completa) y el neto del dia queda en 0.
+        var franja1 = Desglose(
+            Programada(8, 12),
+            [Clasif(M(8, 30), M(12), Concepto.OrdinariaDiurna)],
+            CrearRetardo(retardado: [I(M(8), M(8, 30))], compensado: []));
+        var franja2 = Desglose(
+            Programada(14, 18),
+            [
+                Clasif(M(14), M(18), Concepto.OrdinariaDiurna),
+                Clasif(M(18), M(18, 45), Concepto.ExtraDiurna),
+            ],
+            Retardo.Vacio);
+
+        var resultado = ConsolidadorDesgloseHoras.Consolidar(
+            [franja1, franja2], franjasAnomalas: 0, sinCastigoPorRetardo: true);
+
+        resultado.RetardoTotal.RetardoNeto.Should().Be(0);
+        resultado.TotalMinutosPorConcepto.Should().Equal(new Dictionary<Concepto, int>
+        {
+            [Concepto.OrdinariaDiurna] = 450,
+            [Concepto.ExtraDiurna] = 45,
+        });
+    }
 }

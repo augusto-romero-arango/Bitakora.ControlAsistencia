@@ -7,7 +7,14 @@
     {
       "codigoColaborador": "C-102",
       "nombreCompleto": "Ana Pérez",
-      "jornada": { "id": "0198a000-0000-7000-8000-000000000001", "descripcion": "42 h semanales" },
+      "jornada": {
+        "id": "0198a000-0000-7000-8000-000000000001",
+        "descripcion": "42 h semanales, tope diario 8 h, mínimo diario 0 h, 1 día de descanso por semana",
+        "horasSemanales": { "horas": 42, "minutos": 0 },
+        "topeDiario": { "horas": 8, "minutos": 0 },
+        "minimoDiario": { "horas": 0, "minutos": 0 },
+        "diasDescansoPorSemana": 1
+      },
       "horasOrdinariasProgramadas": { "horas": 48, "minutos": 0 },
       "esJuzgable": true,
       "motivoNoJuzgable": null,

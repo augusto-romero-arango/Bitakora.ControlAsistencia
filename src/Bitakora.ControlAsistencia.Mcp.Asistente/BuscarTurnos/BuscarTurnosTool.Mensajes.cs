@@ -10,6 +10,9 @@ public partial class BuscarTurnosTool
 
     internal static class Mensajes
     {
+        /// <summary>{0}: duracion de la ficha.</summary>
+        public static string HorarioAbierto => ResourceManager.GetString(nameof(HorarioAbierto))!;
+
         public static string FaltaCriterio => ResourceManager.GetString(nameof(FaltaCriterio))!;
 
         /// <summary>{0}: horario recibido.</summary>

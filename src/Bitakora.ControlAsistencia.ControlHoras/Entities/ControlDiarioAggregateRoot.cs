@@ -43,6 +43,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private DateTime? _finCoberturaVispera;
     private DateTime? _inicioCoberturaDiaSiguiente;
     private DateTime? _finCoberturaEfectiva;
+    private DateTime? _cierreTurnoVispera;
     private IReadOnlyDictionary<DateTime, PertenenciaMarcacion> _pertenencias =
         ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
 
@@ -72,6 +73,21 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     // Descanso, sin programar o con ausencia: no depura horas, solo clasifica marcaciones de vecinos.
     private bool SinJornada => _ausenciaId is not null || DetalleTurno?.CoberturaPosible(Fecha) is null;
+
+    // Cierre de referencia: no depende de las marcaciones ni de Invade, asi que tambien llega con solape.
+    internal void ActualizarCierreDeLaVispera(ControlDiarioAggregateRoot vispera)
+    {
+        var cierre = vispera.CierreDeSuTurno();
+        if (cierre == _cierreTurnoVispera) return;
+
+        var evento = CierreDeLaVisperaActualizado.Crear(Id, cierre);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
+
+    public void Apply(CierreDeLaVisperaActualizado e) => _cierreTurnoVispera = e.Cierre;
+
+    private DateTime? CierreDeSuTurno() => _ausenciaId is null ? DetalleTurno?.Cierre(Fecha) : null;
 
     // true si emitio el evento.
     internal bool ActualizarCoberturaVecina(ControlDiarioAggregateRoot vecino)
@@ -232,7 +248,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             .Cast<DesgloseFranja>()
             .ToList();
         var anomalas = _controlesDeFranja.Count(cf => cf.EsAnomala);
-        _desgloseHoras = ConsolidadorDesgloseHoras.Consolidar(desgloses, anomalas);
+        _desgloseHoras = ConsolidadorDesgloseHoras.Consolidar(
+            desgloses, anomalas, DetalleTurno?.EsHorarioAbierto == true);
     }
 
     // CA-ADR-0031: prefijo por iniciales -- disjunta este stream del futuro DiaCalculado ("dc:"), que

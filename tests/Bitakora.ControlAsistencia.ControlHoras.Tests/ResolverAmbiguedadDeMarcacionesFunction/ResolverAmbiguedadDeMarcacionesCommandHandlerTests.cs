@@ -1,4 +1,3 @@
-using Cosmos.EventDriven.Abstractions;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;

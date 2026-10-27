@@ -20,6 +20,7 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
     private readonly HttpClient _client = api.Client;
 
     private const string RutaTurnos = "/api/programacion/turnos";
+    private const string RutaHorarioAbierto = "/api/programacion/turnos/horario-abierto";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     // La respuesta viaja en camelCase; las formas locales de este archivo son PascalCase.
@@ -42,6 +43,8 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
 
     private sealed record VentanaDeEntradaRespuestaSmoke(TimeOnly Apertura, TimeOnly Cierre, string Amplitud);
 
+    private sealed record HorarioAbiertoRespuestaSmoke(string Duracion);
+
     private sealed record FichaTurnoRespuestaSmoke(
         string Id,
         string Nombre,
@@ -50,7 +53,8 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         IReadOnlyList<FranjaFichaRespuestaSmoke> Franjas,
         string Descripcion,
         bool Completo,
-        VentanaDeEntradaRespuestaSmoke? VentanaDeEntrada);
+        VentanaDeEntradaRespuestaSmoke? VentanaDeEntrada,
+        HorarioAbiertoRespuestaSmoke? HorarioAbierto);
 
     private static string Ruta(Guid turnoId) => $"{RutaTurnos}/{turnoId}";
 
@@ -92,6 +96,13 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         var response = await _client.PostAsJsonAsync(RutaTurnos, payload, ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created,
             "el arrange de este smoke test depende de que CrearTurno funcione");
+    }
+
+    private async Task RetirarTurnoAsync(Guid turnoId, CancellationToken ct)
+    {
+        var response = await _client.DeleteAsync(Ruta(turnoId), ct);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            "el turno de prueba se retira para no dejarlo vivo en el catalogo de dev");
     }
 
     // Reintenta el GET hasta que la proyeccion asincrona materialice la ficha (404 = el worker
@@ -169,6 +180,46 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
 
         ficha.VentanaDeEntrada.Should().Be(
             new VentanaDeEntradaRespuestaSmoke(new TimeOnly(7, 0), new TimeOnly(10, 0), "3 h"));
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaTurno_MuestraLaDuracionDelHorarioAbierto_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        var crear = await _client.PostAsJsonAsync(RutaHorarioAbierto, new
+        {
+            turnoId,
+            nombre = $"[TEST] Horario abierto ficha {turnoId}",
+            duracion = new { horas = 2, minutos = 0 }
+        }, ct);
+        crear.StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange de este smoke test depende de que CrearTurnoDeHorarioAbierto funcione");
+
+        // Con 2 h el arrange deja TurnoCreado y VentanaDeEntradaModificada, que llegan al daemon por
+        // separado: se espera la ficha con ambos aplicados.
+        var ficha = await EsperarFichaAsync(
+            turnoId, ct, f => f.HorarioAbierto is not null && f.VentanaDeEntrada is not null);
+
+        ficha.HorarioAbierto.Should().Be(new HorarioAbiertoRespuestaSmoke("2 h"));
+
+        await RetirarTurnoAsync(turnoId, ct);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerFichaTurno_ExponeHorarioAbiertoNulo_CuandoElTurnoNoEsDeHorarioAbierto()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var turnoId = Guid.CreateVersion7();
+        await CrearTurnoAsync(PayloadTurnoConFranja(turnoId, $"[TEST] Turno fijo ficha {turnoId}"), ct);
+
+        var ficha = await EsperarFichaAsync(turnoId, ct);
+
+        ficha.HorarioAbierto.Should().BeNull("un turno creado con CrearTurno no es de horario abierto");
+
+        await RetirarTurnoAsync(turnoId, ct);
     }
 
     // CA-2

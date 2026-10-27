@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.AplicarPlantillaSemanal;
 
 public partial class AplicarPlantillaSemanalTool(
     ProgramacionApi programacion, SedesApi sedes,
-    ResolutorPlantillaPorNombre resolutorPlantillas, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorLista resolutorCandidatos,
+    ResolutorPlantillaPorId resolutorPlantillas, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorLista resolutorCandidatos,
     ILogger<AplicarPlantillaSemanalTool>? logger = null, TimeProvider? reloj = null)
 {
     private readonly ILogger registro = (ILogger?)logger ?? NullLogger.Instance;
@@ -25,7 +25,7 @@ public partial class AplicarPlantillaSemanalTool(
             "Aplica una plantilla semanal de turnos a una lista de colaboradores durante una ventana de "
             + "trabajo de maximo 35 dias. A cada dia le programa el turno que el molde asigna a esa semana "
             + "y dia; el molde se alinea a la semana (lunes a domingo) que contiene 'desde'. Recibe el "
-            + "nombre de la plantilla (miralo con buscar_plantillas_semanales), opcionalmente el codigo de "
+            + "id de la plantilla (miralo con buscar_plantillas_semanales), opcionalmente el codigo de "
             + "la sede de programacion -- distinta de la sede de trabajo de cada colaborador; sugierela al "
             + "usuario y, si prefiere la sede de cada colaborador, omite el parametro -- y las "
             + "identificaciones completas separadas por coma, tal como las devuelven buscar_colaboradores "
@@ -37,8 +37,8 @@ public partial class AplicarPlantillaSemanalTool(
         string desde,
         [McpToolProperty("hasta", "Ultimo dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
         string hasta,
-        [McpToolProperty("plantilla", "Nombre de la plantilla semanal; miralo con buscar_plantillas_semanales.", isRequired: true)]
-        string plantilla,
+        [McpToolProperty("plantilla_id", "Id de la plantilla semanal, tal como lo da buscar_plantillas_semanales.", isRequired: true)]
+        string plantillaId,
         [McpToolProperty("sede_de_programacion", "Opcional. Codigo de la sede donde se registra la programacion; sugierela al usuario. Si prefiere la de cada colaborador, omitela.", isRequired: false)]
         string? sedeDeProgramacion,
         [McpToolProperty("identificaciones", "Identificaciones completas separadas por coma ('CC-79879078, CE-887766').", isRequired: true)]
@@ -50,8 +50,10 @@ public partial class AplicarPlantillaSemanalTool(
             return string.Format(Mensajes.CampoObligatorio, "desde");
         if (string.IsNullOrWhiteSpace(hasta))
             return string.Format(Mensajes.CampoObligatorio, "hasta");
-        if (string.IsNullOrWhiteSpace(plantilla))
-            return string.Format(Mensajes.CampoObligatorio, "plantilla");
+        if (string.IsNullOrWhiteSpace(plantillaId))
+            return string.Format(Mensajes.CampoObligatorio, "plantilla_id");
+        if (!Guid.TryParse(plantillaId, out var plantillaGuid))
+            return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
         if (string.IsNullOrWhiteSpace(identificaciones))
             return string.Format(Mensajes.CampoObligatorio, "identificaciones");
 
@@ -79,7 +81,7 @@ public partial class AplicarPlantillaSemanalTool(
         var ventana = VentanaDeProgramacion.Crear(fechaDesde, fechaHasta);
 
         var (moldeResuelto, rechazoPlantilla) = await MoldeDePlantilla.ResolverAsync(
-            resolutorPlantillas, plantilla,
+            resolutorPlantillas, plantillaGuid,
             new MensajesDePlantilla(
                 Mensajes.PlantillaNoExiste, Mensajes.PlantillaIncompleta, Mensajes.PlantillaConTurnoNoProgramable,
                 Mensajes.RechazoDelDominio), ct);

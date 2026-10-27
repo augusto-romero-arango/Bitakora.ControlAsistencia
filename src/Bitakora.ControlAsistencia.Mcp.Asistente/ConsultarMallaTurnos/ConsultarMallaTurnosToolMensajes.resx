@@ -65,4 +65,7 @@
   <data name="DiaFueraDeVinculacion" xml:space="preserve">
     <value>fuera de vinculación</value>
   </data>
+  <data name="DiaHorarioAbierto" xml:space="preserve">
+    <value>{0} horario abierto ({1})</value>
+  </data>
 </root>

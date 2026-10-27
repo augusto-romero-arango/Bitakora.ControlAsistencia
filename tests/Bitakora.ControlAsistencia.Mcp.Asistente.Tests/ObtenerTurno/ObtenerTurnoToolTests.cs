@@ -9,6 +9,35 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.ObtenerTurno;
 
 public class ObtenerTurnoToolTests
 {
+    private const string IdInexistente = "019fdaab-0000-7b57-8408-cef0e48e1a99";
+
+    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
+    [Fact]
+    public async Task ObtenerTurno_RechazaSinLlamarAlBackend_CuandoTurnoIdNoEsUnGuidConNombre()
+    {
+        const string Valor = "Nocturno";
+        var (cliente, handler) = ClienteFalso.Con("");
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(null!, Valor, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(ObtenerTurnoTool.Mensajes.TurnoIdInvalido, Valor));
+        handler.UltimaRequest.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ObtenerTurno_RechazaSinLlamarAlBackend_CuandoTurnoIdNoEsUnGuidEnBlanco()
+    {
+        const string Valor = "   ";
+        var (cliente, handler) = ClienteFalso.Con("");
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(null!, Valor, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(ObtenerTurnoTool.Mensajes.TurnoIdInvalido, Valor));
+        handler.UltimaRequest.Should().BeNull();
+    }
+
     [Fact]
     public async Task ObtenerTurno_RemodelaLasFranjasCompactas_CuandoElTurnoExiste()
     {
@@ -91,9 +120,10 @@ public class ObtenerTurnoToolTests
         var (cliente, _) = ClienteFalso.Con("", HttpStatusCode.NotFound);
         var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
 
-        var resultado = await tool.Run(null!, "id-inexistente", TestContext.Current.CancellationToken);
+        var resultado = await tool.Run(null!, IdInexistente, TestContext.Current.CancellationToken);
 
-        resultado.Should().Be("No existe un turno con id 'id-inexistente' en el catalogo.");
+        resultado.Should().Be(string.Format(ObtenerTurnoTool.Mensajes.TurnoNoExiste, IdInexistente));
+        resultado.Should().Contain("buscar_turnos");
     }
 
     [Fact]
@@ -131,5 +161,36 @@ public class ObtenerTurnoToolTests
             null!, "019fdaab-92b6-7b57-8408-cef0e48e1a46", TestContext.Current.CancellationToken);
 
         JsonNode.Parse(resultado)!.AsObject().ContainsKey("ventanaDeEntrada").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ObtenerTurno_MuestraHorarioAbiertoSedeYVentana_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        var (cliente, _) = ClienteFalso.Con(Fixtures.Leer("ObtenerTurno", "obtener-turno-horario-abierto.json"));
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "01a0ec12-0000-7000-9000-000000000001", TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!.AsObject();
+        json["horario"]!.GetValue<string>().Should().Be("horario abierto de 2 h");
+        json["franjas"]!.AsArray().Should().BeEmpty();
+        json["sede"]!.GetValue<string>().Should().Be("Ocoa");
+        json["ventanaDeEntrada"]!.GetValue<string>().Should().Be("entra entre 04:00 y 22:00 (18 h)");
+    }
+
+    [Fact]
+    public async Task ObtenerTurno_OmiteSede_CuandoElTurnoDeHorarioAbiertoNoTieneSede()
+    {
+        var (cliente, _) = ClienteFalso.Con(
+            Fixtures.Leer("ObtenerTurno", "obtener-turno-horario-abierto-sin-sede.json"));
+        var tool = new ObtenerTurnoTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(
+            null!, "01a0ec12-0000-7000-9000-000000000002", TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!.AsObject();
+        json["horario"]!.GetValue<string>().Should().Be("horario abierto de 2 h");
+        json.ContainsKey("sede").Should().BeFalse();
     }
 }

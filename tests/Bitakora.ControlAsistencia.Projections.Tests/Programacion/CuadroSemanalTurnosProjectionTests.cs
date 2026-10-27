@@ -29,7 +29,7 @@ public class CuadroSemanalTurnosProjectionTests
         new("plantilla-001", "Semana Cocina", semanas, dias, completa, jornadaId, limites, advertencias ?? []);
 
     private static DiaDelCuadro DiaCompleto(int semana, int dia, Guid turnoId) =>
-        new(semana, dia, turnoId.ToString(), "Turno Manana", CopiaTurno.ToString(), true, false);
+        new(semana, dia, turnoId.ToString(), "Turno Manana", "06:00-14:00", true, false);
 
     private static LimitesJornada LimitesDeEjemplo() =>
         LimitesJornada.Crear(HorasYMinutos.Crear(44, 0), HorasYMinutos.Crear(10, 0), HorasYMinutos.Crear(4, 0), 1);
@@ -79,7 +79,7 @@ public class CuadroSemanalTurnosProjectionTests
         var vista = CuadroSemanalTurnosProjection.Apply(evento, Vista([]));
 
         vista.Dias.Should().BeEquivalentTo(
-            [new DiaDelCuadro(1, 2, TurnoA.ToString(), "Turno Nuevo", CopiaIncompleta.ToString(), false, false)]);
+            [new DiaDelCuadro(1, 2, TurnoA.ToString(), "Turno Nuevo", "(incompleto)", false, false)]);
     }
 
     [Fact]

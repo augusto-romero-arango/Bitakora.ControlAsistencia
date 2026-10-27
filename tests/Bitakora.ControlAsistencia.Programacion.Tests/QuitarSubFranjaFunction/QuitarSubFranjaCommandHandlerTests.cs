@@ -149,7 +149,7 @@ public class QuitarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Quitar
             TurnoId, FranjaOrdinaria.Crear(new TimeOnly(22, 0), new TimeOnly(6, 0))));
         ThenIsPublishedPrivately(new DisenoDeTurnoActualizado(
             TurnoId, 3, "Turno Manana", false,
-            [new DetalleFranjaOrdinaria(new TimeOnly(22, 0), new TimeOnly(6, 0), 1, [], [], "(22:00-06:00+1)")],
+            [new DetalleFranjaOrdinaria(new TimeOnly(22, 0), new TimeOnly(6, 0), 1, [], [], "22:00-06:00+1")],
             false));
         And<CatalogoTurnos, int>(TurnoId.ToString(),
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 0);

@@ -29,7 +29,7 @@ public class DisenoDeTurnoActualizadoEventHandler : IPrivateEventHandlerAsync<Di
 
     // Los factories del VO validan: datos no reinstanciables lanzan y el mensaje llega a la DLQ tras agotar las entregas.
     private static Turno Reinstanciar(DisenoDeTurnoActualizado evento) =>
-        Turno.Crear(evento.Nombre, evento.EsDescanso, evento.Franjas.Select(ReinstanciarFranja))
+        Turno.Crear(evento.Nombre, evento.EsDescanso, evento.Franjas.Select(ReinstanciarFranja), evento.EsHorarioAbierto)
             .ConVentanaDeEntrada(DesdeMinutos(evento.AmplitudVentanaEntradaEnMinutos));
 
     private static HorasYMinutos DesdeMinutos(int minutos) => HorasYMinutos.Crear(minutos / 60, minutos % 60);

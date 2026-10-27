@@ -42,7 +42,7 @@ public class SubFranjaSerializacionTests
 
         restaurado.Should().NotBeNull();
         restaurado!.DuracionEnMinutos().Should().Be(20);
-        restaurado.ToString().Should().Be("(23:50-00:10+1)");
+        restaurado.ToString().Should().Be("23:50-00:10+1");
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class SubFranjaSerializacionTests
 
         restaurado.Should().NotBeNull();
         restaurado!.DuracionEnMinutos().Should().Be(30);
-        restaurado.ToString().Should().Be("(01:00+1-01:30+1)");
+        restaurado.ToString().Should().Be("01:00+1-01:30+1");
     }
 
     [Fact]
