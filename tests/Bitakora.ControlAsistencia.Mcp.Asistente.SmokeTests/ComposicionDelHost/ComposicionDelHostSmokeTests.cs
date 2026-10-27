@@ -22,6 +22,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "programar_ausencia", "cancelar_ausencia",
         "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
         "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
+        "asignar_turno_a_dia_de_plantilla", "asignar_jornada_a_plantilla",
+        "quitar_jornada_de_plantilla", "retirar_plantilla",
         "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
         "modificar_ventana_de_entrada", "crear_turno_de_horario_abierto",
         "asignar_etiqueta", "retirar_etiqueta"
@@ -82,6 +84,10 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["asignar_jornada_predeterminada"] = ["jornada_id"],
         ["asignar_jornada_a_plantilla_semanal"] = ["plantilla_id", "jornada_id"],
         ["quitar_jornada_de_plantilla_semanal"] = ["plantilla_id"],
+        ["asignar_turno_a_dia_de_plantilla"] = ["plantilla_id", "dia", "turno_id"],
+        ["asignar_jornada_a_plantilla"] = ["plantilla_id", "jornada_id"],
+        ["quitar_jornada_de_plantilla"] = ["plantilla_id"],
+        ["retirar_plantilla"] = ["plantilla_id"],
         ["asignar_jornada"] = ["jornada_id", "identificaciones"],
         ["asignar_jornada_por_grupo"] = ["jornada_id"],
         ["desactivar_jornada"] = ["jornada_id"],
@@ -142,6 +148,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
                 or "programar_ausencia" or "cancelar_ausencia"
                 or "crear_jornada" or "modificar_limites_jornada" or "asignar_jornada_predeterminada"
                 or "asignar_jornada_a_plantilla_semanal" or "quitar_jornada_de_plantilla_semanal"
+                or "asignar_turno_a_dia_de_plantilla" or "asignar_jornada_a_plantilla"
+                or "quitar_jornada_de_plantilla" or "retirar_plantilla"
                 or "asignar_jornada" or "asignar_jornada_por_grupo" or "desactivar_jornada"
                 or "modificar_ventana_de_entrada" or "crear_turno_de_horario_abierto"
                 or "asignar_etiqueta" or "retirar_etiqueta";
