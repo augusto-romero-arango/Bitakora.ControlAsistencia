@@ -18,6 +18,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "consultar_malla_turnos", "consultar_dias_sin_programar",
         "solicitar_programacion_turno",
         "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal", "aplicar_plantilla_semanal_por_grupo",
+        "aplicar_plantilla", "aplicar_plantilla_por_grupo",
         "programar_ausencia", "cancelar_ausencia",
         "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
         "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
@@ -70,6 +71,8 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["solicitar_programacion_turno_por_grupo"] = ["desde", "hasta", "turno_id"],
         ["aplicar_plantilla_semanal"] = ["desde", "hasta", "plantilla_id", "identificaciones"],
         ["aplicar_plantilla_semanal_por_grupo"] = ["desde", "hasta", "plantilla_id"],
+        ["aplicar_plantilla"] = ["plantilla_id", "fecha_inicio", "desde", "hasta", "identificaciones"],
+        ["aplicar_plantilla_por_grupo"] = ["plantilla_id", "fecha_inicio", "desde", "hasta"],
         ["programar_ausencia"] = ["identificacion", "desde", "hasta", "motivo"],
         ["cancelar_ausencia"] = ["identificacion", "desde", "hasta"],
         ["listar_jornadas"] = [],
@@ -135,7 +138,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
                 or "asignar_sede_franja" or "crear_plantilla_semanal" or "retirar_plantilla_semanal"
                 or "asignar_turno_a_dia" or "quitar_turno_de_dia" or "solicitar_programacion_turno"
                 or "solicitar_programacion_turno_por_grupo" or "aplicar_plantilla_semanal"
-                or "aplicar_plantilla_semanal_por_grupo"
+                or "aplicar_plantilla_semanal_por_grupo" or "aplicar_plantilla" or "aplicar_plantilla_por_grupo"
                 or "programar_ausencia" or "cancelar_ausencia"
                 or "crear_jornada" or "modificar_limites_jornada" or "asignar_jornada_predeterminada"
                 or "asignar_jornada_a_plantilla_semanal" or "quitar_jornada_de_plantilla_semanal"
