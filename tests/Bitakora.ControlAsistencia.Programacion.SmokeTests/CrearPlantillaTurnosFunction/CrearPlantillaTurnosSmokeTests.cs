@@ -61,7 +61,9 @@ public class CrearPlantillaTurnosSmokeTests(ApiFixture api, PostgresFixture post
         var ct = TestContext.Current.CancellationToken;
         var payload = Payload();
 
-        await _client.PostAsJsonAsync(Ruta, payload, ct);
+        var primera = await _client.PostAsJsonAsync(Ruta, payload, ct);
+        primera.StatusCode.Should().Be(HttpStatusCode.Created, "la primera creacion es la precondicion del 409");
+
         var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
