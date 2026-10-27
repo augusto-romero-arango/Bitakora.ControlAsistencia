@@ -5,12 +5,36 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 public partial class PlantillaTurnos : AggregateRoot
 {
-    public void Apply(PlantillaDeTurnosCreada evento) => Id = evento.PlantillaId.ToString();
+    private sealed record DiaAsignado(Guid TurnoId, Turno Turno, long VersionTurno);
 
-    public void Apply(DiaDePlantillaDeTurnosAsignado evento) => throw new NotImplementedException();
+    private int _diasDelCiclo;
+    private readonly Dictionary<int, DiaAsignado> _dias = new();
 
+    public void Apply(PlantillaDeTurnosCreada evento)
+    {
+        Id = evento.PlantillaId.ToString();
+        _diasDelCiclo = evento.DiasDelCiclo;
+    }
+
+    public void Apply(DiaDePlantillaDeTurnosAsignado evento) =>
+        _dias[evento.Dia] = new DiaAsignado(evento.TurnoId, evento.Turno, evento.VersionTurno);
+
+    // Precedencia: dia fuera del ciclo > sin cambios > asignado. Una copia atrasada es la
+    // autocorreccion y emite el evento.
     internal ResultadoAsignarDiaDePlantillaTurnos AsignarDia(int dia, Guid turnoId, Turno copia, long versionTurno)
-        => throw new NotImplementedException();
+    {
+        if (dia > _diasDelCiclo)
+            return ResultadoAsignarDiaDePlantillaTurnos.DiaFueraDelCiclo;
+
+        if (_dias.TryGetValue(dia, out var actual)
+            && actual.TurnoId == turnoId && actual.VersionTurno >= versionTurno)
+            return ResultadoAsignarDiaDePlantillaTurnos.SinCambios;
+
+        var evento = DiaDePlantillaDeTurnosAsignado.Crear(Guid.Parse(Id), dia, turnoId, copia, versionTurno);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoAsignarDiaDePlantillaTurnos.Asignado;
+    }
 
     public static PlantillaTurnos Iniciar(PlantillaDeTurnosCreada evento)
     {
