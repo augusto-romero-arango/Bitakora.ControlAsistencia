@@ -33,7 +33,7 @@ public class CrearPlantillaRotativaToolTests
         handler.RespondeDetalleDeTurno(TurnosJson, TurnoTarde);
         handler.RespondeDetalleDeTurno(TurnosJson, TurnoInexistente);
         handler.Responde(HttpMethod.Get, $"{RutaJornadas}/{JornadaId}", statusJornada,
-            Fixtures.Leer("AsignarJornadaAPlantillaSemanal", "obtener-jornada.json"));
+            Fixtures.Leer("AsignarJornadaAPlantilla", "obtener-jornada.json"));
         handler.Responde(HttpMethod.Post, RutaPlantillas, statusPost, cuerpoPost);
         handler.RespondeConPrefijo(
             HttpMethod.Put, $"{RutaPlantillas}/",

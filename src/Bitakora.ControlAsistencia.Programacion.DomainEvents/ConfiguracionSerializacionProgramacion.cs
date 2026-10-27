@@ -41,15 +41,9 @@ public static class ConfiguracionSerializacionProgramacion
         ExtraQuitado.ConfigurarSerializacion(resolver);
         SedeDeFranjaAsignada.ConfigurarSerializacion(resolver);
         SedeDeFranjaRetirada.ConfigurarSerializacion(resolver);
-        PlantillaSemanalCreada.ConfigurarSerializacion(resolver);
         PlantillaDeTurnosCreada.ConfigurarSerializacion(resolver);
         DiaDePlantillaDeTurnosAsignado.ConfigurarSerializacion(resolver);
         PlantillaDeTurnosRetirada.ConfigurarSerializacion(resolver);
-        DiaDePlantillaSemanalAsignado.ConfigurarSerializacion(resolver);
-        DiaDePlantillaSemanalQuitado.ConfigurarSerializacion(resolver);
-        PlantillaSemanalRetirada.ConfigurarSerializacion(resolver);
-        JornadaDePlantillaSemanalAsignada.ConfigurarSerializacion(resolver);
-        JornadaDePlantillaSemanalQuitada.ConfigurarSerializacion(resolver);
         JornadaDePlantillaDeTurnosAsignada.ConfigurarSerializacion(resolver);
         JornadaDePlantillaDeTurnosQuitada.ConfigurarSerializacion(resolver);
         HorasYMinutos.ConfigurarSerializacion(resolver);
@@ -57,13 +51,9 @@ public static class ConfiguracionSerializacionProgramacion
         JornadaCreada.ConfigurarSerializacion(resolver);
         LimitesJornadaModificados.ConfigurarSerializacion(resolver);
         VentanaDeEntradaModificada.ConfigurarSerializacion(resolver);
-        AdvertenciaPlantillaSemanal.ConfigurarSerializacion(resolver);
-        AdvertenciasDePlantillaSemanalCalculadas.ConfigurarSerializacion(resolver);
         AdvertenciaPlantillaTurnos.ConfigurarSerializacion(resolver);
         AdvertenciasDePlantillaDeTurnosCalculadas.ConfigurarSerializacion(resolver);
-        TurnoDePlantillaSemanalSincronizado.ConfigurarSerializacion(resolver);
         TurnoDePlantillaDeTurnosSincronizado.ConfigurarSerializacion(resolver);
         LimitesDeJornadaDePlantillaDeTurnosSincronizados.ConfigurarSerializacion(resolver);
-        LimitesDeJornadaDePlantillaSemanalSincronizados.ConfigurarSerializacion(resolver);
     }
 }

@@ -28,3 +28,11 @@ public sealed record DiaDelCuadroDeTurnos(
 
 /// <summary>Advertencia estructurada: Tipo es el nombre del tipo; Magnitud en minutos o dias.</summary>
 public sealed record AdvertenciaDelCuadroDeTurnos(string Tipo, int? Dia, int Magnitud);
+
+/// <summary>Limites de la Jornada en minutos y dias, con su descripcion calculada al proyectar.</summary>
+public sealed record LimitesDelCuadro(
+    int HorasSemanalesEnMinutos,
+    int TopeDiarioEnMinutos,
+    int MinimoDiarioEnMinutos,
+    int DiasDescansoPorSemana,
+    string Descripcion);

@@ -6,7 +6,6 @@ using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDisenoDeTurnoActualizado;
 using Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDisenoDeTurnoActualizado.EventHandler;
-using Bitakora.ControlAsistencia.Programacion.SincronizarTurnoDePlantillaSemanalFunction;
 using Bitakora.ControlAsistencia.Programacion.SincronizarTurnoDePlantillaTurnosFunction;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -17,17 +16,14 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.SincronizarPlantillasCua
 public class DisenoDeTurnoActualizadoEventHandlerTests : PrivateEventHandlerAsyncTest<DisenoDeTurnoActualizado>
 {
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000883");
-    private static readonly Guid PlantillaA = Guid.Parse("019600a0-0000-7000-8000-0000000000a1");
-    private static readonly Guid PlantillaB = Guid.Parse("019600a0-0000-7000-8000-0000000000b2");
-    private static readonly Guid PlantillaTurnosC = Guid.Parse("019600a0-0000-7000-8000-0000000000c3");
-    private static readonly Guid PlantillaTurnosD = Guid.Parse("019600a0-0000-7000-8000-0000000000d4");
+    private static readonly Guid PlantillaA = Guid.Parse("019600a0-0000-7000-8000-0000000000c3");
+    private static readonly Guid PlantillaB = Guid.Parse("019600a0-0000-7000-8000-0000000000d4");
 
-    private readonly FakeLectorPlantillasPorTurno _lector = new();
-    private readonly FakeLectorPlantillasTurnosPorTurno _lectorTurnos = new();
+    private readonly FakeLectorPlantillasTurnosPorTurno _lector = new();
     private readonly FakeRouterRegistrador _router = new();
 
     protected override IPrivateEventHandlerAsync<DisenoDeTurnoActualizado> Handler =>
-        new DisenoDeTurnoActualizadoEventHandler(_lector, _lectorTurnos, _router);
+        new DisenoDeTurnoActualizadoEventHandler(_lector, _router);
 
     private static DisenoDeTurnoActualizado DisenoMixto(long version = 4, bool retirado = false) => new(
         TurnoId, version, "Turno Mixto", false,
@@ -60,7 +56,7 @@ public class DisenoDeTurnoActualizadoEventHandlerTests : PrivateEventHandlerAsyn
         await WhenAsync(DisenoMixto() with { EsHorarioAbierto = true });
 
         _router.Comandos.Should().Equal(
-            new SincronizarTurnoDePlantillaSemanal(PlantillaA, TurnoId, TurnoMixtoEsperado(esHorarioAbierto: true), 4, false));
+            new SincronizarTurnoDePlantillaTurnos(PlantillaA, TurnoId, TurnoMixtoEsperado(esHorarioAbierto: true), 4, false));
     }
 
     [Fact]
@@ -73,8 +69,8 @@ public class DisenoDeTurnoActualizadoEventHandlerTests : PrivateEventHandlerAsyn
         _lector.TurnosConsultados.Should().Equal(TurnoId);
         var esperado = TurnoMixtoEsperado();
         _router.Comandos.Should().Equal(
-            new SincronizarTurnoDePlantillaSemanal(PlantillaA, TurnoId, esperado, 4, false),
-            new SincronizarTurnoDePlantillaSemanal(PlantillaB, TurnoId, esperado, 4, false));
+            new SincronizarTurnoDePlantillaTurnos(PlantillaA, TurnoId, esperado, 4, false),
+            new SincronizarTurnoDePlantillaTurnos(PlantillaB, TurnoId, esperado, 4, false));
     }
 
     [Fact]
@@ -87,8 +83,8 @@ public class DisenoDeTurnoActualizadoEventHandlerTests : PrivateEventHandlerAsyn
 
         var esperado = TurnoMixtoEsperado().ConVentanaDeEntrada(HorasYMinutos.Crear(3, 0));
         _router.Comandos.Should().Equal(
-            new SincronizarTurnoDePlantillaSemanal(PlantillaA, TurnoId, esperado, 4, false),
-            new SincronizarTurnoDePlantillaSemanal(PlantillaB, TurnoId, esperado, 4, false));
+            new SincronizarTurnoDePlantillaTurnos(PlantillaA, TurnoId, esperado, 4, false),
+            new SincronizarTurnoDePlantillaTurnos(PlantillaB, TurnoId, esperado, 4, false));
     }
 
     [Fact]
@@ -98,7 +94,7 @@ public class DisenoDeTurnoActualizadoEventHandlerTests : PrivateEventHandlerAsyn
 
         await WhenAsync(DisenoMixto() with { AmplitudVentanaEntradaEnMinutos = 0 });
 
-        _router.Comandos.Should().Equal(new SincronizarTurnoDePlantillaSemanal(
+        _router.Comandos.Should().Equal(new SincronizarTurnoDePlantillaTurnos(
             PlantillaA, TurnoId, TurnoMixtoEsperado().ConVentanaDeEntrada(HorasYMinutos.Crear(0, 0)), 4, false));
     }
 
@@ -121,7 +117,7 @@ public class DisenoDeTurnoActualizadoEventHandlerTests : PrivateEventHandlerAsyn
         await WhenAsync(DisenoMixto(version: 9, retirado: true));
 
         _router.Comandos.Should().Equal(
-            new SincronizarTurnoDePlantillaSemanal(PlantillaA, TurnoId, TurnoMixtoEsperado(), 9, true));
+            new SincronizarTurnoDePlantillaTurnos(PlantillaA, TurnoId, TurnoMixtoEsperado(), 9, true));
     }
 
     [Fact]
@@ -131,7 +127,7 @@ public class DisenoDeTurnoActualizadoEventHandlerTests : PrivateEventHandlerAsyn
 
         await WhenAsync(new DisenoDeTurnoActualizado(TurnoId, 2, "Descanso Compensatorio", true, [], false));
 
-        _router.Comandos.Should().Equal(new SincronizarTurnoDePlantillaSemanal(
+        _router.Comandos.Should().Equal(new SincronizarTurnoDePlantillaTurnos(
             PlantillaA, TurnoId, Turno.Crear("Descanso Compensatorio", true, []), 2, false));
     }
 
@@ -148,70 +144,6 @@ public class DisenoDeTurnoActualizadoEventHandlerTests : PrivateEventHandlerAsyn
 
         await act.Should().ThrowExactlyAsync<ArgumentException>();
         _router.Comandos.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task DisenoDeTurnoActualizado_EnviaElComandoACadaPlantillaDeTurnosQueUsaElTurno_CuandoElDisenoCambia()
-    {
-        _lectorTurnos.PlantillaIds = [PlantillaTurnosC.ToString(), PlantillaTurnosD.ToString()];
-
-        await WhenAsync(DisenoMixto());
-
-        _lectorTurnos.TurnosConsultados.Should().Equal(TurnoId);
-        var esperado = TurnoMixtoEsperado();
-        _router.Comandos.Should().Equal(
-            new SincronizarTurnoDePlantillaTurnos(PlantillaTurnosC, TurnoId, esperado, 4, false),
-            new SincronizarTurnoDePlantillaTurnos(PlantillaTurnosD, TurnoId, esperado, 4, false));
-    }
-
-    [Fact]
-    public async Task DisenoDeTurnoActualizado_EnviaPrimeroLasSemanalesYLuegoLasPlantillasDeTurnos_CuandoAmbasUsanElTurno()
-    {
-        _lector.PlantillaIds = [PlantillaA.ToString()];
-        _lectorTurnos.PlantillaIds = [PlantillaTurnosC.ToString()];
-
-        await WhenAsync(DisenoMixto(version: 9, retirado: true));
-
-        var esperado = TurnoMixtoEsperado();
-        _router.Comandos.Should().Equal(
-            new SincronizarTurnoDePlantillaSemanal(PlantillaA, TurnoId, esperado, 9, true),
-            new SincronizarTurnoDePlantillaTurnos(PlantillaTurnosC, TurnoId, esperado, 9, true));
-    }
-
-    [Fact]
-    public async Task DisenoDeTurnoActualizado_NoEnviaComandosDeTurnos_CuandoNingunaPlantillaDeTurnosUsaElTurno()
-    {
-        _lector.PlantillaIds = [PlantillaA.ToString()];
-        _lectorTurnos.PlantillaIds = [];
-
-        await WhenAsync(DisenoMixto());
-
-        _lectorTurnos.TurnosConsultados.Should().Equal(TurnoId);
-        _router.Comandos.Should().Equal(
-            new SincronizarTurnoDePlantillaSemanal(PlantillaA, TurnoId, TurnoMixtoEsperado(), 4, false));
-    }
-
-    [Fact]
-    public async Task DisenoDeTurnoActualizado_EnviaLaCopiaConLaVentanaALaPlantillaDeTurnos_CuandoElEventoTraeAmplitud()
-    {
-        _lectorTurnos.PlantillaIds = [PlantillaTurnosC.ToString()];
-
-        await WhenAsync(DisenoMixto() with { AmplitudVentanaEntradaEnMinutos = 180 });
-
-        _router.Comandos.Should().Equal(new SincronizarTurnoDePlantillaTurnos(
-            PlantillaTurnosC, TurnoId, TurnoMixtoEsperado().ConVentanaDeEntrada(HorasYMinutos.Crear(3, 0)), 4, false));
-    }
-
-    private sealed class FakeLectorPlantillasPorTurno : ILectorPlantillasPorTurno
-    {
-        public IReadOnlyList<string> PlantillaIds { get; set; } = [];
-        public List<Guid> TurnosConsultados { get; } = [];
-
-        public Task<IReadOnlyList<string>> ObtenerPlantillaIdsAsync(Guid turnoId, CancellationToken ct)
-        {
-            TurnosConsultados.Add(turnoId);
-            return Task.FromResult(PlantillaIds);
-        }
     }
 
     private sealed class FakeLectorPlantillasTurnosPorTurno : ILectorPlantillasTurnosPorTurno

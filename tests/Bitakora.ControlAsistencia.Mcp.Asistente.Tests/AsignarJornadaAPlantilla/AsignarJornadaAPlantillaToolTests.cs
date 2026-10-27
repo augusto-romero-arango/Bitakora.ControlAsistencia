@@ -16,7 +16,7 @@ public class AsignarJornadaAPlantillaToolTests
     private const string DescripcionJornada =
         "42:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana";
 
-    private static string JornadaJson => Fixtures.Leer("AsignarJornadaAPlantillaSemanal", "obtener-jornada.json");
+    private static string JornadaJson => Fixtures.Leer("AsignarJornadaAPlantilla", "obtener-jornada.json");
 
     private sealed record Fakes(AsignarJornadaAPlantillaTool Tool, HandlerPorRuta Handler);
 

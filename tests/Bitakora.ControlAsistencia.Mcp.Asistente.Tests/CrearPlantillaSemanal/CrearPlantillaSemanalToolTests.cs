@@ -11,7 +11,6 @@ public class CrearPlantillaSemanalToolTests
 {
     private const string RutaTurnos = "/api/programacion/turnos";
     private const string RutaPlantillas = "/api/programacion/plantillas-turnos";
-    private const string RutaPlantillasSemanales = "/api/programacion/plantillas-semanales";
     private const string RutaJornadas = "/api/programacion/jornadas";
     private const string JornadaId = "01a08700-0000-7000-9000-000000000001";
     private const string TurnoManana = "8f14e45f-ceea-4b3c-8f0a-000000000001";
@@ -30,7 +29,7 @@ public class CrearPlantillaSemanalToolTests
         handler.RespondeDetalleDeTurno(TurnosJson, TurnoTarde);
         handler.RespondeDetalleDeTurno(TurnosJson, TurnoInexistente);
         handler.Responde(HttpMethod.Get, $"{RutaJornadas}/{JornadaId}", HttpStatusCode.OK,
-            Fixtures.Leer("AsignarJornadaAPlantillaSemanal", "obtener-jornada.json"));
+            Fixtures.Leer("AsignarJornadaAPlantilla", "obtener-jornada.json"));
         handler.Responde(HttpMethod.Post, RutaPlantillas, HttpStatusCode.Created, "");
         handler.RespondeConPrefijo(
             HttpMethod.Put, $"{RutaPlantillas}/",
@@ -65,7 +64,6 @@ public class CrearPlantillaSemanalToolTests
         var plantillaId = postBody["plantillaId"]!.GetValue<string>();
         postBody["nombre"]!.GetValue<string>().Should().Be("Semana Cocina");
         postBody["diasDelCiclo"]!.GetValue<int>().Should().Be(7);
-        fakes.Handler.Requests.Should().NotContain(r => r.Ruta.StartsWith(RutaPlantillasSemanales));
 
         var puts = fakes.Handler.Requests.Where(r => r.Metodo == HttpMethod.Put).ToList();
         puts.Select(r => r.Ruta).Should().Equal(

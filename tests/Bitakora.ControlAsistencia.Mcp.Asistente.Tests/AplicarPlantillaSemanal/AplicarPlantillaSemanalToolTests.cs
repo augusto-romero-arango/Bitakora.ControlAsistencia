@@ -148,8 +148,6 @@ public class AplicarPlantillaSemanalToolTests
 
         entorno.Programacion.Requests.Should().Contain(
             r => r.Metodo == HttpMethod.Get && r.Ruta == CatalogoDePlantillasTurnosFalso.RutaDetalle(PlantillaId));
-        entorno.Programacion.Requests.Should().NotContain(
-            r => r.Ruta.StartsWith("/api/programacion/plantillas-semanales"));
     }
 
     [Fact]

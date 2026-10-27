@@ -22,7 +22,6 @@ public static class ConfiguracionServiciosMcp
         // Transient: envuelven un cliente tipado, que no debe capturarse en un singleton.
         services.AddTransient<ResolutorTurnoPorNombre>();
         services.AddTransient<ResolutorTurnoPorId>();
-        services.AddTransient<ResolutorPlantillaPorId>();
         services.AddTransient<ResolutorPlantillaTurnosPorId>();
         services.AddTransient<ResolutorSedePorCodigo>();
         services.AddTransient<ResolutorCandidatosPorLista>();

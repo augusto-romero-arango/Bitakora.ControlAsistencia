@@ -40,10 +40,8 @@ public class ComposicionDelServidorTests
                 "buscar_colaboradores", "buscar_sedes", "registrar_sede", "registrar_colaborador", "registrar_colaboradores",
                 "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
                 "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
-                "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
                 "buscar_plantillas", "listar_plantillas", "obtener_plantilla",
                 "crear_plantilla_semanal", "crear_plantilla", "crear_plantilla_rotativa",
-                "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
                 "consultar_malla_turnos", "consultar_dias_sin_programar",
                 "solicitar_programacion_turno",
@@ -51,7 +49,6 @@ public class ComposicionDelServidorTests
                 "aplicar_plantilla_semanal_por_grupo", "aplicar_plantilla", "aplicar_plantilla_por_grupo",
                 "programar_ausencia", "cancelar_ausencia",
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
-                "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
                 "asignar_turno_a_dia_de_plantilla", "asignar_jornada_a_plantilla",
                 "quitar_jornada_de_plantilla", "retirar_plantilla",
                 "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
@@ -201,9 +198,6 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": true"),
         ("buscar_turnos", "Busca turnos del catalogo para saber a cual se refiere el usuario",
             "\"readOnlyHint\": true"),
-        ("buscar_plantillas_semanales",
-            "Busca plantillas semanales del catalogo para saber a cual se refiere el usuario",
-            "\"readOnlyHint\": true"),
         ("buscar_plantillas", "Busca plantillas de turnos del catalogo para saber a cual se refiere el usuario",
             "\"readOnlyHint\": true"),
         ("listar_plantillas", "Lista las plantillas de turnos del catalogo: nombre, dias del ciclo",
@@ -228,26 +222,12 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": false, \"destructiveHint\": true"),
         ("asignar_sede_franja", "Asigna o cambia la sede prearmada de una franja ordinaria de un turno",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
-        ("listar_plantillas_semanales", "Lista las plantillas semanales de turnos del catalogo: nombre, numero de semanas",
-            "\"readOnlyHint\": true"),
-        ("obtener_plantilla_semanal", "Devuelve el cuadro de una plantilla semanal por su id",
-            "\"readOnlyHint\": true"),
         ("crear_plantilla_semanal", "Crea una plantilla semanal de turnos: un ciclo de 7 dias, de lunes a domingo",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("crear_plantilla", "Crea una plantilla de turnos: un ciclo de N dias (1 a 42)",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("crear_plantilla_rotativa", "Crea una plantilla de turnos rotativa a partir de bloques de dias consecutivos",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
-        ("retirar_plantilla_semanal", "Retira una plantilla semanal del catalogo por su id",
-            "\"readOnlyHint\": false, \"destructiveHint\": true"),
-        ("asignar_turno_a_dia", "Pone o reemplaza el turno de un dia de una plantilla semanal",
-            "\"readOnlyHint\": false, \"destructiveHint\": false"),
-        ("quitar_turno_de_dia", "Deja sin turno un dia de una plantilla semanal",
-            "\"readOnlyHint\": false, \"destructiveHint\": true"),
-        ("asignar_jornada_a_plantilla_semanal", "Asocia una Jornada a una plantilla semanal",
-            "\"readOnlyHint\": false, \"destructiveHint\": false, \"idempotentHint\": true"),
-        ("quitar_jornada_de_plantilla_semanal", "Quita la Jornada de una plantilla semanal",
-            "\"readOnlyHint\": false, \"destructiveHint\": true, \"idempotentHint\": true"),
         ("asignar_turno_a_dia_de_plantilla", "Pone o reemplaza el turno de un dia de una plantilla de turnos",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("asignar_jornada_a_plantilla", "Asocia una Jornada a una plantilla de turnos",
@@ -372,15 +352,6 @@ public class ComposicionDelServidorTests
         ParametrosDeTool("buscar_turnos").Should().OnlyContain(p => p.ParameterType == typeof(string));
 
     [Fact]
-    public void BuscarPlantillasSemanales_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("buscar_plantillas_semanales").Should().BeEquivalentTo(
-            [("nombre", false), ("turno", false), ("semanas", false), ("estado", false)]);
-
-    [Fact]
-    public void BuscarPlantillasSemanales_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
-        ParametrosDeTool("buscar_plantillas_semanales").Should().OnlyContain(p => p.ParameterType == typeof(string));
-
-    [Fact]
     public void ListarTurnos_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("listar_turnos").Should().BeEquivalentTo([("sede", false), ("cursor", false)]);
 
@@ -455,22 +426,14 @@ public class ComposicionDelServidorTests
             [("turno_id", true), ("franja", true), ("codigo_sede", false)]);
 
     [Fact]
-    public void ListarPlantillasSemanales_DeclaraSusParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("listar_plantillas_semanales").Should().BeEquivalentTo([("cursor", false)]);
-
-    [Fact]
     public void ListarCatalogos_DeclaranSusParametrosComoString_CuandoSeInspeccionanLasTools()
     {
-        foreach (var tool in new[] { "listar_turnos", "listar_plantillas_semanales", "listar_sedes" })
+        foreach (var tool in new[] { "listar_turnos", "listar_plantillas", "listar_sedes" })
         {
             ParametrosDeTool(tool).Should().OnlyContain(p => p.ParameterType == typeof(string));
             PropiedadesDe(tool).Should().NotContain(p => p.Nombre == "filtro_nombre");
         }
     }
-
-    [Fact]
-    public void ObtenerPlantillaSemanal_DeclaraElPlantillaIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("obtener_plantilla_semanal").Should().BeEquivalentTo([("plantilla_id", true)]);
 
     [Fact]
     public void CrearPlantillaSemanal_DeclaraNombreYDiasComoObligatorios_CuandoSeInspeccionaLaTool() =>
@@ -522,7 +485,7 @@ public class ComposicionDelServidorTests
                 .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "plantilla_id");
             parametro.ParameterType.Should().Be(typeof(string), $"{nombre}.plantilla_id viaja como texto (MEF-ADR-0047)");
             parametro.GetCustomAttribute<McpToolPropertyAttribute>()!.Description
-                .Should().Contain("buscar_plantillas").And.NotContain("buscar_plantillas_semanales");
+                .Should().Contain("buscar_plantillas");
         }
     }
 
@@ -560,8 +523,7 @@ public class ComposicionDelServidorTests
                 .Single(a => a?.PropertyName == "plantilla_id")!.Description;
 
             descripcion.Should().Contain("7 dias").And.Contain("aplicar_plantilla").And.Contain("fecha de inicio");
-            descripcion.Should().NotContain("buscar_plantillas_semanales");
-            parametro.Should().Contain("buscar_plantillas").And.NotContain("buscar_plantillas_semanales");
+            parametro.Should().Contain("buscar_plantillas");
         }
     }
 
@@ -576,7 +538,7 @@ public class ComposicionDelServidorTests
             .Where(x => x.PropertyName is "turno" or "plantilla")
             .ToList();
 
-        propiedades.Should().BeEquivalentTo([("buscar_plantillas_semanales", "turno"), ("buscar_plantillas", "turno")]);
+        propiedades.Should().BeEquivalentTo([("buscar_plantillas", "turno")]);
     }
 
     [Fact]
@@ -605,34 +567,6 @@ public class ComposicionDelServidorTests
                 .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == propiedad)
                 .ParameterType.Should().Be(typeof(string), $"{nombre}.{propiedad} viaja como texto (MEF-ADR-0047)");
     }
-
-    [Fact]
-    public void AsignarJornadaAPlantillaSemanal_DeclaraPlantillaIdYJornadaIdObligatoriosDeTipoString_CuandoSeInspeccionaLaTool()
-    {
-        PropiedadesDe("asignar_jornada_a_plantilla_semanal").Should().BeEquivalentTo(
-            [("plantilla_id", true), ("jornada_id", true)]);
-        ParametrosDeTool("asignar_jornada_a_plantilla_semanal")
-            .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "jornada_id")
-            .ParameterType.Should().Be(typeof(string));
-    }
-
-    [Fact]
-    public void QuitarJornadaDePlantillaSemanal_DeclaraElPlantillaIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("quitar_jornada_de_plantilla_semanal").Should().BeEquivalentTo([("plantilla_id", true)]);
-
-    [Fact]
-    public void RetirarPlantillaSemanal_DeclaraElPlantillaIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("retirar_plantilla_semanal").Should().BeEquivalentTo([("plantilla_id", true)]);
-
-    [Fact]
-    public void AsignarTurnoADia_DeclaraSusObligatoriosYOpcionales_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("asignar_turno_a_dia").Should().BeEquivalentTo(
-            [("plantilla_id", true), ("turno_id", true), ("dia", true), ("semana", false)]);
-
-    [Fact]
-    public void QuitarTurnoDeDia_DeclaraSusObligatoriosYOpcionales_CuandoSeInspeccionaLaTool() =>
-        PropiedadesDe("quitar_turno_de_dia").Should().BeEquivalentTo(
-            [("plantilla_id", true), ("dia", true), ("semana", false)]);
 
     [Fact]
     public void ConsultarProgramacion_DeclaraDesdeYHastaComoObligatorios_CuandoSeInspeccionaLaTool() =>

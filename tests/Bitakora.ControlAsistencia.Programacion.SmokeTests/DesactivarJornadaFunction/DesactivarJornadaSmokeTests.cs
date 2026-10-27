@@ -75,36 +75,6 @@ public class DesactivarJornadaSmokeTests(ApiFixture api, PostgresFixture postgre
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DesactivarJornada_DebeRetornar409_CuandoLaUsaUnaPlantilla()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var id = await CrearJornadaAsync(LimitesDePrueba.DesactivarJornadaEnPlantilla, ct);
-        var plantillaId = Guid.CreateVersion7();
-        (await _client.PostAsJsonAsync("/api/programacion/plantillas-semanales", new
-        {
-            plantillaId,
-            nombre = $"[TEST] Plantilla {plantillaId}",
-            semanas = 1
-        }, ct)).StatusCode.Should().Be(HttpStatusCode.Created);
-        (await _client.PutAsJsonAsync($"/api/programacion/plantillas-semanales/{plantillaId}/jornada",
-            new { jornadaId = id }, ct)).StatusCode.Should().Be(HttpStatusCode.NoContent);
-
-        var reflejada = await Polling.WaitUntilTrueAsync(async () =>
-        {
-            var cuadro = await _client.GetAsync($"/api/programacion/plantillas-semanales/{plantillaId}", ct);
-            return cuadro.IsSuccessStatusCode
-                && (await cuadro.Content.ReadAsStringAsync(ct)).Contains(id.ToString(), StringComparison.OrdinalIgnoreCase);
-        }, Timeout);
-        reflejada.Should().BeTrue("CuadroSemanalTurnos es una proyeccion Async");
-
-        var response = await _client.PostAsync(RutaDesactivar(id), null, ct);
-
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
-        (await response.Content.ReadAsStringAsync(ct)).Should().Contain(plantillaId.ToString());
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
     public async Task DesactivarJornada_DebeRetornar409_CuandoLaUsaUnaPlantillaDeTurnos()
     {
         var ct = TestContext.Current.CancellationToken;

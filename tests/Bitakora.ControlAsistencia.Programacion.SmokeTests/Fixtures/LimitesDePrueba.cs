@@ -80,7 +80,6 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites AsignarPredeterminada = Firma(30, 20);
     public static readonly FirmaDeLimites DesactivarJornadaPersiste = Firma(30, 21);
     public static readonly FirmaDeLimites DesactivarJornadaPredeterminada = Firma(30, 22);
-    public static readonly FirmaDeLimites DesactivarJornadaEnPlantilla = Firma(30, 23);
     public static readonly FirmaDeLimites AsignarPredeterminadaDesactivada = Firma(30, 24);
     public static readonly FirmaDeLimites AsignarAPlantillaDesactivada = Firma(30, 25);
     public static readonly FirmaDeLimites CrearPlantillaJornadaDesactivada = Firma(30, 26);
