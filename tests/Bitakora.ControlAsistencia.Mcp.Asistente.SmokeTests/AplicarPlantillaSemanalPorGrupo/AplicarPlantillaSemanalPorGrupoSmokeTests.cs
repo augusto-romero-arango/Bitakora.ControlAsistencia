@@ -34,7 +34,7 @@ public class AplicarPlantillaSemanalPorGrupoSmokeTests(McpFixture mcp, Programac
 
         string[] diasDeLaSemana = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"];
         var dias = JsonSerializer.Serialize(
-            diasDeLaSemana.Select(dia => new { semana = 1, dia, turno_id = turnoId }));
+            diasDeLaSemana.Select(dia => new { dia, turno_id = turnoId }));
         var creada = await mcp.Cliente.CallToolAsync(
             "crear_plantilla_semanal",
             new Dictionary<string, object?> { ["nombre"] = nombrePlantilla, ["dias"] = dias },
@@ -90,6 +90,11 @@ public class AplicarPlantillaSemanalPorGrupoSmokeTests(McpFixture mcp, Programac
         resultado.GetProperty("programados").EnumerateArray()
             .Should().AllSatisfy(p => p.GetProperty("dias").GetInt32().Should().Be(7));
         resultado.TryGetProperty("fallidos", out _).Should().BeFalse();
+
+        await mcp.Cliente.CallToolAsync(
+            "retirar_plantilla", new Dictionary<string, object?> { ["plantilla_id"] = plantillaId }, cancellationToken: ct);
+        await mcp.Cliente.CallToolAsync(
+            "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = turnoId }, cancellationToken: ct);
     }
 
     [Fact]
