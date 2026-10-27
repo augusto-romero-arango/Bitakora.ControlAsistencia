@@ -41,6 +41,7 @@ public class ComposicionDelServidorTests
                 "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
                 "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
                 "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
+                "buscar_plantillas", "listar_plantillas", "obtener_plantilla",
                 "crear_plantilla_semanal",
                 "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
@@ -68,6 +69,19 @@ public class ComposicionDelServidorTests
 
         directorio.Should().NotBeNull("host.json del servidor debe ser localizable desde el repo");
         return File.ReadAllText(Path.Combine(directorio!.FullName, relativo));
+    }
+
+    [Fact]
+    public void ToolsDePlantillasDeTurnos_DeclaranSusParametrosComoString_CuandoSeInspeccionanLasTools()
+    {
+        PropiedadesDe("obtener_plantilla").Should().BeEquivalentTo([("plantilla_id", true)]);
+        PropiedadesDe("listar_plantillas").Should().BeEquivalentTo([("cursor", false)]);
+        PropiedadesDe("buscar_plantillas").Should().BeEquivalentTo(
+            [("nombre", false), ("turno", false), ("dias_del_ciclo", false), ("estado", false)]);
+
+        foreach (var nombre in new[] { "obtener_plantilla", "listar_plantillas", "buscar_plantillas" })
+            foreach (var p in ParametrosDeTool(nombre))
+                p.ParameterType.Should().Be(typeof(string), $"{nombre}.{p.Name} viaja como texto (MEF-ADR-0047)");
     }
 
     [Fact]
@@ -186,6 +200,12 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": true"),
         ("buscar_plantillas_semanales",
             "Busca plantillas semanales del catalogo para saber a cual se refiere el usuario",
+            "\"readOnlyHint\": true"),
+        ("buscar_plantillas", "Busca plantillas de turnos del catalogo para saber a cual se refiere el usuario",
+            "\"readOnlyHint\": true"),
+        ("listar_plantillas", "Lista las plantillas de turnos del catalogo: nombre, dias del ciclo",
+            "\"readOnlyHint\": true"),
+        ("obtener_plantilla", "Devuelve el cuadro de una plantilla de turnos por su id",
             "\"readOnlyHint\": true"),
         ("listar_turnos", "Lista el catalogo de turnos disponibles para programar: id, nombre y horario de cada uno.",
             "\"readOnlyHint\": true"),
@@ -472,7 +492,7 @@ public class ComposicionDelServidorTests
             .Where(x => x.PropertyName is "turno" or "plantilla")
             .ToList();
 
-        propiedades.Should().BeEquivalentTo([("buscar_plantillas_semanales", "turno")]);
+        propiedades.Should().BeEquivalentTo([("buscar_plantillas_semanales", "turno"), ("buscar_plantillas", "turno")]);
     }
 
     [Fact]
