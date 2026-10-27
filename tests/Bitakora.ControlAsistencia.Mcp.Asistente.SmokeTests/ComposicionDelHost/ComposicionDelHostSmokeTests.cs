@@ -12,7 +12,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "buscar_turnos", "listar_turnos", "obtener_turno", "crear_turno", "retirar_turno", "agregar_franja",
         "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
         "buscar_plantillas_semanales", "listar_plantillas_semanales", "obtener_plantilla_semanal",
-        "crear_plantilla_semanal",
+        "crear_plantilla_semanal", "buscar_plantillas", "listar_plantillas", "obtener_plantilla",
         "retirar_plantilla_semanal", "asignar_turno_a_dia", "quitar_turno_de_dia",
         "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
         "consultar_malla_turnos", "consultar_dias_sin_programar",
@@ -54,6 +54,9 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["buscar_plantillas_semanales"] = [],
         ["listar_plantillas_semanales"] = [],
         ["obtener_plantilla_semanal"] = ["plantilla_id"],
+        ["buscar_plantillas"] = [],
+        ["listar_plantillas"] = [],
+        ["obtener_plantilla"] = ["plantilla_id"],
         ["crear_plantilla_semanal"] = ["nombre", "dias"],
         ["retirar_plantilla_semanal"] = ["plantilla_id"],
         ["asignar_turno_a_dia"] = ["plantilla_id", "turno_id", "dia"],
@@ -87,7 +90,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ServidorMcp_MaterializaLasCuarentaYDosTools_CuandoSeListanLasTools()
+    public async Task ServidorMcp_MaterializaLasToolsEsperadas_CuandoSeListanLasTools()
     {
         var ct = TestContext.Current.CancellationToken;
         var tools = await mcp.Cliente.ListToolsAsync(cancellationToken: ct);
