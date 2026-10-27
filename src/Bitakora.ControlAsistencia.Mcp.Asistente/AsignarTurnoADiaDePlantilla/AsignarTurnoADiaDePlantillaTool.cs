@@ -10,7 +10,7 @@ public partial class AsignarTurnoADiaDePlantillaTool(
     internal const string NombreTool = "asignar_turno_a_dia_de_plantilla";
 
     [Function("AsignarTurnoADiaDePlantilla")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Pone o reemplaza el turno de un dia de una plantilla de turnos: id de la plantilla "
@@ -27,5 +27,43 @@ public partial class AsignarTurnoADiaDePlantillaTool(
         [McpToolProperty("turno_id", "Id del turno, tal como lo da buscar_turnos.", isRequired: true)]
         string turnoId,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (!Guid.TryParse(plantillaId, out var idDePlantilla))
+            return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
+
+        if (!Guid.TryParse(turnoId, out var idDelTurno))
+            return string.Format(Mensajes.TurnoIdInvalido, turnoId);
+
+        if (dia is not { } diaValor)
+            return string.Format(Mensajes.CampoObligatorio, "dia");
+
+        if (diaValor < 1)
+            return string.Format(Mensajes.DiaInvalido, diaValor);
+
+        var resolucion = await resolutorPlantilla.ResolverAsync(idDePlantilla, ct);
+        if (resolucion.FalloDeLectura is { } falloLectura)
+            return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+        if (resolucion.Ficha is not { } plantilla)
+            return string.Format(Mensajes.PlantillaNoExiste, plantillaId);
+
+        var resolucionTurno = await resolutorTurno.ResolverAsync(idDelTurno, ct);
+        if (resolucionTurno.FalloDeLectura is { } falloTurno)
+            return string.Format(Mensajes.RechazoDelDominio, falloTurno);
+        if (resolucionTurno.Ficha is not { } turno)
+            return string.Format(Mensajes.TurnoNoExiste, turnoId);
+
+        var respuesta = await programacion.AsignarTurnoADiaDePlantillaTurnos(plantilla.Id, diaValor, turno.Id, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } motivo)
+            return string.Format(Mensajes.RechazoDelDominio, motivo);
+
+        return RespuestaJson.Serializar(new TurnoAsignadoADiaDePlantillaResumen(
+            Mensajes.ResultadoTurnoAsignado,
+            plantilla.Nombre,
+            diaValor,
+            turno.Nombre,
+            Mensajes.NotaVisibilidadEventual));
+    }
 }
+
+public sealed record TurnoAsignadoADiaDePlantillaResumen(
+    string Resultado, string Plantilla, int Dia, string Turno, string Nota);

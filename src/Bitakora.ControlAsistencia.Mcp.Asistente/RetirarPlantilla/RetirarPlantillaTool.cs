@@ -9,7 +9,7 @@ public partial class RetirarPlantillaTool(ProgramacionApi programacion, Resoluto
     internal const string NombreTool = "retirar_plantilla";
 
     [Function("RetirarPlantilla")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Retira una plantilla de turnos del catalogo por su id (ubicala con buscar_plantillas): "
@@ -21,5 +21,27 @@ public partial class RetirarPlantillaTool(ProgramacionApi programacion, Resoluto
             "plantilla_id", "Id de la plantilla de turnos, tal como lo da buscar_plantillas.", isRequired: true)]
         string plantillaId,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (!Guid.TryParse(plantillaId, out var idDePlantilla))
+            return string.Format(Mensajes.PlantillaIdInvalido, plantillaId);
+
+        var resolucion = await resolutor.ResolverAsync(idDePlantilla, ct);
+        if (resolucion.FalloDeLectura is { } falloLectura)
+            return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+        if (resolucion.Ficha is not { } plantilla)
+            return string.Format(Mensajes.PlantillaNoExiste, plantillaId);
+
+        var respuesta = await programacion.RetirarPlantillaTurnos(plantilla.Id, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } motivo)
+            return string.Format(Mensajes.RechazoDelDominio, motivo);
+
+        return RespuestaJson.Serializar(new PlantillaTurnosRetiradaResumen(
+            Mensajes.ResultadoPlantillaRetirada,
+            new PlantillaTurnosRetiradaEco(plantilla.Id, plantilla.Nombre),
+            Mensajes.NotaVisibilidadEventual));
+    }
 }
+
+public sealed record PlantillaTurnosRetiradaResumen(string Resultado, PlantillaTurnosRetiradaEco Plantilla, string Nota);
+
+public sealed record PlantillaTurnosRetiradaEco(string Id, string Nombre);
