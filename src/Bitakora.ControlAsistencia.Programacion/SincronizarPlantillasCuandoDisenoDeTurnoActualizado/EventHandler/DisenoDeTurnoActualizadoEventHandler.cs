@@ -1,6 +1,7 @@
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.SincronizarTurnoDePlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.SincronizarTurnoDePlantillaTurnosFunction;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -27,6 +28,11 @@ public class DisenoDeTurnoActualizadoEventHandler : IPrivateEventHandlerAsync<Di
 
         foreach (var plantillaId in plantillaIds)
             await _commandRouter.InvokeAsync(new SincronizarTurnoDePlantillaSemanal(
+                Guid.Parse(plantillaId), @event.TurnoId, turno, @event.Version, @event.Retirado), ct);
+
+        var plantillaTurnosIds = await _lectorPlantillasTurnos.ObtenerPlantillaIdsAsync(@event.TurnoId, ct);
+        foreach (var plantillaId in plantillaTurnosIds)
+            await _commandRouter.InvokeAsync(new SincronizarTurnoDePlantillaTurnos(
                 Guid.Parse(plantillaId), @event.TurnoId, turno, @event.Version, @event.Retirado), ct);
     }
 

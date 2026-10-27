@@ -18,7 +18,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Infraestructura;
 // forma explicita: la clase no expone superficie publica propia y ninguna de las dos vistas queda
 // arbitrariamente privilegiada como "la" del tipo concreto. Solo se resuelve por interfaz (DI).
 public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext tenantContext)
-    : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorLimitesJornada, ILectorPlantillasPorJornada, ILectorPlantillasPorTurno
+    : ILectorNombresTurno, ILectorNombresPlantillaSemanal, ILectorLimitesJornada, ILectorPlantillasPorJornada, ILectorPlantillasPorTurno, ILectorPlantillasTurnosPorTurno
 {
     async Task<IReadOnlyList<string>> ILectorNombresTurno.ObtenerNombresAsync(CancellationToken ct)
     {
@@ -48,6 +48,17 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
         await using var session = store.QuerySession(tenantContext.TenantId);
         var turno = turnoId.ToString();
         return await session.Query<CuadroSemanalTurnos>()
+            .Where(c => c.Dias.Any(d => d.TurnoId == turno))
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+    }
+
+    async Task<IReadOnlyList<string>> ILectorPlantillasTurnosPorTurno.ObtenerPlantillaIdsAsync(
+        Guid turnoId, CancellationToken ct)
+    {
+        await using var session = store.QuerySession(tenantContext.TenantId);
+        var turno = turnoId.ToString();
+        return await session.Query<CuadroDeTurnos>()
             .Where(c => c.Dias.Any(d => d.TurnoId == turno))
             .Select(c => c.Id)
             .ToListAsync(ct);

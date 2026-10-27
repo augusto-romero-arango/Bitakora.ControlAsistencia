@@ -62,6 +62,7 @@ public static class ConfiguracionSerializacionProgramacion
         AdvertenciaPlantillaTurnos.ConfigurarSerializacion(resolver);
         AdvertenciasDePlantillaDeTurnosCalculadas.ConfigurarSerializacion(resolver);
         TurnoDePlantillaSemanalSincronizado.ConfigurarSerializacion(resolver);
+        TurnoDePlantillaDeTurnosSincronizado.ConfigurarSerializacion(resolver);
         LimitesDeJornadaDePlantillaSemanalSincronizados.ConfigurarSerializacion(resolver);
     }
 }

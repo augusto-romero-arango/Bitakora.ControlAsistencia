@@ -18,7 +18,7 @@ public static class AuditoriaPlantillaTurnos
         return Enumerable.Range(1, diasDelCiclo)
             .SelectMany(dia => AuditarDia(
                 dia,
-                ocupados.TryGetValue(dia, out var d) && d.Turno.EstaCompleto() ? d.Turno : null,
+                ocupados.TryGetValue(dia, out var d) && !d.Retirado && d.Turno.EstaCompleto() ? d.Turno : null,
                 limites))
             .Order()
             .ToList()

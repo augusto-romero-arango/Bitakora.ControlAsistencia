@@ -31,8 +31,26 @@ public sealed partial class CuadroDeTurnosProjection
         };
     }
 
-    public static CuadroDeTurnos Apply(TurnoDePlantillaDeTurnosSincronizado e, CuadroDeTurnos vista) =>
-        throw new NotImplementedException();
+    public static CuadroDeTurnos Apply(TurnoDePlantillaDeTurnosSincronizado e, CuadroDeTurnos vista)
+    {
+        var turnoId = e.TurnoId.ToString();
+        var dias = vista.Dias
+            .Select(d => d.TurnoId != turnoId
+                ? d
+                : d with
+                {
+                    Nombre = e.Turno.Nombre,
+                    Descripcion = e.Turno.ToString(),
+                    Completo = e.Turno.EstaCompleto(),
+                    Retirado = e.Retirado
+                })
+            .ToList();
+        return vista with
+        {
+            Dias = dias,
+            Completa = dias.Count == vista.DiasDelCiclo && dias.All(d => d.Completo && !d.Retirado)
+        };
+    }
 
     public static CuadroDeTurnos Apply(JornadaDePlantillaDeTurnosAsignada e, CuadroDeTurnos vista) =>
         vista with { JornadaId = e.JornadaId, Limites = ALimites(e.Limites) };
