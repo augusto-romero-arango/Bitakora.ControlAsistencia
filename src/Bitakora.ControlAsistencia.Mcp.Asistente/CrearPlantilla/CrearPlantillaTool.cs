@@ -1,9 +1,16 @@
+using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.CrearPlantilla;
 
+// Cliente HTTP puro: CrearPlantillaTurnos (POST programacion/plantillas-turnos) + un
+// AsignarTurnoADiaDePlantillaTurnos por entrada (PUT .../dias/{dia}), secuenciales porque tocan el
+// mismo stream. Valida todo y resuelve turnos (por id y franja en linea) antes de escribir la
+// plantilla; el rechazo de un dia no detiene al resto (CA-ADR-0030).
 public partial class CrearPlantillaTool(
     ProgramacionApi programacion, ResolutorTurnoPorId resolutorPorId, ResolutorTurnoPorNombre resolutor)
 {
@@ -11,8 +18,10 @@ public partial class CrearPlantillaTool(
     internal const int MinimoDiasDelCiclo = 1;
     internal const int MaximoDiasDelCiclo = 42;
 
+    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
+
     [Function("CrearPlantilla")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Crea una plantilla de turnos: un ciclo de N dias (1 a 42) que se repite, donde cada dia "
@@ -45,7 +54,183 @@ public partial class CrearPlantillaTool(
         string? jornadaId,
         CancellationToken ct)
     {
-        _ = (programacion, resolutorPorId, resolutor);
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(nombre))
+            return string.Format(Mensajes.CampoObligatorio, "nombre");
+
+        if (diasDelCiclo is not { } ciclo)
+            return string.Format(Mensajes.CampoObligatorio, "dias_del_ciclo");
+        if (ciclo < MinimoDiasDelCiclo || ciclo > MaximoDiasDelCiclo)
+            return string.Format(Mensajes.DiasDelCicloFueraDeRango, ciclo);
+
+        if (string.IsNullOrWhiteSpace(dias))
+            return string.Format(Mensajes.CampoObligatorio, "dias");
+
+        List<DiaDeCicloEntrada>? entradas;
+        try
+        {
+            entradas = JsonSerializer.Deserialize<List<DiaDeCicloEntrada>>(dias, OpcionesLectura);
+        }
+        catch (JsonException)
+        {
+            return Mensajes.DiasJsonInvalido;
+        }
+
+        if (entradas is null || entradas.Count == 0)
+            return Mensajes.DiasVacio;
+
+        var vistos = new HashSet<int>();
+        var validadas = new List<EntradaValidada>();
+
+        foreach (var entrada in entradas)
+        {
+            // Una entrada sin la clave "dia" (Undefined) cae en string.Empty: GetRawText() sobre un
+            // JsonElement sin inicializar lanza, y una tool nunca responde con excepcion (CA-ADR-0030).
+            var textoDia = entrada.Dia.ValueKind switch
+            {
+                JsonValueKind.String => entrada.Dia.GetString() ?? string.Empty,
+                JsonValueKind.Number => entrada.Dia.GetRawText(),
+                _ => string.Empty
+            };
+
+            if (!int.TryParse(textoDia, out var dia))
+                return string.Format(Mensajes.DiaInvalido, textoDia);
+            if (dia < MinimoDiasDelCiclo || dia > ciclo)
+                return string.Format(Mensajes.DiaFueraDeRango, dia, ciclo);
+            if (!vistos.Add(dia))
+                return string.Format(Mensajes.DiaDuplicado, dia);
+
+            if (!string.IsNullOrWhiteSpace(entrada.Turno))
+                return string.Format(Mensajes.TurnoPorNombreNoSoportado, dia);
+
+            var traeTurno = !string.IsNullOrWhiteSpace(entrada.TurnoId);
+            var traeFranja = !string.IsNullOrWhiteSpace(entrada.Franja);
+
+            if (traeTurno && traeFranja)
+                return string.Format(Mensajes.TurnoYFranjaExcluyentes, dia);
+            if (!traeTurno && !traeFranja)
+                return string.Format(Mensajes.TurnoOFranjaObligatorio, dia);
+
+            if (traeTurno)
+            {
+                if (!Guid.TryParse(entrada.TurnoId, out var turnoGuid))
+                    return string.Format(Mensajes.TurnoIdInvalido, entrada.TurnoId);
+                validadas.Add(new EntradaValidada(dia, turnoGuid.ToString(), null));
+                continue;
+            }
+
+            if (!FranjaInline.TryParsear(entrada.Franja!, out var inline))
+                return string.Format(Mensajes.FranjaInvalida, dia, entrada.Franja);
+
+            validadas.Add(new EntradaValidada(dia, inline.Nombre, inline));
+        }
+
+        Guid? jornadaGuid = null;
+        JornadaDescritaResumen? jornadaResumen = null;
+        if (!string.IsNullOrWhiteSpace(jornadaId))
+        {
+            if (!Guid.TryParse(jornadaId, out var parseado))
+                return string.Format(Mensajes.JornadaIdInvalido, jornadaId);
+
+            var respuestaJornada = await programacion.ObtenerJornada(parseado, ct);
+            if (respuestaJornada.StatusCode == HttpStatusCode.NotFound)
+                return Mensajes.JornadaNoExiste;
+            if (await respuestaJornada.LeerFalloAsync(ct) is { } falloJornada)
+                return string.Format(Mensajes.RechazoDelDominio, falloJornada);
+
+            jornadaGuid = parseado;
+            jornadaResumen = (await respuestaJornada.LeerDescritaAsync(ct)).Resumir();
+        }
+
+        var turnoIdPorReferencia = new Dictionary<string, string>();
+        var nombreDeTurnoPorId = new Dictionary<string, string>();
+        var inexistentes = new List<string>();
+        foreach (var idTurno in validadas.Where(v => v.Inline is null).Select(v => v.Referencia).Distinct())
+        {
+            var resolucionTurno = await resolutorPorId.ResolverAsync(Guid.Parse(idTurno), ct);
+            if (resolucionTurno.FalloDeLectura is { } falloLectura)
+                return string.Format(Mensajes.RechazoDelDominio, falloLectura);
+            if (resolucionTurno.Ficha is { } fichaTurno)
+            {
+                turnoIdPorReferencia[idTurno] = fichaTurno.Id;
+                nombreDeTurnoPorId[idTurno] = fichaTurno.Nombre;
+            }
+            else
+                inexistentes.Add(idTurno);
+        }
+
+        if (inexistentes.Count > 0)
+            return string.Format(Mensajes.TurnosNoExisten, string.Join(", ", inexistentes));
+
+        var preparados = await new PreparadorDeTurnosEnLinea(programacion, resolutor).PrepararAsync(
+            [.. validadas.Where(v => v.Inline is not null).Select(v => v.Inline!)],
+            new MensajesDeTurnoEnLinea(
+                Mensajes.RechazoDelDominio, Mensajes.TurnoInlineEnConflicto, Mensajes.TurnoInlineNombreDuplicado,
+                Mensajes.FalloTurnoInline, Mensajes.NingunTurnoInlineCreado),
+            ct);
+        if (preparados.Rechazo is { } rechazoInline)
+            return rechazoInline;
+
+        foreach (var (nombreInline, idInline) in preparados.TurnoIdPorNombre)
+            turnoIdPorReferencia[nombreInline] = idInline;
+
+        var plantillaId = Guid.CreateVersion7();
+        var respuestaPost = await programacion.CrearPlantillaTurnos(plantillaId, nombre, ciclo, jornadaGuid, ct);
+        if (await respuestaPost.LeerFalloAsync(ct) is { } falloPost)
+            return string.Format(Mensajes.RechazoDelDominio, falloPost);
+
+        var diasAsignados = 0;
+        var diasRechazados = new List<DiaDeCicloRechazado>();
+
+        foreach (var validada in validadas)
+        {
+            var turnoId = turnoIdPorReferencia[validada.Referencia];
+            var respuestaPut = await programacion.AsignarTurnoADiaDePlantillaTurnos(
+                plantillaId.ToString(), validada.Dia, turnoId, ct);
+
+            if (await respuestaPut.LeerFalloAsync(ct) is { } motivo)
+                diasRechazados.Add(new DiaDeCicloRechazado(
+                    validada.Dia,
+                    nombreDeTurnoPorId.GetValueOrDefault(validada.Referencia, validada.Referencia),
+                    motivo));
+            else
+                diasAsignados++;
+        }
+
+        return RespuestaJson.Serializar(new PlantillaTurnosCreadaResumen(
+            Mensajes.ResultadoPlantillaCreada,
+            new PlantillaTurnosResumen(plantillaId.ToString(), nombre, ciclo),
+            diasAsignados,
+            diasRechazados.Count > 0 ? diasRechazados : null,
+            diasAsignados == ciclo,
+            Mensajes.NotaVisibilidadEventual,
+            preparados.Resumen.Count > 0 ? preparados.Resumen : null,
+            jornadaResumen));
     }
+
+    // Referencia: el turno_id canonico, o el nombre derivado de la franja si el dia es inline.
+    private sealed record EntradaValidada(int Dia, string Referencia, FranjaInline? Inline);
 }
+
+/// <summary>
+/// Eco de crear_plantilla hacia el asistente: el 201 del POST y el 204 de cada PUT no traen body
+/// util, asi que la plantilla se reconstruye con lo que entro a la tool. Completa = N dias asignados.
+/// </summary>
+public sealed record PlantillaTurnosCreadaResumen(
+    string Resultado,
+    PlantillaTurnosResumen Plantilla,
+    int DiasAsignados,
+    IReadOnlyList<DiaDeCicloRechazado>? DiasRechazados,
+    bool Completa,
+    string Nota,
+    IReadOnlyList<TurnoInlineResumen>? TurnosInline = null,
+    JornadaDescritaResumen? Jornada = null);
+
+public sealed record PlantillaTurnosResumen(string Id, string Nombre, int DiasDelCiclo);
+
+/// <summary>Un dia que el dominio rechazo al asignarle turno (409 turno incompleto/retirado, etc.).</summary>
+public sealed record DiaDeCicloRechazado(int Dia, string Turno, string Motivo);
+
+/// <summary>Una entrada del JSON de dias; Dia queda como JsonElement para tolerar 2 o "2" sin lanzar.</summary>
+public sealed record DiaDeCicloEntrada(
+    JsonElement Dia, string? Turno, string? Franja = null,
+    [property: JsonPropertyName("turno_id")] string? TurnoId = null);
