@@ -9,7 +9,6 @@ public class AsignarTurnoADiaSmokeTests(McpFixture mcp)
     private static string TextoDe(CallToolResult resultado) =>
         resultado.Content.OfType<TextContentBlock>().Single().Text;
 
-    // CA-2/CA-4: plantilla inexistente -> PlantillaNoExiste con el id, sin PUT.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarTurnoADia_RespondePlantillaNoExiste_CuandoLaPlantillaNoExiste()

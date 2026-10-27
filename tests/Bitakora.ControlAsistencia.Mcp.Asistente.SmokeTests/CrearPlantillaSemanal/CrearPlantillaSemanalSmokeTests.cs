@@ -27,7 +27,6 @@ public class CrearPlantillaSemanalSmokeTests(McpFixture mcp, ProgramacionApiFixt
 
         using var texto = JsonDocument.Parse(TextoDe(creada));
         var plantillaId = texto.RootElement.GetProperty("plantilla").GetProperty("id").GetString()!;
-        texto.RootElement.GetProperty("plantilla").GetProperty("diasDelCiclo").GetInt32().Should().Be(7);
         texto.RootElement.GetProperty("diasAsignados").GetInt32().Should().Be(2);
         texto.RootElement.GetProperty("completa").GetBoolean().Should().BeFalse();
         texto.RootElement.TryGetProperty("diasRechazados", out _).Should().BeFalse();

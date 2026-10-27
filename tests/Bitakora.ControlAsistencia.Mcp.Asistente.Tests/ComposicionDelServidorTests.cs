@@ -232,7 +232,7 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": true"),
         ("obtener_plantilla_semanal", "Devuelve el cuadro de una plantilla semanal por su id",
             "\"readOnlyHint\": true"),
-        ("crear_plantilla_semanal", "Crea una plantilla semanal de turnos: un molde de 1 a 6 semanas",
+        ("crear_plantilla_semanal", "Crea una plantilla semanal de turnos: un ciclo de 7 dias, de lunes a domingo",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("crear_plantilla", "Crea una plantilla de turnos: un ciclo de N dias (1 a 42)",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
@@ -522,7 +522,7 @@ public class ComposicionDelServidorTests
                 .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "plantilla_id");
             parametro.ParameterType.Should().Be(typeof(string), $"{nombre}.plantilla_id viaja como texto (MEF-ADR-0047)");
             parametro.GetCustomAttribute<McpToolPropertyAttribute>()!.Description
-                .Should().Contain("buscar_plantillas_semanales");
+                .Should().Contain("buscar_plantillas").And.NotContain("buscar_plantillas_semanales");
         }
     }
 

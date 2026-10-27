@@ -123,7 +123,7 @@ public class RemisionABusquedasTests
     {
         Descripcion("crear_turno").Should().Contain("Aparece en listar_turnos en unos segundos");
         Regex.Replace(Descripcion("crear_plantilla_semanal"), @"\s+", " ")
-            .Should().Contain("Aparece en listar_plantillas_semanales en unos segundos");
+            .Should().Contain("Aparece en listar_plantillas en unos segundos");
         Descripcion("registrar_sede").Should().Contain("aparece en listar_sedes en unos segundos");
     }
 
