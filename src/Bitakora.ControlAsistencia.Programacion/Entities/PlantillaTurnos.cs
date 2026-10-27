@@ -19,8 +19,7 @@ public partial class PlantillaTurnos : AggregateRoot
     public void Apply(DiaDePlantillaDeTurnosAsignado evento) =>
         _dias[evento.Dia] = new DiaAsignado(evento.TurnoId, evento.Turno, evento.VersionTurno);
 
-    // Precedencia: dia fuera del ciclo > sin cambios > asignado. Una copia atrasada es la
-    // autocorreccion y emite el evento.
+    // Mismo turno con copia atrasada no es no-op: reasignar autocorrige la copia (CA-ADR-0034, enmienda #886).
     internal ResultadoAsignarDiaDePlantillaTurnos AsignarDia(int dia, Guid turnoId, Turno copia, long versionTurno)
     {
         if (dia > _diasDelCiclo)
