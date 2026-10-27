@@ -123,6 +123,10 @@ public static class ComposicionServicios
             // 500 permanente en el primer request real.
             options.Schema.For<CuadroSemanalTurnos>().UseNumericRevisions(true);
 
+            // Issue #1286: par 2 para CuadroDeTurnos, mismo motivo; se declara ya con la vista para
+            // que el consumidor GET de #1294 no pueda olvidarlo.
+            options.Schema.For<CuadroDeTurnos>().UseNumericRevisions(true);
+
             // Issue #755: par 2 para AusenciaVigente (ListarAusenciasDelEquipo), mismo motivo.
             options.Schema.For<AusenciaVigente>().UseNumericRevisions(true);
 

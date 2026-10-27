@@ -117,6 +117,7 @@ public static class ConfiguracionMartenProjectionsProgramacion
                 // y de ComposicionServiciosTests (Function App) verifican esa declaracion.
                 opts.Projections.Add<FichaTurnoProjection>(ProjectionLifecycle.Async);
                 opts.Projections.Add<CuadroSemanalTurnosProjection>(ProjectionLifecycle.Async);
+                opts.Projections.Add<CuadroDeTurnosProjection>(ProjectionLifecycle.Async);
                 opts.Projections.Add<AusenciaVigenteProjection>(ProjectionLifecycle.Async);
                 opts.Projections.Add<LimitesDeJornadaProjection>(ProjectionLifecycle.Async);
             })
