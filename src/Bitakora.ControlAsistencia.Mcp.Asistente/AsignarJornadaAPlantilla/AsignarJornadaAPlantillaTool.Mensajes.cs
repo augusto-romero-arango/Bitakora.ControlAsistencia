@@ -30,6 +30,5 @@ public partial class AsignarJornadaAPlantillaTool
 
         public static string NotaAdvertenciasEventuales =>
             ResourceManager.GetString(nameof(NotaAdvertenciasEventuales))!;
-
     }
 }

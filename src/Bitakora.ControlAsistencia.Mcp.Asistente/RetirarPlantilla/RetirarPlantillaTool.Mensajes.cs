@@ -24,6 +24,5 @@ public partial class RetirarPlantillaTool
 
         public static string NotaVisibilidadEventual =>
             ResourceManager.GetString(nameof(NotaVisibilidadEventual))!;
-
     }
 }

@@ -36,6 +36,5 @@ public partial class AsignarTurnoADiaDePlantillaTool
 
         public static string NotaVisibilidadEventual =>
             ResourceManager.GetString(nameof(NotaVisibilidadEventual))!;
-
     }
 }
