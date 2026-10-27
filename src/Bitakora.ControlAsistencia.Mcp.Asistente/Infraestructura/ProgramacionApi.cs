@@ -86,6 +86,13 @@ public sealed class ProgramacionApi(HttpClient http)
         CancellationToken ct, int? take = null, string? cursor = null) =>
         http.GetAsync(ConsultaDeLista("api/programacion/plantillas-semanales", take, cursor), ct);
 
+    public Task<HttpResponseMessage> ListarPlantillasTurnos(
+        CancellationToken ct, int? take = null, string? cursor = null) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> ObtenerPlantillaTurnos(string id, CancellationToken ct) =>
+        throw new NotImplementedException();
+
     public Task<HttpResponseMessage> ObtenerPlantillaSemanal(string id, CancellationToken ct) =>
         http.GetAsync($"api/programacion/plantillas-semanales/{Uri.EscapeDataString(id)}", ct);
 

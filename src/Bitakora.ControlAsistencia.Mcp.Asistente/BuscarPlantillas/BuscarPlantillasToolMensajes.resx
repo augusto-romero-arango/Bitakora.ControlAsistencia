@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="FaltaCriterio" xml:space="preserve"><value>Indica al menos un criterio: nombre, turno, dias_del_ciclo (1 a 42) o estado (incompleta o con_advertencias).</value></data>
+  <data name="DiasInvalidos" xml:space="preserve"><value>Los dias del ciclo '{0}' no son validos; usa un numero entero de 1 a 42.</value></data>
+  <data name="EstadoDesconocido" xml:space="preserve"><value>El estado '{0}' no es valido; usa incompleta o con_advertencias.</value></data>
+  <data name="SinCoincidencias" xml:space="preserve"><value>No hay plantillas de turnos que coincidan con: {0}.</value></data>
+  <data name="NotaTruncado" xml:space="preserve"><value>Hay mas coincidencias; acota el criterio o pregunta al usuario.</value></data>
+  <data name="CoincidePorNombre" xml:space="preserve"><value>nombre: {0}</value></data>
+  <data name="CoincidePorTurno" xml:space="preserve"><value>turno: {0} (dia {1})</value></data>
+  <data name="CoincidePorDias" xml:space="preserve"><value>{0} dias del ciclo</value></data>
+  <data name="CoincidePorIncompleta" xml:space="preserve"><value>incompleta</value></data>
+  <data name="CoincidePorConAdvertencias" xml:space="preserve"><value>con advertencias</value></data>
+  <data name="PalabraAproximada" xml:space="preserve"><value>{0} (~{1})</value></data>
+  <data name="CriterioNombre" xml:space="preserve"><value>nombre '{0}'</value></data>
+  <data name="CriterioTurno" xml:space="preserve"><value>turno '{0}'</value></data>
+  <data name="CriterioDias" xml:space="preserve"><value>{0} dias del ciclo</value></data>
+  <data name="CriterioEstado" xml:space="preserve"><value>estado {0}</value></data>
+</root>
