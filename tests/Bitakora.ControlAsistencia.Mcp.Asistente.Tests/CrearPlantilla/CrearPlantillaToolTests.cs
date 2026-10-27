@@ -402,6 +402,20 @@ public class CrearPlantillaToolTests
     }
 
     [Fact]
+    public async Task CrearPlantilla_CompletaElTurnoSinCrearlo_CuandoElHomonimoNoTieneFranjas()
+    {
+        var fakes = CrearTool(CatalogoCon("07:00-17:00", ""));
+
+        var resultado = await Ejecutar(fakes, """[{"dia":1,"franja":"07:00-17:00"}]""");
+
+        fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post && r.Ruta == RutaTurnos);
+        fakes.Handler.Requests.Should().ContainSingle(r => r.Ruta == $"{RutaTurnos}/{IdHomonimo}:agregar-franja");
+        var put = fakes.Handler.Requests.Single(r => r.Metodo == HttpMethod.Put);
+        JsonNode.Parse(put.Cuerpo!)!["turnoId"]!.GetValue<string>().Should().Be(IdHomonimo);
+        JsonNode.Parse(resultado)!["turnosInline"]!.AsArray().Single()!["accion"]!.GetValue<string>().Should().Be("completo");
+    }
+
+    [Fact]
     public async Task CrearPlantilla_AbortaSinEscribir_CuandoElHomonimoTieneOtraFranja()
     {
         var fakes = CrearTool(CatalogoCon("07:00-17:00", FranjaJson("08:00", "18:00", 0)));
