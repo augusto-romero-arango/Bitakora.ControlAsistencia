@@ -48,7 +48,8 @@ public class ComposicionDelServidorTests
                 "consultar_malla_turnos", "consultar_dias_sin_programar",
                 "solicitar_programacion_turno",
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
-                "aplicar_plantilla_semanal_por_grupo", "programar_ausencia", "cancelar_ausencia",
+                "aplicar_plantilla_semanal_por_grupo", "aplicar_plantilla", "aplicar_plantilla_por_grupo",
+                "programar_ausencia", "cancelar_ausencia",
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
                 "asignar_jornada_a_plantilla_semanal", "quitar_jornada_de_plantilla_semanal",
                 "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
@@ -263,6 +264,11 @@ public class ComposicionDelServidorTests
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("aplicar_plantilla_semanal_por_grupo",
             "Aplica una plantilla semanal de turnos a todos los colaboradores de un grupo",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("aplicar_plantilla", "Aplica una plantilla de turnos a una lista de colaboradores",
+            "\"readOnlyHint\": false, \"destructiveHint\": false"),
+        ("aplicar_plantilla_por_grupo",
+            "Aplica una plantilla de turnos a todos los colaboradores de un grupo",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
         ("programar_ausencia", "Registra una ausencia de un colaborador: dias completos en que no vendra a trabajar",
             "\"readOnlyHint\": false, \"destructiveHint\": false"),
@@ -671,6 +677,45 @@ public class ComposicionDelServidorTests
     [Fact]
     public void AplicarPlantillaSemanalPorGrupo_DescribeLaSedeDeProgramacionComoOpcionalYSugerida_CuandoSeInspeccionanLasDescripciones() =>
         AsegurarSedeDeProgramacionOpcional("aplicar_plantilla_semanal_por_grupo");
+
+    [Fact]
+    public void AplicarPlantilla_DeclaraFechaInicioVentanaPlantillaEIdentificacionesObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("aplicar_plantilla").Should().BeEquivalentTo(
+            [("plantilla_id", true), ("fecha_inicio", true), ("desde", true), ("hasta", true),
+             ("sede_de_programacion", false), ("identificaciones", true)]);
+
+    [Fact]
+    public void AplicarPlantillaPorGrupo_DeclaraFechaInicioVentanaYPlantillaObligatoriosYLosDemasOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("aplicar_plantilla_por_grupo").Should().BeEquivalentTo(
+            [("plantilla_id", true), ("fecha_inicio", true), ("desde", true), ("hasta", true),
+             ("sede_de_programacion", false), ("sede", false), ("etiquetas", false)]);
+
+    [Fact]
+    public void ToolsDeAplicarPlantillaDeTurnos_DeclaranPlantillaIdYFechasComoString_CuandoSeInspeccionanLasTools()
+    {
+        foreach (var nombre in new[] { "aplicar_plantilla", "aplicar_plantilla_por_grupo" })
+        {
+            foreach (var propiedad in new[] { "plantilla_id", "fecha_inicio", "desde", "hasta" })
+                ParametrosDeTool(nombre)
+                    .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == propiedad)
+                    .ParameterType.Should().Be(typeof(string), $"{nombre}.{propiedad} viaja como texto (MEF-ADR-0047)");
+            ParametrosDeTool(nombre)
+                .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "plantilla_id")
+                .GetCustomAttribute<McpToolPropertyAttribute>()!.Description.Should().Contain("buscar_plantillas");
+        }
+    }
+
+    [Fact]
+    public void AplicarPlantillaPorGrupo_RemiteALaToolDePersonas_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("aplicar_plantilla_por_grupo"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("aplicar_plantilla");
+
+    [Fact]
+    public void AplicarPlantilla_PideAlAsistentePreguntarLaFechaDeInicio_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("aplicar_plantilla"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("fecha_inicio").And.Contain("buscar_plantillas");
 
     [Fact]
     public void HostJson_MencionaLaToolDePlantillaPorGrupo_CuandoSeLeenLasInstructions() =>

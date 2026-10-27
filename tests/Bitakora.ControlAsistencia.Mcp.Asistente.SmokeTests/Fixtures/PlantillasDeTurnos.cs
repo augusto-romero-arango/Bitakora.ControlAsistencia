@@ -16,4 +16,12 @@ public static class PlantillasDeTurnos
         respuesta.EnsureSuccessStatusCode();
         return plantillaId;
     }
+
+    public static async Task AsignarTurnoADiaAsync(
+        this HttpClient programacion, Guid plantillaId, int dia, Guid turnoId, CancellationToken ct)
+    {
+        var respuesta = await programacion.PutAsJsonAsync(
+            $"/api/programacion/plantillas-turnos/{plantillaId}/dias/{dia}", new { turnoId }, ct);
+        respuesta.EnsureSuccessStatusCode();
+    }
 }
