@@ -12,5 +12,11 @@ public partial class CrearPlantillaTurnosCommandHandler
     {
         public static string PlantillaYaExiste =>
             ResourceManager.GetString(nameof(PlantillaYaExiste))!;
+
+        public static string JornadaNoEncontrada =>
+            ResourceManager.GetString(nameof(JornadaNoEncontrada))!;
+
+        public static string JornadaDesactivada =>
+            ResourceManager.GetString(nameof(JornadaDesactivada))!;
     }
 }

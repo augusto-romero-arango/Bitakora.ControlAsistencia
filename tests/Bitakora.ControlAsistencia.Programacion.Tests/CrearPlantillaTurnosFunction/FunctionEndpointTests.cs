@@ -68,6 +68,32 @@ public class FunctionEndpointTests
     }
 
     [Fact]
+    public async Task CrearPlantillaTurnos_Retorna404_CuandoLaJornadaNoExiste()
+    {
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator(ComandoValido()),
+            new FakeCommandRouter(excepcion: new RecursoNoEncontradoException(
+                CrearPlantillaTurnosCommandHandler.Mensajes.JornadaNoEncontrada)));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task CrearPlantillaTurnos_Retorna409_CuandoLaJornadaEstaDesactivada()
+    {
+        var function = new FunctionEndpoint(
+            new FakeRequestValidator(ComandoValido()),
+            new FakeCommandRouter(excepcion: new ReglaDeNegocioDeclinadaException(
+                CrearPlantillaTurnosCommandHandler.Mensajes.JornadaDesactivada)));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Fact]
     public async Task CrearPlantillaTurnos_Retorna400_CuandoRequestEsInvalido()
     {
         var function = new FunctionEndpoint(

@@ -146,4 +146,23 @@ public class PlantillaTurnosJornadaTests
         plantilla.UncommittedEvents.OfType<JornadaDePlantillaDeTurnosQuitada>().Should().BeEmpty();
         plantilla.JornadaId.Should().Be(JornadaA);
     }
+
+    [Fact]
+    public void IniciarConJornada_EmiteCreadaAsignadaYUnaSolaAuditoriaEnEseOrden_CuandoNaceConJornada()
+    {
+        var creada = PlantillaDeTurnosCreada.Crear(PlantillaId, "Ciclo Cocina", 8);
+
+        var plantilla = PlantillaTurnos.IniciarConJornada(creada, JornadaA, Limites(42, 8), 3);
+
+        plantilla.UncommittedEvents.Should().HaveCount(3);
+        plantilla.UncommittedEvents[0].Should().Be(creada);
+        plantilla.UncommittedEvents[1].Should().Be(
+            JornadaDePlantillaDeTurnosAsignada.Crear(PlantillaId, JornadaA, Limites(42, 8), 3));
+        var auditoria = plantilla.UncommittedEvents[2].Should()
+            .BeOfType<AdvertenciasDePlantillaDeTurnosCalculadas>().Subject;
+        auditoria.Advertencias.Should().Equal(
+            Enumerable.Range(1, 8).Select(AdvertenciaPlantillaTurnos.DiaSinTurno));
+        plantilla.JornadaId.Should().Be(JornadaA);
+        plantilla.VersionJornada.Should().Be(3);
+    }
 }
