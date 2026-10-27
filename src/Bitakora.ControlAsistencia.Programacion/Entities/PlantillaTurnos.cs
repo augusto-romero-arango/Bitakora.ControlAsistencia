@@ -88,12 +88,14 @@ public partial class PlantillaTurnos : AggregateRoot
 
     internal bool DiaEstaRetirado(int dia) => _dias.TryGetValue(dia, out var d) && d.Retirado;
 
+    private bool UsaElTurno(Guid turnoId) => _dias.Values.Any(d => d.TurnoId == turnoId);
+
     internal ResultadoSincronizarTurno SincronizarTurno(Guid turnoId, Turno copia, long version, bool retirado)
     {
         if (!_estaActiva)
             return ResultadoSincronizarTurno.PlantillaRetirada;
 
-        if (_dias.Values.All(d => d.TurnoId != turnoId) || VersionDelTurno(turnoId) >= version)
+        if (!UsaElTurno(turnoId) || VersionDelTurno(turnoId) >= version)
             return ResultadoSincronizarTurno.SinCambios;
 
         var evento = TurnoDePlantillaDeTurnosSincronizado.Crear(Guid.Parse(Id), turnoId, copia, version, retirado);

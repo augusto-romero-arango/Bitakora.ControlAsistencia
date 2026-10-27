@@ -24,11 +24,7 @@ public sealed partial class CuadroDeTurnosProjection
             .Append(dia)
             .OrderBy(d => d.Dia)
             .ToList();
-        return vista with
-        {
-            Dias = dias,
-            Completa = dias.Count == vista.DiasDelCiclo && dias.All(d => d.Completo && !d.Retirado)
-        };
+        return vista with { Dias = dias, Completa = EstaCompleta(dias, vista.DiasDelCiclo) };
     }
 
     public static CuadroDeTurnos Apply(TurnoDePlantillaDeTurnosSincronizado e, CuadroDeTurnos vista)
@@ -45,11 +41,7 @@ public sealed partial class CuadroDeTurnosProjection
                     Retirado = e.Retirado
                 })
             .ToList();
-        return vista with
-        {
-            Dias = dias,
-            Completa = dias.Count == vista.DiasDelCiclo && dias.All(d => d.Completo && !d.Retirado)
-        };
+        return vista with { Dias = dias, Completa = EstaCompleta(dias, vista.DiasDelCiclo) };
     }
 
     public static CuadroDeTurnos Apply(JornadaDePlantillaDeTurnosAsignada e, CuadroDeTurnos vista) =>
@@ -67,6 +59,9 @@ public sealed partial class CuadroDeTurnosProjection
         };
 
     public static bool ShouldDelete(PlantillaDeTurnosRetirada e) => true;
+
+    private static bool EstaCompleta(IReadOnlyCollection<DiaDelCuadroDeTurnos> dias, int diasDelCiclo) =>
+        dias.Count == diasDelCiclo && dias.All(d => d.Completo && !d.Retirado);
 
     private static LimitesDelCuadro ALimites(LimitesJornada l) => new(
         EnMinutos(l.HorasSemanales), EnMinutos(l.TopeDiario), EnMinutos(l.MinimoDiario),

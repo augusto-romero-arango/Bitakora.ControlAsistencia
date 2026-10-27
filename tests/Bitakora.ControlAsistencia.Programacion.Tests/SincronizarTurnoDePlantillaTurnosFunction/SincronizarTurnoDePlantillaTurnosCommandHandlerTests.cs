@@ -20,21 +20,18 @@ public class SincronizarTurnoDePlantillaTurnosCommandHandlerTests
     protected override ICommandHandlerAsync<SincronizarTurnoDePlantillaTurnos> Handler =>
         new SincronizarTurnoDePlantillaTurnosCommandHandler(EventStore);
 
-    // 480 minutos ordinarios
     private static readonly Turno TurnoDeOchoHoras = Turno.Crear("Turno Manana", false,
         [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(14, 0))]);
 
-    // 600 minutos ordinarios
     private static readonly Turno TurnoDeDiezHoras = Turno.Crear("Turno Manana", false,
         [FranjaOrdinaria.Crear(new TimeOnly(6, 0), new TimeOnly(16, 0))]);
 
     private static readonly Turno TurnoOtro = Turno.Crear("Turno Tarde", false,
         [FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0))]);
 
-    // Tope diario 8 h, minimo 0.
     private static LimitesJornada Limites() =>
-        LimitesJornada.Crear(HorasYMinutos.Crear(40, 0), HorasYMinutos.Crear(8, 0),
-            HorasYMinutos.Crear(0, 0), 1);
+        LimitesJornada.Crear(HorasYMinutos.Crear(40, 0), topeDiario: HorasYMinutos.Crear(8, 0),
+            minimoDiario: HorasYMinutos.Crear(0, 0), 1);
 
     private PlantillaDeTurnosCreada PlantillaCreada() =>
         PlantillaDeTurnosCreada.Crear(GuidAggregateId, "Ciclo Cocina", DiasDelCiclo);
