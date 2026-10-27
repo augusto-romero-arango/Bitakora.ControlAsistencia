@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -11,6 +12,14 @@ public partial class QuitarJornadaDePlantillaTurnosCommandHandler
     public QuitarJornadaDePlantillaTurnosCommandHandler(IEventStore eventStore) =>
         _eventStore = eventStore;
 
-    public Task HandleAsync(QuitarJornadaDePlantillaTurnos command, CancellationToken ct = default) =>
-        throw new NotImplementedException();
+    public async Task HandleAsync(QuitarJornadaDePlantillaTurnos command, CancellationToken ct = default)
+    {
+        var plantilla = await _eventStore.GetAggregateRootAsync<PlantillaTurnos>(command.PlantillaId, ct);
+        if (plantilla is null)
+            throw new RecursoNoEncontradoException(Mensajes.PlantillaNoEncontrada);
+
+        var resultado = plantilla.QuitarJornada();
+        if (resultado == ResultadoQuitarJornada.PlantillaRetirada)
+            throw new ReglaDeNegocioDeclinadaException(Mensajes.PlantillaRetirada);
+    }
 }

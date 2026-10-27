@@ -50,6 +50,8 @@ public static class ConfiguracionSerializacionProgramacion
         PlantillaSemanalRetirada.ConfigurarSerializacion(resolver);
         JornadaDePlantillaSemanalAsignada.ConfigurarSerializacion(resolver);
         JornadaDePlantillaSemanalQuitada.ConfigurarSerializacion(resolver);
+        JornadaDePlantillaDeTurnosAsignada.ConfigurarSerializacion(resolver);
+        JornadaDePlantillaDeTurnosQuitada.ConfigurarSerializacion(resolver);
         HorasYMinutos.ConfigurarSerializacion(resolver);
         LimitesJornada.ConfigurarSerializacion(resolver);
         JornadaCreada.ConfigurarSerializacion(resolver);

@@ -4,4 +4,6 @@ namespace Bitakora.ControlAsistencia.Programacion.AsignarJornadaAPlantillaTurnos
 
 public class AsignarJornadaAPlantillaTurnosBodyValidator : AbstractValidator<AsignarJornadaAPlantillaTurnosBody>
 {
+    public AsignarJornadaAPlantillaTurnosBodyValidator() =>
+        RuleFor(x => x.JornadaId).NotEmpty();
 }
