@@ -13,6 +13,9 @@ public partial class CrearPlantillaTurnosCommandHandler
         public static string PlantillaYaExiste =>
             ResourceManager.GetString(nameof(PlantillaYaExiste))!;
 
+        public static string NombreDuplicado =>
+            ResourceManager.GetString(nameof(NombreDuplicado))!;
+
         public static string JornadaNoEncontrada =>
             ResourceManager.GetString(nameof(JornadaNoEncontrada))!;
 

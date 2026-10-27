@@ -8,10 +8,13 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearPlantillaTurnosFunction.C
 public partial class CrearPlantillaTurnosCommandHandler : ICommandHandlerAsync<CrearPlantillaTurnos>
 {
     private readonly IEventStore _eventStore;
+    private readonly ILectorNombresPlantillaTurnos _lectorNombres;
 
-    public CrearPlantillaTurnosCommandHandler(IEventStore eventStore)
+    public CrearPlantillaTurnosCommandHandler(
+        IEventStore eventStore, ILectorNombresPlantillaTurnos lectorNombres)
     {
         _eventStore = eventStore;
+        _lectorNombres = lectorNombres;
     }
 
     public async Task HandleAsync(CrearPlantillaTurnos command, CancellationToken ct = default)

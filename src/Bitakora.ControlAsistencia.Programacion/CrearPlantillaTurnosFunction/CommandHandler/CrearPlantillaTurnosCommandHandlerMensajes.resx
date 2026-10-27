@@ -23,6 +23,9 @@
   <data name="PlantillaYaExiste" xml:space="preserve">
     <value>Ya existe una plantilla de turnos con ese identificador</value>
   </data>
+  <data name="NombreDuplicado" xml:space="preserve">
+    <value>Ya existe una plantilla de turnos vigente con ese nombre</value>
+  </data>
   <data name="JornadaNoEncontrada" xml:space="preserve">
     <value>No existe la jornada indicada</value>
   </data>
