@@ -365,6 +365,31 @@ public class ConfiguracionMartenProjectionsTests
         mapping.IdMember.Name.Should().Be(nameof(CuadroSemanalTurnos.Id));
     }
 
+    // CA-6 (#1286), mismo criterio que el test de CuadroSemanalTurnos.
+    [Fact]
+    public void ConfigurarProgramacion_RegistraCuadroDeTurnosProjectionComoAsync()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("CuadroDeTurnos");
+    }
+
+    [Fact]
+    public void ConfigurarProgramacion_MaterializaCuadroDeTurnosSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(CuadroDeTurnos));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_cuadrodeturnos");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(CuadroDeTurnos.Id));
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+    }
+
     // --- Tolerancia a huecos de secuencia estancados, un test por store ---
 
     [Fact]
