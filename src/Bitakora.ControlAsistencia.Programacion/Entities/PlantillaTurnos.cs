@@ -8,24 +8,38 @@ public partial class PlantillaTurnos : AggregateRoot
     private sealed record DiaAsignado(Guid TurnoId, Turno Turno, long VersionTurno);
 
     private int _diasDelCiclo;
+    private bool _estaActiva;
     private readonly Dictionary<int, DiaAsignado> _dias = new();
 
     public void Apply(PlantillaDeTurnosCreada evento)
     {
         Id = evento.PlantillaId.ToString();
         _diasDelCiclo = evento.DiasDelCiclo;
+        _estaActiva = true;
     }
 
     public void Apply(DiaDePlantillaDeTurnosAsignado evento) =>
         _dias[evento.Dia] = new DiaAsignado(evento.TurnoId, evento.Turno, evento.VersionTurno);
 
-    public void Apply(PlantillaDeTurnosRetirada evento) => throw new NotImplementedException();
+    public void Apply(PlantillaDeTurnosRetirada evento) => _estaActiva = false;
 
-    internal ResultadoRetiroPlantilla Retirar() => throw new NotImplementedException();
+    internal ResultadoRetiroPlantilla Retirar()
+    {
+        if (!_estaActiva)
+            return ResultadoRetiroPlantilla.SinCambios;
+
+        var evento = PlantillaDeTurnosRetirada.Crear(Guid.Parse(Id));
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoRetiroPlantilla.Retirada;
+    }
 
     // Mismo turno con copia atrasada no es no-op: reasignar autocorrige la copia (CA-ADR-0034, enmienda #886).
     internal ResultadoAsignarDiaDePlantillaTurnos AsignarDia(int dia, Guid turnoId, Turno copia, long versionTurno)
     {
+        if (!_estaActiva)
+            return ResultadoAsignarDiaDePlantillaTurnos.PlantillaRetirada;
+
         if (dia > _diasDelCiclo)
             return ResultadoAsignarDiaDePlantillaTurnos.DiaFueraDelCiclo;
 

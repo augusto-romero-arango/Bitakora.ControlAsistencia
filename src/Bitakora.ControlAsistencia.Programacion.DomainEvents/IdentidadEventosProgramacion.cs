@@ -35,6 +35,7 @@ public static class IdentidadEventosProgramacion
         typeof(PlantillaSemanalCreada),
         typeof(PlantillaDeTurnosCreada),
         typeof(DiaDePlantillaDeTurnosAsignado),
+        typeof(PlantillaDeTurnosRetirada),
         typeof(DiaDePlantillaSemanalAsignado),
         typeof(DiaDePlantillaSemanalQuitado),
         typeof(PlantillaSemanalRetirada),
