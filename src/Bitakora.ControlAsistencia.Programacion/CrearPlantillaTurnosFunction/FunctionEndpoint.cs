@@ -9,9 +9,38 @@ namespace Bitakora.ControlAsistencia.Programacion.CrearPlantillaTurnosFunction;
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CrearPlantillaTurnos")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/plantillas-turnos")]
         HttpRequest req,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        var (comando, error) = await requestValidator.ValidarAsync<CrearPlantillaTurnos>(req, ct);
+        if (error is not null)
+            return error;
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando!, ct);
+        }
+        catch (PrecondicionComandoException ex)
+        {
+            switch (ex)
+            {
+                case RecursoYaExisteException:
+                case ReglaDeNegocioDeclinadaException:
+                    return new ConflictObjectResult(ex.Message);
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
+                default:
+                    throw;
+            }
+        }
+        catch (AggregateException ex)
+        {
+            return new BadRequestObjectResult(
+                ex.InnerExceptions.Select(e => e.Message));
+        }
+
+        return new CreatedResult($"/api/programacion/plantillas-turnos/{comando!.PlantillaId}", null);
+    }
 }

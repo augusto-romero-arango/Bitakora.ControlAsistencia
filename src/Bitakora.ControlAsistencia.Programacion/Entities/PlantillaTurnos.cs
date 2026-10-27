@@ -5,7 +5,13 @@ namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
 public partial class PlantillaTurnos : AggregateRoot
 {
-    public void Apply(PlantillaDeTurnosCreada evento) => throw new NotImplementedException();
+    public void Apply(PlantillaDeTurnosCreada evento) => Id = evento.PlantillaId.ToString();
 
-    public static PlantillaTurnos Iniciar(PlantillaDeTurnosCreada evento) => throw new NotImplementedException();
+    public static PlantillaTurnos Iniciar(PlantillaDeTurnosCreada evento)
+    {
+        var plantilla = new PlantillaTurnos();
+        plantilla._uncommittedEvents.Add(evento);
+        plantilla.Apply(evento);
+        return plantilla;
+    }
 }
