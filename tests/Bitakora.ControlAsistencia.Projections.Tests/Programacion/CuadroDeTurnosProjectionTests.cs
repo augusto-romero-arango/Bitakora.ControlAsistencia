@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.Programacion;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
+using System.Text.Json;
 using JasperFx.Events;
 
 namespace Bitakora.ControlAsistencia.Projections.Tests.Programacion;
@@ -320,8 +321,8 @@ public class CuadroDeTurnosProjectionTests
     {
         const string json = """{"dia":1,"turnoId":"t","nombre":"n","descripcion":"d","completo":true,"retirado":false}""";
 
-        var dia = System.Text.Json.JsonSerializer.Deserialize<DiaDelCuadroDeTurnos>(
-            json, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        var dia = JsonSerializer.Deserialize<DiaDelCuadroDeTurnos>(
+            json, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
 
         dia.EsDescanso.Should().BeFalse();
         dia.HorarioAbierto.Should().BeNull();
