@@ -212,11 +212,11 @@ public class ConsultarMallaTurnosToolTests
 
         var dias = ana["dias"]!.AsArray().Select(d => d!.GetValue<string>()).ToList();
         dias.Should().HaveCount(7);
-        dias[0].Should().StartWith("2026-10-12 lun: Manana 06:00-14:00 (").And.Contain("Norte").And.Contain("Sur");
+        dias[0].Should().StartWith("2026-10-12 lun: 06:00-14:00 (").And.Contain("Norte").And.Contain("Sur");
         dias[1].Should().Be("2026-10-13 mar: descanso");
         dias[2].Should().Be("2026-10-14 mié: ausencia (Vacaciones)");
         dias[3].Should().Be("2026-10-15 jue: sin programar");
-        dias[4].Should().Be("2026-10-16 vie: Tarde 14:00-22:00, descanso 18:00-18:30 (Norte)");
+        dias[4].Should().Be("2026-10-16 vie: 14:00-22:00, descanso 18:00-18:30 (Norte)");
         dias[5].Should().Be("2026-10-17 sáb: sin programar");
         dias[6].Should().Be("2026-10-18 dom: fuera de vinculación");
 
