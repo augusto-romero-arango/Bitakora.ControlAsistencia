@@ -37,13 +37,13 @@ public partial class ObtenerPlantillaTool(ProgramacionApi api)
         var detalle = (await respuesta.Content.ReadFromJsonAsync<CuadroDeTurnos>(ct))!;
 
         // Un dia ausente rinde "sin turno": el cuadro materializado omite los vacios.
-        var textos = detalle.Dias.ToDictionary(
+        var diasConTurno = detalle.Dias.ToDictionary(
             dia => dia.Dia,
             dia => new DiaDeLaPlantilla(
                 dia.Dia, dia.Turno.Retirado ? null : dia.Turno.Id, TextoDelDia(dia.Turno)));
 
         var dias = Enumerable.Range(1, detalle.DiasDelCiclo)
-            .Select(d => textos.GetValueOrDefault(d) ?? new DiaDeLaPlantilla(d, null, Mensajes.SinTurno))
+            .Select(d => diasConTurno.GetValueOrDefault(d) ?? new DiaDeLaPlantilla(d, null, Mensajes.SinTurno))
             .ToList();
 
         return RespuestaJson.Serializar(new PlantillaDetallada(

@@ -7,8 +7,11 @@ public static class CatalogoDePlantillasTurnosFalso
     public static string RutaDetalle(string plantillaId) => $"{RutaCatalogo}/{plantillaId}";
 
     public static string Turno(string nombre, bool completo = true, bool retirado = false, string descripcion = "(06:00-14:00)",
-        bool esDescanso = false, string? duracionHorarioAbierto = null) =>
-        $$"""{"id":"t-{{nombre}}","nombre":"{{nombre}}","descripcion":"{{descripcion}}","completo":{{completo.ToString().ToLowerInvariant()}},"retirado":{{retirado.ToString().ToLowerInvariant()}},"esDescanso":{{esDescanso.ToString().ToLowerInvariant()}},"horarioAbierto":{{(duracionHorarioAbierto is null ? "null" : $"{{\"duracion\":\"{duracionHorarioAbierto}\"}}")}}}""";
+        bool esDescanso = false, string? duracionHorarioAbierto = null)
+    {
+        var horarioAbierto = duracionHorarioAbierto is null ? "null" : $$"""{"duracion":"{{duracionHorarioAbierto}}"}""";
+        return $$"""{"id":"t-{{nombre}}","nombre":"{{nombre}}","descripcion":"{{descripcion}}","completo":{{completo.ToString().ToLowerInvariant()}},"retirado":{{retirado.ToString().ToLowerInvariant()}},"esDescanso":{{esDescanso.ToString().ToLowerInvariant()}},"horarioAbierto":{{horarioAbierto}}}""";
+    }
 
     public static string Dia(int dia, string turnoJson) => $$"""{"dia":{{dia}},"turno":{{turnoJson}}}""";
 

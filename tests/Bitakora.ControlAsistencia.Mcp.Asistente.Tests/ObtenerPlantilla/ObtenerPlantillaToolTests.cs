@@ -35,8 +35,10 @@ public class ObtenerPlantillaToolTests
     private static Task<string> Ejecutar(ObtenerPlantillaTool tool, string plantillaId = PlantillaId) =>
         tool.Run(null!, plantillaId, TestContext.Current.CancellationToken);
 
-    private static string TextoDelDia(JsonNode json, int dia) =>
-        json["dias"]!.AsArray().Single(d => d!["dia"]!.GetValue<int>() == dia)!["turno"]!.GetValue<string>();
+    private static JsonNode DiaJson(JsonNode json, int dia) =>
+        json["dias"]!.AsArray().Single(d => d!["dia"]!.GetValue<int>() == dia)!;
+
+    private static string TextoDelDia(JsonNode json, int dia) => DiaJson(json, dia)["turno"]!.GetValue<string>();
 
     [Fact]
     public async Task ObtenerPlantilla_ArmaLosDiasUnoANEnOrdenSoloConHorario_CuandoLaPlantillaExiste()
@@ -54,9 +56,6 @@ public class ObtenerPlantillaToolTests
         TextoDelDia(json, 1).Should().Be("07:00-17:00");
         TextoDelDia(json, 5).Should().Be("21:00-05:00+1");
     }
-
-    private static JsonNode DiaJson(JsonNode json, int dia) =>
-        json["dias"]!.AsArray().Single(d => d!["dia"]!.GetValue<int>() == dia)!;
 
     [Fact]
     public async Task ObtenerPlantilla_ExponeTurnoIdDelDia_CuandoElTurnoTieneFranjas()
