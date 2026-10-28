@@ -51,7 +51,7 @@
     <value>todos los colaboradores</value>
   </data>
   <data name="DiaTrabajo" xml:space="preserve">
-    <value>{0} {1} ({2})</value>
+    <value>{0} ({1})</value>
   </data>
   <data name="DiaDescanso" xml:space="preserve">
     <value>descanso</value>
@@ -66,6 +66,6 @@
     <value>fuera de vinculación</value>
   </data>
   <data name="DiaHorarioAbierto" xml:space="preserve">
-    <value>{0} horario abierto ({1})</value>
+    <value>horario abierto de {0} ({1})</value>
   </data>
 </root>
