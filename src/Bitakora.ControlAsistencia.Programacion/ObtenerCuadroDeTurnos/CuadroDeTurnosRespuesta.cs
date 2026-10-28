@@ -54,7 +54,11 @@ public sealed record TurnoDelCuadroDeTurnosRespuesta(
     string Nombre,
     string Descripcion,
     bool Completo,
-    bool Retirado);
+    bool Retirado,
+    bool EsDescanso = false,
+    HorarioAbiertoDelCuadroDeTurnosRespuesta? HorarioAbierto = null);
+
+public sealed record HorarioAbiertoDelCuadroDeTurnosRespuesta(string Duracion);
 
 public sealed record JornadaDelCuadroDeTurnosRespuesta(
     Guid Id,

@@ -232,6 +232,101 @@ public class CuadroDeTurnosProjectionTests
         vista.Should().BeEquivalentTo(previa);
     }
 
+    private static Turno CopiaAbierta(TimeOnly fin, int diaOffsetFin = 0) =>
+        Turno.Crear("Horario abierto", false,
+            [FranjaOrdinaria.Crear(new TimeOnly(4, 0), fin, diaOffsetFin)], esHorarioAbierto: true);
+
+    private static Turno CopiaDescanso => Turno.Crear("Descanso", true, []);
+
+    [Theory]
+    [InlineData(6, 0, 0, "2 h")]
+    [InlineData(10, 30, 0, "6 h 30 min")]
+    [InlineData(0, 0, 1, "20 h")]
+    public void Apply_GuardaLaDuracionDelHorarioAbierto_CuandoDiaDePlantillaDeTurnosAsignadoEsDeHorarioAbierto(
+        int hora, int minuto, int diaOffsetFin, string duracionEsperada)
+    {
+        var copia = CopiaAbierta(new TimeOnly(hora, minuto), diaOffsetFin);
+
+        var vista = CuadroDeTurnosProjection.Apply(Asignar(1, TurnoA, copia), Vista([]));
+
+        var dia = vista.Dias.Single();
+        dia.HorarioAbierto.Should().Be(new HorarioAbiertoDelCuadro(duracionEsperada));
+        dia.EsDescanso.Should().BeFalse();
+        dia.Descripcion.Should().Be(copia.ToString());
+        dia.Completo.Should().BeTrue();
+        dia.Retirado.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Apply_MarcaElDiaComoDescanso_CuandoDiaDePlantillaDeTurnosAsignadoEsDescanso()
+    {
+        var vista = CuadroDeTurnosProjection.Apply(Asignar(1, TurnoA, CopiaDescanso), Vista([]));
+
+        var dia = vista.Dias.Single();
+        dia.EsDescanso.Should().BeTrue();
+        dia.HorarioAbierto.Should().BeNull();
+    }
+
+    [Fact]
+    public void Apply_DejaDescansoFalsoYHorarioAbiertoNulo_CuandoDiaDePlantillaDeTurnosAsignadoEsNormalOIncompleto()
+    {
+        var vista = CuadroDeTurnosProjection.Apply(Asignar(1, TurnoA, CopiaTurno), Vista([]));
+        vista = CuadroDeTurnosProjection.Apply(Asignar(2, TurnoB, CopiaIncompleta), vista);
+
+        vista.Dias.Should().OnlyContain(d => !d.EsDescanso && d.HorarioAbierto == null);
+    }
+
+    [Fact]
+    public void Apply_RecalculaHorarioAbierto_CuandoTurnoDePlantillaDeTurnosSincronizadoEsDeHorarioAbierto()
+    {
+        var previa = Vista([DiaCompleto(1, TurnoA), DiaCompleto(2, TurnoB), DiaCompleto(3, TurnoA)]);
+        var evento = TurnoDePlantillaDeTurnosSincronizado.Crear(
+            Guid.NewGuid(), TurnoA, CopiaAbierta(new TimeOnly(6, 0)), 2, false);
+
+        var vista = CuadroDeTurnosProjection.Apply(evento, previa);
+
+        vista.Dias.Where(d => d.TurnoId == TurnoA.ToString("D")).Should()
+            .OnlyContain(d => d.HorarioAbierto == new HorarioAbiertoDelCuadro("2 h") && !d.EsDescanso);
+        vista.Dias.Single(d => d.TurnoId == TurnoB.ToString("D")).Should().BeEquivalentTo(DiaCompleto(2, TurnoB));
+    }
+
+    [Fact]
+    public void Apply_MarcaDescansoYLimpiaHorarioAbierto_CuandoTurnoDePlantillaDeTurnosSincronizadoEsDescanso()
+    {
+        var previa = Vista([DiaCompleto(1, TurnoA) with { HorarioAbierto = new HorarioAbiertoDelCuadro("2 h") }]);
+        var evento = TurnoDePlantillaDeTurnosSincronizado.Crear(Guid.NewGuid(), TurnoA, CopiaDescanso, 2, false);
+
+        var vista = CuadroDeTurnosProjection.Apply(evento, previa);
+
+        vista.Dias.Single().EsDescanso.Should().BeTrue();
+        vista.Dias.Single().HorarioAbierto.Should().BeNull();
+    }
+
+    [Fact]
+    public void Apply_NoCambiaDescansoNiHorarioAbierto_CuandoTurnoDePlantillaDeTurnosSincronizadoRetirado()
+    {
+        var copia = CopiaAbierta(new TimeOnly(6, 0));
+        var previa = Vista([DiaCompleto(1, TurnoA)]);
+        var evento = TurnoDePlantillaDeTurnosSincronizado.Crear(Guid.NewGuid(), TurnoA, copia, 2, true);
+
+        var dia = CuadroDeTurnosProjection.Apply(evento, previa).Dias.Single();
+
+        dia.Retirado.Should().BeTrue();
+        dia.HorarioAbierto.Should().Be(new HorarioAbiertoDelCuadro("2 h"));
+    }
+
+    [Fact]
+    public void Deserializar_DejaDescansoFalsoYHorarioAbiertoNulo_CuandoElDiaNoTieneLasClaves()
+    {
+        const string json = """{"dia":1,"turnoId":"t","nombre":"n","descripcion":"d","completo":true,"retirado":false}""";
+
+        var dia = System.Text.Json.JsonSerializer.Deserialize<DiaDelCuadroDeTurnos>(
+            json, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+
+        dia.EsDescanso.Should().BeFalse();
+        dia.HorarioAbierto.Should().BeNull();
+    }
+
     [Fact]
     public void Apply_ActualizaLimites_CuandoLimitesDeJornadaDePlantillaDeTurnosSincronizados()
     {
