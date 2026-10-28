@@ -1,5 +1,3 @@
-using System.Net;
-using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.Fixtures;
@@ -48,18 +46,4 @@ public class ProgramacionApiFixture : IAsyncLifetime
         Client.Dispose();
         return ValueTask.CompletedTask;
     }
-
-    public async Task<JsonDocument?> BuscarCuadroAsync(string id, CancellationToken ct)
-    {
-        var respuesta = await Client.GetAsync($"/api/programacion/plantillas-semanales/{id}", ct);
-        if (respuesta.StatusCode == HttpStatusCode.NotFound)
-            return null;
-
-        respuesta.EnsureSuccessStatusCode();
-        var texto = await respuesta.Content.ReadAsStringAsync(ct);
-        return JsonDocument.Parse(texto);
-    }
-
-    public Task<JsonDocument> EsperarCuadroAsync(string id, CancellationToken ct) =>
-        Polling.WaitUntilAsync(() => BuscarCuadroAsync(id, ct), CatalogoDeTurnos.TimeoutPolling);
 }

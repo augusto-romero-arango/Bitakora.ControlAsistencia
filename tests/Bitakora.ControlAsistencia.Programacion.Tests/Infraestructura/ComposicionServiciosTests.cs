@@ -23,8 +23,8 @@ using System.Text;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
-using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction;
-using Bitakora.ControlAsistencia.Programacion.CrearPlantillaSemanalFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaTurnosFunction;
+using Bitakora.ControlAsistencia.Programacion.CrearPlantillaTurnosFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.ReadModels;
@@ -38,8 +38,8 @@ using Wolverine;
 using Wolverine.Runtime;
 using ObtenerFichaTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerFichaTurno.FunctionEndpoint;
 using ListarFichasTurnoEndpoint = Bitakora.ControlAsistencia.Programacion.ListarFichasTurno.FunctionEndpoint;
-using ObtenerCuadroSemanalTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerCuadroSemanalTurnos.FunctionEndpoint;
-using ListarCuadrosSemanalesTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ListarCuadrosSemanalesTurnos.FunctionEndpoint;
+using ObtenerCuadroDeTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ObtenerCuadroDeTurnos.FunctionEndpoint;
+using ListarCuadrosDeTurnosEndpoint = Bitakora.ControlAsistencia.Programacion.ListarCuadrosDeTurnos.FunctionEndpoint;
 
 using ListarLimitesDeJornadaEndpoint = Bitakora.ControlAsistencia.Programacion.ListarLimitesDeJornada.FunctionEndpoint;
 using ListarAusenciasColaboradorEndpoint = Bitakora.ControlAsistencia.Programacion.ListarAusenciasColaborador.FunctionEndpoint;
@@ -158,9 +158,8 @@ public class ComposicionServiciosTests
              typeof(CancelacionProgramacionSolicitada), typeof(FranjaAgregada),
              typeof(DescansoAgregado), typeof(ExtraAgregado), typeof(FranjaQuitada),
              typeof(DescansoQuitado), typeof(ExtraQuitado), typeof(SedeDeFranjaAsignada),
-             typeof(SedeDeFranjaRetirada), typeof(PlantillaSemanalCreada),
-             typeof(DiaDePlantillaSemanalAsignado), typeof(DiaDePlantillaSemanalQuitado),
-             typeof(PlantillaSemanalRetirada), typeof(VentanaDeEntradaModificada)]);
+             typeof(SedeDeFranjaRetirada), typeof(PlantillaDeTurnosCreada), typeof(VentanaDeEntradaModificada),
+             typeof(AdvertenciasDePlantillaDeTurnosCalculadas)]);
     }
 
     // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las
@@ -189,77 +188,72 @@ public class ComposicionServiciosTests
             [typeof(ExtraQuitado)] = "extra_quitado",
             [typeof(SedeDeFranjaAsignada)] = "sede_de_franja_asignada",
             [typeof(SedeDeFranjaRetirada)] = "sede_de_franja_retirada",
-            [typeof(PlantillaSemanalCreada)] = "plantilla_semanal_creada",
-            [typeof(DiaDePlantillaSemanalAsignado)] = "dia_de_plantilla_semanal_asignado",
-            [typeof(DiaDePlantillaSemanalQuitado)] = "dia_de_plantilla_semanal_quitado",
-            [typeof(PlantillaSemanalRetirada)] = "plantilla_semanal_retirada"
+            [typeof(PlantillaDeTurnosCreada)] = "plantilla_de_turnos_creada",
+            [typeof(DiaDePlantillaDeTurnosAsignado)] = "dia_de_plantilla_de_turnos_asignado",
+            [typeof(AdvertenciasDePlantillaDeTurnosCalculadas)] = "advertencias_de_plantilla_de_turnos_calculadas"
         });
     }
 
     [Fact]
-    public async Task AgregarServiciosProgramacion_CongelaElAliasDeTurnoDePlantillaSemanalSincronizado()
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeTurnoDePlantillaDeTurnosSincronizado()
     {
         await using var provider = ComponerServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
         var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
         var alias = store.Options.Events.AllKnownEventTypes()
-            .Single(e => e.EventType == typeof(TurnoDePlantillaSemanalSincronizado)).Alias;
+            .Single(e => e.EventType == typeof(TurnoDePlantillaDeTurnosSincronizado)).Alias;
 
-        alias.Should().Be("turno_de_plantilla_semanal_sincronizado");
+        alias.Should().Be("turno_de_plantilla_de_turnos_sincronizado");
     }
 
     [Fact]
-    public async Task AgregarServiciosProgramacion_CongelaElAliasDeLimitesDeJornadaDePlantillaSemanalSincronizados()
+    public async Task AgregarServiciosProgramacion_ResuelveElLectorDePlantillasDeTurnosPorTurno()
     {
         await using var provider = ComponerServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
-        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
-        var alias = store.Options.Events.AllKnownEventTypes()
-            .Single(e => e.EventType == typeof(LimitesDeJornadaDePlantillaSemanalSincronizados)).Alias;
+        var lector = () => scope.ServiceProvider.GetRequiredService<
+            Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDisenoDeTurnoActualizado.ILectorPlantillasTurnosPorTurno>();
 
-        alias.Should().Be("limites_de_jornada_de_plantilla_semanal_sincronizados");
+        lector.Should().NotThrow();
     }
 
     [Fact]
-    public async Task AgregarServiciosProgramacion_ResuelveElRouterDeEventosPrivadosYElLectorDePlantillasPorTurno()
+    public async Task AgregarServiciosProgramacion_ResuelveElRouterDeEventosPrivados()
     {
         await using var provider = ComponerServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
         var router = () => scope.ServiceProvider.GetRequiredService<IPrivateEventRouter>();
-        var lector = () => scope.ServiceProvider.GetRequiredService<
-            Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDisenoDeTurnoActualizado.ILectorPlantillasPorTurno>();
 
         router.Should().NotThrow();
-        lector.Should().NotThrow();
     }
 
     [Fact]
-    public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaDePlantillaSemanalAsignada()
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaDePlantillaDeTurnosAsignada()
     {
         await using var provider = ComponerServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
         var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
         var alias = store.Options.Events.AllKnownEventTypes()
-            .Single(e => e.EventType == typeof(JornadaDePlantillaSemanalAsignada)).Alias;
+            .Single(e => e.EventType == typeof(JornadaDePlantillaDeTurnosAsignada)).Alias;
 
-        alias.Should().Be("jornada_de_plantilla_semanal_asignada");
+        alias.Should().Be("jornada_de_plantilla_de_turnos_asignada");
     }
 
     [Fact]
-    public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaDePlantillaSemanalQuitada()
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaDePlantillaDeTurnosQuitada()
     {
         await using var provider = ComponerServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
         var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
         var alias = store.Options.Events.AllKnownEventTypes()
-            .Single(e => e.EventType == typeof(JornadaDePlantillaSemanalQuitada)).Alias;
+            .Single(e => e.EventType == typeof(JornadaDePlantillaDeTurnosQuitada)).Alias;
 
-        alias.Should().Be("jornada_de_plantilla_semanal_quitada");
+        alias.Should().Be("jornada_de_plantilla_de_turnos_quitada");
     }
 
     [Fact]
@@ -535,30 +529,6 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(FichaTurno.Id));
     }
 
-    // Issue #625 CA-4: mismo patron que ObtenerFichaTurno/ListarFichasTurno de arriba, para los dos
-    // GET nuevos del cuadro semanal resuelto (opcion B, composicion en lectura con FichaTurno).
-    [Fact]
-    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeObtenerCuadroSemanalTurnos_CuandoElContenedorEstaCompuesto()
-    {
-        await using var provider = ComponerServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
-
-        var act = () => ActivatorUtilities.CreateInstance<ObtenerCuadroSemanalTurnosEndpoint>(scope.ServiceProvider);
-
-        act.Should().NotThrow();
-    }
-
-    [Fact]
-    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeListarCuadrosSemanalesTurnos_CuandoElContenedorEstaCompuesto()
-    {
-        await using var provider = ComponerServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
-
-        var act = () => ActivatorUtilities.CreateInstance<ListarCuadrosSemanalesTurnosEndpoint>(scope.ServiceProvider);
-
-        act.Should().NotThrow();
-    }
-
     [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeListarAusenciasColaborador_CuandoElContenedorEstaCompuesto()
     {
@@ -625,53 +595,74 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(AusenciaVigente.Id));
     }
 
-    // Issue #625 CA-4: mitad write-side del par 2 (MEF-ADR-0034 seccion 6) para CuadroSemanalTurnos
-    // -- par espejo de FichaTurno de arriba. Hasta este issue solo el worker tocaba la tabla; este
-    // GET es el primer consumidor write-side, y sin Schema.For<CuadroSemanalTurnos>()
-    // .UseNumericRevisions(true) en ComposicionServicios este store espera mt_version uuid sobre una
-    // tabla bigint (500 permanente en el primer request real).
     [Fact]
-    public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaCuadroSemanalTurnos()
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeObtenerCuadroDeTurnos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ObtenerCuadroDeTurnosEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeListarCuadrosDeTurnos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<ListarCuadrosDeTurnosEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaCuadroDeTurnos()
     {
         await using var provider = ComponerServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
         var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
-            .Options.FindOrResolveDocumentType(typeof(CuadroSemanalTurnos));
+            .Options.FindOrResolveDocumentType(typeof(CuadroDeTurnos));
 
         mapping.Metadata.Revision.Enabled.Should().BeTrue();
         mapping.Metadata.Revision.Type.Should().Be("bigint");
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Segunda dimension del mismo par 2 para CuadroSemanalTurnos: tabla, tenancy e IdMember tienen
-    // que converger entre el worker que materializa y este Function App que ahora la consulta.
     [Fact]
-    public async Task AgregarServiciosProgramacion_ResuelveCuadroSemanalTurnosSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    public async Task AgregarServiciosProgramacion_ResuelveCuadroDeTurnosSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
     {
         await using var provider = ComponerServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
         var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
-            .Options.FindOrResolveDocumentType(typeof(CuadroSemanalTurnos));
+            .Options.FindOrResolveDocumentType(typeof(CuadroDeTurnos));
 
-        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_cuadrosemanalturnos");
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_cuadrodeturnos");
         mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
-        mapping.IdMember.Name.Should().Be(nameof(CuadroSemanalTurnos.Id));
+        mapping.IdMember.Name.Should().Be(nameof(CuadroDeTurnos.Id));
     }
 
-    // Issue #626 CA-5: el handler de CrearPlantillaSemanal gana el puerto de lookup de nombres
-    // (ILectorNombresPlantillaSemanal) -- el contenedor debe seguir resolviendolo tras el registro
-    // nuevo, mismo patron de guardrail que ILectorNombresTurno le dio a CrearTurno en #497.
     [Fact]
-    public async Task AgregarServiciosProgramacion_ResuelveILectorNombresPlantillaSemanal_CuandoElContenedorEstaCompuesto()
+    public void ObtenerYListarCuadrosDeTurnos_DeclaranExactamenteSuVerboYRuta()
     {
-        await using var provider = ComponerServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
+        static (string Funcion, string Metodo, string Ruta) Leer(Type endpoint)
+        {
+            var run = endpoint.GetMethod("Run")!;
+            var funcion = ((Microsoft.Azure.Functions.Worker.FunctionAttribute)run.GetCustomAttributes(
+                typeof(Microsoft.Azure.Functions.Worker.FunctionAttribute), false).Single()).Name;
+            var trigger = run.GetParameters()
+                .SelectMany(p => p.GetCustomAttributes(typeof(Microsoft.Azure.Functions.Worker.HttpTriggerAttribute), false))
+                .Cast<Microsoft.Azure.Functions.Worker.HttpTriggerAttribute>().Single();
+            return (funcion, string.Join(",", trigger.Methods ?? []), trigger.Route!);
+        }
 
-        var act = () => scope.ServiceProvider.GetRequiredService<ILectorNombresPlantillaSemanal>();
-
-        act.Should().NotThrow();
+        Leer(typeof(ObtenerCuadroDeTurnosEndpoint)).Should()
+            .Be(("ObtenerCuadroDeTurnos", "get", "programacion/plantillas-turnos/{id}"));
+        Leer(typeof(ListarCuadrosDeTurnosEndpoint)).Should()
+            .Be(("ListarCuadrosDeTurnos", "get", "programacion/plantillas-turnos"));
     }
 
     [Fact]
@@ -686,23 +677,47 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
-    public async Task AgregarServiciosProgramacion_ResuelveILectorPlantillasPorJornada_CuandoElContenedorEstaCompuesto()
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeLimitesDeJornadaDePlantillaDeTurnosSincronizados()
     {
         await using var provider = ComponerServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
-        var lector = scope.ServiceProvider.GetRequiredService<ILectorPlantillasPorJornada>();
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(LimitesDeJornadaDePlantillaDeTurnosSincronizados)).Alias;
+
+        alias.Should().Be("limites_de_jornada_de_plantilla_de_turnos_sincronizados");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveILectorPlantillasTurnosPorJornada_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var lector = scope.ServiceProvider.GetRequiredService<ILectorPlantillasTurnosPorJornada>();
 
         lector.Should().BeOfType<LectorReadSideProgramacion>();
     }
 
     [Fact]
-    public async Task AgregarServiciosProgramacion_ResuelveElHandlerDeCrearPlantillaSemanal_CuandoElContenedorEstaCompuesto()
+    public async Task AgregarServiciosProgramacion_ResuelveILectorNombresPlantillaTurnos_CuandoElContenedorEstaCompuesto()
     {
         await using var provider = ComponerServiceProvider();
         await using var scope = provider.CreateAsyncScope();
 
-        var act = () => ActivatorUtilities.CreateInstance<CrearPlantillaSemanalCommandHandler>(scope.ServiceProvider);
+        var lector = scope.ServiceProvider.GetRequiredService<ILectorNombresPlantillaTurnos>();
+
+        lector.Should().BeOfType<LectorReadSideProgramacion>();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveElHandlerDeCrearPlantillaTurnos_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<CrearPlantillaTurnosCommandHandler>(scope.ServiceProvider);
 
         act.Should().NotThrow();
     }

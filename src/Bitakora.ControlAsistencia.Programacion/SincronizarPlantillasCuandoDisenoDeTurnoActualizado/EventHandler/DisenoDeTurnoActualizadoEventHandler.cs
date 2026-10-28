@@ -1,6 +1,6 @@
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
-using Bitakora.ControlAsistencia.Programacion.SincronizarTurnoDePlantillaSemanalFunction;
+using Bitakora.ControlAsistencia.Programacion.SincronizarTurnoDePlantillaTurnosFunction;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -8,22 +8,22 @@ namespace Bitakora.ControlAsistencia.Programacion.SincronizarPlantillasCuandoDis
 
 public class DisenoDeTurnoActualizadoEventHandler : IPrivateEventHandlerAsync<DisenoDeTurnoActualizado>
 {
-    private readonly ILectorPlantillasPorTurno _lector;
+    private readonly ILectorPlantillasTurnosPorTurno _lectorPlantillasTurnos;
     private readonly ICommandRouter _commandRouter;
 
-    public DisenoDeTurnoActualizadoEventHandler(ILectorPlantillasPorTurno lector, ICommandRouter commandRouter)
+    public DisenoDeTurnoActualizadoEventHandler(
+        ILectorPlantillasTurnosPorTurno lectorPlantillasTurnos, ICommandRouter commandRouter)
     {
-        _lector = lector;
+        _lectorPlantillasTurnos = lectorPlantillasTurnos;
         _commandRouter = commandRouter;
     }
 
     public async Task HandleAsync(DisenoDeTurnoActualizado @event, CancellationToken ct = default)
     {
         var turno = Reinstanciar(@event);
-        var plantillaIds = await _lector.ObtenerPlantillaIdsAsync(@event.TurnoId, ct);
-
-        foreach (var plantillaId in plantillaIds)
-            await _commandRouter.InvokeAsync(new SincronizarTurnoDePlantillaSemanal(
+        var plantillaTurnosIds = await _lectorPlantillasTurnos.ObtenerPlantillaIdsAsync(@event.TurnoId, ct);
+        foreach (var plantillaId in plantillaTurnosIds)
+            await _commandRouter.InvokeAsync(new SincronizarTurnoDePlantillaTurnos(
                 Guid.Parse(plantillaId), @event.TurnoId, turno, @event.Version, @event.Retirado), ct);
     }
 

@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
-// Regla unica de unicidad de nombres del catalogo (turnos y plantillas semanales): trim de
+// Regla unica de unicidad de nombres del catalogo (turnos y plantillas de turnos): trim de
 // extremos + colapso de espacios internos + case-folding. Los acentos SON significativos (decision
 // del experto): ToUpperInvariant no los remueve, y por eso la comparacion es Ordinal.
 internal static partial class NombreDeCatalogo

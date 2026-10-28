@@ -23,9 +23,9 @@ public partial class CrearPlantillaSemanalTool
         public static string CampoObligatorio =>
             ResourceManager.GetString(nameof(CampoObligatorio))!;
 
-        /// <summary>{0}: valor de semanas recibido.</summary>
-        public static string SemanasFueraDeRango =>
-            ResourceManager.GetString(nameof(SemanasFueraDeRango))!;
+        /// <summary>{0}: semana recibida en la entrada.</summary>
+        public static string SemanaDistintaDeUno =>
+            ResourceManager.GetString(nameof(SemanaDistintaDeUno))!;
 
         public static string DiasJsonInvalido =>
             ResourceManager.GetString(nameof(DiasJsonInvalido))!;
@@ -36,10 +36,6 @@ public partial class CrearPlantillaSemanalTool
         /// <summary>{0}: valor de dia recibido en la entrada.</summary>
         public static string DiaDesconocido =>
             ResourceManager.GetString(nameof(DiaDesconocido))!;
-
-        /// <summary>{0}: semana de la entrada; {1}: numero de semanas de la plantilla.</summary>
-        public static string SemanaFueraDeRango =>
-            ResourceManager.GetString(nameof(SemanaFueraDeRango))!;
 
         /// <summary>{0}: semana duplicada; {1}: dia duplicado (numero ISO).</summary>
         public static string DiaDuplicado =>
