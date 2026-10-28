@@ -22,7 +22,9 @@ public sealed record CuadroDeTurnosRespuesta(
         cuadro.Dias
             .Select(d => new DiaDelCuadroDeTurnosRespuesta(
                 d.Dia,
-                new TurnoDelCuadroDeTurnosRespuesta(d.TurnoId, d.Nombre, d.Descripcion, d.Completo, d.Retirado)))
+                new TurnoDelCuadroDeTurnosRespuesta(d.TurnoId, d.Nombre, d.Descripcion, d.Completo, d.Retirado,
+                    d.EsDescanso,
+                    d.HorarioAbierto is { } h ? new HorarioAbiertoDelCuadroDeTurnosRespuesta(h.Duracion) : null)))
             .ToList(),
         cuadro.JornadaId is { } jornadaId && cuadro.Limites is { } l
             ? new JornadaDelCuadroDeTurnosRespuesta(
