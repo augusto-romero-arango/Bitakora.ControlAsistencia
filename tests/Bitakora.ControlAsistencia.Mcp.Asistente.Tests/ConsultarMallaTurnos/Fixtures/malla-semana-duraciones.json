@@ -1,0 +1,30 @@
+{
+  "desde": "2026-10-12",
+  "hasta": "2026-10-18",
+  "anioIso": 2026,
+  "numeroSemana": 42,
+  "elementos": [
+    {
+      "codigoColaborador": "C-102",
+      "casillas": [
+        { "fecha": "2026-10-12", "tipo": "Trabajo", "nombreTurno": "Abierto 6:30", "horarioResumido": "06:00-10:00, 11:00-13:30", "esHorarioAbierto": true,
+          "bloques": [
+            { "tipo": 0, "inicio": "2026-10-12T06:00:00", "fin": "2026-10-12T10:00:00", "sedeId": "S-9", "nombreSede": "Ocoa" },
+            { "tipo": 1, "inicio": "2026-10-12T10:00:00", "fin": "2026-10-12T11:00:00", "sedeId": "S-9", "nombreSede": "Ocoa" },
+            { "tipo": 0, "inicio": "2026-10-12T11:00:00", "fin": "2026-10-12T13:30:00", "sedeId": "S-9", "nombreSede": "Ocoa" },
+            { "tipo": 2, "inicio": "2026-10-12T13:30:00", "fin": "2026-10-12T15:00:00", "sedeId": "S-9", "nombreSede": "Ocoa" }
+          ], "motivoAusencia": null },
+        { "fecha": "2026-10-13", "tipo": "Trabajo", "nombreTurno": "Abierto 0:30", "horarioResumido": "06:00-06:30", "esHorarioAbierto": true,
+          "bloques": [ { "tipo": 0, "inicio": "2026-10-13T06:00:00", "fin": "2026-10-13T06:30:00", "sedeId": "S-9", "nombreSede": "Ocoa" } ], "motivoAusencia": null },
+        { "fecha": "2026-10-14", "tipo": "Trabajo", "nombreTurno": "Turno Antiguo", "horarioResumido": "", "esHorarioAbierto": false,
+          "bloques": [ { "tipo": 0, "inicio": "2026-10-14T06:00:00", "fin": "2026-10-14T14:00:00", "sedeId": "S-1", "nombreSede": "Norte" } ], "motivoAusencia": null },
+        { "fecha": "2026-10-15", "tipo": "Trabajo", "nombreTurno": "Turno Viejo", "horarioResumido": null, "esHorarioAbierto": false,
+          "bloques": [ { "tipo": 0, "inicio": "2026-10-15T06:00:00", "fin": "2026-10-15T14:00:00", "sedeId": "S-1", "nombreSede": "Norte" } ], "motivoAusencia": null },
+        { "fecha": "2026-10-16", "tipo": "Descanso", "nombreTurno": "Descanso", "horarioResumido": null, "esHorarioAbierto": false, "bloques": [], "motivoAusencia": null },
+        { "fecha": "2026-10-17", "tipo": "Ausencia", "nombreTurno": null, "horarioResumido": null, "esHorarioAbierto": false, "bloques": [], "motivoAusencia": "Vacaciones" },
+        { "fecha": "2026-10-18", "tipo": "SinProgramar", "nombreTurno": null, "horarioResumido": null, "esHorarioAbierto": false, "bloques": [], "motivoAusencia": null }
+      ]
+    }
+  ],
+  "siguienteCursor": null
+}

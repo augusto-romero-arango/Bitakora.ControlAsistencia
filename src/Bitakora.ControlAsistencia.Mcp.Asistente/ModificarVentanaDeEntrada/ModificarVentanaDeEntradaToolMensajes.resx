@@ -32,12 +32,6 @@
   <data name="VentanaDeAmplitud" xml:space="preserve">
     <value>ventana de {0}</value>
   </data>
-  <data name="Horas" xml:space="preserve">
-    <value>h</value>
-  </data>
-  <data name="Minutos" xml:space="preserve">
-    <value>min</value>
-  </data>
   <data name="TurnoIdInvalido" xml:space="preserve">
     <value>turno_id debe ser el id del turno (un GUID), tal como lo da buscar_turnos; se recibio: {0}</value>
   </data>

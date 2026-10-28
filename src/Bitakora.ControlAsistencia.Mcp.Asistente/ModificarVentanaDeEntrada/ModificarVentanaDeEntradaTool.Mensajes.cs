@@ -19,10 +19,6 @@ public partial class ModificarVentanaDeEntradaTool
 
         public static string VentanaDeAmplitud => ResourceManager.GetString(nameof(VentanaDeAmplitud))!;
 
-        public static string Horas => ResourceManager.GetString(nameof(Horas))!;
-
-        public static string Minutos => ResourceManager.GetString(nameof(Minutos))!;
-
         public static string TurnoIdInvalido => ResourceManager.GetString(nameof(TurnoIdInvalido))!;
 
         public static string TurnoNoExiste => ResourceManager.GetString(nameof(TurnoNoExiste))!;
