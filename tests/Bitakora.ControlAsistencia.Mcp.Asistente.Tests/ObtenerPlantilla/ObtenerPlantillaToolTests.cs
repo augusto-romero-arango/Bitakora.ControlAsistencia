@@ -13,12 +13,14 @@ public class ObtenerPlantillaToolTests
     private const string PlantillaId = "01a07000-1000-7000-9000-000000000001";
 
     private static string Detalle(bool conJornada = true) => Plantilla(
-        PlantillaId, "Ciclo Cocina", 5, false,
+        PlantillaId, "Ciclo Cocina", 7, false,
         [
             Dia(1, Turno("Cocina Manana", descripcion: "07:00-17:00")),
             Dia(2, Turno("Turno Vacio", completo: false, descripcion: "(incompleto)")),
             Dia(3, Turno("Turno Viejo", completo: false, retirado: true)),
-            Dia(5, Turno("Cocina Noche", descripcion: "21:00-05:00+1"))
+            Dia(5, Turno("Cocina Noche", descripcion: "21:00-05:00+1")),
+            Dia(6, Turno("Abierto 2h", descripcion: "04:00-06:00", duracionHorarioAbierto: "2 h")),
+            Dia(7, Turno("Libre", descripcion: "(descanso)", esDescanso: true))
         ],
         advertencias: 2, conJornada: conJornada);
 
@@ -37,7 +39,7 @@ public class ObtenerPlantillaToolTests
         json["dias"]!.AsArray().Single(d => d!["dia"]!.GetValue<int>() == dia)!["turno"]!.GetValue<string>();
 
     [Fact]
-    public async Task ObtenerPlantilla_ArmaLosDiasUnoANEnOrdenConNombreYHorario_CuandoLaPlantillaExiste()
+    public async Task ObtenerPlantilla_ArmaLosDiasUnoANEnOrdenSoloConHorario_CuandoLaPlantillaExiste()
     {
         var (tool, handler) = CrearTool(Detalle());
 
@@ -46,11 +48,77 @@ public class ObtenerPlantillaToolTests
         handler.Requests.Select(r => (r.Metodo, r.Ruta)).Should().Equal((HttpMethod.Get, RutaDetalle(PlantillaId)));
         json["id"]!.GetValue<string>().Should().Be(PlantillaId);
         json["nombre"]!.GetValue<string>().Should().Be("Ciclo Cocina");
-        json["diasDelCiclo"]!.GetValue<int>().Should().Be(5);
+        json["diasDelCiclo"]!.GetValue<int>().Should().Be(7);
         json["completa"]!.GetValue<bool>().Should().BeFalse();
-        json["dias"]!.AsArray().Select(d => d!["dia"]!.GetValue<int>()).Should().Equal(1, 2, 3, 4, 5);
-        TextoDelDia(json, 1).Should().Be("Cocina Manana 07:00-17:00");
-        TextoDelDia(json, 5).Should().Be("Cocina Noche 21:00-05:00+1");
+        json["dias"]!.AsArray().Select(d => d!["dia"]!.GetValue<int>()).Should().Equal(1, 2, 3, 4, 5, 6, 7);
+        TextoDelDia(json, 1).Should().Be("07:00-17:00");
+        TextoDelDia(json, 5).Should().Be("21:00-05:00+1");
+    }
+
+    private static JsonNode DiaJson(JsonNode json, int dia) =>
+        json["dias"]!.AsArray().Single(d => d!["dia"]!.GetValue<int>() == dia)!;
+
+    [Fact]
+    public async Task ObtenerPlantilla_ExponeTurnoIdDelDia_CuandoElTurnoTieneFranjas()
+    {
+        var (tool, _) = CrearTool(Detalle());
+
+        var json = JsonNode.Parse(await Ejecutar(tool))!;
+
+        DiaJson(json, 1)["turnoId"]!.GetValue<string>().Should().Be("t-Cocina Manana");
+    }
+
+    [Fact]
+    public async Task ObtenerPlantilla_MuestraHorarioAbiertoSinFranjaTecnica_CuandoElTurnoEsDeHorarioAbierto()
+    {
+        var (tool, _) = CrearTool(Detalle());
+
+        var json = JsonNode.Parse(await Ejecutar(tool))!;
+
+        TextoDelDia(json, 6).Should().Be(string.Format(ObtenerPlantillaTool.Mensajes.HorarioAbierto, "2 h"));
+        DiaJson(json, 6)["turnoId"]!.GetValue<string>().Should().Be("t-Abierto 2h");
+    }
+
+    [Fact]
+    public async Task ObtenerPlantilla_MuestraDescanso_CuandoElTurnoEsDescanso()
+    {
+        var (tool, _) = CrearTool(Detalle());
+
+        var json = JsonNode.Parse(await Ejecutar(tool))!;
+
+        TextoDelDia(json, 7).Should().Be(ObtenerPlantillaTool.Mensajes.Descanso);
+        DiaJson(json, 7)["turnoId"]!.GetValue<string>().Should().Be("t-Libre");
+    }
+
+    [Fact]
+    public async Task ObtenerPlantilla_OmiteTurnoId_CuandoElDiaEstaVacio()
+    {
+        var (tool, _) = CrearTool(Detalle());
+
+        var json = JsonNode.Parse(await Ejecutar(tool))!;
+
+        TextoDelDia(json, 4).Should().Be(ObtenerPlantillaTool.Mensajes.SinTurno);
+        DiaJson(json, 4).AsObject().ContainsKey("turnoId").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ObtenerPlantilla_OmiteTurnoId_CuandoElTurnoEstaRetirado()
+    {
+        var (tool, _) = CrearTool(Detalle());
+
+        var json = JsonNode.Parse(await Ejecutar(tool))!;
+
+        DiaJson(json, 3).AsObject().ContainsKey("turnoId").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ObtenerPlantilla_ConservaTurnoId_CuandoElTurnoEstaIncompleto()
+    {
+        var (tool, _) = CrearTool(Detalle());
+
+        var json = JsonNode.Parse(await Ejecutar(tool))!;
+
+        DiaJson(json, 2)["turnoId"]!.GetValue<string>().Should().Be("t-Turno Vacio");
     }
 
     [Fact]

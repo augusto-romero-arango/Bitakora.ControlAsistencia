@@ -42,7 +42,7 @@ public partial class ObtenerPlantillaTool(ProgramacionApi api)
             textos[dia.Dia] = TextoDelDia(dia.Turno);
 
         var dias = Enumerable.Range(1, detalle.DiasDelCiclo)
-            .Select(d => new DiaDeLaPlantilla(d, textos.GetValueOrDefault(d, Mensajes.SinTurno)))
+            .Select(d => new DiaDeLaPlantilla(d, null, textos.GetValueOrDefault(d, Mensajes.SinTurno)))
             .ToList();
 
         return RespuestaJson.Serializar(new PlantillaDetallada(
@@ -69,4 +69,4 @@ public sealed record PlantillaDetallada(
     JornadaDescritaResumen? Jornada,
     IReadOnlyList<string> Advertencias);
 
-public sealed record DiaDeLaPlantilla(int Dia, string Turno);
+public sealed record DiaDeLaPlantilla(int Dia, string? TurnoId, string Turno);

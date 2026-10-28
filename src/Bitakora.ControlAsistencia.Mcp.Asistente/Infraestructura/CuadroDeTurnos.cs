@@ -16,7 +16,11 @@ public sealed record TurnoDelCuadroDeTurnos(
     string? Nombre,
     string? Descripcion,
     bool Completo,
-    bool Retirado);
+    bool Retirado,
+    bool EsDescanso = false,
+    HorarioAbiertoDelCuadroDeTurnos? HorarioAbierto = null);
+
+public sealed record HorarioAbiertoDelCuadroDeTurnos(string Duracion);
 
 public sealed record JornadaDelCuadroDeTurnos(string Id, string Descripcion)
 {
