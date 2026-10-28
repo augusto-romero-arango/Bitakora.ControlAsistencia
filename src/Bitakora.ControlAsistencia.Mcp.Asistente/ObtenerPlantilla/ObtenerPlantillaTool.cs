@@ -15,9 +15,9 @@ public partial class ObtenerPlantillaTool(ProgramacionApi api)
         [McpToolTrigger(
             NombreTool,
             "Devuelve el cuadro de una plantilla de turnos por su id (ubicala con buscar_plantillas): "
-            + "por cada dia del ciclo, del 1 al N, el turno con su nombre y horario, los dias sin turno "
+            + "por cada dia del ciclo, del 1 al N, el horario del turno y su turnoId, los dias sin turno "
             + "y los turnos retirados o incompletos; la Jornada asociada y las advertencias de la "
-            + "plantilla contra sus limites. Para las franjas de un turno usa obtener_turno.")]
+            + "plantilla contra sus limites. Para el nombre y las franjas de un turno usa obtener_turno con ese turnoId.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
@@ -37,12 +37,13 @@ public partial class ObtenerPlantillaTool(ProgramacionApi api)
         var detalle = (await respuesta.Content.ReadFromJsonAsync<CuadroDeTurnos>(ct))!;
 
         // Un dia ausente rinde "sin turno": el cuadro materializado omite los vacios.
-        var textos = new Dictionary<int, string>();
-        foreach (var dia in detalle.Dias)
-            textos[dia.Dia] = TextoDelDia(dia.Turno);
+        var textos = detalle.Dias.ToDictionary(
+            dia => dia.Dia,
+            dia => new DiaDeLaPlantilla(
+                dia.Dia, dia.Turno.Retirado ? null : dia.Turno.Id, TextoDelDia(dia.Turno)));
 
         var dias = Enumerable.Range(1, detalle.DiasDelCiclo)
-            .Select(d => new DiaDeLaPlantilla(d, null, textos.GetValueOrDefault(d, Mensajes.SinTurno)))
+            .Select(d => textos.GetValueOrDefault(d) ?? new DiaDeLaPlantilla(d, null, Mensajes.SinTurno))
             .ToList();
 
         return RespuestaJson.Serializar(new PlantillaDetallada(
@@ -56,7 +57,9 @@ public partial class ObtenerPlantillaTool(ProgramacionApi api)
     {
         { Retirado: true } => string.Format(Mensajes.TurnoRetirado, turno.Nombre ?? turno.Id),
         { Completo: false } => string.Format(Mensajes.TurnoIncompleto, turno.Nombre),
-        _ => $"{turno.Nombre} {turno.Descripcion}"
+        { EsDescanso: true } => Mensajes.Descanso,
+        { HorarioAbierto: { } abierto } => string.Format(Mensajes.HorarioAbierto, abierto.Duracion),
+        _ => turno.Descripcion ?? string.Empty
     };
 }
 
