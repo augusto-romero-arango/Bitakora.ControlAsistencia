@@ -24,7 +24,12 @@ public sealed record DiaDelCuadroDeTurnos(
     string Nombre,
     string Descripcion,
     bool Completo,
-    bool Retirado);
+    bool Retirado,
+    bool EsDescanso = false,
+    HorarioAbiertoDelCuadro? HorarioAbierto = null);
+
+/// <summary>Duracion legible de un turno de horario abierto; null en el dia = no es de horario abierto.</summary>
+public sealed record HorarioAbiertoDelCuadro(string Duracion);
 
 /// <summary>Advertencia estructurada: Tipo es el nombre del tipo; Magnitud en minutos o dias.</summary>
 public sealed record AdvertenciaDelCuadroDeTurnos(string Tipo, int? Dia, int Magnitud);
