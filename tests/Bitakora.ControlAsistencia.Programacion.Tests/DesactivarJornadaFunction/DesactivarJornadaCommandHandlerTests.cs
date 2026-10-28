@@ -17,7 +17,7 @@ public class DesactivarJornadaCommandHandlerTests : CommandHandlerAsyncTest<Desa
     private static readonly Guid JornadaY = Guid.Parse("019600a0-0000-7000-8000-000000000871");
     private static readonly string StreamPreferencias = PreferenciasProgramacion.ComputarStreamId(Tenant);
 
-    private readonly FakeLectorPlantillas _lector = new();
+    private readonly FakeLectorPlantillasTurnos _lector = new();
 
     protected override ICommandHandlerAsync<DesactivarJornada> Handler =>
         new DesactivarJornadaCommandHandler(EventStore, _lector, new FakeTenantContext());
@@ -101,7 +101,7 @@ public class DesactivarJornadaCommandHandlerTests : CommandHandlerAsyncTest<Desa
         DesactivarJornadaCommandHandler.Mensajes.JornadaEnUsoPorPlantillas.Should().NotBeNullOrWhiteSpace();
     }
 
-    private sealed class FakeLectorPlantillas : ILectorPlantillasPorJornada
+    private sealed class FakeLectorPlantillasTurnos : ILectorPlantillasTurnosPorJornada
     {
         public IReadOnlyList<string> Plantillas { get; set; } = [];
         public int Consultas { get; private set; }

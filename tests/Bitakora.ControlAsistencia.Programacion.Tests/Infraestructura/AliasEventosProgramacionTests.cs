@@ -133,37 +133,27 @@ public class AliasEventosProgramacionTests
     }
 
     [Fact]
-    public void PlantillaSemanalCreada_TieneAliasPlantillaSemanalCreada()
+    public void PlantillaDeTurnosCreada_TieneAliasPlantillaDeTurnosCreada()
     {
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();
 
-        AliasDe<PlantillaSemanalCreada>(options).Should().Be("plantilla_semanal_creada");
-    }
-
-    // Issue #621
-    [Fact]
-    public void DiaDePlantillaSemanalAsignado_TieneAliasDiaDePlantillaSemanalAsignado()
-    {
-        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
-
-        AliasDe<DiaDePlantillaSemanalAsignado>(options).Should().Be("dia_de_plantilla_semanal_asignado");
-    }
-
-    // Issue #622
-    [Fact]
-    public void DiaDePlantillaSemanalQuitado_TieneAliasDiaDePlantillaSemanalQuitado()
-    {
-        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
-
-        AliasDe<DiaDePlantillaSemanalQuitado>(options).Should().Be("dia_de_plantilla_semanal_quitado");
+        AliasDe<PlantillaDeTurnosCreada>(options).Should().Be("plantilla_de_turnos_creada");
     }
 
     [Fact]
-    public void PlantillaSemanalRetirada_TieneAliasPlantillaSemanalRetirada()
+    public void DiaDePlantillaDeTurnosAsignado_TieneAliasDiaDePlantillaDeTurnosAsignado()
     {
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();
 
-        AliasDe<PlantillaSemanalRetirada>(options).Should().Be("plantilla_semanal_retirada");
+        AliasDe<DiaDePlantillaDeTurnosAsignado>(options).Should().Be("dia_de_plantilla_de_turnos_asignado");
+    }
+
+    [Fact]
+    public void PlantillaDeTurnosRetirada_TieneAliasPlantillaDeTurnosRetirada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<PlantillaDeTurnosRetirada>(options).Should().Be("plantilla_de_turnos_retirada");
     }
 
     [Fact]
@@ -199,11 +189,44 @@ public class AliasEventosProgramacionTests
     }
 
     [Fact]
-    public void AdvertenciasDePlantillaSemanalCalculadas_TieneAliasAdvertenciasDePlantillaSemanalCalculadas()
+    public void AdvertenciasDePlantillaDeTurnosCalculadas_TieneAliasAdvertenciasDePlantillaDeTurnosCalculadas()
     {
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();
 
-        AliasDe<AdvertenciasDePlantillaSemanalCalculadas>(options)
-            .Should().Be("advertencias_de_plantilla_semanal_calculadas");
+        AliasDe<AdvertenciasDePlantillaDeTurnosCalculadas>(options)
+            .Should().Be("advertencias_de_plantilla_de_turnos_calculadas");
+    }
+
+    [Fact]
+    public void JornadaDePlantillaDeTurnosAsignada_TieneAliasJornadaDePlantillaDeTurnosAsignada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<JornadaDePlantillaDeTurnosAsignada>(options).Should().Be("jornada_de_plantilla_de_turnos_asignada");
+    }
+
+    [Fact]
+    public void JornadaDePlantillaDeTurnosQuitada_TieneAliasJornadaDePlantillaDeTurnosQuitada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<JornadaDePlantillaDeTurnosQuitada>(options).Should().Be("jornada_de_plantilla_de_turnos_quitada");
+    }
+
+    [Fact]
+    public void TurnoDePlantillaDeTurnosSincronizado_TieneAliasTurnoDePlantillaDeTurnosSincronizado()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<TurnoDePlantillaDeTurnosSincronizado>(options).Should().Be("turno_de_plantilla_de_turnos_sincronizado");
+    }
+
+    [Fact]
+    public void LimitesDeJornadaDePlantillaDeTurnosSincronizados_TieneAliasLimitesDeJornadaDePlantillaDeTurnosSincronizados()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<LimitesDeJornadaDePlantillaDeTurnosSincronizados>(options)
+            .Should().Be("limites_de_jornada_de_plantilla_de_turnos_sincronizados");
     }
 }

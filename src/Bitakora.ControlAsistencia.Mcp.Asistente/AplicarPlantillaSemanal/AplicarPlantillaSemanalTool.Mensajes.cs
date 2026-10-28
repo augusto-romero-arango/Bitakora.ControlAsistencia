@@ -28,6 +28,9 @@ public partial class AplicarPlantillaSemanalTool
         public static string PlantillaConTurnoNoProgramable =>
             ResourceManager.GetString(nameof(PlantillaConTurnoNoProgramable))!;
 
+        /// <summary>{0}: nombre de la plantilla; {1}: dias de su ciclo.</summary>
+        public static string PlantillaNoEsSemanal => ResourceManager.GetString(nameof(PlantillaNoEsSemanal))!;
+
         public static string SedeNoExiste => ResourceManager.GetString(nameof(SedeNoExiste))!;
         public static string SedeInactiva => ResourceManager.GetString(nameof(SedeInactiva))!;
         public static string RechazoDelDominio => ResourceManager.GetString(nameof(RechazoDelDominio))!;

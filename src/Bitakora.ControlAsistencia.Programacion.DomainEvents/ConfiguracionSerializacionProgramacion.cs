@@ -41,20 +41,19 @@ public static class ConfiguracionSerializacionProgramacion
         ExtraQuitado.ConfigurarSerializacion(resolver);
         SedeDeFranjaAsignada.ConfigurarSerializacion(resolver);
         SedeDeFranjaRetirada.ConfigurarSerializacion(resolver);
-        PlantillaSemanalCreada.ConfigurarSerializacion(resolver);
-        DiaDePlantillaSemanalAsignado.ConfigurarSerializacion(resolver);
-        DiaDePlantillaSemanalQuitado.ConfigurarSerializacion(resolver);
-        PlantillaSemanalRetirada.ConfigurarSerializacion(resolver);
-        JornadaDePlantillaSemanalAsignada.ConfigurarSerializacion(resolver);
-        JornadaDePlantillaSemanalQuitada.ConfigurarSerializacion(resolver);
+        PlantillaDeTurnosCreada.ConfigurarSerializacion(resolver);
+        DiaDePlantillaDeTurnosAsignado.ConfigurarSerializacion(resolver);
+        PlantillaDeTurnosRetirada.ConfigurarSerializacion(resolver);
+        JornadaDePlantillaDeTurnosAsignada.ConfigurarSerializacion(resolver);
+        JornadaDePlantillaDeTurnosQuitada.ConfigurarSerializacion(resolver);
         HorasYMinutos.ConfigurarSerializacion(resolver);
         LimitesJornada.ConfigurarSerializacion(resolver);
         JornadaCreada.ConfigurarSerializacion(resolver);
         LimitesJornadaModificados.ConfigurarSerializacion(resolver);
         VentanaDeEntradaModificada.ConfigurarSerializacion(resolver);
-        AdvertenciaPlantillaSemanal.ConfigurarSerializacion(resolver);
-        AdvertenciasDePlantillaSemanalCalculadas.ConfigurarSerializacion(resolver);
-        TurnoDePlantillaSemanalSincronizado.ConfigurarSerializacion(resolver);
-        LimitesDeJornadaDePlantillaSemanalSincronizados.ConfigurarSerializacion(resolver);
+        AdvertenciaPlantillaTurnos.ConfigurarSerializacion(resolver);
+        AdvertenciasDePlantillaDeTurnosCalculadas.ConfigurarSerializacion(resolver);
+        TurnoDePlantillaDeTurnosSincronizado.ConfigurarSerializacion(resolver);
+        LimitesDeJornadaDePlantillaDeTurnosSincronizados.ConfigurarSerializacion(resolver);
     }
 }

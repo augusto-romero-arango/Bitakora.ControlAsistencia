@@ -1,3 +1,0 @@
-namespace Bitakora.ControlAsistencia.Programacion.AsignarJornadaAPlantillaSemanalFunction;
-
-public record AsignarJornadaAPlantillaSemanalBody(Guid JornadaId);

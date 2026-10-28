@@ -1,0 +1,224 @@
+using System.Net;
+using System.Net.Http.Json;
+using AwesomeAssertions;
+using Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
+
+namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.CrearPlantillaTurnosFunction;
+
+public class CrearPlantillaTurnosSmokeTests(ApiFixture api, PostgresFixture postgres)
+    : IDisposable
+{
+    private readonly TenantDeTest _tenant = new(api);
+
+    public void Dispose() => _tenant.Dispose();
+
+    private const string Ruta = "/api/programacion/plantillas-turnos";
+    private const string SchemaProgramacion = "programacion";
+    private const string TipoEventoCreada = "plantilla_de_turnos_creada";
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
+
+    private HttpClient _client => _tenant.Client;
+
+    private static object Payload(Guid? plantillaId = null, int diasDelCiclo = 8)
+    {
+        var id = plantillaId ?? Guid.CreateVersion7();
+        return new { plantillaId = id, nombre = $"[TEST] Plantilla {id}", diasDelCiclo };
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task HealthCheck_DebeResponder200()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/health", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_DebeRetornar201YPersistirPlantillaDeTurnosCreada_CuandoPayloadEsValido()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var plantillaId = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync(Ruta, Payload(plantillaId), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.ToString().Should().EndWith($"/programacion/plantillas-turnos/{plantillaId}");
+        (await postgres.ExisteEventoAsync(
+            SchemaProgramacion, plantillaId.ToString(), TipoEventoCreada, Timeout))
+            .Should().BeTrue($"el evento {TipoEventoCreada} deberia existir en el stream {plantillaId}");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_DebeRetornar409_CuandoPlantillaYaExiste()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var payload = Payload();
+
+        var primera = await _client.PostAsJsonAsync(Ruta, payload, ct);
+        primera.StatusCode.Should().Be(HttpStatusCode.Created, "la primera creacion es la precondicion del 409");
+
+        var response = await _client.PostAsJsonAsync(Ruta, payload, ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    private async Task<Guid> CrearJornadaAsync(FirmaDeLimites firma, CancellationToken ct)
+    {
+        var jornadaId = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created, "el arrange depende de que CrearJornada funcione");
+        return jornadaId;
+    }
+
+    private static object PayloadConJornada(Guid plantillaId, Guid jornadaId) => new
+    {
+        plantillaId,
+        nombre = $"[TEST] Plantilla {plantillaId}",
+        diasDelCiclo = 8,
+        jornadaId
+    };
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_DebeRetornar201YPersistirTodosLosEventos_CuandoLaJornadaExiste()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var jornadaId = await CrearJornadaAsync(LimitesDePrueba.CrearPlantillaTurnosConJornada, ct);
+        var plantillaId = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync(Ruta, PayloadConJornada(plantillaId, jornadaId), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.ToString().Should().EndWith($"/programacion/plantillas-turnos/{plantillaId}");
+        (await postgres.ExisteEventoAsync(
+            SchemaProgramacion, plantillaId.ToString(), TipoEventoCreada, Timeout))
+            .Should().BeTrue($"el evento {TipoEventoCreada} deberia existir en el stream {plantillaId}");
+        (await postgres.ExisteEventoAsync(
+            SchemaProgramacion, plantillaId.ToString(), "jornada_de_plantilla_de_turnos_asignada", Timeout,
+            campoJson: "JornadaId", valorJson: jornadaId.ToString()))
+            .Should().BeTrue("la plantilla nace con la Jornada asignada en el mismo stream");
+        (await postgres.ExisteEventoAsync(
+            SchemaProgramacion, plantillaId.ToString(), "advertencias_de_plantilla_de_turnos_calculadas", Timeout,
+            campoJson: "PlantillaId", valorJson: plantillaId.ToString()))
+            .Should().BeTrue("la plantilla creada con Jornada emite las advertencias del estado final");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_DebeRetornar404_CuandoLaJornadaNoExiste()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await _client.PostAsJsonAsync(
+            Ruta, PayloadConJornada(Guid.CreateVersion7(), Guid.CreateVersion7()), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_DebeRetornar409_CuandoLaJornadaEstaDesactivada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jornadaId = await CrearJornadaAsync(LimitesDePrueba.CrearPlantillaTurnosJornadaDesactivada, ct);
+        (await _client.PostAsync($"/api/programacion/jornadas/{jornadaId}:desactivar", null, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que DesactivarJornada funcione");
+
+        var response = await _client.PostAsJsonAsync(Ruta, PayloadConJornada(Guid.CreateVersion7(), jornadaId), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_DebeRetornar400_CuandoLaJornadaEsGuidVacio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await _client.PostAsJsonAsync(
+            Ruta, PayloadConJornada(Guid.CreateVersion7(), Guid.Empty), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_DebeRetornar400_CuandoDiasDelCicloEstaFueraDeRango()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await _client.PostAsJsonAsync(Ruta, Payload(diasDelCiclo: 43), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    private async Task<bool> PlantillaEstaMaterializadaAsync(Guid plantillaId, CancellationToken ct)
+    {
+        var response = await _client.GetAsync($"{Ruta}/{plantillaId}", ct);
+        return response.StatusCode == HttpStatusCode.OK;
+    }
+
+    private async Task<HttpResponseMessage> CrearConNombreAsync(Guid plantillaId, string nombre, CancellationToken ct) =>
+        await _client.PostAsJsonAsync(Ruta, new { plantillaId, nombre, diasDelCiclo = 8 }, ct);
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_DebeRetornar409_CuandoElNombreYaExisteEnElCatalogo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sufijo = Guid.CreateVersion7();
+        var plantillaExistenteId = Guid.CreateVersion7();
+
+        var arrange = await CrearConNombreAsync(plantillaExistenteId, $"[TEST] Ciclo {sufijo}", ct);
+        arrange.StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange de este smoke test depende de que CrearPlantillaTurnos funcione");
+        (await Polling.WaitUntilTrueAsync(
+            async () => await PlantillaEstaMaterializadaAsync(plantillaExistenteId, ct), Timeout))
+            .Should().BeTrue("la vista debe materializar la plantilla antes de comparar nombres");
+
+        var duplicado = await CrearConNombreAsync(Guid.CreateVersion7(), $"  [test]  ciclo {sufijo} ", ct);
+
+        duplicado.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var conAcento = await CrearConNombreAsync(Guid.CreateVersion7(), $"[TEST] Ciclé {sufijo}", ct);
+
+        conAcento.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearPlantillaTurnos_LiberaElNombre_CuandoLaPlantillaSeRetira()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nombreOriginal = $"[TEST] Ciclo Liberado {Guid.CreateVersion7()}";
+        var plantillaOriginalId = Guid.CreateVersion7();
+
+        var arrange = await CrearConNombreAsync(plantillaOriginalId, nombreOriginal, ct);
+        arrange.StatusCode.Should().Be(HttpStatusCode.Created,
+            "el arrange de este smoke test depende de que CrearPlantillaTurnos funcione");
+        (await Polling.WaitUntilTrueAsync(
+            async () => await PlantillaEstaMaterializadaAsync(plantillaOriginalId, ct), Timeout))
+            .Should().BeTrue("la vista debe materializar la plantilla antes de retirarla");
+
+        var retiro = await _client.DeleteAsync($"{Ruta}/{plantillaOriginalId}", ct);
+        retiro.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            "el arrange de este smoke test depende de que el retiro de la plantilla funcione");
+        (await Polling.WaitUntilTrueAsync(
+            async () => !await PlantillaEstaMaterializadaAsync(plantillaOriginalId, ct), Timeout))
+            .Should().BeTrue("la vista debe borrar la plantilla retirada");
+
+        var reutilizado = await CrearConNombreAsync(Guid.CreateVersion7(), nombreOriginal, ct);
+
+        reutilizado.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+}

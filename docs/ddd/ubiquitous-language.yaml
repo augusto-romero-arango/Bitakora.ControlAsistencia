@@ -4,7 +4,11 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-26 (sesion planner, explorar plantillas: un cliente programa en ciclos
+# Ultima actualizacion: 2026-10-27 (sesion planner, refinar #1288: la interfaz SEMANAL es un ciclo
+#   de exactamente 7 dias (dia 1 = lunes); quincenal o de 3 semanas es un ciclo generico de 14/21 dias.
+#   La interfaz ROTATIVA se disena por bloques de dias consecutivos. Tocada: Plantilla de turnos.
+#   Issues #1288, #1300.)
+# Actualizacion previa: 2026-10-26 (sesion planner, explorar plantillas: un cliente programa en ciclos
 #   de 8 dias. La Plantilla de turnos deja de ser solo paraguas y nombra el molde GENERICO de dias
 #   1..N (N <= 42) que se aplica con una fecha de inicio; semanal y rotativa pasan a ser interfaces.
 #   Se toma el nombre generico a proposito (revierte el anti-squatting). La Plantilla semanal de turnos
@@ -591,11 +595,16 @@ terms:
       es un CICLO de N dias (dia 1..N, N entre 1 y 42), cada dia con un turno del catalogo (el descanso
       es un turno); no tiene fechas. APLICARLA es dar la fecha de inicio (cae el dia 1) y la ventana:
       cada fecha toma el turno de su dia del ciclo y se programa como hoy. Cubre todo lo que se repite
-      cada N dias: semanal (7, 14... dias), 6x2, 4x4, 24x24, 14x14, 20x10. "Semanal" y "rotativa" son
-      INTERFACES del asistente/front sobre este molde, no conceptos del dominio.
+      cada N dias: semanal, 6x2, 4x4, 24x24, 14x14, 20x10. "Semanal" y "rotativa" son
+      INTERFACES del asistente/front sobre este molde, no conceptos del dominio. Enmienda 2026-10-27
+      (#1288): SEMANAL es un ciclo de exactamente 7 dias, dia 1 = lunes ... dia 7 = domingo, que se
+      aplica alineado al lunes de la semana de la ventana; un ciclo quincenal o de 3 semanas NO es
+      semanal: es una plantilla de 14 o 21 dias aplicada con su fecha de inicio. ROTATIVA se disena por
+      bloques de dias consecutivos con el mismo turno, en orden (6x2 = 6 dias de un turno + 2 de
+      descanso); el ciclo dura la suma de los bloques (#1300).
     context: Programacion
     date_added: 2026-09-04
-    date_updated: 2026-10-26
+    date_updated: 2026-10-27
     rejected_synonyms: [Horario, Esquema de turnos, Semana tipo, Malla de turnos, Sabana de turnos, Patron de turnos]
     rejection_reason: >
       Horario roza con HorarioResumido (las horas de UN turno). Semana tipo muere con mas de una
@@ -614,10 +623,13 @@ terms:
       REVIERTE PARCIALMENTE la decision del 2026-08-29 ("mallas/rotaciones NO son conceptos del
       dominio sino recetas del asistente"): lo que separa la receta del concepto es persistir +
       nombrar + reutilizar, y eso es lo que el experto pidio. La Ventana de trabajo sigue siendo
-      efimera: la plantilla no tiene fechas, tiene dias de la semana. CA-ADR-0034.
+      efimera: la plantilla no tiene fechas, tiene dias del ciclo. CA-ADR-0034 (enmendado #1302).
 
   - name: Plantilla semanal de turnos
     definition: >
+      HISTORICA (retirada en #1289, enmienda CA-ADR-0034 #1302): ya no existe como aggregate ni como
+      tipos de evento (borrados sin purga). Vigente: Plantilla de turnos (ciclo 1..N); la semanal es una
+      interfaz de 7 dias sobre ella. Se conserva como registro de lo que fue.
       Plantilla de turnos en modalidad semanal: 1..N semanas, siempre de lunes a domingo, donde cada
       dia (identificado por semana + dia de la semana) REFERENCIA un turno del catalogo por TurnoId.
       Nunca copia el turno: editar el turno se refleja en las asignaciones futuras; el snapshot ocurre
@@ -651,7 +663,7 @@ terms:
       propios eventos (sin componer con FichaTurno, #882). Aplicar la plantilla sigue leyendo el catalogo.
     context: Programacion
     date_added: 2026-09-04
-    date_updated: 2026-10-06
+    date_updated: 2026-10-27
     rejected_synonyms: [PlantillaTurnos (sin modalidad), Ventana de trabajo, Periodo de programacion, turno inline sin nombre]
     rejection_reason: >
       El alias del evento persistido es el nombre simple de la clase y una futura PlantillaCiclica
@@ -671,7 +683,7 @@ terms:
 
   - name: Advertencias de plantilla
     definition: >
-      Juicio que la Plantilla semanal de turnos hace de su propio diseno contra la Jornada asociada.
+      Juicio que la Plantilla de turnos hace de su propio diseno contra la Jornada asociada.
       Sin Jornada, la unica advertencia es PlantillaSinJornada (ningun otro control corre). Con Jornada,
       TODOS los controles se aplican siempre, este completa o no: DiaSinTurno (dia vacio, o con turno
       retirado o incompleto), SuperaTopeDiario / PorDebajoDelMinimoDiario (dias de trabajo, en minutos),
@@ -679,7 +691,7 @@ terms:
       SobranDiasDeDescanso (valor exacto, solo si el parametro > 0, en dias). Orientan, no bloquean.
     context: Programacion
     date_added: 2026-10-06
-    date_updated: 2026-10-06
+    date_updated: 2026-10-27
     rejected_synonyms: [Auditoria calculada al leer, DiaConTurnoIncompleto]
     rejection_reason: >
       Calcularlas en el GET dejaba las reglas fuera de la plantilla (Tell-don't-Ask, experto
@@ -694,6 +706,8 @@ terms:
 
   - name: Cuadro semanal de turnos
     definition: >
+      HISTORICA (retirada en #1289, enmienda CA-ADR-0034 #1302): la vista vigente es el CuadroDeTurnos de la
+      Plantilla de turnos. Se conserva como registro de lo que fue.
       Vista read-side de una Plantilla semanal de turnos, para que el Programador (front o asistente)
       sepa si la plantilla que necesita ya existe, elija cual usar y vea de un vistazo que turno toca
       cada dia y si esta completa. Lo que el Programador lee, por dia: el turno con su nombre y su
@@ -706,7 +720,7 @@ terms:
       plantilla, sin personas.
     context: Programacion
     date_added: 2026-09-04
-    date_updated: 2026-09-05
+    date_updated: 2026-10-27
     rejected_synonyms: [FichaPlantillaSemanal, Vista de plantilla, Resumen de plantilla]
     rejection_reason: >
       "Ficha" NO es doctrina de naming (experto, 2026-09-04): nacio para resolver colaboradores y
@@ -776,6 +790,8 @@ terms:
 
   - name: Dia de la semana
     definition: >
+      HISTORICA (retirado en #1289, enmienda CA-ADR-0034 #1302): el dia de una Plantilla de turnos se
+      identifica por su numero en el ciclo (1..N); el VO DiaSemana ya no existe. Se conserva como registro.
       Posicion de un dia dentro de la semana lunes-domingo de una Plantilla semanal de turnos, codificada
       como numero ISO 8601: 1 = lunes ... 7 = domingo. Es un CODIGO neutral (viaja igual en la ruta
       PUT/DELETE .../dias/{semana}/{dia} y en los eventos DiaDePlantillaSemanalAsignado/Quitado); la
@@ -810,7 +826,7 @@ terms:
   - name: Franja Ordinaria
     definition: Segmento continuo de trabajo dentro de un turno. Es la franja principal que recibe marcaciones. Puede contener franjas de descanso y/o franjas de extra.
     context: Programacion
-    date_updated: 2026-09-04
+    date_updated: 2026-10-27
     note: >
       Solo las ordinarias pueden contener otras franjas. Una ordinaria NO puede contener otra
       ordinaria. Ampliacion 2026-09-04 (#598, decision del experto): dura mas de 0 y COMO MAXIMO

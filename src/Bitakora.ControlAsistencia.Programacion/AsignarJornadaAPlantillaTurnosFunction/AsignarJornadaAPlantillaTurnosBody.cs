@@ -1,0 +1,3 @@
+namespace Bitakora.ControlAsistencia.Programacion.AsignarJornadaAPlantillaTurnosFunction;
+
+public record AsignarJornadaAPlantillaTurnosBody(Guid JornadaId);
