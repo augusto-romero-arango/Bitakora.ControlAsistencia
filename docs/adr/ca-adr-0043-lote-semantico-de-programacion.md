@@ -11,7 +11,9 @@ dias -> ~11.000 invocaciones (AsignarTurno, RepartirMarcaciones y RecibirDepurac
 cuellos fueron Postgres B1ms (CPU 83-91 %, 113 errores 53300), `RecibirDepuracionCuandoDiaDepurado` serial
 (~600 msg/min, `maxConcurrentCalls: 1`) y el plan B1 de ControlHoras (CPU 55-95 %).
 
-**Meta**: 130 colaboradores x 1 mes en <= 1 min, desde la solicitud hasta la proyeccion.
+**Meta**: 130 colaboradores x 1 mes en <= 1 min, desde la solicitud hasta la proyeccion. *(Actualizada el
+2026-10-31: la meta medible es 100 colaboradores x 1 mes en <= 1 min, el SLI de programacion masiva de
+CA-ADR-0044.)*
 
 A diferencia de CA-ADR-0036 (dominio, sin identificadores), este es un ADR **de transporte**, como CA-ADR-0017:
 fija los nombres de los dos eventos privados y sus topics, porque #1336 (infra) y #1337 los consumen.
@@ -81,3 +83,4 @@ fija los nombres de los dos eventos privados y sus topics, porque #1336 (infra) 
 ## Control de cambios
 
 - 2026-10-30: creado (investigacion 2026-10-28/29; registro en #1333).
+- 2026-10-31: la meta medible pasa a 100 colaboradores x 1 mes en <= 1 min (CA-ADR-0044, #1335).
