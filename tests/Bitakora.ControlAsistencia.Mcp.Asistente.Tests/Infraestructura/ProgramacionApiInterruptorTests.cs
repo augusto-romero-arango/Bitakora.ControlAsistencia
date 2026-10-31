@@ -109,7 +109,7 @@ public class ProgramacionApiInterruptorTests
             context: null!, desde: "2026-09-01", hasta: "2026-09-30", turnoId: turnoId,
             sedeDeProgramacion: "SUBA", identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
 
-        handlerProgramacion.Requests.Should().Contain(r => r.RequestUri!.AbsolutePath == "/api/programacion/solicitudes-en-fechas");
+        handlerProgramacion.Requests.Should().Contain(r => r.Ruta == "/api/programacion/solicitudes-en-fechas");
         resultado.Should().Contain("\"dias\":29").And.Contain("Vacaciones");
     }
 }
