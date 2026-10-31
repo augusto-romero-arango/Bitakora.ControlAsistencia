@@ -56,7 +56,6 @@ public class ComposicionServiciosTests
 
     private static readonly (Type Tipo, string Topic)[] EventosPrivadosYTopics =
     [
-        (typeof(ProgramacionTurnoDiarioSolicitada), "programacion-turno-diario-solicitada"),
         (typeof(ProgramacionTurnoEnFechasSolicitada), "programacion-turno-en-fechas-solicitada"),
         (typeof(CancelacionTurnoDiarioSolicitada), "cancelacion-turno-diario-solicitada"),
         (typeof(AusenciaDiariaProgramada), "ausencia-diaria-programada"),
@@ -507,7 +506,9 @@ public class ComposicionServiciosTests
         var tipos = typeof(AusenciaDiariaCancelada).Assembly.GetTypes()
             .Where(tipo => tipo.Namespace == "Bitakora.ControlAsistencia.PrivateEvents.Programacion"
                            && tipo.IsClass && !tipo.IsAbstract
-                           && typeof(IPrivateEvent).IsAssignableFrom(tipo));
+                           && typeof(IPrivateEvent).IsAssignableFrom(tipo))
+            // Sin productor desde #1371; el tipo y su consumidor en ControlHoras los retira #1372.
+            .Where(tipo => tipo != typeof(ProgramacionTurnoDiarioSolicitada));
 
         EventosPrivadosYTopics.Select(par => par.Tipo).Should().BeEquivalentTo(tipos);
     }

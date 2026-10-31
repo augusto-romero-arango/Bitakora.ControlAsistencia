@@ -6,7 +6,6 @@ using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction.CommandHandler;
-using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.Tests.CrearJornadaFunction;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;

@@ -1,5 +1,5 @@
 // Guardrail de la duplicacion deliberada de payload por rol (tres islas, MEF-ADR-0039 decision 2 y
-// 6): ColaboradorSolicitado (DTO del body de SolicitarProgramacionTurno, Function App) y
+// 6): ColaboradorSolicitado (DTO del body de SolicitarProgramacionTurnoEnFechas, Function App) y
 // ColaboradorProgramado (Programacion.DomainEvents) declaran el mismo dato en dos sitios que no se
 // referencian entre si. Sin este guardrail, agregar un campo a uno de los dos no rompe nada y el
 // dato del body se pierde en silencio al construir el evento persistido ProgramacionTurnoSolicitada.
@@ -13,7 +13,7 @@
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
-using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
+using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ValueObjects;
 

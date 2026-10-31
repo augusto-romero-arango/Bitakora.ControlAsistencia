@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
-using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

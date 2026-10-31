@@ -152,7 +152,7 @@ public class ServiceBusFixture : IAsyncLifetime
     }
 
     // Issue #223 CA-2/CA-3: acota el assert a "hay un dead letter de ESTA corrida" en vez de
-    // "el DLQ esta globalmente vacio". T es una forma minima plana (ver DeadLetterMinimos.cs)
+    // "el DLQ esta globalmente vacio". T es una forma minima plana del mensaje de bus
     // que solo declara el identificador de correlacion, sin depender de la deserializacion
     // custom de los value objects ricos del contrato (ADR-0025).
     public async Task<bool> ExisteDeadLetterDeEstaCorridaAsync<T>(

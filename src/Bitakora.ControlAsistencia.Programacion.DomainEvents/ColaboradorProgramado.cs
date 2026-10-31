@@ -4,7 +4,7 @@ namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 /// Terna de identidad del colaborador que persiste ProgramacionTurnoSolicitada. Payload propio de
 /// esta isla (CA-ADR-0029 decision #5 / MEF-ADR-0039 decision #6): los tres ensamblados de eventos
 /// no se referencian entre si, asi que el mapeo desde la forma del body HTTP vive en el Function
-/// App (SolicitarProgramacionTurnoCommandHandler), el unico proyecto que ve ambas formas.
+/// App (SolicitarProgramacionTurnoEnFechasCommandHandler), el unico proyecto que ve ambas formas.
 /// </summary>
 /// <remarks>
 /// Identificacion llega con el contrato del maestro Colaboradores ("{Tipo}-{Numero}", nunca

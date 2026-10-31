@@ -199,7 +199,7 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
         var lunes = new DateOnly(2026, 11, 2);
         var fechas = Enumerable.Range(0, 7).Select(i => lunes.AddDays(i).ToString("yyyy-MM-dd")).ToArray();
 
-        var solicitud = await programacion.PostAsJsonAsync("/api/programacion/solicitudes", new
+        var solicitud = await programacion.PostAsJsonAsync("/api/programacion/solicitudes-en-fechas", new
         {
             id = Guid.CreateVersion7(),
             turnoId,
@@ -294,7 +294,7 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
 
         async Task ProgramarAsync(Guid turnoId, DateOnly fecha)
         {
-            var solicitud = await programacion.PostAsJsonAsync("/api/programacion/solicitudes", new
+            var solicitud = await programacion.PostAsJsonAsync("/api/programacion/solicitudes-en-fechas", new
             {
                 id = Guid.CreateVersion7(),
                 turnoId,
@@ -374,7 +374,7 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
 
         async Task ProgramarAsync(Guid turnoId, DateOnly fecha)
         {
-            var solicitud = await programacion.PostAsJsonAsync("/api/programacion/solicitudes", new
+            var solicitud = await programacion.PostAsJsonAsync("/api/programacion/solicitudes-en-fechas", new
             {
                 id = Guid.CreateVersion7(),
                 turnoId,
@@ -460,7 +460,7 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
 
         async Task ProgramarAsync(Guid turnoId, DateOnly fecha)
         {
-            var solicitud = await programacion.PostAsJsonAsync("/api/programacion/solicitudes", new
+            var solicitud = await programacion.PostAsJsonAsync("/api/programacion/solicitudes-en-fechas", new
             {
                 id = Guid.CreateVersion7(),
                 turnoId,
