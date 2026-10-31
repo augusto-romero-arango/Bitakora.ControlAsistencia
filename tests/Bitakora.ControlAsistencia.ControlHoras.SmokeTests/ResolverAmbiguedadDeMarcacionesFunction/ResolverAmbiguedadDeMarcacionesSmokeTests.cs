@@ -11,7 +11,7 @@ public class ResolverAmbiguedadDeMarcacionesSmokeTests(ApiFixture api, ServiceBu
     private readonly HttpClient _client = api.Client;
 
     private const string RutaMarcaciones = "/api/control-horas/marcaciones";
-    private const string TopicProgramacionEntrada = "programacion-turno-diario-solicitada";
+    private const string TopicProgramacionEntrada = ProgramacionEnLote.Topic;
     private const string SchemaControlHoras = "control_horas";
     private const string TipoEventoTurnoDiarioAsignado = "turno_diario_asignado";
     private const string TipoEventoCoberturaVecinaActualizada = "cobertura_vecina_actualizada";
@@ -66,7 +66,8 @@ public class ResolverAmbiguedadDeMarcacionesSmokeTests(ApiFixture api, ServiceBu
                 CodigoColaborador = codigoColaborador,
                 NombreCompleto = "[TEST] Smoke Resolver Ambiguedad"
             },
-            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
+            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new { Nombre = "[TEST] Turno Resolver Ambiguedad", FranjasOrdinarias = new[] { franja } }
         };
     }

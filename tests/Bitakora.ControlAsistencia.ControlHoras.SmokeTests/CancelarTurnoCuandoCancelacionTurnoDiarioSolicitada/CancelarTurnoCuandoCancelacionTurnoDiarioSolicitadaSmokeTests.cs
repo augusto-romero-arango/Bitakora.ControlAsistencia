@@ -13,7 +13,7 @@ using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradore
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada;
 
 // Consumidor puro (ServiceBusTrigger, sin comando espejo): el arrange siembra el ControlDiario
-// publicando programacion-turno-diario-solicitada -- el mismo camino que recorre el productor real
+// publicando programacion-turno-en-fechas-solicitada -- el mismo camino que recorre el productor real
 // -- y, cuando el escenario lo pide, registra una marcacion via POST. El Act publica
 // cancelacion-turno-diario-solicitada y se verifican los dos efectos del handler (persistencia de
 // TurnoDiarioCancelado + republicacion de DiaDepurado) o su ausencia en los ramales de no-op.
@@ -22,7 +22,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string TopicProgramacionEntrada = "programacion-turno-diario-solicitada";
+    private const string TopicProgramacionEntrada = ProgramacionEnLote.Topic;
     private const string TopicCancelacionEntrada = "cancelacion-turno-diario-solicitada";
     private const string SuscripcionConsumidor = "control-horas-escucha-cancelacion";
     private const string TopicDiaDepurado = "dia-depurado";
@@ -74,7 +74,8 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         {
             SolicitudId = solicitudId,
             Colaborador = colaborador,
-            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
+            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = nombreTurno,

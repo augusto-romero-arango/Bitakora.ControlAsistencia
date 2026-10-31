@@ -14,7 +14,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 // La unica senal fiable de "listener vivo" es que procese un mensaje, asi que el cebado ejecuta la
 // cadena SB completa UNA sola vez, con identificadores descartables, antes de toda la suite,
 // esperando la persistencia de cada salto:
-//   1. programacion-turno-diario-solicitada -> listener AsignarTurno -> turno_diario_asignado
+//   1. programacion-turno-en-fechas-solicitada -> listener AsignarTurno -> turno_diario_asignado
 //   2. POST marcacion (registro-de-marcacion-creado) -> listener AdicionarMarcacion -> marcacion_adicionada
 //
 // Nota xUnit v3: un AssemblyFixture NO puede inyectar otro AssemblyFixture
@@ -27,7 +27,7 @@ public class WarmupFixture : IAsyncLifetime
 {
     private const string Ruta = "/api/control-horas/marcaciones";
     private const string SchemaControlHoras = "control_horas";
-    private const string TopicProgramacionEntrada = "programacion-turno-diario-solicitada";
+    private const string TopicProgramacionEntrada = ProgramacionEnLote.Topic;
     private const string TipoEventoTurnoDiarioAsignado = "turno_diario_asignado";
     private const string TipoEventoMarcacionAdicionada = "marcacion_adicionada";
 
@@ -93,7 +93,7 @@ public class WarmupFixture : IAsyncLifetime
         var fecha = new DateOnly(2026, 1, 1);
         var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
 
-        // Salto 1: publicar programacion-turno-diario-solicitada -> calienta el listener AsignarTurno,
+        // Salto 1: publicar programacion-turno-en-fechas-solicitada -> calienta el listener AsignarTurno,
         // que persiste turno_diario_asignado en el stream.
         var solicitudId = Guid.CreateVersion7();
         var programacionPayload = new
@@ -101,7 +101,8 @@ public class WarmupFixture : IAsyncLifetime
             SolicitudId = solicitudId,
             Colaborador = new ResumenColaborador(
                 "CC-000000000", codigoColaborador, "[WARMUP] Cebado cadena SB"),
-            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
+            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[WARMUP] Turno cebado",

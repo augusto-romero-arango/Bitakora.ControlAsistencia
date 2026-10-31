@@ -7,7 +7,7 @@ using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ObtenerTurnoVigente;
 
-// El arrange va por el bus interno (ProgramacionTurnoDiarioSolicitada al topic de entrada), nunca
+// El arrange va por el bus interno (ProgramacionTurnoEnFechasSolicitada al topic de entrada), nunca
 // sembrando el event store por fuera de el. El CI de PR no ejecuta esta suite (solo corre *.Tests);
 // su veredicto real se lee tras el deploy.
 //
@@ -30,7 +30,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string TopicEntrada = "programacion-turno-diario-solicitada";
+    private const string TopicEntrada = ProgramacionEnLote.Topic;
 
     // Eco del colaborador sembrado: la vista devuelve NombreCompleto tal cual viaja en el evento.
     private const string NombreCompletoSembrado = "[TEST] Smoke TurnoVigente";
@@ -99,7 +99,8 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
             SolicitudId = solicitudId,
             Colaborador = new ResumenColaborador(
                 "CC-111222333", codigoColaborador, NombreCompletoSembrado),
-            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
+            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[TEST] Turno Vigente Query",
@@ -208,7 +209,8 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
         {
             SolicitudId = solicitudId,
             Colaborador = colaborador,
-            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
+            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = nombreTurno,

@@ -29,7 +29,7 @@ public class RegistrarMarcacionSmokeTests(
     private const string TipoEvento = "marcacion_registrada";
     private const string TipoEventoMarcacionAdicionada = "marcacion_adicionada";
     private const string TipoEventoTurnoDiarioAsignado = "turno_diario_asignado";
-    private const string TopicProgramacionEntrada = "programacion-turno-diario-solicitada";
+    private const string TopicProgramacionEntrada = ProgramacionEnLote.Topic;
     private const string TopicDiaDepurado = "dia-depurado";
     private const string SuscripcionSmokeTests = "smoke-tests";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
@@ -273,7 +273,7 @@ public class RegistrarMarcacionSmokeTests(
     // consumir directo la suscripcion smoke-tests de ese topic: prueba que el listener de PRODUCCION
     // (no un consumidor competidor) proceso el mensaje.
     //
-    // El setup publica programacion-turno-diario-solicitada para que el aggregate tenga turno previo,
+    // El setup publica programacion-turno-en-fechas-solicitada para que el aggregate tenga turno previo,
     // asegurando que DiaDepurado.Colaborador no sea null y se pueda filtrar por CodigoColaborador en
     // la suscripcion smoke-tests.
     [Fact]
@@ -292,7 +292,7 @@ public class RegistrarMarcacionSmokeTests(
         var fecha = new DateOnly(2026, 4, 27);
         var streamId = $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
 
-        // Setup: publicar programacion-turno-diario-solicitada y esperar a que ControlHoras
+        // Setup: publicar programacion-turno-en-fechas-solicitada y esperar a que ControlHoras
         // persista turno_diario_asignado. Asi el ControlDiario tendra TurnoDiarioAsignado previo
         // antes de procesar la marcacion.
         var solicitudId = Guid.CreateVersion7();
@@ -302,7 +302,8 @@ public class RegistrarMarcacionSmokeTests(
         {
             SolicitudId = solicitudId,
             Colaborador = colaborador,
-            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
+            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[TEST] Turno HU108",
@@ -431,7 +432,8 @@ public class RegistrarMarcacionSmokeTests(
             SolicitudId = solicitudId,
             Colaborador = new ResumenColaborador(
                 "CC-777666555", codigoColaborador, "[TEST] Smoke Desglose Real"),
-            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
+            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[TEST] Turno HU181",
@@ -533,7 +535,7 @@ public class RegistrarMarcacionSmokeTests(
             codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 
-    // Sin publicar programacion-turno-diario-solicitada, el ControlDiario nace directo desde la
+    // Sin publicar programacion-turno-en-fechas-solicitada, el ControlDiario nace directo desde la
     // marcacion y CrearDiaDepurado() no tiene InformacionColaborador que mapear. Prueba
     // contra el entorno real que la cadena completa (handler -> IPrivateEventSender ->
     // deserializacion) preserva CodigoColaborador top-level y Colaborador null, tal como lo predice

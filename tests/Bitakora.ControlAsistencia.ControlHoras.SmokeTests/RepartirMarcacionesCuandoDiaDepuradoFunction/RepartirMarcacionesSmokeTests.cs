@@ -11,7 +11,7 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
     private readonly HttpClient _client = api.Client;
 
     private const string RutaMarcaciones = "/api/control-horas/marcaciones";
-    private const string TopicProgramacionEntrada = "programacion-turno-diario-solicitada";
+    private const string TopicProgramacionEntrada = ProgramacionEnLote.Topic;
     private const string TopicDiaDepurado = "dia-depurado";
     private const string SuscripcionReparto = "control-horas-reparte-marcaciones";
     private const string SchemaControlHoras = "control_horas";
@@ -60,7 +60,8 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
                 CodigoColaborador = codigoColaborador,
                 NombreCompleto = "[TEST] Smoke Reparto"
             },
-            Fecha = vispera.ToString("yyyy-MM-dd"),
+            Fechas = new[] { vispera.ToString("yyyy-MM-dd") },
+            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[TEST] Turno Nocturno Reparto",
