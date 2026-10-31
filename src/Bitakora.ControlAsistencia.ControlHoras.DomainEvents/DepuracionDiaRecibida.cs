@@ -42,6 +42,7 @@ public sealed class DepuracionDiaRecibida
         Marcaciones = marcaciones;
         HorasDiscriminadas = horasDiscriminadas;
         MotivoAusencia = motivoAusencia;
+        VersionControlDiario = versionControlDiario;
     }
 
     // Constructor privado para Marten/serializacion

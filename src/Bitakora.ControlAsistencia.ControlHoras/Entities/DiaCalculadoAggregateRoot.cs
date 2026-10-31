@@ -38,6 +38,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     private IReadOnlyList<MarcacionDelDia> _marcaciones = [];
     private HorasDiscriminadas? _horasDiscriminadas;
     private IReadOnlyList<SedeDecidida> _sedesDecididas = [];
+    private long? _versionControlDiario;
 
     // CA-ADR-0031: el prefijo "dc" disjunta este stream del de ControlDiario ("cd"), que comparte la
     // identidad logica colaborador+fecha en el mismo store; la fecha va en ISO 8601 basico para que
@@ -70,6 +71,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         _franjas = e.Franjas;
         _marcaciones = e.Marcaciones;
         _horasDiscriminadas = e.HorasDiscriminadas;
+        _versionControlDiario = e.VersionControlDiario;
         Estado = EstadoDiaCalculado.Provisional;
     }
 
@@ -86,18 +88,25 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     // CA-2/CA-4: toda foto que llega a un dia ya existente se agrega al mismo stream, siempre.
     // Un dia ya Aprobado no incorpora la foto tardia -- Apply(DepuracionDiaRecibida) lo regresaria
     // a Provisional -- pero tampoco la ignora: queda como evidencia auditable en el mismo stream.
-    internal void RecibirDepuracion(DepuracionDiaRecibida evento)
+    // Una foto sin version se aplica siempre; una con version solo si supera a la ultima aplicada
+    // (la igual es la misma foto, p. ej. un lote reintentado). Se evalua antes que el dia aprobado:
+    // una foto vieja no aporta ni como evidencia. CA-ADR-0030: declina con resultado, sin evento.
+    internal ResultadoRecepcionDepuracion RecibirDepuracion(DepuracionDiaRecibida evento)
     {
+        if (evento.VersionControlDiario is { } nueva && _versionControlDiario is { } ultima && nueva <= ultima)
+            return ResultadoRecepcionDepuracion.SinCambios;
+
         if (Estado == EstadoDiaCalculado.Aprobado)
         {
             var evidencia = DepuracionPosAprobacionRecibida.Desde(evento);
             _uncommittedEvents.Add(evidencia);
             Apply(evidencia);
-            return;
+            return ResultadoRecepcionDepuracion.EvidenciaPosAprobacion;
         }
 
         _uncommittedEvents.Add(evento);
         Apply(evento);
+        return ResultadoRecepcionDepuracion.Recibida;
     }
 
     // MEF-ADR-0004: Apply no lanza ni muta -- rehidratar un stream con este evento reproduce
