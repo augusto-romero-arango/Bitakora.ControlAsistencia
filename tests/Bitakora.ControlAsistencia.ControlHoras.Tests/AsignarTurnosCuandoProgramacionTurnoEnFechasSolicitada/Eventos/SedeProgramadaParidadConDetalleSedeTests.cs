@@ -16,7 +16,7 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada.Eventos;
 
 public class SedeProgramadaParidadConDetalleSedeTests
 {

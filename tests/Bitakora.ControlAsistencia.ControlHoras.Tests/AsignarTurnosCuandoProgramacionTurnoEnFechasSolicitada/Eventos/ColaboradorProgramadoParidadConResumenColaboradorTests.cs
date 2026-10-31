@@ -15,7 +15,7 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 // trae el evento privado (CS0104).
 using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada.Eventos;
 
 public class ColaboradorProgramadoParidadConResumenColaboradorTests
 {

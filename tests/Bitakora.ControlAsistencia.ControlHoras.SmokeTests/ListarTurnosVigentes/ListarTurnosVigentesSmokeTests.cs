@@ -1,4 +1,4 @@
-// El arrange va por el bus interno (ProgramacionTurnoDiarioSolicitada al topic de entrada), nunca
+// El arrange va por el bus interno (ProgramacionTurnoEnFechasSolicitada al topic de entrada), nunca
 // sembrando el event store por fuera de el. El CI de PR no ejecuta esta suite (solo corre *.Tests);
 // su veredicto real se lee tras el deploy.
 //
@@ -32,7 +32,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string TopicEntrada = "programacion-turno-diario-solicitada";
+    private const string TopicEntrada = ProgramacionEnLote.Topic;
     private const string RutaListado = "/api/control-horas/turnos-vigentes";
     private static readonly HttpMethod MetodoQuery = new("QUERY");
 
@@ -144,7 +144,7 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             return body is not null && condicion(body) ? body : null;
         }, Timeout);
 
-    // Envelope UNICO de ProgramacionTurnoDiarioSolicitada para toda la suite: entre escenarios solo
+    // Envelope UNICO de ProgramacionTurnoEnFechasSolicitada para toda la suite: entre escenarios solo
     // cambian las franjas y la descripcion del turno, nunca el colaborador ni la forma del evento
     // (MEF-ADR-0018, Rule of Three). FranjasOrdinarias viaja como object[] porque las franjas con y
     // sin la clave "Sede" son tipos anonimos distintos; STJ serializa cada elemento por su tipo en
@@ -158,7 +158,8 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             SolicitudId = solicitudId,
             Colaborador = new ResumenColaborador(
                 "CC-444555666", codigoColaborador, NombreCompletoSembrado),
-            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
+            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = nombreTurno,
