@@ -3,8 +3,10 @@ using System.Text.Json.Serialization;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-public sealed class ProgramacionApi(HttpClient http)
+public sealed class ProgramacionApi(HttpClient http, OpcionesProgramacion? opciones = null)
 {
+    internal bool SolicitudEnFechas => opciones?.SolicitudEnFechas ?? false;
+
     private static readonly HttpMethod Query = new("QUERY");
 
     public Task<HttpResponseMessage> ListarTurnos(
