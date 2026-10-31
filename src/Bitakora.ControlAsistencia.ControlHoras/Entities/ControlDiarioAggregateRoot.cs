@@ -74,6 +74,28 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Descanso, sin programar o con ausencia: no depura horas, solo clasifica marcaciones de vecinos.
     private bool SinJornada => _ausenciaId is not null || DetalleTurno?.CoberturaPosible(Fecha) is null;
 
+    // Reparto con un dia adyacente (CA-ADR-0042 decision 3). Devuelve los dias, de este par, cuya
+    // depuracion cambio y por eso deben publicar DiaDepurado.
+    internal IReadOnlyCollection<ControlDiarioAggregateRoot> RepartirCon(ControlDiarioAggregateRoot vecino)
+    {
+        var cambiados = new HashSet<ControlDiarioAggregateRoot>();
+
+        if (vecino.AlinearResolucionCon(this)) cambiados.Add(vecino);
+        if (AlinearResolucionCon(vecino)) cambiados.Add(this);
+
+        // El anterior toma primero el inicio del posterior (solo depende de su turno): asi el
+        // posterior recibe el fin del anterior ya recalculado, sin esperar otra ronda de DiaDepurado.
+        var (anterior, posterior) = LadoDe(vecino) == DiaVecino.Vispera ? (vecino, this) : (this, vecino);
+        if (anterior.ActualizarCoberturaVecina(posterior)) cambiados.Add(anterior);
+        if (posterior.ActualizarCoberturaVecina(anterior)) cambiados.Add(posterior);
+        // No entra a cambiados: el cierre no altera la depuracion, asi que no publica DiaDepurado.
+        posterior.ActualizarCierreDeLaVispera(anterior);
+        if (vecino.RecogerDe(this)) cambiados.Add(vecino);
+        if (RecogerDe(vecino)) cambiados.Add(this);
+
+        return cambiados;
+    }
+
     // Cierre de referencia: no depende de las marcaciones ni de Invade, asi que tambien llega con solape.
     internal void ActualizarCierreDeLaVispera(ControlDiarioAggregateRoot vispera)
     {
