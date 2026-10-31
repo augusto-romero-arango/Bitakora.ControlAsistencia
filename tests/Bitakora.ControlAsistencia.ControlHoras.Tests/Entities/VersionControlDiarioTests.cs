@@ -21,10 +21,13 @@ public class VersionControlDiarioTests : PrivateEventHandlerAsyncTest<RegistroDe
     private static MarcacionAdicionada Marcacion(DateTime timestamp) =>
         new(StreamId, CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
+    private static readonly DateOnly Fecha = new(2026, 3, 15);
+    private static readonly ColaboradorProgramado Colaborador = new("CC-1234567890", CodigoColaborador, "Luis Augusto Barreto");
+
     private static TurnoDiarioAsignado Turno() =>
         new(StreamId,
-            new ColaboradorProgramado("CC-1234567890", CodigoColaborador, "Luis Augusto Barreto"),
-            new DateOnly(2026, 3, 15),
+            Colaborador,
+            Fecha,
             new TurnoDiario("Turno Manana",
                 [new FranjaProgramada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "")], ""),
             Guid.Parse("019600d0-0000-7000-8000-000000000001"));
@@ -58,5 +61,28 @@ public class VersionControlDiarioTests : PrivateEventHandlerAsyncTest<RegistroDe
 
         Then(StreamId, Marcacion(Timestamp15_00));
         And<ControlDiarioAggregateRoot, long?>(StreamId, c => c.CrearDiaDepurado().VersionControlDiario, 3L);
+    }
+
+    // Un Apply que olvide el contador rompe la monotonia: el historial trae los diez tipos de evento.
+    [Fact]
+    public async Task CrearDiaDepurado_CuentaCadaTipoDeEvento_CuandoElHistorialTraeTodosLosTiposDelControlDiario()
+    {
+        var ausenciaId = Guid.Parse("019600d0-0000-7000-8000-000000000002");
+        Given(StreamId,
+            Turno(),
+            Marcacion(Timestamp07_00),
+            new SedeDeMarcacionIdentificada(StreamId, Timestamp07_00, "DEV-001", "001", "Sede Principal", null),
+            CoberturaVecinaActualizada.Crear(StreamId, DiaVecino.Vispera, null),
+            CierreDeLaVisperaActualizado.Crear(StreamId, null),
+            AmbiguedadDeMarcacionesResuelta.Crear(StreamId, DiaVecino.Vispera, []),
+            ResolucionDeAmbiguedadDescartada.Crear(StreamId, DiaVecino.Vispera),
+            TurnoDiarioCancelado.Crear(StreamId, Colaborador, Fecha, Guid.Parse("019600d0-0000-7000-8000-000000000003")),
+            AusenciaDiariaAsignada.Crear(StreamId, Colaborador, Fecha, ausenciaId, "Vacaciones"),
+            CancelacionAusenciaDiariaRegistrada.Crear(StreamId, ausenciaId, Fecha));
+
+        await WhenAsync(new RegistroDeMarcacionCreado(CodigoColaborador, Timestamp15_00, "ENTRADA", "DEV-001"));
+
+        Then(StreamId, Marcacion(Timestamp15_00));
+        And<ControlDiarioAggregateRoot, long?>(StreamId, c => c.CrearDiaDepurado().VersionControlDiario, 11L);
     }
 }

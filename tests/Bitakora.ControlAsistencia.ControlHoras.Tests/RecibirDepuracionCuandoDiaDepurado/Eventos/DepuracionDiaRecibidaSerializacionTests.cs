@@ -1,8 +1,3 @@
-// Issue #425: Test de serializacion roundtrip para DepuracionDiaRecibida.
-// Issue #484: cubre ademas el roundtrip de la sede programada/marcada anadida a FranjaDepurada y
-// MarcacionDelDia (DomainEvents).
-// Requerido por regla 16: todo evento persistido en Marten debe sobrevivir Serialize -> Deserialize.
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -23,7 +18,6 @@ public class DepuracionDiaRecibidaSerializacionTests
     private static readonly ResumenColaborador Colaborador =
         new("CC-1234567890", CodigoColaborador, "Luis Augusto Barreto");
 
-    // Issue #484: cada record anidado se prueba en sus dos formas -- con sede y sin ella.
     private static readonly FranjaDepurada Franja = new(
         new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
         new DateTime(2026, 3, 15, 6, 0, 0), new DateTime(2026, 3, 15, 14, 0, 0), false,
@@ -48,7 +42,6 @@ public class DepuracionDiaRecibidaSerializacionTests
         },
         ["06:00-14:00 OrdinariaDiurna"]);
 
-    // Regla 16: usa CrearOpcionesMarten() que registra ConfigurarSerializacion de todos los tipos.
     // DepuracionDiaRecibida debe registrarse en ConfiguracionSerializacionControlHoras.ConfigurarResolver.
     [Fact]
     public void Deserializar_ReconstruyeEvento_ConTodosLosCampos()
@@ -72,8 +65,6 @@ public class DepuracionDiaRecibidaSerializacionTests
         deserializado.HorasDiscriminadas.Should().Be(HorasConDatos());
     }
 
-    // CA-4 (#484): el roundtrip conserva la sede PROGRAMADA de la franja y la sede MARCADA de la
-    // marcacion -- los 6 campos nuevos que introduce el issue.
     [Fact]
     public void Deserializar_ReconstruyeEvento_ConSedeProgramadaYSedeMarcada()
     {
@@ -96,8 +87,6 @@ public class DepuracionDiaRecibidaSerializacionTests
         marcacion.CentroDeCostos.Should().Be("CC-200");
     }
 
-    // CA-3 (#425): dia sin jornada valida -- Colaborador/NombreTurno null, Franjas y HorasPorConcepto
-    // vacios, Marcaciones cruda como unica evidencia (sin sede estampada).
     [Fact]
     public void Deserializar_ReconstruyeEvento_CuandoNoHayJornadaValida()
     {
@@ -117,8 +106,6 @@ public class DepuracionDiaRecibidaSerializacionTests
         deserializado.HorasDiscriminadas.HorasPorConcepto.Should().BeEmpty();
     }
 
-    // CA-3 (#484): franja/marcacion sin sede (null en los 3 campos) viajan null aunque el resto del
-    // dia si tenga jornada valida -- el flujo actual de #425 no se altera.
     [Fact]
     public void Deserializar_PreservaSedesNulas_CuandoLaFranjaYLaMarcacionNoTraenSede()
     {
@@ -141,7 +128,6 @@ public class DepuracionDiaRecibidaSerializacionTests
         marcacion.CentroDeCostos.Should().BeNull();
     }
 
-    // CA-1
     [Fact]
     public void Deserializar_ReconstruyeMotivoAusencia_CuandoElEventoLoTrae()
     {
@@ -157,7 +143,7 @@ public class DepuracionDiaRecibidaSerializacionTests
         deserializado!.MotivoAusencia.Should().Be("IncapacidadMedica");
     }
 
-    // CA-3: JSON de un stream escrito antes de que existiera el campo.
+    // JSON de un stream escrito antes de que existiera el campo.
     [Fact]
     public void Deserializar_DejaMotivoAusenciaNulo_CuandoElJsonNoTraeElCampo()
     {

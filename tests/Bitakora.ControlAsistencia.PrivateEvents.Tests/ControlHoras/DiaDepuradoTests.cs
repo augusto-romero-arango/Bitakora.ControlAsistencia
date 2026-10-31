@@ -14,9 +14,6 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.ControlHoras;
 ///
 /// Este test compila referenciando UNICAMENTE PrivateEvents (CA-ADR-0029 seccion 3: si necesitara
 /// mas, el tipo no seria portable).
-///
-/// Issue #424: el payload se enriquece con NombreTurno, Franjas y Marcaciones; HorasDiscriminadas
-/// habla horas liquidables (decimal), no minutos.
 /// </summary>
 public class DiaDepuradoTests
 {
@@ -44,8 +41,6 @@ public class DiaDepuradoTests
     private static readonly MarcacionDelDia MarcacionSalida =
         new(new DateTime(2026, 3, 15, 15, 0, 0), "SALIDA", "002", "Sede Bodega", null);
 
-    // CA-3/CA-4/CA-7: round-trip con el serializador POR DEFECTO del bus preserva todo el payload
-    // enriquecido, incluidas Franjas y Marcaciones.
     [Fact]
     public void RoundTrip_PreservaTodosLosCampos_ConSerializadorPorDefectoDelBus()
     {
@@ -62,8 +57,6 @@ public class DiaDepuradoTests
         restaurado.Should().Be(evento);
     }
 
-    // CA-4/CA-5/CA-6: sin turno previo, Colaborador y NombreTurno viajan null, Franjas queda vacia,
-    // pero las marcaciones crudas siguen viajando y CodigoColaborador top-level sigue presente.
     [Fact]
     public void RoundTrip_PreservaCodigoColaboradorTopLevelYMarcacionesCrudas_CuandoNoHayJornadaValida()
     {

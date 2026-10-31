@@ -75,7 +75,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         Estado = EstadoDiaCalculado.Provisional;
     }
 
-    // CA-1/CA-3: todo dia que llega nace, anomalo incluido. Deja el evento en _uncommittedEvents
+    // Todo dia que llega nace, anomalo incluido. Deja el evento en _uncommittedEvents
     // para que el llamador lo persista con StartStream.
     internal static DiaCalculadoAggregateRoot Iniciar(DepuracionDiaRecibida evento)
     {
