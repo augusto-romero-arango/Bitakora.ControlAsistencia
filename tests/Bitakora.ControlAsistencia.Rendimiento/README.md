@@ -24,7 +24,7 @@ CI lo compila pero no lo ejecuta: no termina en `.Tests`. Corre a mano, en local
 3. **Inicio del SLI:** `solicitar_programacion_turno_por_grupo` por la sede, para el mes completo.
 4. **Fin del SLI:** conteo de solo lectura en `control_horas.mt_doc_asistenciadiaria` (tenant `tenant-smoke`, `id LIKE 'dc:carga-{corrida}-%'`) cada 5 s, desde el inicio del cronómetro, hasta N x días del mes o el tiempo máximo.
 5. **Fases:** cuándo ocurrió cada eslabón de la cadena, leído de los timestamps de Postgres (solo lectura).
-6. **Métricas de Azure Monitor** de la ventana y **foto final.**
+6. **Métricas de Azure Monitor** de la ventana y **foto final.** La ventana va de un minuto antes del inicio a cuatro después del fin: Azure Monitor fecha la actividad hasta dos minutos después del reloj del runner, y una ventana más corta corta la cola del procesamiento.
 7. **Reporte y aserción del SLO.**
 
 El camino (por día o en fechas) no es un parámetro: lo decide el app setting `Programacion__SolicitudEnFechas` del MCP (#1340, #1350). El reporte lo lee de la foto de infraestructura.
