@@ -18,7 +18,8 @@ public sealed partial class CuadroDeTurnosProjection
     {
         var dia = new DiaDelCuadroDeTurnos(
             e.Dia, e.TurnoId.ToString(), e.Turno.Nombre,
-            e.Turno.ToString(), e.Turno.EstaCompleto(), false);
+            e.Turno.ToString(), e.Turno.EstaCompleto(), false,
+            e.Turno.EsDescanso(), HorarioAbiertoDe(e.Turno));
         var dias = vista.Dias
             .Where(d => d.Dia != e.Dia)
             .Append(dia)
@@ -38,7 +39,9 @@ public sealed partial class CuadroDeTurnosProjection
                     Nombre = e.Turno.Nombre,
                     Descripcion = e.Turno.ToString(),
                     Completo = e.Turno.EstaCompleto(),
-                    Retirado = e.Retirado
+                    Retirado = e.Retirado,
+                    EsDescanso = e.Turno.EsDescanso(),
+                    HorarioAbierto = HorarioAbiertoDe(e.Turno)
                 })
             .ToList();
         return vista with { Dias = dias, Completa = EstaCompleta(dias, vista.DiasDelCiclo) };
@@ -62,6 +65,14 @@ public sealed partial class CuadroDeTurnosProjection
         vista with { Limites = ALimites(e.Limites) };
 
     public static bool ShouldDelete(PlantillaDeTurnosRetirada e) => true;
+
+    private static HorarioAbiertoDelCuadro? HorarioAbiertoDe(Turno turno) =>
+        !turno.EsDescanso() && turno.EsHorarioAbierto()
+            ? new HorarioAbiertoDelCuadro(FormatearDuracion(turno.MinutosOrdinarios()))
+            : null;
+
+    private static string FormatearDuracion(int minutos) =>
+        HorasYMinutos.Crear(minutos / MinutosPorHora, minutos % MinutosPorHora).ToString();
 
     private static bool EstaCompleta(IReadOnlyCollection<DiaDelCuadroDeTurnos> dias, int diasDelCiclo) =>
         dias.Count == diasDelCiclo && dias.All(d => d.Completo && !d.Retirado);

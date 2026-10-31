@@ -21,6 +21,6 @@ public sealed record CasillaMallaSemanal(
     string? MotivoAusencia,
     bool EsHorarioAbierto = false);
 
-public sealed record BloqueMallaSemanal(string? NombreSede);
+public sealed record BloqueMallaSemanal(TipoBloque Tipo, DateTime Inicio, DateTime Fin, string? NombreSede);
 
 public sealed record ColaboradorVigenteMalla(string CodigoColaborador, DateOnly VigenteDesde, DateOnly? VigenteHasta);

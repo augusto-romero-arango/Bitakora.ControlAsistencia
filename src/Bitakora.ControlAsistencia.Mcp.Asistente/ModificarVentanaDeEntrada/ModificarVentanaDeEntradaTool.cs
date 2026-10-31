@@ -53,7 +53,7 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
         if (amplitud is { Horas: 0, Minutos: 0 })
             return Mensajes.TurnoFijo;
 
-        var texto = TextoDeAmplitud(amplitud);
+        var texto = NotacionDuracion.Texto(amplitud.Horas, amplitud.Minutos);
         if (ficha.Franjas.Count == 0)
             return string.Format(Mensajes.VentanaDeAmplitud, texto);
 
@@ -61,14 +61,6 @@ public partial class ModificarVentanaDeEntradaTool(ProgramacionApi programacion,
         var cierre = apertura.Add(new TimeSpan(amplitud.Horas, amplitud.Minutos, 0));
         return string.Format(Mensajes.EntraEntre, $"{apertura:HH\\:mm}", $"{cierre:HH\\:mm}", texto);
     }
-
-    // Mismo formato que HorasYMinutos.ToString() del dominio, replicado como texto (MEF-ADR-0047 decision 3).
-    private static string TextoDeAmplitud(HorasYMinutosJornada amplitud) => amplitud switch
-    {
-        { Minutos: 0 } => $"{amplitud.Horas} {Mensajes.Horas}",
-        { Horas: 0 } => $"{amplitud.Minutos} {Mensajes.Minutos}",
-        _ => $"{amplitud.Horas} {Mensajes.Horas} {amplitud.Minutos} {Mensajes.Minutos}",
-    };
 }
 
 /// <summary>Eco de modificar_ventana_de_entrada: el 204 no trae body, se reconstruye con la amplitud enviada y las franjas de la ficha leida.</summary>

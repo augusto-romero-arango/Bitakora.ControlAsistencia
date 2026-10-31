@@ -29,3 +29,7 @@ La hora de corte nacio como regla de ruteo pragmatica y la relevancia se delego 
 - **Linea de tiempo por colaborador**: acopla el calculo del dia a la programacion de otros dias.
 - **Envio ciego a la vispera con horizonte**: reintroduce el defecto de tomar marcaciones ajenas como entrada.
 - **Que ambos dias usen la marcacion del solape**: duplica la marcacion y produce horas dobles.
+
+## Control de cambios
+
+- 2026-10-30: la decision 4 se precisa para el camino en lote por CA-ADR-0043 (el camino por dia la conserva).

@@ -38,6 +38,35 @@ public class CuadroDeTurnosRespuestaTests
     }
 
     [Fact]
+    public void Componer_CopiaDescansoYHorarioAbierto_DeCadaDia()
+    {
+        var dias = new[]
+        {
+            new DiaDelCuadroDeTurnos(1, "t-1", "Descanso", "(descanso)", true, false, EsDescanso: true),
+            new DiaDelCuadroDeTurnos(2, "t-2", "Abierto", "04:00-06:00", true, false,
+                HorarioAbierto: new HorarioAbiertoDelCuadro("2 h")),
+        };
+
+        var respuesta = CuadroDeTurnosRespuesta.Componer(Vista(dias));
+
+        respuesta.Dias[0].Turno.EsDescanso.Should().BeTrue();
+        respuesta.Dias[0].Turno.HorarioAbierto.Should().BeNull();
+        respuesta.Dias[1].Turno.EsDescanso.Should().BeFalse();
+        respuesta.Dias[1].Turno.HorarioAbierto.Should().Be(new HorarioAbiertoDelCuadroDeTurnosRespuesta("2 h"));
+    }
+
+    [Fact]
+    public void Componer_LlevaFalsoYNulo_CuandoElDiaTieneValoresPorDefecto()
+    {
+        var dias = new[] { new DiaDelCuadroDeTurnos(1, "t-1", "Turno", "06:00-14:00", true, false) };
+
+        var turno = CuadroDeTurnosRespuesta.Componer(Vista(dias)).Dias.Single().Turno;
+
+        turno.EsDescanso.Should().BeFalse();
+        turno.HorarioAbierto.Should().BeNull();
+    }
+
+    [Fact]
     public void Componer_DejaJornadaEnNull_CuandoLaVistaNoTieneLimites()
     {
         CuadroDeTurnosRespuesta.Componer(Vista()).Jornada.Should().BeNull();
