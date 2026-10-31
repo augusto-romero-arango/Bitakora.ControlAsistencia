@@ -5,6 +5,7 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Rendimiento.Fixtures;
 using Bitakora.ControlAsistencia.Rendimiento.Plataforma;
 using Bitakora.ControlAsistencia.Rendimiento.Reporte;
+using Npgsql;
 
 namespace Bitakora.ControlAsistencia.Rendimiento.Programacion;
 
@@ -45,6 +46,7 @@ public sealed class ProgramacionMasivaBenchmark(McpFixture mcp, PostgresFixture 
         reporte.Resultado("Preparacion (fuera del SLI)", preparacion.Elapsed);
 
         var esperado = (long)parametros.Colaboradores * parametros.Dias;
+        var origenDeLasFases = await postgres.AhoraAsync(ct);
         var inicio = DateTimeOffset.UtcNow;
         var cronometro = Stopwatch.StartNew();
 
@@ -84,6 +86,7 @@ public sealed class ProgramacionMasivaBenchmark(McpFixture mcp, PostgresFixture 
             "Solicitud -> proyeccion", duracion.TotalSeconds, parametros.SloSegundos,
             alcanzado >= esperado && duracion.TotalSeconds <= parametros.SloSegundos);
 
+        await LeerFasesAsync(prefijo, origenDeLasFases, reporte, ct);
         reporte.Metricas = await MetricasDeLaVentanaAsync(inicio, fin, ct);
         reporte.FotoFinal = await azure.FotografiarAsync(ct);
         await reporte.EscribirAsync(ct);
@@ -214,6 +217,20 @@ public sealed class ProgramacionMasivaBenchmark(McpFixture mcp, PostgresFixture 
                 return (filas, momento);
 
             await Task.Delay(IntervaloDeConteo, ct);
+        }
+    }
+
+    // Las fases no son parte del SLI: si la consulta falla, la corrida igual deja su reporte.
+    private async Task LeerFasesAsync(
+        string prefijo, DateTimeOffset origen, ReporteDeCorrida reporte, CancellationToken ct)
+    {
+        try
+        {
+            reporte.Fases.AddRange(await postgres.LeerFasesAsync(Tenant, prefijo, origen, ct));
+        }
+        catch (NpgsqlException ex)
+        {
+            reporte.Hallazgos.Add($"No se pudieron leer las fases: {ex.Message}");
         }
     }
 

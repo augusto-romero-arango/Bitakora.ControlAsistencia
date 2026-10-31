@@ -10,6 +10,10 @@ public sealed record IndicadorDeNivel(string Nombre, double ValorSegundos, doubl
 /// <summary>Una muestra del progreso; Detalle lleva columnas extra tomadas en el mismo instante.</summary>
 public sealed record MuestraDeProgreso(double Segundos, long Valor, IReadOnlyDictionary<string, long>? Detalle = null);
 
+/// <summary>Cuando ocurrio un eslabon de la cadena, en segundos desde el inicio del SLI.</summary>
+public sealed record FaseDeLaCorrida(
+    string Nombre, long Cantidad, double PrimeroSegundos, double MedianaSegundos, double P90Segundos, double UltimoSegundos);
+
 /// <summary>
 /// Evidencia de una corrida: el SLI contra su SLO, los parametros, los resultados, la foto de la
 /// infraestructura y las metricas de la ventana. Se escribe antes de la asercion del SLO para que
@@ -27,6 +31,7 @@ public sealed class ReporteDeCorrida(string benchmark, string corrida)
     public List<string> Hallazgos { get; } = [];
     public List<MuestraDeProgreso> Progreso { get; } = [];
     public string EtiquetaDelProgreso { get; set; } = "Valor";
+    public List<FaseDeLaCorrida> Fases { get; } = [];
     public IndicadorDeNivel? Sli { get; set; }
     public FotoDeInfraestructura? FotoInicial { get; set; }
     public FotoDeInfraestructura? FotoFinal { get; set; }
@@ -67,6 +72,7 @@ public sealed class ReporteDeCorrida(string benchmark, string corrida)
         resultados = Resultados.ToDictionary(r => r.Key, r => r.Value),
         hallazgos = Hallazgos,
         progreso = new { etiqueta = EtiquetaDelProgreso, muestras = Progreso },
+        fases = Fases,
         infraestructura = new
         {
             huellaInicial = FotoInicial?.Huella,
@@ -116,6 +122,20 @@ public sealed class ReporteDeCorrida(string benchmark, string corrida)
             foreach (var muestra in Submuestrear(Progreso, 30))
                 md.AppendLine($"| {muestra.Segundos.ToString("0", CultureInfo.InvariantCulture)} | {muestra.Valor} |"
                     + string.Concat(columnas.Select(c => $" {(muestra.Detalle?.TryGetValue(c, out var v) == true ? v : 0)} |")));
+            md.AppendLine();
+        }
+
+        if (Fases.Count > 0)
+        {
+            md.AppendLine("## Fases");
+            md.AppendLine();
+            md.AppendLine("Segundos desde el inicio del SLI, con los timestamps que pone la base a cada evento y documento.");
+            md.AppendLine();
+            md.AppendLine("| Fase | Cantidad | Primero | Mediana | p90 | Ultimo |");
+            md.AppendLine("|---|---|---|---|---|---|");
+            foreach (var fase in Fases)
+                md.AppendLine($"| {fase.Nombre} | {fase.Cantidad} | {Segundos(fase.PrimeroSegundos)} | {Segundos(fase.MedianaSegundos)} | "
+                    + $"{Segundos(fase.P90Segundos)} | {Segundos(fase.UltimoSegundos)} |");
             md.AppendLine();
         }
 
