@@ -140,7 +140,6 @@ public class DepurarYDesglosarAlAsignarTurnoEnLoteTests
 
         Then(StreamId, CrearTurnoDiarioAsignado(
             new TurnoDiario("Turno Partido", [Franja06_12, Franja14_18], "")));
-        And<ControlDiarioAggregateRoot, int>(StreamId, c => c.DesgloseHoras.FranjasAnomalas, 2);
         And<ControlDiarioAggregateRoot, DesgloseHoras>(
             StreamId, c => c.DesgloseHoras, new DesgloseHoras([], Retardo.Vacio, 2));
     }
