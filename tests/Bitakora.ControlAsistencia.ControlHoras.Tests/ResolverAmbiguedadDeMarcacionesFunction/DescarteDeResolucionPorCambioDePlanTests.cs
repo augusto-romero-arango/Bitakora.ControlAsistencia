@@ -1,5 +1,6 @@
 using Bitakora.ControlAsistencia.ControlHoras.AsignarAusenciaCuandoAusenciaDiariaProgramada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.CancelarAusenciaCuandoAusenciaDiariaCancelada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -111,6 +112,75 @@ public static class DescarteDeResolucionPorCambioDePlanTests
 
         [Fact]
         public async Task ProgramacionTurnoDiarioSolicitada_NoDescarta_CuandoNoHabiaResolucion()
+        {
+            Given(StreamD,
+                TurnoAsignado(Turno(new TimeOnly(6, 0), new TimeOnly(14, 0))),
+                Marcacion(D(4, 30)));
+            var solicitud = Guid.NewGuid();
+
+            await WhenAsync(Evento(solicitud, new TimeOnly(4, 0), new TimeOnly(12, 0)));
+
+            Then(StreamD,
+                new TurnoDiarioAsignado(StreamD, Colaborador, Dia21,
+                    Turno(new TimeOnly(4, 0), new TimeOnly(12, 0)), solicitud));
+            And<ControlDiarioAggregateRoot, string?>(StreamD, c => c.DetalleTurno!.Nombre, "Turno");
+        }
+    }
+
+    public class AsignarTurnoEnLoteTests : PrivateEventHandlerAsyncTest<ProgramacionTurnoEnFechasSolicitada>
+    {
+        protected override IPrivateEventHandlerAsync<ProgramacionTurnoEnFechasSolicitada> Handler =>
+            new ProgramacionTurnoEnFechasSolicitadaEventHandler(EventStore, PrivateEventSender);
+
+        private static ProgramacionTurnoEnFechasSolicitada Evento(Guid solicitud, TimeOnly inicio, TimeOnly fin) =>
+            new(solicitud, Resumen, [Dia21], DetalleDe(inicio, fin), null!);
+
+        [Fact]
+        public async Task ProgramacionTurnoEnFechasSolicitada_DescartaLaResolucion_CuandoElTurnoNuevoVuelveAmbigua()
+        {
+            Given(StreamD, DiaResuelto());
+            var solicitud = Guid.NewGuid();
+
+            await WhenAsync(Evento(solicitud, new TimeOnly(4, 0), new TimeOnly(12, 0)));
+
+            Then(StreamD,
+                new TurnoDiarioAsignado(StreamD, Colaborador, Dia21,
+                    Turno(new TimeOnly(4, 0), new TimeOnly(12, 0)), solicitud),
+                Descartada(DiaVecino.Vispera));
+            And<ControlDiarioAggregateRoot, string>(StreamD, PertenenciaDeLas0430, "Ambigua");
+        }
+
+        [Fact]
+        public async Task ProgramacionTurnoEnFechasSolicitada_DescartaLaResolucion_CuandoElTurnoNuevoDejaDeSolaparse()
+        {
+            Given(StreamD, DiaResuelto());
+            var solicitud = Guid.NewGuid();
+
+            await WhenAsync(Evento(solicitud, new TimeOnly(8, 0), new TimeOnly(16, 0)));
+
+            Then(StreamD,
+                new TurnoDiarioAsignado(StreamD, Colaborador, Dia21,
+                    Turno(new TimeOnly(8, 0), new TimeOnly(16, 0)), solicitud),
+                Descartada(DiaVecino.Vispera));
+            And<ControlDiarioAggregateRoot, string>(StreamD, PertenenciaDeLas0430, "FueraDeCobertura");
+        }
+
+        [Fact]
+        public async Task ProgramacionTurnoEnFechasSolicitada_ConservaLaResolucion_CuandoElTurnoEsIdenticoAlVigente()
+        {
+            Given(StreamD, DiaResuelto());
+            var solicitud = Guid.NewGuid();
+
+            await WhenAsync(Evento(solicitud, new TimeOnly(6, 0), new TimeOnly(14, 0)));
+
+            Then(StreamD,
+                new TurnoDiarioAsignado(StreamD, Colaborador, Dia21,
+                    Turno(new TimeOnly(6, 0), new TimeOnly(14, 0)), solicitud));
+            And<ControlDiarioAggregateRoot, string>(StreamD, PertenenciaDeLas0430, "FueraDeCobertura");
+        }
+
+        [Fact]
+        public async Task ProgramacionTurnoEnFechasSolicitada_NoDescarta_CuandoNoHabiaResolucion()
         {
             Given(StreamD,
                 TurnoAsignado(Turno(new TimeOnly(6, 0), new TimeOnly(14, 0))),

@@ -20,7 +20,7 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.Eventos;
+namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada.Eventos;
 
 public class TurnoDiarioSegmentarTests
 {
