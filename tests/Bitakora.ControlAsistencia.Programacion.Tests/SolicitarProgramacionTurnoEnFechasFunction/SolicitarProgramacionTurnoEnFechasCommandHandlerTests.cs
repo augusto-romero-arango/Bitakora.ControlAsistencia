@@ -176,6 +176,50 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
+    public async Task SolicitarProgramacionTurnoEnFechas_MapeaDescansosYExtrasEnAmbosPayloads_CuandoElTurnoTieneHijas()
+    {
+        Given(TurnoId.ToString(), TurnoCreado.Crear(
+            TurnoId,
+            "Turno Partido",
+            [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0),
+                [(new TimeOnly(10, 0), new TimeOnly(10, 15))],
+                [(new TimeOnly(13, 0), new TimeOnly(14, 0))])]));
+
+        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+            GuidAggregateId, TurnoId, Colaborador, [Dia1]));
+
+        const string descripcion = "06:00-14:00, descanso 10:00-10:15, extra 13:00-14:00";
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1],
+            new TurnoProgramado(
+                "Turno Partido",
+                new List<FranjaProgramada>
+                {
+                    new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+                        [new SubFranjaProgramada(new TimeOnly(10, 0), new TimeOnly(10, 15), 0, 0, "10:00-10:15")],
+                        [new SubFranjaProgramada(new TimeOnly(13, 0), new TimeOnly(14, 0), 0, 0, "13:00-14:00")],
+                        descripcion)
+                }.AsReadOnly(),
+                descripcion),
+            jornada: JornadaEsperada));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
+            new ProgramacionTurnoEnFechasSolicitada(
+                GuidAggregateId, ColaboradorResumen, [Dia1],
+                new DetalleTurno(
+                    "Turno Partido",
+                    new List<DetalleFranjaOrdinaria>
+                    {
+                        new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+                            [new DetalleSubFranja(new TimeOnly(10, 0), new TimeOnly(10, 15), 0, 0, "10:00-10:15")],
+                            [new DetalleSubFranja(new TimeOnly(13, 0), new TimeOnly(14, 0), 0, 0, "13:00-14:00")],
+                            descripcion)
+                    }.AsReadOnly(),
+                    descripcion),
+                DetalleJornadaEsperado));
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
+    }
+
+    [Fact]
     public async Task SolicitarProgramacionTurnoEnFechas_LanzaRecursoYaExisteException_CuandoSolicitudYaExiste()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
