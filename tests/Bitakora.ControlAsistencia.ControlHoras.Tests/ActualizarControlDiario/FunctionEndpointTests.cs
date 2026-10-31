@@ -119,18 +119,17 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task ActualizarControlDiario_DespachaProgramacionTurnoDiarioSolicitadaAlRouterDeEventos_CuandoElSubjectLoIdentifica()
+    public async Task ActualizarControlDiario_EnviaADeadLetterSinInvocarRouters_CuandoElSubjectEsProgramacionTurnoDiarioSolicitada()
     {
         var esc = new Escenario();
 
         await esc.Ejecutar(CrearMensaje(Ns + "Programacion.ProgramacionTurnoDiarioSolicitada", JsonProgramacion));
 
-        var evento = esc.RouterEventos.Eventos.Should().ContainSingle().Which
-            .Should().BeOfType<ProgramacionTurnoDiarioSolicitada>().Subject;
-        evento.SolicitudId.Should().Be(Id);
-        evento.Fecha.Should().Be(new DateOnly(2026, 3, 15));
+        esc.Acciones.MensajeEnDeadLetter.Should().BeTrue();
+        esc.Acciones.MensajeAbandonado.Should().BeFalse();
+        esc.Acciones.MensajeCompletado.Should().BeFalse();
+        esc.RouterEventos.Invocaciones.Should().Be(0);
         esc.RouterComandos.Invocaciones.Should().Be(0);
-        esc.Acciones.MensajeCompletado.Should().BeTrue();
     }
 
     [Fact]
