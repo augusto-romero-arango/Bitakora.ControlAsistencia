@@ -12,7 +12,7 @@ public class ListarMallaSemanalTurnosSmokeTests(ApiFixture api, ServiceBusFixtur
 {
     private readonly HttpClient _client = api.Client;
 
-    private const string TopicEntrada = "programacion-turno-diario-solicitada";
+    private const string TopicEntrada = ProgramacionEnLote.Topic;
     private const string Ruta = "/api/control-horas/malla-semanal-turnos";
     private static readonly HttpMethod MetodoQuery = new("QUERY");
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
@@ -52,7 +52,8 @@ public class ListarMallaSemanalTurnosSmokeTests(ApiFixture api, ServiceBusFixtur
         {
             SolicitudId = solicitudId,
             Colaborador = new ResumenColaborador("CC-444555888", codigoColaborador, "[TEST] Smoke Malla Semanal"),
-            Fecha = fecha.ToString("yyyy-MM-dd"),
+            Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
+            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[TEST] Turno Malla Semanal",

@@ -28,6 +28,7 @@ public class ServiceBusFixture : IAsyncLifetime
     private static readonly IReadOnlyDictionary<string, string> SubjectPorTopic = new Dictionary<string, string>
     {
         ["programacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.ProgramacionTurnoDiarioSolicitada).FullName!,
+        ["programacion-turno-en-fechas-solicitada"] = typeof(PrivateEvents.Programacion.ProgramacionTurnoEnFechasSolicitada).FullName!,
         ["cancelacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.CancelacionTurnoDiarioSolicitada).FullName!,
         ["ausencia-diaria-programada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaProgramada).FullName!,
         ["ausencia-diaria-cancelada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaCancelada).FullName!,
