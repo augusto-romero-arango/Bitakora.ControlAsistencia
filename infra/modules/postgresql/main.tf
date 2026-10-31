@@ -35,6 +35,18 @@ variable "zone" {
   default     = null
 }
 
+variable "sku_name" {
+  description = "SKU del servidor PostgreSQL"
+  type        = string
+  default     = "B_Standard_B1ms"
+}
+
+variable "max_connections" {
+  description = "Valor de max_connections (parametro estatico, reinicia el servidor). null = no gestionarlo"
+  type        = number
+  default     = null
+}
+
 variable "tags" {
   description = "Tags comunes del proyecto"
   type        = map(string)
@@ -51,7 +63,7 @@ resource "azurerm_postgresql_flexible_server" "this" {
 
   zone = var.zone
 
-  sku_name   = "B_Standard_B1ms"
+  sku_name   = var.sku_name
   storage_mb = 32768
 
   tags = var.tags
@@ -66,6 +78,13 @@ resource "azurerm_postgresql_flexible_server_database" "this" {
   server_id = azurerm_postgresql_flexible_server.this.id
   collation = "es_ES.utf8"
   charset   = "UTF8"
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "max_connections" {
+  count     = var.max_connections == null ? 0 : 1
+  name      = "max_connections"
+  server_id = azurerm_postgresql_flexible_server.this.id
+  value     = tostring(var.max_connections)
 }
 
 resource "azurerm_postgresql_flexible_server_firewall_rule" "azure_services" {

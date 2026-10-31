@@ -25,7 +25,8 @@ public record DiaDepurado(
     IReadOnlyList<FranjaDepurada> Franjas,
     IReadOnlyList<MarcacionDelDia> Marcaciones,
     HorasDiscriminadas HorasDiscriminadas,
-    string? MotivoAusencia = null) : IPrivateEvent
+    string? MotivoAusencia = null,
+    long? VersionControlDiario = null) : IPrivateEvent
 {
     // El record por defecto compara Franjas/Marcaciones por referencia; estos overrides las comparan
     // por valor. Todo campo nuevo del record debe sumarse a ambos a mano (MEF-ADR-0012, nota sobre
@@ -41,7 +42,8 @@ public record DiaDepurado(
             && Franjas.SequenceEqual(other.Franjas)
             && Marcaciones.SequenceEqual(other.Marcaciones)
             && HorasDiscriminadas == other.HorasDiscriminadas
-            && MotivoAusencia == other.MotivoAusencia;
+            && MotivoAusencia == other.MotivoAusencia
+            && VersionControlDiario == other.VersionControlDiario;
     }
 
     public override int GetHashCode()
@@ -55,6 +57,7 @@ public record DiaDepurado(
         foreach (var marcacion in Marcaciones) hash.Add(marcacion);
         hash.Add(HorasDiscriminadas);
         hash.Add(MotivoAusencia);
+        hash.Add(VersionControlDiario);
         return hash.ToHashCode();
     }
 }
