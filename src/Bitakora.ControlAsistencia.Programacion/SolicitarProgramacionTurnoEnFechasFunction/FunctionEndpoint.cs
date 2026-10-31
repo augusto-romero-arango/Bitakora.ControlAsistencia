@@ -1,5 +1,5 @@
-using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -7,9 +7,10 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
 
-// Persiste SolicitudProgramacion antes de responder -> 201 Created sin Location: la solicitud no
-// tiene GET canonico; el turno diario en ControlHoras es un efecto posterior al commit, no el
-// recurso pedido (CA-ADR-0035).
+// Segunda ruta para el mismo create que POST programacion/solicitudes: divergencia consciente de
+// MEF-ADR-0043 paso 1 mientras conviven los dos caminos (CA-ADR-0043).
+// 201 Created sin Location: la solicitud no tiene GET canonico y el turno diario en ControlHoras
+// es un efecto posterior al commit, no el recurso pedido (CA-ADR-0035).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function(nameof(SolicitarProgramacionTurnoEnFechas))]

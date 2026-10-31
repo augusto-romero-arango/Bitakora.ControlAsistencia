@@ -22,8 +22,6 @@ public class SolicitarProgramacionTurnoEnFechasValidator
 
         RuleFor(x => x.JornadaId).NotEqual(Guid.Empty);
 
-        // Issue #331 CA-3: sede es opcional (null = sin sede asignada), pero cuando el objeto
-        // viene presente, sus propiedades Id y Nombre son obligatorias y no vacias.
         When(x => x.Sede is not null, () =>
         {
             RuleFor(x => x.Sede!.Id).NotEmpty();

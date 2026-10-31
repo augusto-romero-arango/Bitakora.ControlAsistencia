@@ -3,12 +3,15 @@ using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
-using Cosmos.EventDriven.Abstractions;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
+using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction.CommandHandler;
 
+// Copia deliberada de SolicitarProgramacionTurnoCommandHandler (MEF-ADR-0018): solo cambia la
+// publicacion, un evento con todas las fechas libres en vez de uno por dia (CA-ADR-0043). No
+// extraer: uno de los dos caminos se retira cuando la medicion decida.
 public partial class SolicitarProgramacionTurnoEnFechasCommandHandler
     : ICommandHandlerAsync<SolicitarProgramacionTurnoEnFechas, ResultadoSolicitudProgramacion>
 {
@@ -37,8 +40,7 @@ public partial class SolicitarProgramacionTurnoEnFechasCommandHandler
         if (catalogo is null)
             throw new RecursoNoEncontradoException(Mensajes.TurnoNoEncontrado);
 
-        // Guarda transaccional contra el aggregate ya cargado (Tell-don't-Ask, MEF-ADR-0012): un
-        // turno solo es asignable a una nueva solicitud si esta activo y completo (CA-ADR-0033).
+        // Guarda transaccional contra el aggregate ya cargado, no contra una vista (CA-ADR-0033).
         switch (catalogo.EvaluarAsignabilidad())
         {
             case ResultadoAsignabilidadTurno.Retirado:
@@ -47,14 +49,11 @@ public partial class SolicitarProgramacionTurnoEnFechasCommandHandler
                 throw new ReglaDeNegocioDeclinadaException(Mensajes.TurnoIncompleto);
         }
 
-        // Unico punto de normalizacion de la sede entrante: aguas abajo (cascada, evento
-        // persistido, evento de bus) solo se transporta el valor ya normalizado.
+        // Unico punto de normalizacion: aguas abajo solo viaja sedeSolicitada, nunca command.Sede.
         var sedeSolicitada = command.Sede?.ConCentroDeCostosNormalizado();
 
-        // La cascada de sede se aplica ANTES de construir cualquier evento: ambos payloads
-        // (persistido y de bus) derivan del mismo turno ya resuelto, un solo punto de resolucion.
-        // Sin ramificar por si la solicitud trae sede -- con command.Sede null la cascada es
-        // identidad (Tell-don't-Ask, MEF-ADR-0012).
+        // La cascada va antes de construir los eventos: ambos payloads derivan del mismo turno
+        // resuelto. Con sede null es identidad, sin ramificar (MEF-ADR-0012).
         var turnoProgramado = catalogo.ObtenerDetalle().ConSedePorDefecto(sedeSolicitada);
 
         var jornadaId = command.JornadaId ?? await _asegurador.AsegurarAsync(ct);
@@ -82,9 +81,8 @@ public partial class SolicitarProgramacionTurnoEnFechasCommandHandler
 
         _eventStore.StartStream(solicitud);
 
-        // El comando HTTP trae sus propios DTOs y el evento privado lleva los tipos de
-        // PrivateEvents: los mapeos viven aqui porque esta Function App es el unico proyecto que ve
-        // ambos ensamblados (CA-ADR-0029 decision #5, payload por rol).
+        // Los mapeos viven aqui: esta Function App es el unico proyecto que ve ambos ensamblados
+        // (CA-ADR-0029 decision #5, payload por rol).
         var colaborador = MapearResumenColaborador(command.Colaborador);
         var detalleTurno = MapearTurno(turnoProgramado);
         var sede = MapearSede(sedeSolicitada);
@@ -97,17 +95,14 @@ public partial class SolicitarProgramacionTurnoEnFechasCommandHandler
             clasificacion.ConAusencia.Select(f => new FechaRespetada(f.Fecha, f.Motivo.ToString())).ToList());
     }
 
-    // La terna llega ya resuelta desde el body y fluye TAL CUAL a los dos payloads -- aqui solo
-    // cambia el tipo, uno por isla. Componer "{Tipo}-{Numero}" o concatenar nombres lo hace el
-    // cliente contra el maestro Colaboradores, no el servidor.
+    // La terna fluye tal cual del body: componer "{Tipo}-{Numero}" o concatenar nombres es del
+    // cliente contra el maestro Colaboradores, no del servidor.
     private static ResumenColaborador MapearResumenColaborador(ColaboradorSolicitado colaborador) =>
         new(colaborador.Identificacion, colaborador.CodigoColaborador, colaborador.NombreCompleto);
 
     private static ColaboradorProgramado MapearColaboradorProgramado(ColaboradorSolicitado colaborador) =>
         new(colaborador.Identificacion, colaborador.CodigoColaborador, colaborador.NombreCompleto);
 
-    // Unico punto de traduccion desde TurnoProgramado (dominio) hacia el payload de bus, incluidas
-    // las listas anidadas de franjas y sub-franjas.
     private static DetalleTurno MapearTurno(TurnoProgramado turno) =>
         new(turno.Nombre,
             turno.FranjasOrdinarias.Select(MapearFranja).ToList().AsReadOnly(),
@@ -126,7 +121,6 @@ public partial class SolicitarProgramacionTurnoEnFechasCommandHandler
         new(subFranja.HoraInicio, subFranja.HoraFin, subFranja.DiaOffsetInicio,
             subFranja.DiaOffsetFin, subFranja.Descripcion);
 
-    // Unico punto de mapeo SedeProgramada -> DetalleSede. Opcional: null se conserva.
     private static DetalleSede? MapearSede(SedeProgramada? sede) =>
         sede is null ? null : new DetalleSede(sede.Id, sede.Nombre, sede.CentroDeCostos);
 

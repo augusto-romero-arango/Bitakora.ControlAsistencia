@@ -111,6 +111,8 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1, Dia4, Dia5], DetalleEsperado, DetalleJornadaEsperado));
+        PrivateEventSender.PublishedWithOptions.SelectMany(p => p.Events).Should().ContainSingle()
+            .Which.Should().BeOfType<ProgramacionTurnoEnFechasSolicitada>();
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 3);
         resultado.FechasRespetadas.Should().BeEquivalentTo(new[]
         {
