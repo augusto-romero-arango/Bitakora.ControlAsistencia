@@ -118,7 +118,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             "Turno Manana",
             [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, Timestamp07_00, null, true)],
             [new MarcacionDelDia(Timestamp07_00, "ENTRADA", Pertenencia: "DelTurno")],
-            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 2));
     }
 
     // CA-2 (HU-123): sin turno previo, la marcacion crea el aggregate sin TurnoDiario.
@@ -149,7 +149,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             null,
             [],
             [new MarcacionDelDia(Timestamp07_00, "ENTRADA")],
-            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 1));
     }
 
     // CA-3 (HU-123): con turno partido (06:00-12:00 y 14:00-18:00) y 2 MarcacionAdicionada previas
@@ -217,7 +217,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
                 [
                     LineaConcepto(new TimeOnly(6, 0), new TimeOnly(12, 0), Concepto.DominicalFestivaDiurna),
                     LineaConcepto(new TimeOnly(12, 0), new TimeOnly(12, 5), Concepto.ExtraDiurnaDominicalFestiva)
-                ])));
+                ]), VersionControlDiario: 4));
     }
 
     // La marcacion de madrugada se guarda solo en su dia calendario; el reparto la lleva a la vispera.
@@ -237,7 +237,7 @@ public class DepurarAlAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<Reg
             new PublishOptions { GroupId = CodigoColaborador },
             new DiaDepurado(
                 CodigoColaborador, Fecha, null, null, [], [marcacionNocturna],
-                new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+                new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 1));
 
         And<ControlDiarioAggregateRoot, int>(
             StreamId, c => c.ControlesDeFranja.Count, 0);

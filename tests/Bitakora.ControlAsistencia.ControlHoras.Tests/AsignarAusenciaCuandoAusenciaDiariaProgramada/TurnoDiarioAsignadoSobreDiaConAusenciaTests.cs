@@ -43,6 +43,6 @@ public class TurnoDiarioAsignadoSobreDiaConAusenciaTests
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.ControlesDeFranja.Count, 0);
         ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, new DiaDepurado(
             Colaborador.CodigoColaborador, Fecha, ColaboradorResumen, null, [], [],
-            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), "Vacaciones"));
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), "Vacaciones", VersionControlDiario: 2));
     }
 }
