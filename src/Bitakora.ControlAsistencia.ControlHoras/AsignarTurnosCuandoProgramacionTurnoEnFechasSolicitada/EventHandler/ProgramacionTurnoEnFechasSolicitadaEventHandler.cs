@@ -14,7 +14,8 @@ public partial class ProgramacionTurnoEnFechasSolicitadaEventHandler
 {
     // Service Bus Standard admite 256 KB por mensaje y las propiedades pueden ocupar hasta 64 KB.
     private const int TopeCuerpoEnBytes = 192 * 1024;
-    private const int SobrecargaSobreEnBytes = 256;
+    // Holgura para lo que DiasDepurados agrega alrededor de las fotos (CodigoColaborador y llaves).
+    private const int EnvolturaEnBytes = 256;
 
     private readonly IEventStore _eventStore;
     private readonly IPrivateEventSender _privateEventSender;
@@ -59,7 +60,9 @@ public partial class ProgramacionTurnoEnFechasSolicitadaEventHandler
         foreach (var nuevo in nuevos)
             _eventStore.StartStream(nuevo);
 
-        await PublicarLoteAsync(codigo, fechasDelLote.Select(f => dias[f].CrearDiaDepurado()).ToList());
+        foreach (var fotos in PartirPorTamano(fechasDelLote.Select(f => dias[f].CrearDiaDepurado())))
+            await _privateEventSender.PublishAsync(
+                new PublishOptions { GroupId = codigo }, new DiasDepurados(codigo, fotos));
 
         foreach (var vecino in vecinosDeAfuera.Values.Where(cambiadosDeAfuera.Contains))
         {
@@ -74,13 +77,13 @@ public partial class ProgramacionTurnoEnFechasSolicitadaEventHandler
     {
         var acumulados = new HashSet<ControlDiarioAggregateRoot>();
         var pares = dias.Where(d => dias.ContainsKey(d.Key.AddDays(1)))
-            .Select(d => (d.Value, dias[d.Key.AddDays(1)]))
+            .Select(d => (Anterior: d.Value, Posterior: dias[d.Key.AddDays(1)]))
             .ToList();
 
         var maximoDePasadas = dias.Count * 2 + 2;
         for (var pasada = 0; pasada < maximoDePasadas; pasada++)
         {
-            var cambiados = pares.SelectMany(p => p.Item1.RepartirCon(p.Item2)).ToList();
+            var cambiados = pares.SelectMany(p => p.Anterior.RepartirCon(p.Posterior)).ToList();
             if (cambiados.Count == 0) break;
             acumulados.UnionWith(cambiados);
         }
@@ -88,26 +91,27 @@ public partial class ProgramacionTurnoEnFechasSolicitadaEventHandler
         return acumulados;
     }
 
-    private async Task PublicarLoteAsync(string codigo, IReadOnlyList<DiaDepurado> fotos)
+    // Una foto que sola excede el tope viaja en su propio mensaje.
+    private static IEnumerable<IReadOnlyList<DiaDepurado>> PartirPorTamano(IEnumerable<DiaDepurado> fotos)
     {
-        var grupos = new List<List<DiaDepurado>>();
-        var tamanoActual = 0;
+        var grupo = new List<DiaDepurado>();
+        var tamanoGrupo = EnvolturaEnBytes;
         foreach (var foto in fotos)
         {
+            // +1 por la coma que separa las fotos dentro del arreglo.
             var tamano = JsonSerializer.SerializeToUtf8Bytes(foto).Length + 1;
-            var cabe = grupos.Count > 0 && tamanoActual + tamano + SobrecargaSobreEnBytes <= TopeCuerpoEnBytes;
-            if (!cabe)
+            var grupoLleno = grupo.Count > 0 && tamanoGrupo + tamano > TopeCuerpoEnBytes;
+            if (grupoLleno)
             {
-                grupos.Add([]);
-                tamanoActual = 0;
+                yield return grupo;
+                grupo = [];
+                tamanoGrupo = EnvolturaEnBytes;
             }
-            grupos[^1].Add(foto);
-            tamanoActual += tamano;
+            grupo.Add(foto);
+            tamanoGrupo += tamano;
         }
 
-        foreach (var grupo in grupos)
-            await _privateEventSender.PublishAsync(
-                new PublishOptions { GroupId = codigo }, new DiasDepurados(codigo, grupo));
+        if (grupo.Count > 0) yield return grupo;
     }
 
     private async Task<(ControlDiarioAggregateRoot Control, bool EsNuevo)> AsignarAsync(

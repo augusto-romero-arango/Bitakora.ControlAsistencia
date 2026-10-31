@@ -45,6 +45,9 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
     private static readonly DetalleJornada JornadaBus = new(JornadaId, 2880, 600, 0, 1);
     private static readonly JornadaProgramada Jornada = new(JornadaId, 2880, 600, 0, 1);
 
+    // Nombre de sede largo para inflar cada foto y forzar la particion por tamano.
+    private static readonly string SedePesada = new('S', 1000);
+
     protected override IPrivateEventHandlerAsync<ProgramacionTurnoEnFechasSolicitada> Handler =>
         new ProgramacionTurnoEnFechasSolicitadaEventHandler(EventStore, PrivateEventSender);
 
@@ -60,6 +63,16 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
 
     private static CierreDeLaVisperaActualizado Cierre(string streamId, DateTime? cierre) =>
         CierreDeLaVisperaActualizado.Crear(streamId, cierre);
+
+    private static object[] MarcacionesConSede(string streamId, DateOnly dia, int cantidad, string nombreSede) =>
+        Enumerable.Range(0, cantidad)
+            .Select(i => dia.ToDateTime(new TimeOnly(6, 0)).AddMinutes(i))
+            .SelectMany(instante => new object[]
+            {
+                Marcacion(streamId, instante),
+                new SedeDeMarcacionIdentificada(streamId, instante, Dispositivo, "001", nombreSede, "CC-100")
+            })
+            .ToArray();
 
     private IEnumerable<T> Publicados<T>() where T : class, IPrivateEvent =>
         PrivateEventSender.PublishedWithOptions.SelectMany(p => p.Events).OfType<T>();
@@ -184,18 +197,8 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
     [Fact]
     public async Task ProgramacionTurnoEnFechasSolicitada_PartePorTamano_CuandoLasFotosSuperanElTopeDe192Kb()
     {
-        var sedePesada = new string('S', 1000);
-        foreach (var (stream, dia) in new[] { (Stream20, Dia20), (Stream21, Dia21) })
-        {
-            var eventos = new List<object>();
-            for (var i = 0; i < 250; i++)
-            {
-                var instante = dia.ToDateTime(new TimeOnly(6, 0)).AddMinutes(i);
-                eventos.Add(Marcacion(stream, instante));
-                eventos.Add(new SedeDeMarcacionIdentificada(stream, instante, Dispositivo, "001", sedePesada, "CC-100"));
-            }
-            Given(stream, eventos.ToArray());
-        }
+        Given(Stream20, MarcacionesConSede(Stream20, Dia20, 250, SedePesada));
+        Given(Stream21, MarcacionesConSede(Stream21, Dia21, 250, SedePesada));
 
         await WhenAsync(Solicitud(TurnoDiurnoBus, Dia20, Dia21));
 
@@ -204,5 +207,55 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
         mensajes.Select(m => m.Dias.Single().Fecha).Should().Equal(Dia20, Dia21);
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 250);
         Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId, Jornada));
+    }
+
+    [Fact]
+    public async Task ProgramacionTurnoEnFechasSolicitada_DejaCadaDiaConLasMarcacionesDeSuCobertura_CuandoSonTresDiasNocturnosConsecutivos()
+    {
+        var entrada20 = new DateTime(2026, 4, 20, 21, 55, 0);
+        var salida21 = new DateTime(2026, 4, 21, 6, 5, 0);
+        var entrada21 = new DateTime(2026, 4, 21, 21, 55, 0);
+        var salida22 = new DateTime(2026, 4, 22, 6, 5, 0);
+        var entrada22 = new DateTime(2026, 4, 22, 21, 55, 0);
+        Given(Stream20, Marcacion(Stream20, entrada20));
+        Given(Stream21, Marcacion(Stream21, salida21, "SALIDA"), Marcacion(Stream21, entrada21));
+        Given(Stream22, Marcacion(Stream22, salida22, "SALIDA"), Marcacion(Stream22, entrada22));
+
+        await WhenAsync(Solicitud(TurnoNocturnoBus, Dia20, Dia21, Dia22));
+
+        Then(Stream20,
+            Asignado(Stream20, Dia20, TurnoNocturno, SolicitudId, Jornada),
+            Marcacion(Stream20, salida21, "SALIDA"));
+        Then(Stream21,
+            Asignado(Stream21, Dia21, TurnoNocturno, SolicitudId, Jornada),
+            Cierre(Stream21, new DateTime(2026, 4, 21, 6, 0, 0)),
+            Marcacion(Stream21, salida22, "SALIDA"));
+        Then(Stream22,
+            Asignado(Stream22, Dia22, TurnoNocturno, SolicitudId, Jornada),
+            Cierre(Stream22, new DateTime(2026, 4, 22, 6, 0, 0)));
+        var franjas = Publicados<DiasDepurados>().Single().Dias
+            .ToDictionary(d => d.Fecha, d => d.Franjas.Single());
+        (franjas[Dia20].Entrada, franjas[Dia20].Salida).Should().Be((entrada20, salida21));
+        (franjas[Dia21].Entrada, franjas[Dia21].Salida).Should().Be((entrada21, salida22));
+        And<ControlDiarioAggregateRoot, int>(Stream21, c => c.Marcaciones.Count, 3);
+    }
+
+    [Fact]
+    public async Task ProgramacionTurnoEnFechasSolicitada_AgrupaVariosDiasPorMensaje_HastaElTopeDe192Kb()
+    {
+        Given(Stream20, MarcacionesConSede(Stream20, Dia20, 70, SedePesada));
+        Given(Stream21, MarcacionesConSede(Stream21, Dia21, 70, SedePesada));
+        Given(Stream22, MarcacionesConSede(Stream22, Dia22, 70, SedePesada));
+
+        await WhenAsync(Solicitud(TurnoDiurnoBus, Dia20, Dia21, Dia22));
+
+        var mensajes = Publicados<DiasDepurados>().ToList();
+        mensajes.Select(m => m.Dias.Count).Should().Equal(2, 1);
+        mensajes.SelectMany(m => m.Dias).Select(d => d.Fecha).Should().Equal(Dia20, Dia21, Dia22);
+        OpcionesDe<DiasDepurados>().Should().OnlyContain(o => o.GroupId == CodigoColaborador);
+        Then(Stream22,
+            Asignado(Stream22, Dia22, TurnoDiurno, SolicitudId, Jornada),
+            Cierre(Stream22, new DateTime(2026, 4, 21, 16, 0, 0)));
+        And<ControlDiarioAggregateRoot, int>(Stream22, c => c.Marcaciones.Count, 70);
     }
 }
