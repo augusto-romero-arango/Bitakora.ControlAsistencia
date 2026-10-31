@@ -1,6 +1,6 @@
 using System.Net;
-using System.Text.Json;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
@@ -154,18 +154,15 @@ public class AsignarTurnosEnFechasSmokeTests(ServiceBusFixture serviceBus, Postg
         };
 
     private static object FranjaOcho(object? sede = null) =>
-        sede is null
-            ? new
-            {
-                HoraInicio = "08:00:00", HoraFin = "16:00:00", DiaOffsetFin = 0,
-                Descansos = Array.Empty<object>(), Extras = Array.Empty<object>()
-            }
-            : new
-            {
-                HoraInicio = "08:00:00", HoraFin = "16:00:00", DiaOffsetFin = 0,
-                Descansos = Array.Empty<object>(), Extras = Array.Empty<object>(),
-                Sede = sede
-            };
+        new
+        {
+            HoraInicio = "08:00:00",
+            HoraFin = "16:00:00",
+            DiaOffsetFin = 0,
+            Descansos = Array.Empty<object>(),
+            Extras = Array.Empty<object>(),
+            Sede = sede
+        };
 
     [Fact]
     [Trait("Category", "Smoke")]
