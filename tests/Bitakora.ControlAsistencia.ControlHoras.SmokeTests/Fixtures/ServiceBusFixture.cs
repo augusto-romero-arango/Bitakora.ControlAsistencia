@@ -31,7 +31,8 @@ public class ServiceBusFixture : IAsyncLifetime
         ["cancelacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.CancelacionTurnoDiarioSolicitada).FullName!,
         ["ausencia-diaria-programada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaProgramada).FullName!,
         ["ausencia-diaria-cancelada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaCancelada).FullName!,
-        ["dia-depurado"] = typeof(PrivateEvents.ControlHoras.DiaDepurado).FullName!
+        ["dia-depurado"] = typeof(PrivateEvents.ControlHoras.DiaDepurado).FullName!,
+        ["dias-depurados"] = typeof(PrivateEvents.ControlHoras.DiasDepurados).FullName!
     };
 
     private ServiceBusClient? _client;

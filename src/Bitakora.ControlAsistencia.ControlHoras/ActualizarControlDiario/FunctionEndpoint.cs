@@ -31,6 +31,7 @@ public class FunctionEndpoint(
             [typeof(AusenciaDiariaProgramada).FullName!] = Evento<AusenciaDiariaProgramada>,
             [typeof(AusenciaDiariaCancelada).FullName!] = Evento<AusenciaDiariaCancelada>,
             [typeof(DiaDepurado).FullName!] = DiaDepuradoComoComando,
+            [typeof(DiasDepurados).FullName!] = Evento<DiasDepurados>,
         };
 
     [Function("ActualizarControlDiario")]
