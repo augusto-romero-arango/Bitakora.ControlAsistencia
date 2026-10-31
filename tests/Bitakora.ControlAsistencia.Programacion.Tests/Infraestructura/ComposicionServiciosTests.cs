@@ -57,6 +57,7 @@ public class ComposicionServiciosTests
     private static readonly (Type Tipo, string Topic)[] EventosPrivadosYTopics =
     [
         (typeof(ProgramacionTurnoDiarioSolicitada), "programacion-turno-diario-solicitada"),
+        (typeof(ProgramacionTurnoEnFechasSolicitada), "programacion-turno-en-fechas-solicitada"),
         (typeof(CancelacionTurnoDiarioSolicitada), "cancelacion-turno-diario-solicitada"),
         (typeof(AusenciaDiariaProgramada), "ausencia-diaria-programada"),
         (typeof(AusenciaDiariaCancelada), "ausencia-diaria-cancelada"),

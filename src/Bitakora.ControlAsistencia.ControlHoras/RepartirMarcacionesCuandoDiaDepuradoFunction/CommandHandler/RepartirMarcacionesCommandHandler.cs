@@ -26,18 +26,7 @@ public partial class RepartirMarcacionesCommandHandler : ICommandHandlerAsync<Re
             var vecino = await CargarAsync(command.CodigoColaborador, fechaVecino, ct);
             if (vecino is null) continue;
 
-            if (vecino.AlinearResolucionCon(dia)) cambiados.Add(vecino);
-            if (dia.AlinearResolucionCon(vecino)) cambiados.Add(dia);
-
-            // El anterior toma primero el inicio del posterior (solo depende de su turno): asi el
-            // posterior recibe el fin del anterior ya recalculado, sin esperar otra ronda de DiaDepurado.
-            var (anterior, posterior) = fechaVecino < command.Fecha ? (vecino, dia) : (dia, vecino);
-            if (anterior.ActualizarCoberturaVecina(posterior)) cambiados.Add(anterior);
-            if (posterior.ActualizarCoberturaVecina(anterior)) cambiados.Add(posterior);
-            // No entra a cambiados: el cierre no altera la depuracion, asi que no publica DiaDepurado.
-            posterior.ActualizarCierreDeLaVispera(anterior);
-            if (vecino.RecogerDe(dia)) cambiados.Add(vecino);
-            if (dia.RecogerDe(vecino)) cambiados.Add(dia);
+            cambiados.UnionWith(dia.RepartirCon(vecino));
         }
 
         foreach (var control in cambiados)

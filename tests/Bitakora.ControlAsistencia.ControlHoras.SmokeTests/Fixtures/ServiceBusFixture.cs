@@ -31,7 +31,8 @@ public class ServiceBusFixture : IAsyncLifetime
         ["cancelacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.CancelacionTurnoDiarioSolicitada).FullName!,
         ["ausencia-diaria-programada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaProgramada).FullName!,
         ["ausencia-diaria-cancelada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaCancelada).FullName!,
-        ["dia-depurado"] = typeof(PrivateEvents.ControlHoras.DiaDepurado).FullName!
+        ["dia-depurado"] = typeof(PrivateEvents.ControlHoras.DiaDepurado).FullName!,
+        ["dias-depurados"] = typeof(PrivateEvents.ControlHoras.DiasDepurados).FullName!
     };
 
     private ServiceBusClient? _client;
@@ -121,6 +122,23 @@ public class ServiceBusFixture : IAsyncLifetime
         string topicName,
         string subscriptionName,
         Func<T, bool> match,
+        TimeSpan timeout) =>
+        (await WaitForReceivedMessageAsync(topicName, subscriptionName, match, timeout)).Mensaje;
+
+    public async Task<(T Mensaje, string? SessionId)> WaitForMessageConSesionAsync<T>(
+        string topicName,
+        string subscriptionName,
+        Func<T, bool> match,
+        TimeSpan timeout)
+    {
+        var (mensaje, recibido) = await WaitForReceivedMessageAsync(topicName, subscriptionName, match, timeout);
+        return (mensaje, recibido.SessionId);
+    }
+
+    private async Task<(T Mensaje, ServiceBusReceivedMessage Recibido)> WaitForReceivedMessageAsync<T>(
+        string topicName,
+        string subscriptionName,
+        Func<T, bool> match,
         TimeSpan timeout)
     {
         await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
@@ -148,7 +166,7 @@ public class ServiceBusFixture : IAsyncLifetime
             {
                 var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), _jsonOptions);
                 if (deserialized is not null && match(deserialized))
-                    return deserialized;
+                    return (deserialized, received);
             }
             catch (JsonException)
             {
