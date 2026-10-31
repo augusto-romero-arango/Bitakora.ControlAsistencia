@@ -14,6 +14,8 @@ public static class ConfiguracionClientesHttp
 {
     public static IServiceCollection ConfigurarClientesHttp(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddSingleton(new OpcionesProgramacion(LeerSolicitudEnFechas(configuration)));
+
         var baseUrlProgramacion = LeerBaseUrl(configuration, "Programacion");
         services.AddHttpClient<ProgramacionApi>(c => c.BaseAddress = baseUrlProgramacion)
             .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
@@ -31,6 +33,17 @@ public static class ConfiguracionClientesHttp
             .AddHttpMessageHandler<PropagadorIdentidadTenantHandler>();
 
         return services;
+    }
+
+    private static bool LeerSolicitudEnFechas(IConfiguration configuration)
+    {
+        var valor = configuration["Programacion:SolicitudEnFechas"];
+        return string.IsNullOrWhiteSpace(valor)
+            ? false
+            : bool.TryParse(valor, out var activo)
+                ? activo
+                : throw new InvalidOperationException(
+                    $"El app setting Programacion__SolicitudEnFechas debe ser booleano (true/false), pero vale '{valor}'");
     }
 
     private static Uri LeerBaseUrl(IConfiguration configuration, string dominio)
