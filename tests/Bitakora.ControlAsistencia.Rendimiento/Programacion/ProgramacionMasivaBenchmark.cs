@@ -217,13 +217,15 @@ public sealed class ProgramacionMasivaBenchmark(McpFixture mcp, PostgresFixture 
         }
     }
 
-    // Las metricas de plataforma llegan con unos minutos de retraso: se espera a que la ventana
-    // (con un minuto de margen a cada lado) este completa antes de consultarla.
+    // Azure Monitor fecha la actividad hasta dos minutos despues del reloj del runner: en las corridas
+    // del 2026-10-31 lo que termino a las 15:59:29 cayo en el minuto 16:01 (CPU de ControlHoras y
+    // completados de la cola). Por eso la ventana cierra cuatro minutos despues del fin del SLI, y
+    // ademas se espera a que las metricas lleguen antes de consultarla.
     private async Task<MetricasDeLaVentana> MetricasDeLaVentanaAsync(
         DateTimeOffset inicio, DateTimeOffset fin, CancellationToken ct)
     {
         var desde = Truncar(inicio).AddMinutes(-1);
-        var hasta = Truncar(fin).AddMinutes(2);
+        var hasta = Truncar(fin).AddMinutes(4);
         var espera = hasta.AddMinutes(Configuracion.Leer("Rendimiento:RetrasoMetricasMinutos", 3)) - DateTimeOffset.UtcNow;
         if (espera > TimeSpan.Zero)
             await Task.Delay(espera, ct);
