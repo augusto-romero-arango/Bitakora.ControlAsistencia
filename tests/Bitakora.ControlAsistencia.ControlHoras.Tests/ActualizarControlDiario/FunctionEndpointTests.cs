@@ -154,6 +154,24 @@ public class FunctionEndpointTests
     }
 
     [Fact]
+    public async Task ActualizarControlDiario_DespachaDiasDepuradosAlRouterDeEventos_CuandoElSubjectLoIdentifica()
+    {
+        var esc = new Escenario();
+        var evento = new DiasDepurados(Colaborador, [new DiaDepurado(
+            Colaborador, new DateOnly(2026, 3, 15), null, null, [], [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []))]);
+
+        await esc.Ejecutar(CrearMensaje(Ns + "ControlHoras.DiasDepurados", Json(evento)));
+
+        var recibido = esc.RouterEventos.Eventos.Should().ContainSingle().Which
+            .Should().BeOfType<DiasDepurados>().Subject;
+        recibido.CodigoColaborador.Should().Be(Colaborador);
+        recibido.Dias.Should().ContainSingle().Which.Fecha.Should().Be(new DateOnly(2026, 3, 15));
+        esc.RouterComandos.Invocaciones.Should().Be(0);
+        esc.Acciones.MensajeCompletado.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ActualizarControlDiario_DespachaCancelacionTurnoDiarioSolicitadaAlRouterDeEventos_CuandoElSubjectLoIdentifica()
     {
         var esc = new Escenario();
