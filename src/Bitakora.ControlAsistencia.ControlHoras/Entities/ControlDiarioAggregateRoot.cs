@@ -310,8 +310,16 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return control;
     }
 
+    // Guarda de idempotencia solo del camino en lote: una reentrega de la misma solicitud con el
+    // mismo turno no emite evento. AsignarTurno (camino por dia) sigue emitiendo siempre.
     internal ResultadoAsignacionDeLote AsignarTurnoDeLote(TurnoDiarioAsignado evento)
-        => throw new NotImplementedException();
+    {
+        if (UltimaSolicitudId == evento.SolicitudId && Equals(DetalleTurno, evento.DetalleTurno))
+            return ResultadoAsignacionDeLote.SinCambios;
+
+        AsignarTurno(evento);
+        return ResultadoAsignacionDeLote.Asignado;
+    }
 
     internal void AsignarTurno(TurnoDiarioAsignado evento)
     {
