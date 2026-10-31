@@ -11,7 +11,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.SolicitarProgramacionTu
 public class CascadaDeSedeListaTests
 {
     private const string TurnoId = "8f14e45f-ceea-4b3c-8f0a-000000000001";
-    private const string RutaSolicitudes = "/api/programacion/solicitudes";
+    private const string RutaSolicitudes = "/api/programacion/solicitudes-en-fechas";
 
     private sealed record Entorno(
         SolicitarProgramacionTurnoTool Tool,

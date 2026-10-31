@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.SolicitarProgramacionTu
 
 public class EjecutorDeProgramacionJornadaTests
 {
-    private const string RutaSolicitudes = "/api/programacion/solicitudes";
+    private const string RutaSolicitudes = "/api/programacion/solicitudes-en-fechas";
 
     private static readonly Guid J1 = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static readonly TurnoAProgramar Manana = new(Guid.Parse("11111111-1111-1111-1111-111111111111"), "Manana", false);

@@ -15,8 +15,7 @@ public class SolicitarProgramacionTurnoToolTests
     private const string SedeCodigo = "SUBA";
     private const string VentanaDesde = "2026-09-01";
     private const string VentanaHasta = "2026-09-30";
-    private const string RutaSolicitudes = "/api/programacion/solicitudes";
-    private const string RutaSolicitudesEnFechas = "/api/programacion/solicitudes-en-fechas";
+    private const string RutaSolicitudes = "/api/programacion/solicitudes-en-fechas";
 
     private static string TurnosJson => Fixtures.Leer("SolicitarProgramacionTurno", "turnos.json");
     private static string SedeJson => Fixtures.Leer("SolicitarProgramacionTurno", "sede.json");
@@ -38,8 +37,7 @@ public class SolicitarProgramacionTurnoToolTests
         string? sedeJson = null,
         HttpStatusCode statusSede = HttpStatusCode.OK,
         string? directorioJson = null,
-        HttpStatusCode statusDirectorio = HttpStatusCode.OK,
-        bool solicitudEnFechas = false)
+        HttpStatusCode statusDirectorio = HttpStatusCode.OK)
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();
         if (statusTurnos == HttpStatusCode.OK)
@@ -51,13 +49,13 @@ public class SolicitarProgramacionTurnoToolTests
             handlerProgramacion.Responde(
                 HttpMethod.Get, DetalleDeTurnoFalso.RutaDetalle(TurnoId), statusTurnos, turnosJson ?? "");
         handlerProgramacion.Responde(
-            HttpMethod.Post, solicitudEnFechas ? RutaSolicitudesEnFechas : RutaSolicitudes, statusSolicitud, cuerpoSolicitud);
+            HttpMethod.Post, RutaSolicitudes, statusSolicitud, cuerpoSolicitud);
 
         var (clienteSedes, handlerSedes) = ClienteFalso.Con(sedeJson ?? SedeJson, statusSede);
         var (clienteColaboradores, handlerColaboradores) = ClienteFalso.Con(
             directorioJson ?? DirectorioJson, statusDirectorio);
 
-        var programacion = new ProgramacionApi(clienteProgramacion, new OpcionesProgramacion(solicitudEnFechas));
+        var programacion = new ProgramacionApi(clienteProgramacion);
         var tool = new SolicitarProgramacionTurnoTool(
             programacion, new SedesApi(clienteSedes),
             new ResolutorTurnoPorId(programacion),
@@ -599,42 +597,6 @@ public class SolicitarProgramacionTurnoToolTests
     {
         const string motivoDominio = "Todas las fechas solicitadas caen en ausencias del colaborador";
         var fakes = CrearTool(statusSolicitud: HttpStatusCode.Conflict, cuerpoSolicitud: motivoDominio);
-
-        var resultado = await Ejecutar(
-            fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
-
-        var json = JsonNode.Parse(resultado)!;
-        json["programados"]!.AsArray().Should().BeEmpty();
-        var fallido = json["fallidos"]!.AsArray().Single()!;
-        fallido["identificacion"]!.GetValue<string>().Should().Be("CC-1111");
-        fallido["motivo"]!.GetValue<string>().Should().Be(motivoDominio);
-    }
-
-    [Fact]
-    public async Task SolicitarProgramacionTurno_InterpretaElCreatedConRespetadosIgualQuePorDia_CuandoElInterruptorEnFechasEstaPrendido()
-    {
-        var fakes = CrearTool(
-            solicitudEnFechas: true,
-            cuerpoSolicitud: CuerpoConRespetadas(("2026-09-13", "Vacaciones"), ("2026-09-14", "Vacaciones")));
-
-        var resultado = await Ejecutar(
-            fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
-
-        fakes.Programacion.Requests.Where(r => r.Metodo == HttpMethod.Post)
-            .Should().ContainSingle().Which.Ruta.Should().Be(RutaSolicitudesEnFechas);
-        var programado = JsonNode.Parse(resultado)!["programados"]!.AsArray().Single()!;
-        programado["dias"]!.GetValue<int>().Should().Be(28, "30 dias de ventana menos 2 respetados");
-        var respetado = programado["respetados"]!.AsArray().Single()!;
-        respetado["motivo"]!.GetValue<string>().Should().Be("Vacaciones");
-        respetado["tramos"]!.GetValue<string>().Should().Be("13-14");
-    }
-
-    [Fact]
-    public async Task SolicitarProgramacionTurno_LlevaAFallidosConElMotivoDelDominio_CuandoElInterruptorEnFechasEstaPrendido()
-    {
-        const string motivoDominio = "Todas las fechas solicitadas caen en ausencias del colaborador";
-        var fakes = CrearTool(
-            solicitudEnFechas: true, statusSolicitud: HttpStatusCode.Conflict, cuerpoSolicitud: motivoDominio);
 
         var resultado = await Ejecutar(
             fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);

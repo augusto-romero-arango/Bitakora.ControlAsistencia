@@ -13,7 +13,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.AplicarPlantilla;
 public class AplicarPlantillaToolTests
 {
     private const string RutaTurnos = "/api/programacion/turnos";
-    private const string RutaSolicitudes = "/api/programacion/solicitudes";
+    private const string RutaSolicitudes = "/api/programacion/solicitudes-en-fechas";
     private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
 
     private static string DirectorioDe(string identificacion, string vigenteDesde, string? codigoSede = "SUBA") =>

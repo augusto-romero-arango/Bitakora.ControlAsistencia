@@ -17,7 +17,6 @@ public sealed class ProgramacionMasivaBenchmark(McpFixture mcp, PostgresFixture 
     : IClassFixture<McpFixture>, IClassFixture<PostgresFixture>, IClassFixture<AzureFixture>
 {
     private const string Tenant = "tenant-smoke";
-    private const string SettingDelCamino = "Microsoft.Web/sites/func-asist-dev-mcp-asistente#appsetting:Programacion__SolicitudEnFechas";
     private static readonly TimeSpan IntervaloDeConteo = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TimeoutDePreparacion = TimeSpan.FromMinutes(5);
 
@@ -34,7 +33,6 @@ public sealed class ProgramacionMasivaBenchmark(McpFixture mcp, PostgresFixture 
         reporte.FotoInicial = await azure.FotografiarAsync(ct);
         reporte.Parametro("Colaboradores", parametros.Colaboradores);
         reporte.Parametro("Mes", $"{parametros.Desde:yyyy-MM} ({parametros.Dias} dias)");
-        reporte.Parametro("Camino (Programacion__SolicitudEnFechas del MCP)", Camino(reporte.FotoInicial));
         reporte.Parametro("SLO", TimeSpan.FromSeconds(parametros.SloSegundos));
         reporte.Parametro("Tiempo maximo", TimeSpan.FromMinutes(parametros.TiempoMaximoMinutos));
 
@@ -252,11 +250,6 @@ public sealed class ProgramacionMasivaBenchmark(McpFixture mcp, PostgresFixture 
 
     private static DateTimeOffset Truncar(DateTimeOffset momento) =>
         new(momento.Year, momento.Month, momento.Day, momento.Hour, momento.Minute, 0, TimeSpan.Zero);
-
-    private static string Camino(FotoDeInfraestructura foto) =>
-        foto.Valores.TryGetValue(SettingDelCamino, out var valor)
-            ? bool.TryParse(valor, out var enFechas) && enFechas ? "en-fechas" : $"por-dia (valor '{valor}')"
-            : foto.Errores.Count == 0 ? "por-dia (setting ausente)" : "desconocido (sin foto de app settings)";
 
     private static JsonDocument? ExigirJson(string tool, string respuesta) =>
         McpFixture.LeerJson(respuesta)
