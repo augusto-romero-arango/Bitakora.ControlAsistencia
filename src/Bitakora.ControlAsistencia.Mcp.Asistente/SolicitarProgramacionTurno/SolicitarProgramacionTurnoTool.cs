@@ -7,9 +7,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 
-// Cliente HTTP puro que envuelve N veces el comando SolicitarProgramacionTurno (POST
-// programacion/solicitudes-en-fechas): un lote no es concepto del dominio (glosario: Ventana de trabajo es
-// efimera, nunca se persiste) y el marco no ofrece atomicidad entre streams -- por eso esta tool
+// Cliente HTTP puro que envuelve N veces el comando SolicitarProgramacionTurnoEnFechas (POST
+// programacion/solicitudes-en-fechas): un lote no es concepto del dominio (glosario: Ventana de
+// trabajo es efimera, nunca se persiste) y el marco no ofrece atomicidad entre streams -- por eso esta tool
 // re-verifica sede/turno/directorio por su cuenta y arma una solicitud por colaborador (MEF-ADR-0047
 // decision 4). Los rechazos del dominio en cada POST se traducen a texto (CA-ADR-0030) y no
 // detienen al resto del lote: el resto ya pudo haberse programado.
