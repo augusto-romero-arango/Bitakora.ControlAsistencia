@@ -64,6 +64,8 @@ public static class ComposicionServicios
                 // que el mismo mapeo aplica ya sea que se publique via IPublicEventSender o IPrivateEventSender.
                 options.PublicarEventoServerless<ProgramacionTurnoDiarioSolicitada>(
                     "programacion-turno-diario-solicitada");
+                options.PublicarEventoServerless<ProgramacionTurnoEnFechasSolicitada>(
+                    "programacion-turno-en-fechas-solicitada");
                 options.PublicarEventoServerless<CancelacionTurnoDiarioSolicitada>(
                     "cancelacion-turno-diario-solicitada");
                 options.PublicarEventoServerless<AusenciaDiariaProgramada>(
