@@ -30,20 +30,27 @@ public class DiasDepuradosEventHandlerTests : PrivateEventHandlerAsyncTest<Event
         [new EventoBus.MarcacionDelDia(fecha.ToDateTime(new TimeOnly(6, 0)), "ENTRADA")],
         new EventoBus.HorasDiscriminadas(new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m }, []));
 
+    private static ResumenColaborador ColaboradorEsperado() =>
+        new("CC-1234567890", CodigoColaborador, "Luis Augusto Barreto");
+
+    private static FranjaDepurada FranjaEsperada(DateOnly fecha) => new(
+        new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+        fecha.ToDateTime(new TimeOnly(6, 0)), fecha.ToDateTime(new TimeOnly(14, 0)), false);
+
+    private static MarcacionDelDia MarcacionEsperada(DateOnly fecha) =>
+        new(fecha.ToDateTime(new TimeOnly(6, 0)), "ENTRADA");
+
+    private static HorasDiscriminadas HorasEsperadas() =>
+        new(new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m }, []);
+
     private static DepuracionDiaRecibida FotoEsperada(string streamId, DateOnly fecha, string nombreTurno) => new(
-        streamId, CodigoColaborador, fecha,
-        new ResumenColaborador("CC-1234567890", CodigoColaborador, "Luis Augusto Barreto"), nombreTurno,
-        [new FranjaDepurada(
-            new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
-            fecha.ToDateTime(new TimeOnly(6, 0)), fecha.ToDateTime(new TimeOnly(14, 0)), false)],
-        [new MarcacionDelDia(fecha.ToDateTime(new TimeOnly(6, 0)), "ENTRADA")],
-        new HorasDiscriminadas(new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m }, []));
+        streamId, CodigoColaborador, fecha, ColaboradorEsperado(), nombreTurno,
+        [FranjaEsperada(fecha)], [MarcacionEsperada(fecha)], HorasEsperadas());
 
     private static DepuracionDiaRecibida FotoPrevia(string streamId, DateOnly fecha) => new(
         streamId, CodigoColaborador, fecha, null, null, [], [],
         new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
 
-    // CA-1
     [Fact]
     public async Task DiasDepurados_CreaLosDiasQueFaltanYAgregaFotoALosExistentes_CuandoElLoteMezclaAmbos()
     {
@@ -60,7 +67,40 @@ public class DiasDepuradosEventHandlerTests : PrivateEventHandlerAsyncTest<Event
             StreamId2, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
-    // CA-2
+    [Fact]
+    public async Task DiasDepurados_ConservaSedesPertenenciaYMotivoDeAusencia_CuandoLasFotosLosTraen()
+    {
+        var entrada = Fecha1.ToDateTime(new TimeOnly(6, 0));
+        var salida = Fecha1.ToDateTime(new TimeOnly(14, 0));
+
+        await WhenAsync(new EventoBus.DiasDepurados(CodigoColaborador,
+        [
+            new EventoBus.DiaDepurado(
+                CodigoColaborador, Fecha1, ColaboradorRecibido, "Turno Manana",
+                [new EventoBus.FranjaDepurada(
+                    new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+                    "SEDE-01", "Sede Principal", "CC-100")],
+                [new EventoBus.MarcacionDelDia(entrada, "ENTRADA", "SEDE-02", "Sede Norte", "CC-200", "DelTurno")],
+                new EventoBus.HorasDiscriminadas(new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m }, [])),
+            new EventoBus.DiaDepurado(
+                CodigoColaborador, Fecha2, null, null, [], [],
+                new EventoBus.HorasDiscriminadas(new Dictionary<string, decimal>(), []), "Vacaciones"),
+        ]));
+
+        Then(StreamId1, new DepuracionDiaRecibida(
+            StreamId1, CodigoColaborador, Fecha1, ColaboradorEsperado(), "Turno Manana",
+            [new FranjaDepurada(
+                new TimeOnly(6, 0), new TimeOnly(14, 0), 0, entrada, salida, false,
+                "SEDE-01", "Sede Principal", "CC-100")],
+            [new MarcacionDelDia(entrada, "ENTRADA", "SEDE-02", "Sede Norte", "CC-200", "DelTurno")],
+            HorasEsperadas()));
+        Then(StreamId2, new DepuracionDiaRecibida(
+            StreamId2, CodigoColaborador, Fecha2, null, null, [], [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), "Vacaciones"));
+        And<DiaCalculadoAggregateRoot, string>(
+            StreamId2, d => d.GenerarDepuracionDelDia().MotivoAusencia!, "Vacaciones");
+    }
+
     [Fact]
     public async Task DiasDepurados_RegistraEvidenciaPosAprobacionYAplicaElResto_CuandoUnDiaEstaAprobado()
     {
@@ -72,13 +112,8 @@ public class DiasDepuradosEventHandlerTests : PrivateEventHandlerAsyncTest<Event
             CodigoColaborador, [DiaRecibido(Fecha1, "Turno Manana"), DiaRecibido(Fecha2, "Turno Tarde")]));
 
         Then(StreamId1, new DepuracionPosAprobacionRecibida(
-            StreamId1, CodigoColaborador, Fecha1,
-            new ResumenColaborador("CC-1234567890", CodigoColaborador, "Luis Augusto Barreto"), "Turno Manana",
-            [new FranjaDepurada(
-                new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
-                Fecha1.ToDateTime(new TimeOnly(6, 0)), Fecha1.ToDateTime(new TimeOnly(14, 0)), false)],
-            [new MarcacionDelDia(Fecha1.ToDateTime(new TimeOnly(6, 0)), "ENTRADA")],
-            new HorasDiscriminadas(new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m }, [])));
+            StreamId1, CodigoColaborador, Fecha1, ColaboradorEsperado(), "Turno Manana",
+            [FranjaEsperada(Fecha1)], [MarcacionEsperada(Fecha1)], HorasEsperadas()));
         Then(StreamId2, FotoEsperada(StreamId2, Fecha2, "Turno Tarde"));
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(
             StreamId1, d => d.Estado, EstadoDiaCalculado.Aprobado);
@@ -86,7 +121,6 @@ public class DiasDepuradosEventHandlerTests : PrivateEventHandlerAsyncTest<Event
             StreamId2, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
-    // CA-3
     [Fact]
     public async Task DiasDepurados_RepiteLaMismaFoto_CuandoElLoteLlegaDosVeces()
     {

@@ -6,8 +6,8 @@ using ColaboradorBus = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.Re
 
 namespace Bitakora.ControlAsistencia.ControlHoras.RecibirDepuracionesCuandoDiasDepurados.EventHandler;
 
-// Mapeo duplicado a proposito de DiaDepuradoEventHandler (MEF-ADR-0018: dos ocurrencias; una se
-// retira cuando la medicion decida entre el camino por dia y el de lote).
+// RecibirFotoAsync y el mapeo duplican a proposito DiaDepuradoEventHandler (MEF-ADR-0018): un cambio
+// en uno va tambien en el otro hasta que la medicion retire uno de los dos caminos.
 public partial class DiasDepuradosEventHandler : IPrivateEventHandlerAsync<DiasDepurados>
 {
     private readonly IEventStore _eventStore;
@@ -20,32 +20,35 @@ public partial class DiasDepuradosEventHandler : IPrivateEventHandlerAsync<DiasD
     public async Task HandleAsync(DiasDepurados @event, CancellationToken ct = default)
     {
         foreach (var foto in @event.Dias)
+            await RecibirFotoAsync(foto, ct);
+    }
+
+    private async Task RecibirFotoAsync(DiaDepurado foto, CancellationToken ct)
+    {
+        var streamId = DiaCalculadoAggregateRoot.ComputarStreamId(foto.CodigoColaborador, foto.Fecha);
+
+        var evento = new DomainEvents.DepuracionDiaRecibida(
+            streamId,
+            foto.CodigoColaborador,
+            foto.Fecha,
+            MapearColaborador(foto.Colaborador),
+            foto.NombreTurno,
+            foto.Franjas.Select(MapearFranja).ToList(),
+            foto.Marcaciones.Select(MapearMarcacion).ToList(),
+            MapearHoras(foto.HorasDiscriminadas),
+            foto.MotivoAusencia);
+
+        var existe = await _eventStore.ExistsAsync<DiaCalculadoAggregateRoot>(streamId, ct);
+
+        if (existe)
         {
-            var streamId = DiaCalculadoAggregateRoot.ComputarStreamId(foto.CodigoColaborador, foto.Fecha);
-
-            var evento = new DomainEvents.DepuracionDiaRecibida(
-                streamId,
-                foto.CodigoColaborador,
-                foto.Fecha,
-                MapearColaborador(foto.Colaborador),
-                foto.NombreTurno,
-                foto.Franjas.Select(MapearFranja).ToList(),
-                foto.Marcaciones.Select(MapearMarcacion).ToList(),
-                MapearHoras(foto.HorasDiscriminadas),
-                foto.MotivoAusencia);
-
-            var existe = await _eventStore.ExistsAsync<DiaCalculadoAggregateRoot>(streamId, ct);
-
-            if (existe)
-            {
-                var dia = (await _eventStore.GetAggregateRootAsync<DiaCalculadoAggregateRoot>(streamId, ct))!;
-                dia.RecibirDepuracion(evento);
-            }
-            else
-            {
-                var dia = DiaCalculadoAggregateRoot.Iniciar(evento);
-                _eventStore.StartStream(dia);
-            }
+            var dia = (await _eventStore.GetAggregateRootAsync<DiaCalculadoAggregateRoot>(streamId, ct))!;
+            dia.RecibirDepuracion(evento);
+        }
+        else
+        {
+            var dia = DiaCalculadoAggregateRoot.Iniciar(evento);
+            _eventStore.StartStream(dia);
         }
     }
 
