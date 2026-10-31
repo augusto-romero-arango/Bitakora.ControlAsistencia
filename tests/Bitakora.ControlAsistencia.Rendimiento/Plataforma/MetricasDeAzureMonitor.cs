@@ -4,22 +4,34 @@ using Microsoft.Extensions.Configuration;
 
 namespace Bitakora.ControlAsistencia.Rendimiento.Plataforma;
 
-public sealed record ConsultaDeMetricas(string Recurso, IReadOnlyList<string> Nombres, string? Filtro);
+/// <summary>
+/// Agregaciones: "Average,Maximum" para gauges (CPU, memoria, mensajes activos) y "Total" para
+/// contadores (mensajes entrantes y completados por minuto).
+/// </summary>
+public sealed record ConsultaDeMetricas(string Recurso, IReadOnlyList<string> Nombres, string Agregaciones, string? Filtro);
 
-public sealed record PuntoDeMetrica(DateTimeOffset Minuto, double? Promedio, double? Maximo);
+public sealed record PuntoDeMetrica(DateTimeOffset Minuto, double? Promedio, double? Maximo, double? Total)
+{
+    /// <summary>El maximo del minuto en los gauges; el total del minuto en los contadores.</summary>
+    public double? Valor => Maximo ?? Total;
+}
 
 public sealed record SerieDeMetrica(
     string Recurso, string Metrica, string? Entidad, string Unidad, IReadOnlyList<PuntoDeMetrica> Puntos)
 {
     public double? MaximoDeLaVentana => Puntos.Max(p => p.Maximo);
 
-    public double? PromedioDeLaVentana
+    public double? PromedioDeLaVentana => Promedio(Puntos.Select(p => p.Promedio));
+
+    public double? TotalDeLaVentana =>
+        Puntos.Any(p => p.Total is not null) ? Puntos.Sum(p => p.Total ?? 0) : null;
+
+    public bool TieneDatos => Puntos.Any(p => p.Valor is > 0);
+
+    private static double? Promedio(IEnumerable<double?> valores)
     {
-        get
-        {
-            var valores = Puntos.Where(p => p.Promedio is not null).Select(p => p.Promedio!.Value).ToList();
-            return valores.Count == 0 ? null : valores.Average();
-        }
+        var presentes = valores.Where(v => v is not null).Select(v => v!.Value).ToList();
+        return presentes.Count == 0 ? null : presentes.Average();
     }
 }
 
@@ -38,6 +50,7 @@ public static class MetricasDeAzureMonitor
             .Select(s => new ConsultaDeMetricas(
                 s["Recurso"]!,
                 s.GetSection("Nombres").GetChildren().Select(n => n.Value!).ToList(),
+                s["Agregaciones"] ?? "Average,Maximum",
                 s["Filtro"]))
             .ToList();
 
@@ -52,7 +65,8 @@ public static class MetricasDeAzureMonitor
         foreach (var consulta in consultas)
         {
             var parametros = $"&metricnames={Uri.EscapeDataString(string.Join(',', consulta.Nombres))}"
-                + $"&timespan={Uri.EscapeDataString(ventana)}&interval=PT1M&aggregation=Average,Maximum"
+                + $"&timespan={Uri.EscapeDataString(ventana)}&interval=PT1M"
+                + $"&aggregation={Uri.EscapeDataString(consulta.Agregaciones)}"
                 + (consulta.Filtro is null ? "" : $"&$filter={Uri.EscapeDataString(consulta.Filtro)}");
             try
             {
@@ -86,7 +100,8 @@ public static class MetricasDeAzureMonitor
                     .Select(p => new PuntoDeMetrica(
                         DateTimeOffset.Parse(p.GetProperty("timeStamp").GetString()!, CultureInfo.InvariantCulture),
                         Leer(p, "average"),
-                        Leer(p, "maximum")))
+                        Leer(p, "maximum"),
+                        Leer(p, "total")))
                     .ToList();
 
                 yield return new SerieDeMetrica(recurso, nombre, string.IsNullOrEmpty(entidad) ? null : entidad, unidad, puntos);

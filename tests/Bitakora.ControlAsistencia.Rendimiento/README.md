@@ -22,7 +22,7 @@ CI lo compila pero no lo ejecuta: no termina en `.Tests`. Corre a mano, en local
 
    La preparación espera a que el grupo sea visible en `listar_colaboradores`.
 3. **Inicio del SLI:** `solicitar_programacion_turno_por_grupo` por la sede, para el mes completo.
-4. **Fin del SLI:** conteo de solo lectura en `control_horas.mt_doc_asistenciadiaria` (tenant `tenant-smoke`, `id LIKE 'dc:carga-{corrida}-%'`) cada 5 s, hasta N x días del mes o el tiempo máximo.
+4. **Fin del SLI:** conteo de solo lectura en `control_horas.mt_doc_asistenciadiaria` (tenant `tenant-smoke`, `id LIKE 'dc:carga-{corrida}-%'`) cada 5 s, desde el inicio del cronómetro, hasta N x días del mes o el tiempo máximo.
 5. **Métricas de Azure Monitor** de la ventana y **foto final.**
 6. **Reporte y aserción del SLO.**
 
@@ -39,7 +39,12 @@ Cada corrida escribe `{benchmark}-{corrida}.md` y `.json` en `Rendimiento:Direct
   - configuración de Service Bus;
   - planes y Function Apps, con su SHA desplegado y el `host.json` de ese commit;
   - el worker de proyecciones.
-- **Métricas** minuto a minuto: CPU y memoria de los planes, CPU, créditos y conexiones de Postgres, CPU y memoria de proyecciones, y mensajes activos por entidad de Service Bus.
+- **Métricas de Azure Monitor** minuto a minuto, que es la granularidad mínima de las métricas de plataforma:
+  - CPU y memoria de los planes de ControlHoras, Programación y MCP;
+  - CPU, créditos, conexiones, memoria, IOPS, cola de disco y porcentaje de IOPS consumido de Postgres;
+  - CPU y memoria de proyecciones;
+  - mensajes activos (máximo por minuto), entrantes y completados (total por minuto) por entidad de Service Bus.
+- **Muestreo propio cada 5 s:** el progreso del conteo lleva además las conexiones a la base por estado (`pg_stat_activity`: total, activas, inactivas, en transacción), con más resolución que la métrica de plataforma. Incluye la conexión del propio muestreo.
 
 ### Análisis de sensibilidad
 

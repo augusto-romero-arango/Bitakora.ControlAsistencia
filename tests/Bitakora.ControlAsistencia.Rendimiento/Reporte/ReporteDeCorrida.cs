@@ -7,7 +7,8 @@ namespace Bitakora.ControlAsistencia.Rendimiento.Reporte;
 
 public sealed record IndicadorDeNivel(string Nombre, double ValorSegundos, double SloSegundos, bool Cumple);
 
-public sealed record MuestraDeProgreso(double Segundos, long Valor);
+/// <summary>Una muestra del progreso; Detalle lleva columnas extra tomadas en el mismo instante.</summary>
+public sealed record MuestraDeProgreso(double Segundos, long Valor, IReadOnlyDictionary<string, long>? Detalle = null);
 
 /// <summary>
 /// Evidencia de una corrida: el SLI contra su SLO, los parametros, los resultados, la foto de la
@@ -106,12 +107,15 @@ public sealed class ReporteDeCorrida(string benchmark, string corrida)
 
         if (Progreso.Count > 0)
         {
+            var columnas = Progreso.Where(m => m.Detalle is not null).SelectMany(m => m.Detalle!.Keys)
+                .Distinct().Order(StringComparer.Ordinal).ToList();
             md.AppendLine($"## Progreso ({EtiquetaDelProgreso})");
             md.AppendLine();
-            md.AppendLine("| Segundo | " + EtiquetaDelProgreso + " |");
-            md.AppendLine("|---|---|");
-            foreach (var muestra in Submuestrear(Progreso, 20))
-                md.AppendLine($"| {muestra.Segundos.ToString("0", CultureInfo.InvariantCulture)} | {muestra.Valor} |");
+            md.AppendLine($"| Segundo | {EtiquetaDelProgreso} |{string.Concat(columnas.Select(c => $" {c} |"))}");
+            md.AppendLine($"|---|---|{string.Concat(columnas.Select(_ => "---|"))}");
+            foreach (var muestra in Submuestrear(Progreso, 30))
+                md.AppendLine($"| {muestra.Segundos.ToString("0", CultureInfo.InvariantCulture)} | {muestra.Valor} |"
+                    + string.Concat(columnas.Select(c => $" {(muestra.Detalle?.TryGetValue(c, out var v) == true ? v : 0)} |")));
             md.AppendLine();
         }
 
@@ -169,15 +173,17 @@ public sealed class ReporteDeCorrida(string benchmark, string corrida)
 
         md.AppendLine($"Ventana {Metricas.Desde.UtcDateTime:HH:mm}-{Metricas.Hasta.UtcDateTime:HH:mm} UTC, granularidad 1 min.");
         md.AppendLine();
-        var conDatos = Metricas.Series.Where(s => s.MaximoDeLaVentana is > 0).ToList();
+        var conDatos = Metricas.Series.Where(s => s.TieneDatos).ToList();
         if (conDatos.Count > 0)
         {
-            md.AppendLine("| Recurso | Metrica | Entidad | Prom. | Max. | Max. por minuto |");
-            md.AppendLine("|---|---|---|---|---|---|");
+            md.AppendLine("Por minuto: el maximo en los gauges (CPU, memoria, mensajes activos) y el total en los contadores (mensajes entrantes y completados).");
+            md.AppendLine();
+            md.AppendLine("| Recurso | Metrica | Entidad | Prom. | Max. | Total | Por minuto |");
+            md.AppendLine("|---|---|---|---|---|---|---|");
             foreach (var serie in conDatos)
                 md.AppendLine($"| {serie.Recurso.Split('/')[^1]} | {serie.Metrica} | {serie.Entidad} | "
-                    + $"{Numero(serie.PromedioDeLaVentana)} | {Numero(serie.MaximoDeLaVentana)} | "
-                    + $"{string.Join(" ", serie.Puntos.Select(p => Numero(p.Maximo)))} |");
+                    + $"{Numero(serie.PromedioDeLaVentana)} | {Numero(serie.MaximoDeLaVentana)} | {Numero(serie.TotalDeLaVentana)} | "
+                    + $"{string.Join(" ", serie.Puntos.Select(p => Numero(p.Valor)))} |");
             md.AppendLine();
         }
 

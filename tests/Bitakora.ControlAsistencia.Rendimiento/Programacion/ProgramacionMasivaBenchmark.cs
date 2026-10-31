@@ -44,23 +44,36 @@ public sealed class ProgramacionMasivaBenchmark(McpFixture mcp, PostgresFixture 
         await EsperarGrupoAsync(sede, prefijo, parametros.Colaboradores, ct);
         reporte.Resultado("Preparacion (fuera del SLI)", preparacion.Elapsed);
 
+        var esperado = (long)parametros.Colaboradores * parametros.Dias;
         var inicio = DateTimeOffset.UtcNow;
         var cronometro = Stopwatch.StartNew();
-        var respuesta = await mcp.LlamarAsync("solicitar_programacion_turno_por_grupo", new Dictionary<string, object?>
-        {
-            ["desde"] = parametros.Desde.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            ["hasta"] = parametros.Hasta.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            ["turno_id"] = turnoId,
-            ["sede_de_programacion"] = sede,
-            ["sede"] = sede
-        }, ct);
-        var duracionDeLaLlamada = cronometro.Elapsed;
-        reporte.Resultado("Llamada a la tool", duracionDeLaLlamada);
-        LeerSolicitud(respuesta, parametros, reporte);
 
-        var esperado = (long)parametros.Colaboradores * parametros.Dias;
-        var alcanzado = await EsperarProyeccionAsync(prefijo, esperado, cronometro, parametros, reporte, ct);
-        var duracion = cronometro.Elapsed;
+        // El muestreo arranca con el cronometro y no cuando responde la tool: la tool por grupo hace
+        // todos sus POST dentro de una sola llamada y la cadena empieza a proyectar antes de que
+        // esa llamada termine.
+        using var corte = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var muestreo = MuestrearHastaProyectarAsync(prefijo, esperado, cronometro, parametros, reporte, corte.Token);
+        try
+        {
+            var respuesta = await mcp.LlamarAsync("solicitar_programacion_turno_por_grupo", new Dictionary<string, object?>
+            {
+                ["desde"] = parametros.Desde.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["hasta"] = parametros.Hasta.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["turno_id"] = turnoId,
+                ["sede_de_programacion"] = sede,
+                ["sede"] = sede
+            }, ct);
+            reporte.Resultado("Llamada a la tool", cronometro.Elapsed);
+            LeerSolicitud(respuesta, parametros, reporte);
+        }
+        catch
+        {
+            await corte.CancelAsync();
+            try { await muestreo; } catch (OperationCanceledException) { }
+            throw;
+        }
+
+        var (alcanzado, duracion) = await muestreo;
         var fin = DateTimeOffset.UtcNow;
 
         reporte.Resultado("Filas esperadas", esperado);
@@ -182,7 +195,11 @@ public sealed class ProgramacionMasivaBenchmark(McpFixture mcp, PostgresFixture 
         }
     }
 
-    private async Task<long> EsperarProyeccionAsync(
+    /// <summary>
+    /// Cada 5 s: filas de AsistenciaDiaria y conexiones de Postgres por estado. Termina al llegar a
+    /// las filas esperadas (el fin del SLI es el instante de esa muestra) o al tiempo maximo.
+    /// </summary>
+    private async Task<(long Filas, TimeSpan Momento)> MuestrearHastaProyectarAsync(
         string prefijo, long esperado, Stopwatch cronometro, Parametros parametros, ReporteDeCorrida reporte,
         CancellationToken ct)
     {
@@ -190,9 +207,11 @@ public sealed class ProgramacionMasivaBenchmark(McpFixture mcp, PostgresFixture 
         while (true)
         {
             var filas = await postgres.ContarAsistenciasDiariasAsync(Tenant, prefijo, ct);
-            reporte.Progreso.Add(new MuestraDeProgreso(cronometro.Elapsed.TotalSeconds, filas));
-            if (filas >= esperado || cronometro.Elapsed >= limite)
-                return filas;
+            var momento = cronometro.Elapsed;
+            reporte.Progreso.Add(new MuestraDeProgreso(
+                momento.TotalSeconds, filas, await postgres.ContarConexionesPorEstadoAsync(ct)));
+            if (filas >= esperado || momento >= limite)
+                return (filas, momento);
 
             await Task.Delay(IntervaloDeConteo, ct);
         }
