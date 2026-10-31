@@ -54,7 +54,8 @@ fija los nombres de los dos eventos privados y sus topics, porque #1336 (infra) 
   version esperada.
 - **Depurados en memoria hasta `DiaCalculado`.** Descartada: extiende la desviacion de MEF-ADR-0024 #3 mas alla
   del lote de un aggregate.
-- **Lote como concepto del dominio.** Descartada: ya descartado en el glosario.
+- **Lote como concepto del dominio.** Descartada: el glosario ya lo descarto (sesion de #589); el lote es un
+  concepto de transporte.
 
 ## Consecuencias
 
@@ -73,6 +74,8 @@ fija los nombres de los dos eventos privados y sus topics, porque #1336 (infra) 
 - Issues: #1333 (este ADR), #1335-#1341 (desglose).
 - MEF-ADR-0024, MEF-ADR-0026, MEF-ADR-0043, MEF-ADR-0001, MEF-ADR-0005.
 - CA-ADR-0017 (ADR de transporte), CA-ADR-0025, CA-ADR-0029, CA-ADR-0035, CA-ADR-0036, CA-ADR-0041, CA-ADR-0042.
+- Glosario (`docs/ddd/ubiquitous-language.yaml`): "lote como concepto del dominio" descartado (sesion de #589).
+- Field note `2026-10-23-1038`: carrera marcacion/turno entre topics que origino CA-ADR-0042 decision 4.
 - Vaughn Vernon, *Effective Aggregate Design*, 2011, dddcommunity.org.
 
 ## Control de cambios
