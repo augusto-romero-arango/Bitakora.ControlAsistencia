@@ -27,6 +27,7 @@
     <Project Path="tests/Bitakora.ControlAsistencia.Programacion.SmokeTests/Bitakora.ControlAsistencia.Programacion.SmokeTests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Projections.Tests/Bitakora.ControlAsistencia.Projections.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.PublicEvents.Tests/Bitakora.ControlAsistencia.PublicEvents.Tests.csproj" />
+    <Project Path="tests/Bitakora.ControlAsistencia.Rendimiento/Bitakora.ControlAsistencia.Rendimiento.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Sedes.SmokeTests/Bitakora.ControlAsistencia.Sedes.SmokeTests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.Sedes.Tests/Bitakora.ControlAsistencia.Sedes.Tests.csproj" />
     <Project Path="tests/Bitakora.ControlAsistencia.TenantResolver.Tests/Bitakora.ControlAsistencia.TenantResolver.Tests.csproj" />

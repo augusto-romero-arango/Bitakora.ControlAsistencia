@@ -134,6 +134,44 @@ public class FunctionEndpointTests
     }
 
     [Fact]
+    public async Task ActualizarControlDiario_DespachaProgramacionTurnoEnFechasSolicitadaAlRouterDeEventos_CuandoElSubjectLoIdentifica()
+    {
+        var esc = new Escenario();
+        var evento = new ProgramacionTurnoEnFechasSolicitada(
+            Id, Resumen, [new DateOnly(2026, 3, 15), new DateOnly(2026, 3, 16)],
+            new DetalleTurno("Turno Manana",
+                [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "")], ""),
+            new DetalleJornada(Id, 2880, 600, 0, 1));
+
+        await esc.Ejecutar(CrearMensaje(Ns + "Programacion.ProgramacionTurnoEnFechasSolicitada", Json(evento)));
+
+        var recibido = esc.RouterEventos.Eventos.Should().ContainSingle().Which
+            .Should().BeOfType<ProgramacionTurnoEnFechasSolicitada>().Subject;
+        recibido.SolicitudId.Should().Be(Id);
+        recibido.Fechas.Should().Equal(new DateOnly(2026, 3, 15), new DateOnly(2026, 3, 16));
+        esc.RouterComandos.Invocaciones.Should().Be(0);
+        esc.Acciones.MensajeCompletado.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ActualizarControlDiario_DespachaDiasDepuradosAlRouterDeEventos_CuandoElSubjectLoIdentifica()
+    {
+        var esc = new Escenario();
+        var evento = new DiasDepurados(Colaborador, [new DiaDepurado(
+            Colaborador, new DateOnly(2026, 3, 15), null, null, [], [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []))]);
+
+        await esc.Ejecutar(CrearMensaje(Ns + "ControlHoras.DiasDepurados", Json(evento)));
+
+        var recibido = esc.RouterEventos.Eventos.Should().ContainSingle().Which
+            .Should().BeOfType<DiasDepurados>().Subject;
+        recibido.CodigoColaborador.Should().Be(Colaborador);
+        recibido.Dias.Should().ContainSingle().Which.Fecha.Should().Be(new DateOnly(2026, 3, 15));
+        esc.RouterComandos.Invocaciones.Should().Be(0);
+        esc.Acciones.MensajeCompletado.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ActualizarControlDiario_DespachaCancelacionTurnoDiarioSolicitadaAlRouterDeEventos_CuandoElSubjectLoIdentifica()
     {
         var esc = new Escenario();

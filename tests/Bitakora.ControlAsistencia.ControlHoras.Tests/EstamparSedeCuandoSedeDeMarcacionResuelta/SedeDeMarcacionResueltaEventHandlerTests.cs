@@ -70,7 +70,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             null,
             [],
             [new MarcacionDelDia(TimestampDiurno, "ENTRADA", CodigoSede, NombreSede, CentroDeCostos)],
-            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 2));
     }
 
     // CA-1: el estampado viaja tal cual llego, incluido el caso sin centro de costos.
@@ -117,7 +117,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             new PublishOptions { GroupId = CodigoColaborador },
             new DiaDepurado(
                 CodigoColaborador, new DateOnly(2026, 3, 15), null, null, [], [marcacionNocturna],
-                new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+                new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 2));
     }
 
     // CA-3 (carrera de orden): el ControlDiario destino no existe todavia -- fallar es deliberado,

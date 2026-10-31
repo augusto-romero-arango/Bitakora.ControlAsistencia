@@ -1,0 +1,106 @@
+# Benchmarks y SLI contra dev (CA-ADR-0044). Corre a mano y nunca desde CI ni desde un deploy: los
+# benchmarks siembran volumen (lo que los smoke no hacen, CA-ADR-0041) y cargan el entorno.
+#
+# Dispararlo desde 'main': la credencial federada del SP de CI solo acepta refs/heads/main y
+# pull_request (setup-github-ci.sh del harness), asi que en otra rama azure/login falla.
+name: Rendimiento
+
+on:
+  workflow_dispatch:
+    inputs:
+      benchmark:
+        description: 'Benchmark a correr (trait Benchmark)'
+        type: choice
+        options:
+          - programacion-masiva
+        default: programacion-masiva
+      colaboradores:
+        description: 'programacion-masiva: colaboradores del grupo'
+        type: number
+        default: 100
+      mes:
+        description: 'programacion-masiva: mes a programar (yyyy-MM); vacio = el mes siguiente'
+        type: string
+        default: ''
+      slo_segundos:
+        description: 'programacion-masiva: SLO en segundos (solicitud -> proyeccion)'
+        type: number
+        default: 60
+      tiempo_maximo_minutos:
+        description: 'programacion-masiva: tiempo maximo de espera de la proyeccion'
+        type: number
+        default: 30
+
+# Mismo grupo que los smoke (smoke-tests-mcp.yml, smoke-tests-dominio.yml): comparten tenant-smoke y
+# el entorno, y un benchmark corriendo junto a un smoke distorsiona las dos mediciones. Ver alli la
+# razon de 'queue: max' y la advertencia sobre actionlint.
+concurrency:
+  group: smoke-tests-dev
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  rendimiento:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      # Token federado para azure/login (OIDC): key del MCP, foto de infraestructura y metricas.
+      id-token: write
+    steps:
+      # fetch-depth 0: la foto de infraestructura lee el host.json de cada Function App en el
+      # commit desplegado (git show <sha>:<ruta>), que puede no ser el HEAD de main.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Azure Authentication
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Mismo paso que smoke-tests-mcp.yml: la key se lista en runtime y se enmascara antes de
+      # exportarla.
+      - name: Obtener la key mcp_extension
+        run: |
+          key=$(az functionapp keys list \
+            --resource-group rg-controlasistencias-dev \
+            --name func-asist-dev-mcp-asistente \
+            --query systemKeys.mcp_extension -o tsv)
+          if [ -z "$key" ]; then
+            echo "::error::func-asist-dev-mcp-asistente no expone la system key mcp_extension."
+            exit 1
+          fi
+          echo "::add-mask::$key"
+          echo "MCP_FUNCTIONS_KEY=$key" >> "$GITHUB_ENV"
+
+      - name: Benchmark ${{ inputs.benchmark }}
+        env:
+          Mcp__FunctionsKey: ${{ env.MCP_FUNCTIONS_KEY }}
+          Postgres__ConnectionString: ${{ secrets.POSTGRES_CONNECTION_STRING }}
+          Azure__SubscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          Rendimiento__DirectorioReportes: ${{ github.workspace }}/reportes
+          Rendimiento__ProgramacionMasiva__Colaboradores: ${{ inputs.colaboradores }}
+          Rendimiento__ProgramacionMasiva__Mes: ${{ inputs.mes }}
+          Rendimiento__ProgramacionMasiva__SloSegundos: ${{ inputs.slo_segundos }}
+          Rendimiento__ProgramacionMasiva__TiempoMaximoMinutos: ${{ inputs.tiempo_maximo_minutos }}
+          BENCHMARK: ${{ inputs.benchmark }}
+        run: |
+          dotnet test --project tests/Bitakora.ControlAsistencia.Rendimiento \
+            --configuration Release \
+            --filter-trait "Benchmark=$BENCHMARK"
+
+      - name: Publicar reportes
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rendimiento-${{ inputs.benchmark }}-${{ github.run_id }}
+          path: reportes/
+          if-no-files-found: warn
+          retention-days: 90
