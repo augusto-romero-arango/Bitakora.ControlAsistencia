@@ -61,6 +61,26 @@ public class ServiceBusFixture : IAsyncLifetime
         Func<T, bool> match,
         TimeSpan timeout)
     {
+        var (mensaje, recibido) = await WaitForReceivedMessageAsync(topicName, subscriptionName, match, timeout);
+        return (mensaje, recibido.ApplicationProperties);
+    }
+
+    public async Task<(T Mensaje, string? SessionId)> WaitForMessageConSesionAsync<T>(
+        string topicName,
+        string subscriptionName,
+        Func<T, bool> match,
+        TimeSpan timeout)
+    {
+        var (mensaje, recibido) = await WaitForReceivedMessageAsync(topicName, subscriptionName, match, timeout);
+        return (mensaje, recibido.SessionId);
+    }
+
+    private async Task<(T Mensaje, ServiceBusReceivedMessage Recibido)> WaitForReceivedMessageAsync<T>(
+        string topicName,
+        string subscriptionName,
+        Func<T, bool> match,
+        TimeSpan timeout)
+    {
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         await using var receiver = _client!.CreateReceiver(topicName, subscriptionName);
 
@@ -87,7 +107,7 @@ public class ServiceBusFixture : IAsyncLifetime
             {
                 var deserialized = JsonSerializer.Deserialize<T>(received.Body.ToString(), options);
                 if (deserialized is not null && match(deserialized))
-                    return (deserialized, received.ApplicationProperties);
+                    return (deserialized, received);
             }
             catch (JsonException)
             {

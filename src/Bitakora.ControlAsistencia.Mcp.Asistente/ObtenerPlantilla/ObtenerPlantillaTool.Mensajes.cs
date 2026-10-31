@@ -20,6 +20,10 @@ public partial class ObtenerPlantillaTool
 
         public static string TurnoIncompleto => ResourceManager.GetString(nameof(TurnoIncompleto))!;
 
+        public static string Descanso => ResourceManager.GetString(nameof(Descanso))!;
+
+        public static string HorarioAbierto => ResourceManager.GetString(nameof(HorarioAbierto))!;
+
         public static string PlantillaIdInvalido => ResourceManager.GetString(nameof(PlantillaIdInvalido))!;
 
     }
