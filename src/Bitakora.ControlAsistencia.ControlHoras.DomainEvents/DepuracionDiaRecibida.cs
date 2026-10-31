@@ -19,6 +19,7 @@ public sealed class DepuracionDiaRecibida
     public IReadOnlyList<MarcacionDelDia> Marcaciones { get; private set; } = null!;
     public HorasDiscriminadas HorasDiscriminadas { get; private set; } = null!;
     public string? MotivoAusencia { get; private set; }
+    public long? VersionControlDiario { get; private set; }
 
     public DepuracionDiaRecibida(
         string id,
@@ -29,7 +30,8 @@ public sealed class DepuracionDiaRecibida
         IReadOnlyList<FranjaDepurada> franjas,
         IReadOnlyList<MarcacionDelDia> marcaciones,
         HorasDiscriminadas horasDiscriminadas,
-        string? motivoAusencia = null)
+        string? motivoAusencia = null,
+        long? versionControlDiario = null)
     {
         Id = id;
         CodigoColaborador = codigoColaborador;
@@ -40,6 +42,7 @@ public sealed class DepuracionDiaRecibida
         Marcaciones = marcaciones;
         HorasDiscriminadas = horasDiscriminadas;
         MotivoAusencia = motivoAusencia;
+        VersionControlDiario = versionControlDiario;
     }
 
     // Constructor privado para Marten/serializacion

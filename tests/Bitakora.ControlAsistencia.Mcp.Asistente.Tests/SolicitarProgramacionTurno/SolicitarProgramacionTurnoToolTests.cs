@@ -16,6 +16,7 @@ public class SolicitarProgramacionTurnoToolTests
     private const string VentanaDesde = "2026-09-01";
     private const string VentanaHasta = "2026-09-30";
     private const string RutaSolicitudes = "/api/programacion/solicitudes";
+    private const string RutaSolicitudesEnFechas = "/api/programacion/solicitudes-en-fechas";
 
     private static string TurnosJson => Fixtures.Leer("SolicitarProgramacionTurno", "turnos.json");
     private static string SedeJson => Fixtures.Leer("SolicitarProgramacionTurno", "sede.json");
@@ -29,8 +30,6 @@ public class SolicitarProgramacionTurnoToolTests
         HandlerEnlatado Sedes,
         HandlerEnlatado Colaboradores);
 
-    // Composicion por defecto del camino feliz -- cada test sobreescribe unicamente el fixture que
-    // le interesa via argumentos nombrados, mismo patron de consolidacion que RegistrarColaboradorToolTests.
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
@@ -39,7 +38,8 @@ public class SolicitarProgramacionTurnoToolTests
         string? sedeJson = null,
         HttpStatusCode statusSede = HttpStatusCode.OK,
         string? directorioJson = null,
-        HttpStatusCode statusDirectorio = HttpStatusCode.OK)
+        HttpStatusCode statusDirectorio = HttpStatusCode.OK,
+        bool solicitudEnFechas = false)
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();
         if (statusTurnos == HttpStatusCode.OK)
@@ -50,15 +50,17 @@ public class SolicitarProgramacionTurnoToolTests
         else
             handlerProgramacion.Responde(
                 HttpMethod.Get, DetalleDeTurnoFalso.RutaDetalle(TurnoId), statusTurnos, turnosJson ?? "");
-        handlerProgramacion.Responde(HttpMethod.Post, RutaSolicitudes, statusSolicitud, cuerpoSolicitud);
+        handlerProgramacion.Responde(
+            HttpMethod.Post, solicitudEnFechas ? RutaSolicitudesEnFechas : RutaSolicitudes, statusSolicitud, cuerpoSolicitud);
 
         var (clienteSedes, handlerSedes) = ClienteFalso.Con(sedeJson ?? SedeJson, statusSede);
         var (clienteColaboradores, handlerColaboradores) = ClienteFalso.Con(
             directorioJson ?? DirectorioJson, statusDirectorio);
 
+        var programacion = new ProgramacionApi(clienteProgramacion, new OpcionesProgramacion(solicitudEnFechas));
         var tool = new SolicitarProgramacionTurnoTool(
-            new ProgramacionApi(clienteProgramacion), new SedesApi(clienteSedes),
-            new ResolutorTurnoPorId(new ProgramacionApi(clienteProgramacion)),
+            programacion, new SedesApi(clienteSedes),
+            new ResolutorTurnoPorId(programacion),
             new ResolutorSedePorCodigo(new SedesApi(clienteSedes)),
             new ResolutorCandidatosPorLista(new ColaboradoresApi(clienteColaboradores)));
 
@@ -82,7 +84,6 @@ public class SolicitarProgramacionTurnoToolTests
             identificaciones: identificaciones,
             ct: ct);
 
-    // CA-1: ningun rechazo local debe tocar ninguno de los 3 dominios.
     private static void AsegurarNingunaRequest(Fakes fakes)
     {
         fakes.Programacion.Requests.Should().BeEmpty();
@@ -90,7 +91,7 @@ public class SolicitarProgramacionTurnoToolTests
         fakes.Colaboradores.UltimaRequest.Should().BeNull();
     }
 
-    // CA-3/CA-4: tres pedidos -- CC-1111 (vigencia abierta, cubre toda la ventana), CC-2222
+    // Tres pedidos -- CC-1111 (vigencia abierta, cubre toda la ventana), CC-2222
     // (vigencia terminada dentro de la ventana, recortado a 01..20) y CC-3333 (vigencia terminada
     // antes de la ventana, sin dias, omitido sin POST).
     [Fact]
@@ -148,7 +149,7 @@ public class SolicitarProgramacionTurnoToolTests
         programadoBeto["dias"]!.GetValue<int>().Should().Be(20);
     }
 
-    // CA-3: el detalle responde 404 -> frase con el id que remite a buscar_turnos, sin lista de nombres.
+    // El detalle responde 404 -> frase con el id que remite a buscar_turnos, sin lista de nombres.
     [Fact]
     public async Task SolicitarProgramacionTurno_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
@@ -190,8 +191,6 @@ public class SolicitarProgramacionTurnoToolTests
         fakes.Colaboradores.UltimaRequest.Should().BeNull("la sede se resuelve antes que el directorio");
     }
 
-    // CA-4: un POST que el dominio rechaza no detiene a los demas -- el resto del lote ya pudo
-    // haberse programado y el agente necesita saberlo.
     [Fact]
     public async Task SolicitarProgramacionTurno_LlevaAFallidosAlColaboradorCuyoPostFalla_YProgramaAlOtro()
     {
@@ -224,7 +223,7 @@ public class SolicitarProgramacionTurnoToolTests
         fallido["motivo"]!.GetValue<string>().Should().Be(Validacion400Json);
     }
 
-    // CA-3: un pedido con numero sin tipo nunca coincide exactamente con la identificacion completa
+    // Un pedido con numero sin tipo nunca coincide exactamente con la identificacion completa
     // que devuelve el directorio -- queda omitido, sin POST, aunque el directorio SI conozca a esa
     // persona bajo "CC-1111".
     [Fact]
@@ -240,7 +239,7 @@ public class SolicitarProgramacionTurnoToolTests
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
-    // CA-2: la repeticion (con espacios y otra caja) coincide con la misma entrada del directorio,
+    // La repeticion (con espacios y otra caja) coincide con la misma entrada del directorio,
     // se programa una sola vez y la sobrante cuenta como omitida.
     [Fact]
     public async Task SolicitarProgramacionTurno_ProgramaUnaSolaVezYCuentaLaRepeticionComoOmitida_CuandoUnaIdentificacionSeRepite()
@@ -280,7 +279,6 @@ public class SolicitarProgramacionTurnoToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
     public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuid()
     {
@@ -304,7 +302,6 @@ public class SolicitarProgramacionTurnoToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-5: la tool lee el detalle por identidad, nunca el catalogo completo.
     [Fact]
     public async Task SolicitarProgramacionTurno_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
     {
@@ -330,8 +327,7 @@ public class SolicitarProgramacionTurnoToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-1: identificaciones ausente en contenido util tras separar por coma y recortar -- distinto
-    // del caso "en blanco" de arriba (una cadena con solo comas/espacios llega no-blank a la tool).
+    // Distinto del caso "en blanco": una cadena con solo comas/espacios llega no-blank a la tool.
     [Fact]
     public async Task SolicitarProgramacionTurno_RechazaSinLlamarANingunDominio_CuandoIdentificacionesNoTraeNingunValorUtil()
     {
@@ -603,6 +599,42 @@ public class SolicitarProgramacionTurnoToolTests
     {
         const string motivoDominio = "Todas las fechas solicitadas caen en ausencias del colaborador";
         var fakes = CrearTool(statusSolicitud: HttpStatusCode.Conflict, cuerpoSolicitud: motivoDominio);
+
+        var resultado = await Ejecutar(
+            fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!;
+        json["programados"]!.AsArray().Should().BeEmpty();
+        var fallido = json["fallidos"]!.AsArray().Single()!;
+        fallido["identificacion"]!.GetValue<string>().Should().Be("CC-1111");
+        fallido["motivo"]!.GetValue<string>().Should().Be(motivoDominio);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_InterpretaElCreatedConRespetadosIgualQuePorDia_CuandoElInterruptorEnFechasEstaPrendido()
+    {
+        var fakes = CrearTool(
+            solicitudEnFechas: true,
+            cuerpoSolicitud: CuerpoConRespetadas(("2026-09-13", "Vacaciones"), ("2026-09-14", "Vacaciones")));
+
+        var resultado = await Ejecutar(
+            fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
+
+        fakes.Programacion.Requests.Where(r => r.Metodo == HttpMethod.Post)
+            .Should().ContainSingle().Which.Ruta.Should().Be(RutaSolicitudesEnFechas);
+        var programado = JsonNode.Parse(resultado)!["programados"]!.AsArray().Single()!;
+        programado["dias"]!.GetValue<int>().Should().Be(28, "30 dias de ventana menos 2 respetados");
+        var respetado = programado["respetados"]!.AsArray().Single()!;
+        respetado["motivo"]!.GetValue<string>().Should().Be("Vacaciones");
+        respetado["tramos"]!.GetValue<string>().Should().Be("13-14");
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_LlevaAFallidosConElMotivoDelDominio_CuandoElInterruptorEnFechasEstaPrendido()
+    {
+        const string motivoDominio = "Todas las fechas solicitadas caen en ausencias del colaborador";
+        var fakes = CrearTool(
+            solicitudEnFechas: true, statusSolicitud: HttpStatusCode.Conflict, cuerpoSolicitud: motivoDominio);
 
         var resultado = await Ejecutar(
             fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);

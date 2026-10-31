@@ -59,6 +59,7 @@ public static class ComposicionServicios
                 options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
                 // ADR-0004 + ADR-0005: un topic por evento, naming kebab-case en participio.
                 options.PublicarEventoServerless<DiaDepurado>("dia-depurado");
+                options.PublicarEventoServerless<DiasDepurados>("dias-depurados");
                 // issue #270 (ADR-0024 marco decision #3): RegistroDeMarcacionCreado (contrato de
                 // bus, PrivateEvents.ControlHoras) es el IPrivateEvent que debe cruzar fisicamente el
                 // ASB interno del BC, aun siendo consumido dentro del mismo Function App
