@@ -310,6 +310,9 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return control;
     }
 
+    internal ResultadoAsignacionDeLote AsignarTurnoDeLote(TurnoDiarioAsignado evento)
+        => throw new NotImplementedException();
+
     internal void AsignarTurno(TurnoDiarioAsignado evento)
     {
         var cambiaElPlan = !Equals(DetalleTurno, evento.DetalleTurno);
