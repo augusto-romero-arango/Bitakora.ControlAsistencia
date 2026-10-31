@@ -1,5 +1,5 @@
-using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -7,12 +7,40 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
 
+// Persiste SolicitudProgramacion antes de responder -> 201 Created sin Location: la solicitud no
+// tiene GET canonico; el turno diario en ControlHoras es un efecto posterior al commit, no el
+// recurso pedido (CA-ADR-0035).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function(nameof(SolicitarProgramacionTurnoEnFechas))]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/solicitudes-en-fechas")]
         HttpRequest req,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        var (comando, error) = await requestValidator.ValidarAsync<SolicitarProgramacionTurnoEnFechas>(req, ct);
+        if (error is not null)
+            return error;
+
+        ResultadoSolicitudProgramacion resultado;
+        try
+        {
+            resultado = await commandRouter.InvokeAsync<SolicitarProgramacionTurnoEnFechas, ResultadoSolicitudProgramacion>(comando!, ct);
+        }
+        catch (PrecondicionComandoException ex)
+        {
+            switch (ex)
+            {
+                case RecursoYaExisteException:
+                case ReglaDeNegocioDeclinadaException:
+                    return new ConflictObjectResult(ex.Message);
+                case RecursoNoEncontradoException:
+                    return new NotFoundObjectResult(ex.Message);
+                default:
+                    throw;
+            }
+        }
+
+        return new CreatedResult((string?)null, resultado);
+    }
 }
