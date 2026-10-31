@@ -112,6 +112,39 @@ module "service_bus" {
         }
       ]
     }
+    # Issue #1336 (CA-ADR-0043 decision 7): topics del camino de programacion en lote por colaborador.
+    # Ambos hacen forward a la cola con sesion actualizar-control-diario (MEF-ADR-0026): los
+    # productores (#1337, #1338) publican con GroupId = CodigoColaborador, o el mensaje se
+    # dead-lettera en la subscription fuente. Publicar sin consumidor es valido (MEF-ADR-0013);
+    # smoke-tests cubre la publicacion mientras llegan #1337-#1339.
+    "programacion-turno-en-fechas-solicitada" = {
+      subscriptions = [
+        {
+          name               = "control-horas-escucha-programacion-en-fechas"
+          correlation_filter = null
+          forward_to         = "actualizar-control-diario"
+        },
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
+    "dias-depurados" = {
+      subscriptions = [
+        {
+          name               = "control-horas-escucha-dias-depurados"
+          correlation_filter = null
+          forward_to         = "actualizar-control-diario"
+        },
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
     "dia-depurado" = {
       subscriptions = [
         {
