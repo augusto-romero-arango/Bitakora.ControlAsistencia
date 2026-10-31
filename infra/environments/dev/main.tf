@@ -25,7 +25,14 @@ module "postgresql" {
   administrator_login    = "pgadmin"
   administrator_password = var.postgresql_admin_password
   database_name          = "controlasistencias"
-  tags                   = local.tags
+
+  # Issue #1334: B2s con max_connections = 429, el default de B2s segun la tabla de
+  # Microsoft Learn (concepts-limits#maximum-connections). Azure fija el default al crear
+  # el servidor y no lo recalcula al cambiar de SKU, por eso se declara explicito.
+  sku_name        = "B_Standard_B2s"
+  max_connections = 429
+
+  tags = local.tags
 }
 
 module "service_bus" {
