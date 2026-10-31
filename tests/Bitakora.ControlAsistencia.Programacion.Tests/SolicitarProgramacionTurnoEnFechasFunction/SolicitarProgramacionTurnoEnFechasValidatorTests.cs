@@ -10,9 +10,11 @@ public class SolicitarProgramacionTurnoEnFechasValidatorTests
 {
     private readonly SolicitarProgramacionTurnoEnFechasValidator _validator = new();
 
+    private static ColaboradorSolicitado ColaboradorValido() => new("CC-12345678", "E001", "Juan Perez");
+
     private static SolicitarProgramacionTurnoEnFechas Valido() => new(
         Guid.NewGuid(), Guid.NewGuid(),
-        new ColaboradorSolicitado("CC-12345678", "E001", "Juan Perez"),
+        ColaboradorValido(),
         [new DateOnly(2026, 4, 7)]);
 
     [Fact]
@@ -36,8 +38,6 @@ public class SolicitarProgramacionTurnoEnFechasValidatorTests
 
         resultado.IsValid.Should().BeFalse();
     }
-
-    private static ColaboradorSolicitado ColaboradorValido() => new("CC-12345678", "E001", "Juan Perez");
 
     [Fact]
     public void Validar_Falla_CuandoTurnoIdEsGuidVacio()

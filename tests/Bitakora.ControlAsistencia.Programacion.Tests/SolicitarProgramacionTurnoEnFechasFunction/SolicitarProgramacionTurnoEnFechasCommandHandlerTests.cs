@@ -77,6 +77,42 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     private static readonly JornadaProgramada JornadaEsperada = new(JornadaPorDefectoId, Limites42());
     private static readonly DetalleJornada DetalleJornadaEsperado = new(JornadaPorDefectoId, 2520, 510, 240, 1);
 
+    private static readonly Guid TurnoDescansoId = Guid.Parse("018e4c1a-4f2b-7000-8000-aabbcc001122");
+    private static readonly Guid TurnoRetiradoSinFranjasId = Guid.Parse("018e4c1a-4f2b-7000-8000-aabbcc003344");
+    private static readonly Guid TurnoConSedePrearmadaId = Guid.Parse("018e4c1a-4f2b-7000-8000-778899aabbcc");
+    private static readonly Guid TurnoConFranjasMixtasId = Guid.Parse("018e4c1a-4f2b-7000-8000-1a2b3c4d5e6f");
+
+    private static readonly SedeProgramada SedeSuba = new("SEDE-SUBA", "Suba");
+    private static readonly DetalleSede SedeSubaDetalle = new("SEDE-SUBA", "Suba");
+    private static readonly SedeProgramada SedeConCentroDeCostos = new("SEDE-01", "Sede Principal", "CC-100");
+    private static readonly DetalleSede SedeConCentroDeCostosDetalle = new("SEDE-01", "Sede Principal", "CC-100");
+    private static readonly SedeProgramada SedeConCentroDeCostosEnBlanco = new("SEDE-01", "Sede Principal", "   ");
+
+    private static TurnoCreado CrearEventoTurnoDeHorarioAbierto() =>
+        TurnoCreado.CrearDeHorarioAbierto(
+            TurnoId, "Turno Abierto", [new DatosFranja(new TimeOnly(4, 0), new TimeOnly(10, 0), [], [])]);
+
+    private static readonly TurnoProgramado TurnoAbiertoProgramadoEsperado = new(
+        "Turno Abierto",
+        new List<FranjaProgramada>
+        {
+            new(new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00")
+        }.AsReadOnly(),
+        "04:00-10:00",
+        EsHorarioAbierto: true);
+
+    private static readonly DetalleTurno DetalleAbiertoEsperado = new(
+        "Turno Abierto",
+        new List<DetalleFranjaOrdinaria>
+        {
+            new(new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00")
+        }.AsReadOnly(),
+        "04:00-10:00",
+        EsHorarioAbierto: true);
+
+    private static VentanaDeEntradaModificada VentanaDeTresHoras() =>
+        VentanaDeEntradaModificada.Crear(TurnoId, HorasYMinutos.Crear(3, 0));
+
     private FakeAseguradorJornadaPredeterminada _asegurador = new(JornadaPorDefectoId);
 
     public SolicitarProgramacionTurnoEnFechasCommandHandlerTests()
@@ -310,42 +346,6 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
         ThenIsPublishedPrivately();
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
-
-    private static readonly Guid TurnoDescansoId = Guid.Parse("018e4c1a-4f2b-7000-8000-aabbcc001122");
-    private static readonly Guid TurnoRetiradoSinFranjasId = Guid.Parse("018e4c1a-4f2b-7000-8000-aabbcc003344");
-    private static readonly Guid TurnoConSedePrearmadaId = Guid.Parse("018e4c1a-4f2b-7000-8000-778899aabbcc");
-    private static readonly Guid TurnoConFranjasMixtasId = Guid.Parse("018e4c1a-4f2b-7000-8000-1a2b3c4d5e6f");
-
-    private static readonly SedeProgramada SedeSuba = new("SEDE-SUBA", "Suba");
-    private static readonly DetalleSede SedeSubaDetalle = new("SEDE-SUBA", "Suba");
-    private static readonly SedeProgramada SedeConCentroDeCostos = new("SEDE-01", "Sede Principal", "CC-100");
-    private static readonly DetalleSede SedeConCentroDeCostosDetalle = new("SEDE-01", "Sede Principal", "CC-100");
-    private static readonly SedeProgramada SedeConCentroDeCostosEnBlanco = new("SEDE-01", "Sede Principal", "   ");
-
-    private static TurnoCreado CrearEventoTurnoDeHorarioAbierto() =>
-        TurnoCreado.CrearDeHorarioAbierto(
-            TurnoId, "Turno Abierto", [new DatosFranja(new TimeOnly(4, 0), new TimeOnly(10, 0), [], [])]);
-
-    private static readonly TurnoProgramado TurnoAbiertoProgramadoEsperado = new(
-        "Turno Abierto",
-        new List<FranjaProgramada>
-        {
-            new(new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00")
-        }.AsReadOnly(),
-        "04:00-10:00",
-        EsHorarioAbierto: true);
-
-    private static readonly DetalleTurno DetalleAbiertoEsperado = new(
-        "Turno Abierto",
-        new List<DetalleFranjaOrdinaria>
-        {
-            new(new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00")
-        }.AsReadOnly(),
-        "04:00-10:00",
-        EsHorarioAbierto: true);
-
-    private static VentanaDeEntradaModificada VentanaDeTresHoras() =>
-        VentanaDeEntradaModificada.Crear(TurnoId, HorasYMinutos.Crear(3, 0));
 
     [Fact]
     public async Task SolicitarProgramacionTurnoEnFechas_CopiaLaAmplitudDelCatalogoEnAmbosPayloads_CuandoElTurnoTieneVentanaDeTresHoras()
