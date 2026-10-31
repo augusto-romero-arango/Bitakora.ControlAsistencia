@@ -47,6 +47,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private IReadOnlyDictionary<DateTime, PertenenciaMarcacion> _pertenencias =
         ReadOnlyDictionary<DateTime, PertenenciaMarcacion>.Empty;
 
+    // Version del aggregate: cuenta cada Apply (rehidratado o recien emitido). No usa AggregateRoot.Version,
+    // que el harness de tests no puebla. Todo Apply nuevo debe incrementarlo.
+    private long _eventosAplicados;
+
     // Recalculo reactivo al final de cada Apply.
     private void Depurar()
     {
@@ -74,6 +78,28 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Descanso, sin programar o con ausencia: no depura horas, solo clasifica marcaciones de vecinos.
     private bool SinJornada => _ausenciaId is not null || DetalleTurno?.CoberturaPosible(Fecha) is null;
 
+    // Reparto con un dia adyacente (CA-ADR-0042 decision 3). Devuelve los dias, de este par, cuya
+    // depuracion cambio y por eso deben publicar DiaDepurado.
+    internal IReadOnlyCollection<ControlDiarioAggregateRoot> RepartirCon(ControlDiarioAggregateRoot vecino)
+    {
+        var cambiados = new HashSet<ControlDiarioAggregateRoot>();
+
+        if (vecino.AlinearResolucionCon(this)) cambiados.Add(vecino);
+        if (AlinearResolucionCon(vecino)) cambiados.Add(this);
+
+        // El anterior toma primero el inicio del posterior (solo depende de su turno): asi el
+        // posterior recibe el fin del anterior ya recalculado, sin esperar otra ronda de DiaDepurado.
+        var (anterior, posterior) = LadoDe(vecino) == DiaVecino.Vispera ? (vecino, this) : (this, vecino);
+        if (anterior.ActualizarCoberturaVecina(posterior)) cambiados.Add(anterior);
+        if (posterior.ActualizarCoberturaVecina(anterior)) cambiados.Add(posterior);
+        // No entra a cambiados: el cierre no altera la depuracion, asi que no publica DiaDepurado.
+        posterior.ActualizarCierreDeLaVispera(anterior);
+        if (vecino.RecogerDe(this)) cambiados.Add(vecino);
+        if (RecogerDe(vecino)) cambiados.Add(this);
+
+        return cambiados;
+    }
+
     // Cierre de referencia: no depende de las marcaciones ni de Invade, asi que tambien llega con solape.
     internal void ActualizarCierreDeLaVispera(ControlDiarioAggregateRoot vispera)
     {
@@ -85,7 +111,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    public void Apply(CierreDeLaVisperaActualizado e) => _cierreTurnoVispera = e.Cierre;
+    public void Apply(CierreDeLaVisperaActualizado e)
+    {
+        _eventosAplicados++;
+        _cierreTurnoVispera = e.Cierre;
+    }
 
     private DateTime? CierreDeSuTurno() => _ausenciaId is null ? DetalleTurno?.Cierre(Fecha) : null;
 
@@ -142,6 +172,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     public void Apply(AmbiguedadDeMarcacionesResuelta e)
     {
+        _eventosAplicados++;
         Id = e.Id;
         _resoluciones[e.Vecino] = e.Marcaciones;
         Depurar();
@@ -192,6 +223,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     public void Apply(ResolucionDeAmbiguedadDescartada e)
     {
+        _eventosAplicados++;
         Id = e.Id;
         _resoluciones.Remove(e.Vecino);
         Depurar();
@@ -228,6 +260,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     public void Apply(CoberturaVecinaActualizada e)
     {
+        _eventosAplicados++;
         if (e.Vecino == DiaVecino.Vispera) _finCoberturaVispera = e.Limite;
         else _inicioCoberturaDiaSiguiente = e.Limite;
         Depurar();
@@ -271,6 +304,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
     public void Apply(TurnoDiarioAsignado e)
     {
+        _eventosAplicados++;
         Id = e.Id;
         InformacionColaborador = e.InformacionColaborador;
         Fecha = e.Fecha;
@@ -288,6 +322,17 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return control;
     }
 
+    // Guarda de idempotencia solo del camino en lote: una reentrega de la misma solicitud con el
+    // mismo turno no emite evento. AsignarTurno (camino por dia) sigue emitiendo siempre.
+    internal ResultadoAsignacionDeLote AsignarTurnoDeLote(TurnoDiarioAsignado evento)
+    {
+        if (UltimaSolicitudId == evento.SolicitudId && Equals(DetalleTurno, evento.DetalleTurno))
+            return ResultadoAsignacionDeLote.SinCambios;
+
+        AsignarTurno(evento);
+        return ResultadoAsignacionDeLote.Asignado;
+    }
+
     internal void AsignarTurno(TurnoDiarioAsignado evento)
     {
         var cambiaElPlan = !Equals(DetalleTurno, evento.DetalleTurno);
@@ -300,6 +345,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
     public void Apply(MarcacionAdicionada e)
     {
+        _eventosAplicados++;
         Id = e.Id;
         Fecha = ExtraerFechaDeStreamId(e.Id);
         // Dos repartos concurrentes pueden persistir la misma copia: el replay conserva una sola.
@@ -375,6 +421,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
     public void Apply(SedeDeMarcacionIdentificada e)
     {
+        _eventosAplicados++;
         var indice = _marcaciones.FindIndex(m => CorrespondeA(m, e));
         if (indice < 0) return;
 
@@ -418,6 +465,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
     public void Apply(TurnoDiarioCancelado e)
     {
+        _eventosAplicados++;
         DetalleTurno = null;
         Depurar();
         RecalcularDesgloseHoras();
@@ -437,6 +485,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     public void Apply(AusenciaDiariaAsignada e)
     {
+        _eventosAplicados++;
         Id = e.Id;
         InformacionColaborador = e.Colaborador;
         Fecha = e.Fecha;
@@ -469,6 +518,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     public void Apply(CancelacionAusenciaDiariaRegistrada e)
     {
+        _eventosAplicados++;
         Id = e.Id;
         Fecha = e.Fecha;
         _ausenciasCanceladas.Add(e.AusenciaId);
@@ -513,7 +563,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             _controlesDeFranja.Select(CrearFranjaDepurada).ToList(),
             CrearMarcacionesCronologicas(),
             DesgloseHoras.Discriminar(),
-            _motivoAusencia);
+            _motivoAusencia,
+            _eventosAplicados);
 
     // El orden ascendente es contrato del evento, no un reflejo de _marcaciones: el aggregate las
     // guarda por orden de llegada, que puede no ser cronologico.
