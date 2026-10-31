@@ -13,7 +13,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.AplicarPlantillaPorGrup
 public class AplicarPlantillaPorGrupoToolTests
 {
     private const string RutaTurnos = "/api/programacion/turnos";
-    private const string RutaSolicitudes = "/api/programacion/solicitudes";
+    private const string RutaSolicitudes = "/api/programacion/solicitudes-en-fechas";
     private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
 
     private static object Ficha(int numero, string vigenteDesde = "2025-01-01") => new
