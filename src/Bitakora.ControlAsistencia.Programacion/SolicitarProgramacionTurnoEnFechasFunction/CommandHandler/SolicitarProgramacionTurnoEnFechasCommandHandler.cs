@@ -3,15 +3,12 @@ using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
-using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction.CommandHandler;
 
-// Copia deliberada de SolicitarProgramacionTurnoCommandHandler (MEF-ADR-0018): solo cambia la
-// publicacion, un evento con todas las fechas libres en vez de uno por dia (CA-ADR-0043). No
-// extraer: uno de los dos caminos se retira cuando la medicion decida.
+// Publica un solo evento con todas las fechas libres del colaborador (CA-ADR-0043).
 public partial class SolicitarProgramacionTurnoEnFechasCommandHandler
     : ICommandHandlerAsync<SolicitarProgramacionTurnoEnFechas, ResultadoSolicitudProgramacion>
 {

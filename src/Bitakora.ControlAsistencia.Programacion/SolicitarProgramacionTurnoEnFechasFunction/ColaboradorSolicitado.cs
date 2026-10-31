@@ -1,7 +1,7 @@
-namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
+namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
 
 /// <summary>
-/// Terna de identidad del colaborador tal como llega en el body de POST programacion/solicitudes.
+/// Terna de identidad del colaborador tal como llega en el body de POST programacion/solicitudes-en-fechas.
 /// </summary>
 /// <remarks>
 /// Issue #436 (fase B del corte): el body dejo de tipar con InformacionColaborador (PublicEvents),
