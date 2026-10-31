@@ -25,7 +25,14 @@ module "postgresql" {
   administrator_login    = "pgadmin"
   administrator_password = var.postgresql_admin_password
   database_name          = "controlasistencias"
-  tags                   = local.tags
+
+  # Issue #1334: B2s con max_connections = 429, el default de B2s segun la tabla de
+  # Microsoft Learn (concepts-limits#maximum-connections). Azure fija el default al crear
+  # el servidor y no lo recalcula al cambiar de SKU, por eso se declara explicito.
+  sku_name        = "B_Standard_B2s"
+  max_connections = 429
+
+  tags = local.tags
 }
 
 module "service_bus" {
@@ -95,6 +102,39 @@ module "service_bus" {
       subscriptions = [
         {
           name               = "control-horas-escucha-cancelacion-ausencia"
+          correlation_filter = null
+          forward_to         = "actualizar-control-diario"
+        },
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
+    # Issue #1336 (CA-ADR-0043 decision 7): topics del camino de programacion en lote por colaborador.
+    # Ambos hacen forward a la cola con sesion actualizar-control-diario (MEF-ADR-0026): los
+    # productores (#1337, #1338) publican con GroupId = CodigoColaborador, o el mensaje se
+    # dead-lettera en la subscription fuente. Publicar sin consumidor es valido (MEF-ADR-0013);
+    # smoke-tests cubre la publicacion mientras llegan #1337-#1339.
+    "programacion-turno-en-fechas-solicitada" = {
+      subscriptions = [
+        {
+          name               = "control-horas-escucha-programacion-en-fechas"
+          correlation_filter = null
+          forward_to         = "actualizar-control-diario"
+        },
+        {
+          name                = "smoke-tests"
+          correlation_filter  = null
+          default_message_ttl = "PT5M"
+        }
+      ]
+    }
+    "dias-depurados" = {
+      subscriptions = [
+        {
+          name               = "control-horas-escucha-dias-depurados"
           correlation_filter = null
           forward_to         = "actualizar-control-diario"
         },
