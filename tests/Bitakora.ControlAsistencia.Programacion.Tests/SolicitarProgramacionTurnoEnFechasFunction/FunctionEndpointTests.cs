@@ -52,6 +52,49 @@ public class FunctionEndpointTests
     }
 
     [Fact]
+    public async Task SolicitarProgramacionTurnoEnFechas_Retorna201ConListaVacia_CuandoNoHuboAusencias()
+    {
+        var esperado = new ResultadoSolicitudProgramacion([]);
+        var function = new EndpointEnFechas(
+            new FakeEnFechasRequestValidator(ComandoValido()),
+            new FakeEnFechasCommandRouter(resultado: esperado));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        var conBody = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        conBody.StatusCode.Should().Be(StatusCodes.Status201Created);
+        conBody.Value.Should().BeEquivalentTo(esperado);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurnoEnFechas_Retorna201SinLocation_CuandoElComandoTraeJornadaId()
+    {
+        var comando = ComandoValido() with { JornadaId = Guid.NewGuid() };
+        var function = new EndpointEnFechas(
+            new FakeEnFechasRequestValidator(comando),
+            new FakeEnFechasCommandRouter(resultado: new ResultadoSolicitudProgramacion([])));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        result.Should().BeAssignableTo<IStatusCodeActionResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
+        result.Should().BeAssignableTo<CreatedResult>().Which.Location.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurnoEnFechas_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
+    {
+        var fallo = new InvalidOperationException("Fallo de infraestructura");
+        var function = new EndpointEnFechas(
+            new FakeEnFechasRequestValidator(ComandoValido()),
+            new FakeEnFechasCommandRouter(lanzar: fallo));
+
+        var act = async () => await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
+    }
+
+    [Fact]
     public async Task SolicitarProgramacionTurnoEnFechas_RetornaElErrorDeValidacion_CuandoFallaLaValidacion()
     {
         var error = new BadRequestObjectResult("invalido");
