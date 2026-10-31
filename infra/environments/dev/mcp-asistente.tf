@@ -66,6 +66,9 @@ module "function_app_mcp_asistente" {
     Identidad__OrganizationMembershipIdInterino = "om-smoke"
     Mcp__ResourceUri                            = module.apim_mcp_asistente.resource_uri
     Mcp__AuthorizationServer                    = var.mcp_authorization_server_url
+    # Interruptor del camino de programacion en lote (#1340, CA-ADR-0043 decision 10).
+    # "false" = camino por dia. Cambiar a "true" exige #1338 y #1339 desplegados.
+    Programacion__SolicitudEnFechas = "false"
   }
   tags = local.tags
 }

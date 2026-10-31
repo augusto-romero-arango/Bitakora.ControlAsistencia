@@ -175,18 +175,10 @@ public partial class ConsultarProgramacionTool(
     private static string DescribirHorarioAbierto(IReadOnlyList<BloqueVigente> bloques)
     {
         var minutos = (int)bloques.Where(b => b.Tipo == TipoBloque.Ordinaria).Sum(b => (b.Fin - b.Inicio).TotalMinutes);
-        var texto = string.Format(Mensajes.HorarioAbierto, TextoDeDuracion(minutos / 60, minutos % 60));
+        var texto = string.Format(Mensajes.HorarioAbierto, NotacionDuracion.Texto(minutos));
         var sede = bloques.Select(b => b.NombreSede ?? b.SedeId).FirstOrDefault(s => s is not null);
         return sede is null ? texto : $"{texto}, sede: {sede}";
     }
-
-    // Replica de TextoDeAmplitud (ModificarVentanaDeEntradaTool); segunda aparicion, sin extraer (MEF-ADR-0018).
-    private static string TextoDeDuracion(int horas, int minutos) => (horas, minutos) switch
-    {
-        (_, 0) => $"{horas} {Mensajes.Horas}",
-        (0, _) => $"{minutos} {Mensajes.Minutos}",
-        _ => $"{horas} {Mensajes.Horas} {minutos} {Mensajes.Minutos}",
-    };
 
     private static string Compactar(BloqueVigente bloque, DateOnly fecha)
     {

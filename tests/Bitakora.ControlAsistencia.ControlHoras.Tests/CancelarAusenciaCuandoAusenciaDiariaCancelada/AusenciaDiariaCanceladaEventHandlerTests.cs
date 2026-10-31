@@ -72,7 +72,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
             "Turno Manana",
             [new FranjaDepurada(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, null, null, true)],
             [],
-            SinHoras()));
+            SinHoras(), VersionControlDiario: 3));
     }
 
     // CA-2: esperado a mano; 2026-03-15 es domingo, 08:00-16:00 completo = 8h dominical diurna.
@@ -103,7 +103,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
                 [
                     $"{IntervaloTemporal.Crear(new MomentoDelDia(new TimeOnly(8, 0)), new MomentoDelDia(new TimeOnly(16, 0)))}: " +
                     $"{IntervaloClasificado.Mensajes.Etiqueta(Concepto.DominicalFestivaDiurna)}"
-                ])));
+                ]), VersionControlDiario: 5));
     }
 
     // CA-3
@@ -117,7 +117,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
         Then(StreamId, CrearCancelacion(AusenciaId));
         And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
         ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, new DiaDepurado(
-            Colaborador.CodigoColaborador, Fecha, ColaboradorResumen, null, [], [], SinHoras()));
+            Colaborador.CodigoColaborador, Fecha, ColaboradorResumen, null, [], [], SinHoras(), VersionControlDiario: 2));
     }
 
     // CA-4 (parte 1)

@@ -10,4 +10,6 @@
   <data name="TurnoRetirado" xml:space="preserve"><value>{0} (turno retirado)</value></data>
   <data name="TurnoIncompleto" xml:space="preserve"><value>{0} (turno incompleto)</value></data>
   <data name="PlantillaIdInvalido" xml:space="preserve"><value>plantilla_id debe ser un GUID; se recibio '{0}'. Usa el id que da buscar_plantillas.</value></data>
+  <data name="Descanso" xml:space="preserve"><value>descanso</value></data>
+  <data name="HorarioAbierto" xml:space="preserve"><value>horario abierto de {0}</value></data>
 </root>

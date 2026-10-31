@@ -23,10 +23,10 @@ public partial class ConsultarMallaTurnosTool(
         [McpToolTrigger(
             NombreTool,
             "Consulta la malla semanal de turnos, es decir, que le toca a cada colaborador cada dia de una "
-            + "semana (lunes a domingo): turno, horario y sede, descansos, ausencias con su motivo, dias sin "
+            + "semana (lunes a domingo): horario y sede, descansos, ausencias con su motivo, dias sin "
             + "programar y dias fuera de la vinculacion. Sin fecha revisa la PROXIMA semana. Filtra por sede, "
             + "etiquetas (pares categoria:valor) o codigos de colaborador. Pagina por colaborador completo: "
-            + "usa cursor para la pagina siguiente. Para el detalle de bloques de un dia, usa "
+            + "usa cursor para la pagina siguiente. Para el detalle del turno y sus bloques de un dia, usa "
             + "consultar_programacion; para lo que se sale de la Jornada, consultar_advertencias_programacion.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
@@ -101,11 +101,11 @@ public partial class ConsultarMallaTurnosTool(
     {
         var estado = c.Tipo switch
         {
-            "Trabajo" when c.EsHorarioAbierto => string.Format(Mensajes.DiaHorarioAbierto, c.NombreTurno, SedesDe(c)),
+            "Trabajo" when c.EsHorarioAbierto => string.Format(
+                Mensajes.DiaHorarioAbierto, NotacionDuracion.Texto(MinutosOrdinarios(c)), SedesDe(c)),
             "Trabajo" => string.Format(
                 Mensajes.DiaTrabajo,
-                c.NombreTurno,
-                c.HorarioResumido,
+                string.IsNullOrWhiteSpace(c.HorarioResumido) ? c.NombreTurno : c.HorarioResumido,
                 SedesDe(c)),
             "Descanso" => Mensajes.DiaDescanso,
             "Ausencia" => string.Format(Mensajes.DiaAusencia, c.MotivoAusencia),
@@ -115,6 +115,9 @@ public partial class ConsultarMallaTurnosTool(
 
         return $"{Formatear(c.Fecha)} {DiasAbreviados[IndiceIso(c.Fecha)]}: {estado}";
     }
+
+    private static int MinutosOrdinarios(CasillaMallaSemanal c) =>
+        (int)c.Bloques.Where(b => b.Tipo == TipoBloque.Ordinaria).Sum(b => (b.Fin - b.Inicio).TotalMinutes);
 
     private static string SedesDe(CasillaMallaSemanal c) =>
         string.Join(", ", c.Bloques.Select(b => b.NombreSede).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct());

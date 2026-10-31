@@ -32,10 +32,6 @@ public partial class ConsultarProgramacionTool
         /// <summary>{0}: duracion.</summary>
         public static string HorarioAbierto => ResourceManager.GetString(nameof(HorarioAbierto))!;
 
-        public static string Horas => ResourceManager.GetString(nameof(Horas))!;
-
-        public static string Minutos => ResourceManager.GetString(nameof(Minutos))!;
-
         /// <summary>{0}: codigo de la sede de trabajo.</summary>
         public static string SedeTrabajoNoExiste =>
             ResourceManager.GetString(nameof(SedeTrabajoNoExiste))!;

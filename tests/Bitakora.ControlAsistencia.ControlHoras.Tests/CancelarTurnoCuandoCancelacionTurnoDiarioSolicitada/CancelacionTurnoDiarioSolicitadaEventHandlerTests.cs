@@ -91,7 +91,7 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
             null,
             [],
             [new MarcacionDelDia(timestampEntrada, "ENTRADA")],
-            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 3));
     }
 
     // CA-2: dia con turno asignado y SIN marcaciones -> cancelado efectivo, DiaDepurado sin franjas
@@ -114,7 +114,7 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
             null,
             [],
             [],
-            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 2));
     }
 
     // CA-3: no-op silencioso -- el stream no existe (nunca hubo TurnoDiarioAsignado ni
