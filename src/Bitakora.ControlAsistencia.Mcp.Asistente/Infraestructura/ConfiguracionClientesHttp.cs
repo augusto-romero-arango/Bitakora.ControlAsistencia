@@ -8,7 +8,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 /// decision 3). Cada base URL se lee aqui, durante la composicion del host, y no dentro del
 /// delegate de AddHttpClient: ese delegate no corre hasta que alguien resuelve el cliente
 /// tipado, asi que un app setting Api__{Dominio}__BaseUrl ausente fallaria recien en la primera
-/// tool call. Leerla afuera mueve el fallo al ARRANQUE, que es lo que este seam promete.
+/// tool call. Leerla afuera mueve el fallo al ARRANQUE, que es lo que este seam promete. Lo mismo
+/// aplica al interruptor Programacion__SolicitudEnFechas: un valor no booleano falla al arrancar.
 /// </summary>
 public static class ConfiguracionClientesHttp
 {
@@ -38,12 +39,13 @@ public static class ConfiguracionClientesHttp
     private static bool LeerSolicitudEnFechas(IConfiguration configuration)
     {
         var valor = configuration["Programacion:SolicitudEnFechas"];
-        return string.IsNullOrWhiteSpace(valor)
-            ? false
-            : bool.TryParse(valor, out var activo)
-                ? activo
-                : throw new InvalidOperationException(
-                    $"El app setting Programacion__SolicitudEnFechas debe ser booleano (true/false), pero vale '{valor}'");
+        if (string.IsNullOrWhiteSpace(valor))
+            return false;
+
+        return bool.TryParse(valor, out var activo)
+            ? activo
+            : throw new InvalidOperationException(
+                $"El app setting Programacion__SolicitudEnFechas debe ser booleano (true/false), pero vale '{valor}'");
     }
 
     private static Uri LeerBaseUrl(IConfiguration configuration, string dominio)
