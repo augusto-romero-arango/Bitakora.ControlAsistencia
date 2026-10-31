@@ -129,6 +129,18 @@ public class ProgramacionTurnoDiarioSolicitadaEventHandlerTests
         And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, TurnoDiarioTest.Nombre);
     }
 
+    // Contraste con el lote: la guarda SinCambios de AsignarTurnoDeLote no aplica al camino por dia.
+    [Fact]
+    public async Task ProgramacionTurnoDiarioSolicitada_EmiteTurnoDiarioAsignado_CuandoElDiaYaTieneLaMismaSolicitudYElMismoTurno()
+    {
+        Given(StreamId, CrearTurnoDiarioAsignado());
+
+        await WhenAsync(CrearEvento());
+
+        Then(StreamId, CrearTurnoDiarioAsignado());
+        And<ControlDiarioAggregateRoot, Guid>(StreamId, c => c.UltimaSolicitudId, SolicitudId);
+    }
+
     // CA-4 (agregado en revision): el mapeo del Function App es recursivo hasta las sub-franjas,
     // pero los dos tests anteriores solo pasan franjas con Descansos/Extras vacios, asi que
     // MapearFranja/MapearSubFranja quedaban sin ejercitar. Aqui el evento privado entrante trae un

@@ -1,8 +1,5 @@
-// Issue #424: DiaDepurado gana dos colecciones nuevas (Franjas, Marcaciones) -- el record por
-// defecto compararia por referencia (ADR-0015). Equals/GetHashCode propios comparan por valor
-// (SequenceEqual), precedente TurnoDiario/FranjaProgramada/HorasDiscriminadas.
-// Ese SequenceEqual delega en el Equals por valor de cada elemento: sumar campos a
-// FranjaDepurada/MarcacionDelDia NO exige extender este override.
+// El SequenceEqual del override delega en el Equals por valor de cada elemento: sumar campos a
+// FranjaDepurada/MarcacionDelDia NO exige extender el override de DiaDepurado.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
@@ -56,6 +53,9 @@ public class DiaDepuradoIgualdadTests : IgualdadTestBase<DiaDepurado>
         yield return ("HorasDiscriminadas",
             new DiaDepurado("EMP-001", Fecha, Colaborador, "Turno Manana", [Franja()], [Marcacion()],
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+        yield return ("VersionControlDiario",
+            new DiaDepurado("EMP-001", Fecha, Colaborador, "Turno Manana", [Franja()], [Marcacion()], Horas(),
+                VersionControlDiario: 3));
         yield return ("Franjas (sede programada)",
             new DiaDepurado("EMP-001", Fecha, Colaborador, "Turno Manana", [FranjaConSedeProgramada()], [Marcacion()], Horas()));
         yield return ("MotivoAusencia",
