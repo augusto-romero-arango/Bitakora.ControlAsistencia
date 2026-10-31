@@ -2,7 +2,7 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 
-namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoFunction;
+namespace Bitakora.ControlAsistencia.Programacion.Tests.Entities;
 
 public class JornadaEstamparTests
 {

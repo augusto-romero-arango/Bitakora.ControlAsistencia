@@ -21,6 +21,7 @@
 
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
+using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
@@ -211,6 +212,117 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
 
         // La sede programada de la franja viaja plana a FranjaDepurada. Marcaciones que completan la
         // franja (no anomala) para aislar el efecto de la sede del resto del payload.
+        [Fact]
+        public async Task CrearDiaDepurado_LlevaSedeProgramadaEnLaFranja_CuandoLaFranjaTraeSedeConCentroDeCostos()
+        {
+            Given(StreamId,
+                CrearMarcacionAdicionada(Timestamp07_00),
+                CrearMarcacionAdicionada(Timestamp15_00));
+
+            await WhenAsync(CrearEvento(new DetalleTurno("Turno Manana", [Franja06_14ConSedeDetalle], "")));
+
+            Then(StreamId, CrearTurnoDiarioAsignado(new TurnoDiario("Turno Manana", [Franja06_14ConSede], "")));
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<FranjaDepurada>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Franjas,
+                [new FranjaDepurada(
+                    new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+                    Timestamp07_00, Timestamp15_00, false,
+                    "001", "Sede Principal", "CC-100")]);
+        }
+    }
+
+    public class ViaAsignarTurnoEnLoteTests
+        : PrivateEventHandlerAsyncTest<ProgramacionTurnoEnFechasSolicitada>
+    {
+        protected override IPrivateEventHandlerAsync<ProgramacionTurnoEnFechasSolicitada> Handler =>
+            new ProgramacionTurnoEnFechasSolicitadaEventHandler(EventStore, PrivateEventSender);
+
+        private static ProgramacionTurnoEnFechasSolicitada CrearEvento(DetalleTurno detalleTurno) =>
+            new(SolicitudId, ColaboradorResumen, [Fecha], detalleTurno, null!);
+
+        [Fact]
+        public async Task CrearDiaDepurado_LlevaHorasYTrazabilidadReales_CuandoFranjaNoEsAnomala()
+        {
+            Given(StreamId,
+                CrearMarcacionAdicionada(Timestamp07_00),
+                CrearMarcacionAdicionada(Timestamp15_00));
+
+            await WhenAsync(CrearEvento(new DetalleTurno("Turno Manana", [Franja06_14Detalle], "")));
+
+            Then(StreamId, CrearTurnoDiarioAsignado(new TurnoDiario("Turno Manana", [Franja06_14], "")));
+
+            And<ControlDiarioAggregateRoot, IReadOnlyDictionary<string, decimal>>(
+                StreamId,
+                c => c.CrearDiaDepurado().HorasDiscriminadas.HorasPorConcepto,
+                HorasFranjaCompleta());
+
+            And<ControlDiarioAggregateRoot, int>(
+                StreamId,
+                c => c.CrearDiaDepurado().HorasDiscriminadas.Trazabilidad.Count,
+                1);
+
+            And<ControlDiarioAggregateRoot, string?>(
+                StreamId,
+                c => c.CrearDiaDepurado().NombreTurno,
+                "Turno Manana");
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<FranjaDepurada>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Franjas,
+                [new FranjaDepurada(
+                    new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+                    Timestamp07_00, Timestamp15_00, false)]);
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<MarcacionDelDia>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Marcaciones,
+                [new MarcacionDelDia(Timestamp07_00, "ENTRADA", Pertenencia: "DelTurno"), new MarcacionDelDia(Timestamp15_00, "ENTRADA", Pertenencia: "DelTurno")]);
+        }
+
+        [Fact]
+        public async Task CrearDiaDepurado_OrdenaMarcacionesCronologicamente_CuandoLlegaronDesordenadas()
+        {
+            Given(StreamId,
+                CrearMarcacionAdicionada(Timestamp15_00),
+                CrearMarcacionAdicionada(Timestamp07_00));
+
+            await WhenAsync(CrearEvento(new DetalleTurno("Turno Manana", [Franja06_14Detalle], "")));
+
+            Then(StreamId, CrearTurnoDiarioAsignado(new TurnoDiario("Turno Manana", [Franja06_14], "")));
+
+            And<ControlDiarioAggregateRoot, string>(
+                StreamId,
+                c => string.Join(
+                    "|",
+                    c.CrearDiaDepurado().Marcaciones.Select(m => m.Timestamp.ToString("HH:mm"))),
+                "07:00|15:00");
+        }
+
+        [Fact]
+        public async Task CrearDiaDepurado_LlevaHorasPorConceptoVacio_CuandoTurnoSinMarcaciones()
+        {
+            await WhenAsync(CrearEvento(new DetalleTurno("Turno Manana", [Franja06_14Detalle], "")));
+
+            Then(StreamId, CrearTurnoDiarioAsignado(new TurnoDiario("Turno Manana", [Franja06_14], "")));
+
+            And<ControlDiarioAggregateRoot, HorasDiscriminadas>(
+                StreamId,
+                c => c.CrearDiaDepurado().HorasDiscriminadas,
+                new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<FranjaDepurada>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Franjas,
+                [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, null, null, true)]);
+
+            And<ControlDiarioAggregateRoot, IReadOnlyList<MarcacionDelDia>>(
+                StreamId,
+                c => c.CrearDiaDepurado().Marcaciones,
+                []);
+        }
+
         [Fact]
         public async Task CrearDiaDepurado_LlevaSedeProgramadaEnLaFranja_CuandoLaFranjaTraeSedeConCentroDeCostos()
         {
