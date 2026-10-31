@@ -114,4 +114,36 @@ public class DiaDepuradoTests
         restaurado!.MotivoAusencia.Should().BeNull();
         restaurado.NombreTurno.Should().Be("Turno Manana");
     }
+
+    [Fact]
+    public void RoundTrip_PreservaVersionControlDiario_ConSerializadorPorDefectoDelBus()
+    {
+        var evento = new DiaDepurado(
+            "EMP-001", Fecha, null, "Turno Manana", [], [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []),
+            VersionControlDiario: 12);
+        var opciones = CrearOpcionesDelBus();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<DiaDepurado>(json, opciones);
+
+        restaurado.Should().Be(evento);
+        restaurado!.VersionControlDiario.Should().Be(12L);
+    }
+
+    [Fact]
+    public void Deserializar_DejaVersionControlDiarioNula_CuandoElPayloadNoLaTrae()
+    {
+        var opciones = CrearOpcionesDelBus();
+        var json = JsonSerializer.Serialize(new DiaDepurado(
+            "EMP-001", Fecha, null, "Turno Manana", [], [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])), opciones)
+            .Replace(",\"versionControlDiario\":null", "");
+
+        var restaurado = JsonSerializer.Deserialize<DiaDepurado>(json, opciones);
+
+        json.Should().NotContain("versionControlDiario");
+        restaurado!.VersionControlDiario.Should().BeNull();
+        restaurado.NombreTurno.Should().Be("Turno Manana");
+    }
 }

@@ -205,4 +205,35 @@ public class DepuracionDiaRecibidaSerializacionTests
 
         deserializado!.Marcaciones.Should().ContainSingle().Which.Pertenencia.Should().BeNull();
     }
+
+    [Fact]
+    public void Deserializar_ConservaVersionControlDiario_CuandoLaTrae()
+    {
+        var evento = new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, Colaborador, "Turno Manana",
+            [Franja], [Marcacion], HorasConDatos(), versionControlDiario: 7);
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<DepuracionDiaRecibida>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.VersionControlDiario.Should().Be(7L);
+    }
+
+    [Fact]
+    public void Deserializar_DejaVersionControlDiarioNula_CuandoElEventoNoLaTrae()
+    {
+        var evento = new DepuracionDiaRecibida(
+            StreamId, CodigoColaborador, Fecha, Colaborador, "Turno Manana",
+            [Franja], [Marcacion], HorasConDatos());
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var deserializado = JsonSerializer.Deserialize<DepuracionDiaRecibida>(json, opciones);
+
+        deserializado.Should().NotBeNull();
+        deserializado!.VersionControlDiario.Should().BeNull();
+        deserializado.NombreTurno.Should().Be("Turno Manana");
+    }
 }
