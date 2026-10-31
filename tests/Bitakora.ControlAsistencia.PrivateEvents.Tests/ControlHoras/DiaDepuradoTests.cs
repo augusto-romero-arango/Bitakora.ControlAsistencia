@@ -14,9 +14,6 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.ControlHoras;
 ///
 /// Este test compila referenciando UNICAMENTE PrivateEvents (CA-ADR-0029 seccion 3: si necesitara
 /// mas, el tipo no seria portable).
-///
-/// Issue #424: el payload se enriquece con NombreTurno, Franjas y Marcaciones; HorasDiscriminadas
-/// habla horas liquidables (decimal), no minutos.
 /// </summary>
 public class DiaDepuradoTests
 {
@@ -44,8 +41,6 @@ public class DiaDepuradoTests
     private static readonly MarcacionDelDia MarcacionSalida =
         new(new DateTime(2026, 3, 15, 15, 0, 0), "SALIDA", "002", "Sede Bodega", null);
 
-    // CA-3/CA-4/CA-7: round-trip con el serializador POR DEFECTO del bus preserva todo el payload
-    // enriquecido, incluidas Franjas y Marcaciones.
     [Fact]
     public void RoundTrip_PreservaTodosLosCampos_ConSerializadorPorDefectoDelBus()
     {
@@ -62,8 +57,6 @@ public class DiaDepuradoTests
         restaurado.Should().Be(evento);
     }
 
-    // CA-4/CA-5/CA-6: sin turno previo, Colaborador y NombreTurno viajan null, Franjas queda vacia,
-    // pero las marcaciones crudas siguen viajando y CodigoColaborador top-level sigue presente.
     [Fact]
     public void RoundTrip_PreservaCodigoColaboradorTopLevelYMarcacionesCrudas_CuandoNoHayJornadaValida()
     {
@@ -112,6 +105,38 @@ public class DiaDepuradoTests
 
         json.Should().NotContain("motivoAusencia");
         restaurado!.MotivoAusencia.Should().BeNull();
+        restaurado.NombreTurno.Should().Be("Turno Manana");
+    }
+
+    [Fact]
+    public void RoundTrip_PreservaVersionControlDiario_ConSerializadorPorDefectoDelBus()
+    {
+        var evento = new DiaDepurado(
+            "EMP-001", Fecha, null, "Turno Manana", [], [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []),
+            VersionControlDiario: 12);
+        var opciones = CrearOpcionesDelBus();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<DiaDepurado>(json, opciones);
+
+        restaurado.Should().Be(evento);
+        restaurado!.VersionControlDiario.Should().Be(12L);
+    }
+
+    [Fact]
+    public void Deserializar_DejaVersionControlDiarioNula_CuandoElPayloadNoLaTrae()
+    {
+        var opciones = CrearOpcionesDelBus();
+        var json = JsonSerializer.Serialize(new DiaDepurado(
+            "EMP-001", Fecha, null, "Turno Manana", [], [],
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])), opciones)
+            .Replace(",\"versionControlDiario\":null", "");
+
+        var restaurado = JsonSerializer.Deserialize<DiaDepurado>(json, opciones);
+
+        json.Should().NotContain("versionControlDiario");
+        restaurado!.VersionControlDiario.Should().BeNull();
         restaurado.NombreTurno.Should().Be("Turno Manana");
     }
 }

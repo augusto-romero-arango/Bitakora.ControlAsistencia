@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-public sealed class ProgramacionApi(HttpClient http)
+public sealed class ProgramacionApi(HttpClient http, OpcionesProgramacion? opciones = null)
 {
     private static readonly HttpMethod Query = new("QUERY");
 
@@ -115,7 +115,11 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> SolicitarProgramacion(
         SolicitudProgramacionTurno solicitud, CancellationToken ct) =>
-        http.PostAsJsonAsync("api/programacion/solicitudes", solicitud, ct);
+        http.PostAsJsonAsync(RutaDeSolicitudes, solicitud, ct);
+
+    private string RutaDeSolicitudes => opciones?.SolicitudEnFechas == true
+        ? "api/programacion/solicitudes-en-fechas"
+        : "api/programacion/solicitudes";
 
     public Task<HttpResponseMessage> ProgramarAusencia(
         string codigoColaborador, AusenciaAProgramar ausencia, CancellationToken ct) =>

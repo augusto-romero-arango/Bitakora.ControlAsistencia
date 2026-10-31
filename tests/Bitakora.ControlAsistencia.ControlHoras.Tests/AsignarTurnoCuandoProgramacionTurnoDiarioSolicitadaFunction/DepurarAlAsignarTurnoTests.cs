@@ -120,7 +120,7 @@ public class DepurarAlAsignarTurnoTests
             [new MarcacionDelDia(Timestamp07_00, "ENTRADA", Pertenencia: "DelTurno"), new MarcacionDelDia(Timestamp15_00, "ENTRADA", Pertenencia: "DelTurno")],
             new HorasDiscriminadas(
                 new Dictionary<string, decimal> { ["DominicalFestivaDiurna"] = 7.00m },
-                [LineaConcepto(new TimeOnly(7, 0), new TimeOnly(14, 0), Concepto.DominicalFestivaDiurna)])));
+                [LineaConcepto(new TimeOnly(7, 0), new TimeOnly(14, 0), Concepto.DominicalFestivaDiurna)]), VersionControlDiario: 3));
     }
 
     // CA-2 (HU-131): sin marcaciones previas, el Apply(TurnoDiarioAsignado) dispara Depurar()
@@ -153,7 +153,7 @@ public class DepurarAlAsignarTurnoTests
             "Turno Manana",
             [new FranjaDepurada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, null, null, true)],
             [],
-            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 1));
     }
 
     // CA-2 (HU-131): turno sin franjas ordinarias genera ControlesDeFranja vacio.
@@ -186,6 +186,6 @@ public class DepurarAlAsignarTurnoTests
             "Turno Sin Franjas",
             [],
             [],
-            new HorasDiscriminadas(new Dictionary<string, decimal>(), [])));
+            new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 1));
     }
 }

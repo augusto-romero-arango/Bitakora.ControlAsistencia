@@ -49,8 +49,8 @@ public class AusenciaDiariaProgramadaEventHandlerTests
 
     private static HorasDiscriminadas SinHoras() => new(new Dictionary<string, decimal>(), []);
 
-    private static DiaDepurado DiaConAusencia(string motivo, params MarcacionDelDia[] marcaciones) =>
-        new(Colaborador.CodigoColaborador, Fecha, ColaboradorResumen, null, [], marcaciones, SinHoras(), motivo);
+    private static DiaDepurado DiaConAusencia(string motivo, long versionControlDiario, params MarcacionDelDia[] marcaciones) =>
+        new(Colaborador.CodigoColaborador, Fecha, ColaboradorResumen, null, [], marcaciones, SinHoras(), motivo, versionControlDiario);
 
     // CA-1
     [Fact]
@@ -63,7 +63,7 @@ public class AusenciaDiariaProgramadaEventHandlerTests
         Then(StreamId, CrearAusenciaAsignada(AusenciaId, Motivo));
         And<ControlDiarioAggregateRoot, string?>(StreamId, c => c.DetalleTurno!.Nombre, "Turno Manana");
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.ControlesDeFranja.Count, 0);
-        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo));
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo, versionControlDiario: 2));
     }
 
     // CA-2
@@ -75,7 +75,7 @@ public class AusenciaDiariaProgramadaEventHandlerTests
         Then(StreamId, CrearAusenciaAsignada(AusenciaId, Motivo));
         And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
         And<ControlDiarioAggregateRoot, TurnoDiario?>(StreamId, c => c.DetalleTurno, null);
-        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo));
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo, versionControlDiario: 1));
     }
 
     // CA-3 (marcaciones previas a la ausencia, guardadas fuera de orden)
@@ -90,7 +90,7 @@ public class AusenciaDiariaProgramadaEventHandlerTests
 
         Then(StreamId, CrearAusenciaAsignada(AusenciaId, Motivo));
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.Marcaciones.Count, 2);
-        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo,
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo, versionControlDiario: 4,
             new MarcacionDelDia(entrada, "ENTRADA"),
             new MarcacionDelDia(salida, "SALIDA")));
     }
@@ -106,7 +106,7 @@ public class AusenciaDiariaProgramadaEventHandlerTests
 
         Then(StreamId, CrearAusenciaAsignada(OtraAusenciaId, OtroMotivo));
         And<ControlDiarioAggregateRoot, int>(StreamId, c => c.ControlesDeFranja.Count, 0);
-        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(OtroMotivo, new MarcacionDelDia(entrada, "ENTRADA")));
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(OtroMotivo, versionControlDiario: 4, new MarcacionDelDia(entrada, "ENTRADA")));
     }
 
     // CA-5 (reentrega)
@@ -133,6 +133,6 @@ public class AusenciaDiariaProgramadaEventHandlerTests
 
         Then(StreamId, CrearAusenciaAsignada(OtraAusenciaId, OtroMotivo));
         And<ControlDiarioAggregateRoot, string>(StreamId, c => c.Id, StreamId);
-        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(OtroMotivo));
+        ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(OtroMotivo, versionControlDiario: 2));
     }
 }
