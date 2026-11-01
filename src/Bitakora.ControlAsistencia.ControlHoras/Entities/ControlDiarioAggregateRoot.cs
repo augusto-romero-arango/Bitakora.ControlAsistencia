@@ -325,10 +325,10 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     // Reentrega de la misma solicitud con el mismo turno: exito sin evento (CA-ADR-0043 decision 9).
     internal void AsignarTurno(TurnoDiarioAsignado evento)
     {
-        if (UltimaSolicitudId == evento.SolicitudId && Equals(DetalleTurno, evento.DetalleTurno))
+        var cambiaElPlan = !Equals(DetalleTurno, evento.DetalleTurno);
+        if (!cambiaElPlan && UltimaSolicitudId == evento.SolicitudId)
             return;
 
-        var cambiaElPlan = !Equals(DetalleTurno, evento.DetalleTurno);
         _uncommittedEvents.Add(evento);
         Apply(evento);
         if (cambiaElPlan) DescartarResoluciones();
