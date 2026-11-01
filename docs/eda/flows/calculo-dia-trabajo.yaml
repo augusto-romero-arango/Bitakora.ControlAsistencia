@@ -39,8 +39,8 @@ flow:
       context: Programacion
       description: >
         Un programador define turnos en el catalogo y solicita la programacion
-        de un turno para un empleado en fechas concretas. La solicitud se descompone
-        en un evento publico por dia, que cruza a ControlHoras por Service Bus.
+        de un turno para un empleado en fechas concretas. La solicitud viaja en un solo
+        mensaje con todas las fechas libres (lote por colaborador, CA-ADR-0043), que cruza a ControlHoras por Service Bus.
       steps:
         - step: 1
           actor: Programador de turnos
@@ -57,12 +57,13 @@ flow:
           command: SolicitarProgramacionTurno
           trigger: HTTP POST programacion/solicitudes
           aggregate: SolicitudProgramacionAggregateRoot
-          produces: [ProgramacionTurnoSolicitada, ProgramacionTurnoDiarioSolicitada]
+          produces: [ProgramacionTurnoSolicitada, ProgramacionTurnoEnFechasSolicitada]
           status: implementado
           note: >
             ProgramacionTurnoSolicitada es privado (event sourcing del aggregate).
-            ProgramacionTurnoDiarioSolicitada es PUBLICO: se emite uno por cada fecha
-            de la solicitud y cruza a ControlHoras por Service Bus. El turno viaja
+            ProgramacionTurnoEnFechasSolicitada es privado del BC: un mensaje por solicitud con
+            todas las fechas libres, a la cola actualizar-control-diario (GroupId =
+            CodigoColaborador), y cruza a ControlHoras por Service Bus. El turno viaja
             COMPLETO en el evento (DetalleTurno), nunca como ID (ADR-0002).
 
   # ---------------------------------------------------------------
@@ -100,12 +101,12 @@ flow:
         el aggregate depura, recalcula el desglose y emite DiaCalculado.
       steps:
         - step: 4a
-          handler: AsignarTurnoCuandoProgramacionTurnoDiarioSolicitada
-          trigger: ServiceBusTrigger (ProgramacionTurnoDiarioSolicitada)
+          handler: AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada
+          trigger: ServiceBusTrigger (cola actualizar-control-diario, ProgramacionTurnoEnFechasSolicitada)
           aggregate: ControlDiarioAggregateRoot
           applies: TurnoDiarioAsignado
           status: implementado
-          note: "Primer ServiceBusTrigger del proyecto. Consume el evento publico de Programacion."
+          note: "Asigna el turno a los K dias del colaborador en una transaccion, reparte marcaciones en memoria y publica DiasDepurados por el bus (CA-ADR-0043)."
 
         - step: 4b
           handler: AdicionarMarcacionCuandoMarcacionRegistrada
@@ -190,10 +191,18 @@ flow:
   # CRUCES POR SERVICE BUS
   # ---------------------------------------------------------------
   service_bus:
-    - event: ProgramacionTurnoDiarioSolicitada
+    - event: ProgramacionTurnoEnFechasSolicitada
       from: Programacion
       to: ControlHoras
       relacion: Customer-Supplier (ADR-0002)
+      topic: programacion-turno-en-fechas-solicitada
+      queue: actualizar-control-diario
+      status: implementado
+    - event: DiasDepurados
+      from: ControlHoras
+      to: ControlHoras
+      topic: dias-depurados
+      queue: actualizar-control-diario
       status: implementado
     - event: DiaCalculado
       from: ControlHoras

@@ -67,8 +67,8 @@ bounded_context:
         colaboradores por fechas concretas. Semanal y rotativa son interfaces del asistente.
       aggregates: [CatalogoTurnos, SolicitudProgramacionAggregateRoot, PlantillaTurnos]
       actors_served: [Programador de turnos]
-      publishes_intra_bc: [ProgramacionTurnoDiarioSolicitada]  # privado, lo consume ControlHoras
-      note: "Publica ProgramacionTurnoDiarioSolicitada (IPrivateEvent) al ASB interno para que ControlHoras lo consuma."
+      publishes_intra_bc: [ProgramacionTurnoEnFechasSolicitada]  # privado, lo consume ControlHoras
+      note: "Publica ProgramacionTurnoEnFechasSolicitada (IPrivateEvent, un mensaje por solicitud) al ASB interno para que ControlHoras lo consuma."
 
     - name: ControlHoras
       namespace: Bitakora.ControlAsistencia.ControlHoras
@@ -79,7 +79,7 @@ bounded_context:
         y emite DiaCalculado. Es reactivo: cada cambio de estado dispara recalculo.
       aggregates: [RegistroDeMarcacionAggregateRoot, ControlDiarioAggregateRoot]
       actors_served: [Aprobador]
-      consumes_intra_bc: [ProgramacionTurnoDiarioSolicitada, MarcacionRegistrada]  # privados, del mismo BC
+      consumes_intra_bc: [ProgramacionTurnoEnFechasSolicitada, DiasDepurados, MarcacionRegistrada]  # privados, del mismo BC
       publishes_public: [DiaCalculado]  # hacia el Sistema de nomina (externo)
       note: >
         Absorbe la logica de Depuracion y CalculoHoras como metodos internos
@@ -143,7 +143,7 @@ relationships:
     to: ControlHoras
     scope: intra-BC
     description: "ControlHoras necesita el Turno de Programacion para depurar marcaciones y calcular horas. Ambos son dominios del mismo BC."
-    mechanism: "ProgramacionTurnoDiarioSolicitada (IPrivateEvent) publicado al ASB interno. El Turno viaja COMPLETO en el evento — nunca como ID."
+    mechanism: "ProgramacionTurnoEnFechasSolicitada (IPrivateEvent) publicado al ASB interno, a la cola compartida actualizar-control-diario con GroupId = CodigoColaborador (CA-ADR-0043). El Turno viaja COMPLETO en el evento — nunca como ID."
     adr: ADR-0002
 
   # --- Externas (integracion con otros BCs / sistemas ajenos) ---

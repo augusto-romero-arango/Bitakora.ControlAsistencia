@@ -10,7 +10,8 @@
 # - Subscriptions: {consumidor}-escucha-{productor} o {consumidor-contexto}
 #
 # ESTADO ACTUAL: seed inicial
-# El unico topic provisionado en infra es 'programacion-turno-diario-solicitada' (segun main.tf).
+# Topics del lote (CA-ADR-0043): 'programacion-turno-en-fechas-solicitada' y 'dias-depurados', ambos hacia la cola
+# compartida 'actualizar-control-diario'.
 # Los topics aqui documentados son el estado objetivo de la arquitectura.
 #
 # Ultima actualizacion: 2026-04-17 (alineacion con ADR-0004 tras issue #109)
@@ -19,7 +20,25 @@ service_bus:
   namespace: sb-asist-dev
   sku: Standard
 
-  topics: []
+  topics:
+    - name: programacion-turno-en-fechas-solicitada
+      owner: Programacion
+      description: "Solicitud de programacion de un colaborador con todas sus fechas libres (un mensaje por solicitud)"
+      events: [ProgramacionTurnoEnFechasSolicitada]
+      subscriptions:
+        - name: control-horas-escucha-programacion-en-fechas
+          consumer: ControlHoras
+          forward_to: actualizar-control-diario
+          note: "Cola compartida con sesion; GroupId = CodigoColaborador. Handler AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada"
+    - name: dias-depurados
+      owner: ControlHoras
+      description: "Lote de dias depurados de un colaborador (ControlHoras -> ControlHoras)"
+      events: [DiasDepurados]
+      subscriptions:
+        - name: control-horas-escucha-dias-depurados
+          consumer: ControlHoras
+          forward_to: actualizar-control-diario
+          note: "Misma cola compartida. Handler RecibirDepuracionesCuandoDiasDepurados"
     # Ejemplo de estructura (se poblara al usar el eda-modeler):
     # - name: turno-creado
     #   owner: Programacion

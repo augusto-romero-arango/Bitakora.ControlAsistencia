@@ -883,8 +883,8 @@ terms:
     definition: >
       Peticion de programar un turno a un empleado para un conjunto de fechas. Aggregate propio
       (SolicitudProgramacionAggregateRoot, un stream por solicitud): emite
-      ProgramacionTurnoSolicitada y dispara ProgramacionTurnoDiarioSolicitada por fecha hacia
-      ControlHoras.
+      ProgramacionTurnoSolicitada y dispara ProgramacionTurnoEnFechasSolicitada (un mensaje con
+      todas las fechas libres, no uno por fecha) hacia ControlHoras (CA-ADR-0043).
     context: Programacion
     rejected_synonyms: [solicitud de turno]
     rejection_reason: >
