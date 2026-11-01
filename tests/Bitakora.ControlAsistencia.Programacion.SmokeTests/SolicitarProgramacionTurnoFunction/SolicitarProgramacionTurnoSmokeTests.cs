@@ -16,7 +16,6 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
     private HttpClient _client => _tenant.Client;
 
     private const string Ruta = "/api/programacion/solicitudes";
-    private const string RutaAliasTemporal = "/api/programacion/solicitudes-en-fechas";
     private const string TopicSalida = "programacion-turno-en-fechas-solicitada";
     private const string Suscripcion = "smoke-tests";
     private const string SchemaProgramacion = "programacion";
@@ -438,26 +437,6 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
             SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(1);
     }
 
-    // Camino del MCP mientras se despliega por separado; se retira con el alias en #1387.
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task SolicitarProgramacionTurnoEnFechas_Retorna201YPersisteLaSolicitud_CuandoSeLlamaPorElAliasTemporal()
-    {
-        SaltarSiNoHayPostgres(postgres);
-        var ct = TestContext.Current.CancellationToken;
-        var turnoId = await CrearTurnoDePayloadAsync(id => TurnoSimplePayload(id, "[TEST] Turno Smoke Alias En Fechas"), ct);
-        var solicitudId = Guid.CreateVersion7();
-
-        var response = await _client.PostAsJsonAsync(RutaAliasTemporal,
-            PayloadSolicitud(solicitudId, turnoId, ["2026-12-03"]), ct);
-
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-        response.Headers.Location.Should().BeNull();
-        var cuerpo = await response.Content.ReadFromJsonAsync<RespuestaSolicitudMinima>(OpcionesRespuesta, ct);
-        cuerpo!.FechasRespetadas.Should().BeEmpty();
-        (await postgres.ContarEventosAsync(
-            SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(1);
-    }
 
     [Fact]
     [Trait("Category", "Smoke")]

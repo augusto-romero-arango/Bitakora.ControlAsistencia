@@ -27,7 +27,7 @@ CI lo compila pero no lo ejecuta: no termina en `.Tests`. Corre a mano, en local
 6. **Métricas de Azure Monitor** de la ventana y **foto final.** La ventana va de un minuto antes del inicio a cuatro después del fin: Azure Monitor fecha la actividad hasta dos minutos después del reloj del runner, y una ventana más corta corta la cola del procesamiento.
 7. **Reporte y aserción del SLO.**
 
-El MCP programa siempre por el camino en lote (`POST programacion/solicitudes-en-fechas`, CA-ADR-0043): el camino no es un parámetro del benchmark.
+El MCP programa siempre por el camino en lote (`POST programacion/solicitudes`, CA-ADR-0043): el camino no es un parámetro del benchmark.
 
 ## Reporte
 

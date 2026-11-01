@@ -115,7 +115,7 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> SolicitarProgramacion(
         SolicitudProgramacionTurno solicitud, CancellationToken ct) =>
-        http.PostAsJsonAsync("api/programacion/solicitudes-en-fechas", solicitud, ct);
+        http.PostAsJsonAsync("api/programacion/solicitudes", solicitud, ct);
 
     public Task<HttpResponseMessage> ProgramarAusencia(
         string codigoColaborador, AusenciaAProgramar ausencia, CancellationToken ct) =>

@@ -58,8 +58,7 @@ fija los nombres de los dos eventos privados y sus topics, porque #1336 (infra) 
       `TurnoDiarioAsignado`.
     - **Ruta.** Con un solo create, la divergencia de MEF-ADR-0043 paso 1 pierde su justificacion: la ruta
       canonica es `POST programacion/solicitudes` (el glosario ya la avala, "Solicitud de Programacion").
-      `POST programacion/solicitudes-en-fechas` queda como transitoria hasta #1387 (alias temporal en #1385,
-      luego clientes).
+      Transicion cerrada en #1387: los clientes usan la ruta canonica y el alias temporal se retiro.
 
 ## Alternativas consideradas
 
@@ -99,3 +98,4 @@ fija los nombres de los dos eventos privados y sus topics, porque #1336 (infra) 
 - 2026-10-30: creado (investigacion 2026-10-28/29; registro en #1333).
 - 2026-10-31: la meta medible pasa a 100 colaboradores x 1 mes en <= 1 min (CA-ADR-0044, #1335).
 - 2026-10-31: enmienda por el retiro del camino por dia (#1370-#1382); ruta canonica `POST programacion/solicitudes` (#1373).
+- 2026-10-31: cierre de la transicion de ruta; se retira el alias temporal y los clientes pasan a `programacion/solicitudes` (#1387).
