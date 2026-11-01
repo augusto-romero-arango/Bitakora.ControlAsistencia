@@ -4,17 +4,17 @@ using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
-using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
-using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
+using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 using Bitakora.ControlAsistencia.Programacion.Tests.CrearJornadaFunction;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
 
-namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoEnFechasFunction;
+namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoFunction;
 
-public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
-    : CommandHandlerAsyncTest<SolicitarProgramacionTurnoEnFechas, ResultadoSolicitudProgramacion>
+public class SolicitarProgramacionTurnoCommandHandlerTests
+    : CommandHandlerAsyncTest<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion>
 {
     private static readonly PublishOptions OpcionesGrupoColaborador = new() { GroupId = "E001" };
 
@@ -114,13 +114,13 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
 
     private FakeAseguradorJornadaPredeterminada _asegurador = new(JornadaPorDefectoId);
 
-    public SolicitarProgramacionTurnoEnFechasCommandHandlerTests()
+    public SolicitarProgramacionTurnoCommandHandlerTests()
     {
         Given(JornadaPorDefectoId.ToString(), JornadaCreada.Crear(JornadaPorDefectoId, Limites42()));
     }
 
-    protected override ICommandHandlerAsync<SolicitarProgramacionTurnoEnFechas, ResultadoSolicitudProgramacion> Handler =>
-        new SolicitarProgramacionTurnoEnFechasCommandHandler(EventStore, PrivateEventSender, _asegurador);
+    protected override ICommandHandlerAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion> Handler =>
+        new SolicitarProgramacionTurnoCommandHandler(EventStore, PrivateEventSender, _asegurador);
 
     private static TurnoCreado CrearEventoTurno() =>
         TurnoCreado.Crear(
@@ -132,12 +132,12 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
         new(AusenciaId, ColaboradorProgramadoEsperado, inicio, fin, MotivoAusencia.Vacaciones);
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_PersisteSoloLasLibresYPublicaUnEvento_CuandoUnaAusenciaCubreParteDeLasFechas()
+    public async Task SolicitarProgramacionTurno_PersisteSoloLasLibresYPublicaUnEvento_CuandoUnaAusenciaCubreParteDeLasFechas()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         Given(StreamAusencias, Ausencia(Dia2, Dia3));
 
-        var resultado = await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2, Dia3, Dia4, Dia5]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -157,11 +157,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_PublicaUnSoloEventoConTodasLasFechas_CuandoNoHayAusencias()
+    public async Task SolicitarProgramacionTurno_PublicaUnSoloEventoConTodasLasFechas_CuandoNoHayAusencias()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        var resultado = await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -175,11 +175,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_AplicaLaCascadaDeSedeEnAmbosPayloads_CuandoLaSolicitudTraeSede()
+    public async Task SolicitarProgramacionTurno_AplicaLaCascadaDeSedeEnAmbosPayloads_CuandoLaSolicitudTraeSede()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1], SedePrincipal));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -193,11 +193,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_AseguraLaJornadaPredeterminada_CuandoNoTraeJornadaId()
+    public async Task SolicitarProgramacionTurno_AseguraLaJornadaPredeterminada_CuandoNoTraeJornadaId()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -211,7 +211,7 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_MapeaDescansosYExtrasEnAmbosPayloads_CuandoElTurnoTieneHijas()
+    public async Task SolicitarProgramacionTurno_MapeaDescansosYExtrasEnAmbosPayloads_CuandoElTurnoTieneHijas()
     {
         Given(TurnoId.ToString(), TurnoCreado.Crear(
             TurnoId,
@@ -220,7 +220,7 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
                 [(new TimeOnly(10, 0), new TimeOnly(10, 15))],
                 [(new TimeOnly(13, 0), new TimeOnly(14, 0))])]));
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
 
         const string descripcion = "06:00-14:00, descanso 10:00-10:15, extra 13:00-14:00";
@@ -255,91 +255,91 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_LanzaRecursoYaExisteException_CuandoSolicitudYaExiste()
+    public async Task SolicitarProgramacionTurno_LanzaRecursoYaExisteException_CuandoSolicitudYaExiste()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         Given(new ProgramacionTurnoSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado,
             jornada: JornadaEsperada));
 
-        var act = async () => await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
 
         await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
-            .WithMessage($"*{SolicitarProgramacionTurnoEnFechasCommandHandler.Mensajes.SolicitudYaExiste}*");
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.SolicitudYaExiste}*");
         ThenIsPublishedPrivately();
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_LanzaRecursoNoEncontradoException_CuandoTurnoNoExisteEnElCatalogo()
+    public async Task SolicitarProgramacionTurno_LanzaRecursoNoEncontradoException_CuandoTurnoNoExisteEnElCatalogo()
     {
-        var act = async () => await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
 
         await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
-            .WithMessage($"*{SolicitarProgramacionTurnoEnFechasCommandHandler.Mensajes.TurnoNoEncontrado}*");
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoNoEncontrado}*");
         Then(GuidAggregateId.ToString());
         ThenIsPublishedPrivately();
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEstaRetirado()
+    public async Task SolicitarProgramacionTurno_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEstaRetirado()
     {
         Given(TurnoId.ToString(), CrearEventoTurno(), TurnoRetirado.Crear(TurnoId));
 
-        var act = async () => await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
 
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
-            .WithMessage($"*{SolicitarProgramacionTurnoEnFechasCommandHandler.Mensajes.TurnoRetirado}*");
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado}*");
         Then(GuidAggregateId.ToString());
         ThenIsPublishedPrivately();
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEstaIncompleto()
+    public async Task SolicitarProgramacionTurno_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEstaIncompleto()
     {
         Given(TurnoIncompletoId.ToString(), TurnoCreado.Crear(TurnoIncompletoId, "Turno Incompleto", []));
 
-        var act = async () => await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoIncompletoId, Colaborador, [Dia1]));
 
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
-            .WithMessage($"*{SolicitarProgramacionTurnoEnFechasCommandHandler.Mensajes.TurnoIncompleto}*");
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoIncompleto}*");
         Then(GuidAggregateId.ToString());
         ThenIsPublishedPrivately();
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_LanzaRecursoNoEncontradoException_CuandoLaJornadaNoExiste()
+    public async Task SolicitarProgramacionTurno_LanzaRecursoNoEncontradoException_CuandoLaJornadaNoExiste()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        var act = async () => await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1], JornadaId: Guid.NewGuid()));
 
         await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
-            .WithMessage($"*{SolicitarProgramacionTurnoEnFechasCommandHandler.Mensajes.JornadaNoEncontrada}*");
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.JornadaNoEncontrada}*");
         Then(GuidAggregateId.ToString());
         ThenIsPublishedPrivately();
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_LanzaReglaDeNegocioDeclinadaException_CuandoTodasLasFechasTienenAusencia()
+    public async Task SolicitarProgramacionTurno_LanzaReglaDeNegocioDeclinadaException_CuandoTodasLasFechasTienenAusencia()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         Given(StreamAusencias, Ausencia(Dia2, Dia3));
 
-        var act = async () => await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia2, Dia3]));
 
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
-            .WithMessage($"*{SolicitarProgramacionTurnoEnFechasCommandHandler.Mensajes.TodasLasFechasConAusencia}*")
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TodasLasFechasConAusencia}*")
             .WithMessage("*Vacaciones*");
         Then(GuidAggregateId.ToString());
         ThenIsPublishedPrivately();
@@ -347,11 +347,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_CopiaLaAmplitudDelCatalogoEnAmbosPayloads_CuandoElTurnoTieneVentanaDeTresHoras()
+    public async Task SolicitarProgramacionTurno_CopiaLaAmplitudDelCatalogoEnAmbosPayloads_CuandoElTurnoTieneVentanaDeTresHoras()
     {
         Given(TurnoId.ToString(), CrearEventoTurno(), VentanaDeTresHoras());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -365,11 +365,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_DejaAmplitudEnCero_CuandoElTurnoEsFijo()
+    public async Task SolicitarProgramacionTurno_DejaAmplitudEnCero_CuandoElTurnoEsFijo()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -381,11 +381,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_ConservaLaAmplitud_CuandoLaSolicitudTraeSede()
+    public async Task SolicitarProgramacionTurno_ConservaLaAmplitud_CuandoLaSolicitudTraeSede()
     {
         Given(TurnoId.ToString(), CrearEventoTurno(), VentanaDeTresHoras());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1], SedePrincipal));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -401,11 +401,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_CopiaLaMarcaDeHorarioAbiertoEnAmbosPayloads_CuandoElTurnoEsDeHorarioAbierto()
+    public async Task SolicitarProgramacionTurno_CopiaLaMarcaDeHorarioAbiertoEnAmbosPayloads_CuandoElTurnoEsDeHorarioAbierto()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoDeHorarioAbierto());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -418,11 +418,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_DejaLaMarcaEnFalse_CuandoElTurnoNoEsDeHorarioAbierto()
+    public async Task SolicitarProgramacionTurno_DejaLaMarcaEnFalse_CuandoElTurnoNoEsDeHorarioAbierto()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -434,11 +434,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_ConservaLaMarcaDeHorarioAbierto_CuandoLaSolicitudTraeSede()
+    public async Task SolicitarProgramacionTurno_ConservaLaMarcaDeHorarioAbierto_CuandoLaSolicitudTraeSede()
     {
         Given(TurnoId.ToString(), CrearEventoTurnoDeHorarioAbierto());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1], SedePrincipal));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -466,7 +466,7 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_ConservaLaSedeDeLaFranjaYAplicaLaSedePorDefecto_CuandoElTurnoTraeFranjasMixtas()
+    public async Task SolicitarProgramacionTurno_ConservaLaSedeDeLaFranjaYAplicaLaSedePorDefecto_CuandoElTurnoTraeFranjasMixtas()
     {
         Given(TurnoConFranjasMixtasId.ToString(), TurnoCreado.Crear(
             TurnoConFranjasMixtasId,
@@ -476,7 +476,7 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
                 new DatosFranja(new TimeOnly(14, 0), new TimeOnly(18, 0), [], [])
             ]));
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoConFranjasMixtasId, Colaborador, [Dia1], SedePrincipal));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -509,11 +509,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_DejaSedeEnNull_CuandoLaSolicitudNoIncluyeSede()
+    public async Task SolicitarProgramacionTurno_DejaSedeEnNull_CuandoLaSolicitudNoIncluyeSede()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -526,14 +526,14 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_PersisteLaSedePrearmadaDelCatalogo_CuandoElTurnoLaTraePorFranja()
+    public async Task SolicitarProgramacionTurno_PersisteLaSedePrearmadaDelCatalogo_CuandoElTurnoLaTraePorFranja()
     {
         Given(TurnoConSedePrearmadaId.ToString(), TurnoCreado.Crear(
             TurnoConSedePrearmadaId,
             "Turno Con Sede",
             [new DatosFranja(new TimeOnly(6, 0), new TimeOnly(14, 0), [], [], SedeSuba)]));
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoConSedePrearmadaId, Colaborador, [Dia1]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -562,11 +562,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_PersisteElCentroDeCostosDeLaSede_CuandoLaSedeLoTrae()
+    public async Task SolicitarProgramacionTurno_PersisteElCentroDeCostosDeLaSede_CuandoLaSedeLoTrae()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1], SedeConCentroDeCostos));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -596,11 +596,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_DejaCentroDeCostosEnNull_CuandoLaSedeNoLoTrae()
+    public async Task SolicitarProgramacionTurno_DejaCentroDeCostosEnNull_CuandoLaSedeNoLoTrae()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1], SedePrincipal));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -616,11 +616,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_NormalizaCentroDeCostosEnBlancoANull_CuandoLaSedeLoTraeVacio()
+    public async Task SolicitarProgramacionTurno_NormalizaCentroDeCostosEnBlancoANull_CuandoLaSedeLoTraeVacio()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1], SedeConCentroDeCostosEnBlanco));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -636,11 +636,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_EmiteProgramacionSolicitada_CuandoElTurnoDelCatalogoEsDescanso()
+    public async Task SolicitarProgramacionTurno_EmiteProgramacionSolicitada_CuandoElTurnoDelCatalogoEsDescanso()
     {
         Given(TurnoDescansoId.ToString(), TurnoCreado.CrearDescanso(TurnoDescansoId, "Descanso Compensatorio"));
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoDescansoId, Colaborador, [Dia1]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -656,31 +656,31 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_LanzaReglaDeNegocioDeclinadaExceptionConMensajeDeRetirado_CuandoElTurnoRetiradoAdemasEstaIncompleto()
+    public async Task SolicitarProgramacionTurno_LanzaReglaDeNegocioDeclinadaExceptionConMensajeDeRetirado_CuandoElTurnoRetiradoAdemasEstaIncompleto()
     {
         Given(TurnoRetiradoSinFranjasId.ToString(),
             TurnoCreado.Crear(TurnoRetiradoSinFranjasId, "Turno Retirado Vacio", []),
             TurnoRetirado.Crear(TurnoRetiradoSinFranjasId));
 
-        var act = async () => await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoRetiradoSinFranjasId, Colaborador, [Dia1]));
 
         await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()
-            .WithMessage($"*{SolicitarProgramacionTurnoEnFechasCommandHandler.Mensajes.TurnoRetirado}*");
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.TurnoRetirado}*");
         Then(GuidAggregateId.ToString());
         ThenIsPublishedPrivately();
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_NoAfectaLasFechas_CuandoLaAusenciaEsDeOtroColaborador()
+    public async Task SolicitarProgramacionTurno_NoAfectaLasFechas_CuandoLaAusenciaEsDeOtroColaborador()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         Given("ac:E999", new AusenciaProgramada(
             AusenciaId, new ColaboradorProgramado("CC-999", "E999", "Otra Persona"),
             Dia1, Dia2, MotivoAusencia.Vacaciones));
 
-        var resultado = await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -694,11 +694,11 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_ProgramaTodasLasFechasYRespondeSinRespetadas_CuandoElColaboradorNoTieneAusencias()
+    public async Task SolicitarProgramacionTurno_ProgramaTodasLasFechasYRespondeSinRespetadas_CuandoElColaboradorNoTieneAusencias()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
 
-        var resultado = await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2, Dia3]));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -712,13 +712,13 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_EstampaLaJornadaExplicitaYNoConsultaAlAsegurador_CuandoTraeJornadaId()
+    public async Task SolicitarProgramacionTurno_EstampaLaJornadaExplicitaYNoConsultaAlAsegurador_CuandoTraeJornadaId()
     {
         var jid = Guid.Parse("018e4c1a-4f2b-7000-8000-00000000861b");
         Given(TurnoId.ToString(), CrearEventoTurno());
         Given(jid.ToString(), JornadaCreada.Crear(jid, Limites42()));
 
-        await WhenAsync(new SolicitarProgramacionTurnoEnFechas(
+        await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2], JornadaId: jid));
 
         Then(new ProgramacionTurnoSolicitada(
@@ -730,5 +730,17 @@ public class SolicitarProgramacionTurnoEnFechasCommandHandlerTests
                 new DetalleJornada(jid, 2520, 510, 240, 1)));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
         _asegurador.Invocaciones.Should().Be(0);
+    }
+
+    // El nombre base del .resx es un literal que no sigue al namespace: si diverge, compila y lanza
+    // MissingManifestResourceException en el primer rechazo.
+    [Fact]
+    public void Mensajes_TodosTienenTextoEnElResx_CuandoSeConsultaPorResourceManager()
+    {
+        var propiedades = typeof(SolicitarProgramacionTurnoCommandHandler.Mensajes)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+
+        propiedades.Should().NotBeEmpty();
+        propiedades.Select(p => (string?)p.GetValue(null)).Should().AllSatisfy(m => m.Should().NotBeNullOrWhiteSpace());
     }
 }

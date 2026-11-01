@@ -1,12 +1,12 @@
 using System.Resources;
 
-namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction.CommandHandler;
+namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 
-public partial class SolicitarProgramacionTurnoEnFechasCommandHandler
+public partial class SolicitarProgramacionTurnoCommandHandler
 {
     private static readonly ResourceManager ResourceManager = new(
-        "Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction.CommandHandler.SolicitarProgramacionTurnoEnFechasCommandHandlerMensajes",
-        typeof(SolicitarProgramacionTurnoEnFechasCommandHandler).Assembly);
+        "Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler.SolicitarProgramacionTurnoCommandHandlerMensajes",
+        typeof(SolicitarProgramacionTurnoCommandHandler).Assembly);
 
     internal static class Mensajes
     {

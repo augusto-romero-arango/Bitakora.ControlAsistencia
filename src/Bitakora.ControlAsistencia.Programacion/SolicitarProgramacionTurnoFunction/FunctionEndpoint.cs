@@ -4,26 +4,29 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 
-namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
+namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 
 // 201 Created sin Location: la solicitud no tiene GET canonico y el turno diario en ControlHoras
 // es un efecto posterior al commit, no el recurso pedido (CA-ADR-0035).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
-    [Function(nameof(SolicitarProgramacionTurnoEnFechas))]
-    public async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/solicitudes-en-fechas")]
+    [Function(nameof(SolicitarProgramacionTurno))]
+    public Task<IActionResult> Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "programacion/solicitudes")]
         HttpRequest req,
-        CancellationToken ct)
+        CancellationToken ct) =>
+        SolicitarAsync(req, ct);
+
+    internal async Task<IActionResult> SolicitarAsync(HttpRequest req, CancellationToken ct)
     {
-        var (comando, error) = await requestValidator.ValidarAsync<SolicitarProgramacionTurnoEnFechas>(req, ct);
+        var (comando, error) = await requestValidator.ValidarAsync<SolicitarProgramacionTurno>(req, ct);
         if (error is not null)
             return error;
 
         ResultadoSolicitudProgramacion resultado;
         try
         {
-            resultado = await commandRouter.InvokeAsync<SolicitarProgramacionTurnoEnFechas, ResultadoSolicitudProgramacion>(comando!, ct);
+            resultado = await commandRouter.InvokeAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion>(comando!, ct);
         }
         catch (PrecondicionComandoException ex)
         {

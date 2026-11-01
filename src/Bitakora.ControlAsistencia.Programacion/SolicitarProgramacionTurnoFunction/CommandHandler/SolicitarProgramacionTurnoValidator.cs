@@ -1,11 +1,11 @@
 using FluentValidation;
 
-namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction.CommandHandler;
+namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 
-public class SolicitarProgramacionTurnoEnFechasValidator
-    : AbstractValidator<SolicitarProgramacionTurnoEnFechas>
+public class SolicitarProgramacionTurnoValidator
+    : AbstractValidator<SolicitarProgramacionTurno>
 {
-    public SolicitarProgramacionTurnoEnFechasValidator()
+    public SolicitarProgramacionTurnoValidator()
     {
         RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.TurnoId).NotEmpty();

@@ -16,7 +16,7 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 /// Issue #341: Sede es campo aditivo y opcional (null = sin sede asignada), gemelo deliberado de
 /// FranjaProgramada.Sede (Programacion.DomainEvents, issue #335) -- cierra la divergencia que
 /// FranjaProgramadaParidadConDetalleFranjaOrdinariaTests toleraba temporalmente. Lleva la sede
-/// EFECTIVA ya resuelta por la cascada (SolicitarProgramacionTurnoEnFechasCommandHandler,
+/// EFECTIVA ya resuelta por la cascada (SolicitarProgramacionTurnoCommandHandler,
 /// TurnoProgramado.ConSedePorDefecto) -- este DTO de bus nunca aplica la cascada, solo transporta
 /// el resultado (snapshot: la verdad viaja en el evento). A diferencia de Descripcion, SI entra en
 /// Equals/GetHashCode -- es dato de identidad de la franja, no un derivado (mismo criterio que

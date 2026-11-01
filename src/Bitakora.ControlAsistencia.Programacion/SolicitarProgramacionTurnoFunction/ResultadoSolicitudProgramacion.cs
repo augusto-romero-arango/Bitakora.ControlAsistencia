@@ -1,4 +1,4 @@
-namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
+namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 
 public record ResultadoSolicitudProgramacion(IReadOnlyList<FechaRespetada> FechasRespetadas);
 

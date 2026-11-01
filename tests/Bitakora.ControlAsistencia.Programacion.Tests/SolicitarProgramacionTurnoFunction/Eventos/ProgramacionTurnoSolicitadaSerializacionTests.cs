@@ -27,7 +27,7 @@ using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoEnFechasFunction.Eventos;
+namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoFunction.Eventos;
 
 public class ProgramacionTurnoSolicitadaSerializacionTests
 {

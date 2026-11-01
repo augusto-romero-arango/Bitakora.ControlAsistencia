@@ -6,17 +6,17 @@ using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
-namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction.CommandHandler;
+namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 
 // Publica un solo evento con todas las fechas libres del colaborador (CA-ADR-0043).
-public partial class SolicitarProgramacionTurnoEnFechasCommandHandler
-    : ICommandHandlerAsync<SolicitarProgramacionTurnoEnFechas, ResultadoSolicitudProgramacion>
+public partial class SolicitarProgramacionTurnoCommandHandler
+    : ICommandHandlerAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion>
 {
     private readonly IEventStore _eventStore;
     private readonly IPrivateEventSender _privateEventSender;
     private readonly IAseguradorJornadaPredeterminada _asegurador;
 
-    public SolicitarProgramacionTurnoEnFechasCommandHandler(
+    public SolicitarProgramacionTurnoCommandHandler(
         IEventStore eventStore,
         IPrivateEventSender privateEventSender,
         IAseguradorJornadaPredeterminada asegurador)
@@ -26,7 +26,7 @@ public partial class SolicitarProgramacionTurnoEnFechasCommandHandler
         _asegurador = asegurador;
     }
 
-    public async Task<ResultadoSolicitudProgramacion> HandleAsync(SolicitarProgramacionTurnoEnFechas command, CancellationToken ct = default)
+    public async Task<ResultadoSolicitudProgramacion> HandleAsync(SolicitarProgramacionTurno command, CancellationToken ct = default)
     {
         var solicitudExiste = await _eventStore.ExistsAsync<SolicitudProgramacionAggregateRoot>(
             command.Id, ct);

@@ -1,8 +1,8 @@
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
+namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 
-public record SolicitarProgramacionTurnoEnFechas(
+public record SolicitarProgramacionTurno(
     Guid Id,
     Guid TurnoId,
     ColaboradorSolicitado Colaborador,
