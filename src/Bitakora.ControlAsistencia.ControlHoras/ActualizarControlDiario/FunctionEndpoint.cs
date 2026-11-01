@@ -25,7 +25,6 @@ public class FunctionEndpoint(
         {
             [typeof(RegistroDeMarcacionCreado).FullName!] = Evento<RegistroDeMarcacionCreado>,
             [typeof(SedeDeMarcacionResuelta).FullName!] = Evento<SedeDeMarcacionResuelta>,
-            [typeof(ProgramacionTurnoDiarioSolicitada).FullName!] = Evento<ProgramacionTurnoDiarioSolicitada>,
             [typeof(ProgramacionTurnoEnFechasSolicitada).FullName!] = Evento<ProgramacionTurnoEnFechasSolicitada>,
             [typeof(CancelacionTurnoDiarioSolicitada).FullName!] = Evento<CancelacionTurnoDiarioSolicitada>,
             [typeof(AusenciaDiariaProgramada).FullName!] = Evento<AusenciaDiariaProgramada>,

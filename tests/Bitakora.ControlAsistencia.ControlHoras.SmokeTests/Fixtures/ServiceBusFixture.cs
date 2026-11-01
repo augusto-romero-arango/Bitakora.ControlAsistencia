@@ -27,7 +27,6 @@ public class ServiceBusFixture : IAsyncLifetime
     // Wolverine publica con Subject = Type.FullName del evento y el fan-in de #1175 despacha por ese valor.
     private static readonly IReadOnlyDictionary<string, string> SubjectPorTopic = new Dictionary<string, string>
     {
-        ["programacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.ProgramacionTurnoDiarioSolicitada).FullName!,
         ["programacion-turno-en-fechas-solicitada"] = typeof(PrivateEvents.Programacion.ProgramacionTurnoEnFechasSolicitada).FullName!,
         ["cancelacion-turno-diario-solicitada"] = typeof(PrivateEvents.Programacion.CancelacionTurnoDiarioSolicitada).FullName!,
         ["ausencia-diaria-programada"] = typeof(PrivateEvents.Programacion.AusenciaDiariaProgramada).FullName!,

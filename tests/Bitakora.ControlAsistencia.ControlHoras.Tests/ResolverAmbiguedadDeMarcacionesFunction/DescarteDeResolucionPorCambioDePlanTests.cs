@@ -1,5 +1,4 @@
 using Bitakora.ControlAsistencia.ControlHoras.AsignarAusenciaCuandoAusenciaDiariaProgramada.EventHandler;
-using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnoCuandoProgramacionTurnoDiarioSolicitadaFunction.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.CancelarAusenciaCuandoAusenciaDiariaCancelada.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada.EventHandler;
@@ -54,78 +53,6 @@ public static class DescarteDeResolucionPorCambioDePlanTests
 
     private static string PertenenciaDeLas0430(ControlDiarioAggregateRoot c) =>
         c.CrearDiaDepurado().Marcaciones.Single(m => m.Timestamp == D(4, 30)).Pertenencia!;
-
-    public class AsignarTurnoTests : PrivateEventHandlerAsyncTest<ProgramacionTurnoDiarioSolicitada>
-    {
-        protected override IPrivateEventHandlerAsync<ProgramacionTurnoDiarioSolicitada> Handler =>
-            new ProgramacionTurnoDiarioSolicitadaEventHandler(EventStore, PrivateEventSender);
-
-        private static ProgramacionTurnoDiarioSolicitada Evento(Guid solicitud, TimeOnly inicio, TimeOnly fin) =>
-            new(solicitud, Resumen, Dia21, DetalleDe(inicio, fin));
-
-        // CA-1
-        [Fact]
-        public async Task ProgramacionTurnoDiarioSolicitada_DescartaLaResolucion_CuandoElTurnoNuevoVuelveAmbigua()
-        {
-            Given(StreamD, DiaResuelto());
-            var solicitud = Guid.NewGuid();
-
-            await WhenAsync(Evento(solicitud, new TimeOnly(4, 0), new TimeOnly(12, 0)));
-
-            Then(StreamD,
-                new TurnoDiarioAsignado(StreamD, Colaborador, Dia21,
-                    Turno(new TimeOnly(4, 0), new TimeOnly(12, 0)), solicitud),
-                Descartada(DiaVecino.Vispera));
-            And<ControlDiarioAggregateRoot, string>(StreamD, PertenenciaDeLas0430, "Ambigua");
-        }
-
-        // CA-2
-        [Fact]
-        public async Task ProgramacionTurnoDiarioSolicitada_DescartaLaResolucion_CuandoElTurnoNuevoDejaDeSolaparse()
-        {
-            Given(StreamD, DiaResuelto());
-            var solicitud = Guid.NewGuid();
-
-            await WhenAsync(Evento(solicitud, new TimeOnly(8, 0), new TimeOnly(16, 0)));
-
-            Then(StreamD,
-                new TurnoDiarioAsignado(StreamD, Colaborador, Dia21,
-                    Turno(new TimeOnly(8, 0), new TimeOnly(16, 0)), solicitud),
-                Descartada(DiaVecino.Vispera));
-            And<ControlDiarioAggregateRoot, string>(StreamD, PertenenciaDeLas0430, "FueraDeCobertura");
-        }
-
-        // CA-3
-        [Fact]
-        public async Task ProgramacionTurnoDiarioSolicitada_ConservaLaResolucion_CuandoElTurnoEsIdenticoAlVigente()
-        {
-            Given(StreamD, DiaResuelto());
-            var solicitud = Guid.NewGuid();
-
-            await WhenAsync(Evento(solicitud, new TimeOnly(6, 0), new TimeOnly(14, 0)));
-
-            Then(StreamD,
-                new TurnoDiarioAsignado(StreamD, Colaborador, Dia21,
-                    Turno(new TimeOnly(6, 0), new TimeOnly(14, 0)), solicitud));
-            And<ControlDiarioAggregateRoot, string>(StreamD, PertenenciaDeLas0430, "FueraDeCobertura");
-        }
-
-        [Fact]
-        public async Task ProgramacionTurnoDiarioSolicitada_NoDescarta_CuandoNoHabiaResolucion()
-        {
-            Given(StreamD,
-                TurnoAsignado(Turno(new TimeOnly(6, 0), new TimeOnly(14, 0))),
-                Marcacion(D(4, 30)));
-            var solicitud = Guid.NewGuid();
-
-            await WhenAsync(Evento(solicitud, new TimeOnly(4, 0), new TimeOnly(12, 0)));
-
-            Then(StreamD,
-                new TurnoDiarioAsignado(StreamD, Colaborador, Dia21,
-                    Turno(new TimeOnly(4, 0), new TimeOnly(12, 0)), solicitud));
-            And<ControlDiarioAggregateRoot, string?>(StreamD, c => c.DetalleTurno!.Nombre, "Turno");
-        }
-    }
 
     public class AsignarTurnoEnLoteTests : PrivateEventHandlerAsyncTest<ProgramacionTurnoEnFechasSolicitada>
     {

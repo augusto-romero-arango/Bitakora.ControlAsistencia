@@ -38,7 +38,7 @@ public class CancelacionTurnoDiarioSolicitadaEventHandlerTests
 
     // Mismo colaborador en la forma de bus (PrivateEvents.Colaboradores.ResumenColaborador). Los dos
     // literales se mantienen separados para que una permutacion de campos en el mapeo entre islas
-    // se delate aqui, mismo criterio que ProgramacionTurnoDiarioSolicitadaEventHandlerTests.
+    // se delate aqui, mismo criterio que ProgramacionTurnoEnFechasSolicitadaEventHandlerTests.
     private static readonly ResumenColaborador ColaboradorResumen = new(
         "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 

@@ -79,7 +79,7 @@ public static class ComposicionServicios
         // AgregarWolverineCommandRouter se conserva: RegistrarMarcacion (HTTP) lo sigue usando.
         services.AgregarWolverineCommandRouter();
         // Issue #209/#210/#270 (ADR-0024 decision #8): los eventos privados intra-BC
-        // (RegistroDeMarcacionCreado, ProgramacionTurnoDiarioSolicitada) se consumen directo con
+        // (RegistroDeMarcacionCreado, ProgramacionTurnoEnFechasSolicitada) se consumen directo con
         // IPrivateEventHandlerAsync via IPrivateEventRouter, sin comando espejo.
         services.AgregarWolverinePrivateEventRouter();
         services.AgregarWolverineEventSender();
