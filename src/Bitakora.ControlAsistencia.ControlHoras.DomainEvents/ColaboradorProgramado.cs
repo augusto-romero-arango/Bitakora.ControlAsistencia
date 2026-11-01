@@ -4,7 +4,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 /// Terna de identidad del colaborador que persiste TurnoDiarioAsignado. Payload propio de esta isla
 /// (CA-ADR-0029 decision #5 / MEF-ADR-0039 decision #6): los tres ensamblados de eventos no se
 /// referencian entre si, asi que el mapeo desde la forma del bus vive en el Function App, el unico
-/// ensamblado que ve las tres islas (ProgramacionTurnoDiarioSolicitadaEventHandler).
+/// ensamblado que ve las tres islas (ProgramacionTurnoEnFechasSolicitadaEventHandler).
 ///
 /// Identificacion llega con el contrato del maestro Colaboradores ("{Tipo}-{Numero}", nunca
 /// aplanada) y NombreCompleto ya concatenado: ni el aggregate ni el worker de proyecciones componen

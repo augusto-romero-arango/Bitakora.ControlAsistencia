@@ -7,7 +7,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 // RegistroDeMarcacionAggregateRoot, y sigue en esta lista por ese motivo. El contrato de bus
 // equivalente (RegistroDeMarcacionCreado, en PrivateEvents.ControlHoras) nunca se persiste y por
 // eso no entra aqui. Los eventos que SOLO cruzan el bus (p.ej. DiaDepurado,
-// ProgramacionTurnoDiarioSolicitada, RegistroDeMarcacionCreado) no entran: nunca pasan por el
+// RegistroDeMarcacionCreado) no entran: nunca pasan por el
 // EventGraph de Marten.
 //
 // Registrar estos tipos via Events.AddEventTypes NO declara su alias -- Marten lo sigue

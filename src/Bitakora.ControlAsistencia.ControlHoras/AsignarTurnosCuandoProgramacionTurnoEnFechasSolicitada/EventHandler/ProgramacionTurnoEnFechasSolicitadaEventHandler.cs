@@ -126,7 +126,7 @@ public partial class ProgramacionTurnoEnFechasSolicitadaEventHandler
         var existente = await CargarAsync(solicitud.Colaborador.CodigoColaborador, fecha, ct);
         if (existente is not null)
         {
-            existente.AsignarTurnoDeLote(evento);
+            existente.AsignarTurno(evento);
             return (existente, false);
         }
 
