@@ -4,7 +4,13 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-27 (sesion planner, refinar #1288: la interfaz SEMANAL es un ciclo
+# Ultima actualizacion: 2026-10-31 (sesion planner, refinar #1290: el experto reenfoca la investigacion
+#   del control de jornada a un CATALOGO DE MODALIDADES LEGALES con nombre propio (CST arts. 161-166),
+#   cada una con sus reglas medibles, para que el Programador ponga esas reglas a la Jornada. Entregable:
+#   docs/referencia/modalidades_jornada_colombia.md. "Modalidad de jornada" es nombre PROVISIONAL, no se
+#   acuna. Se aclara Advertencias de plantilla: desde #1292 solo diarias. Tocadas: Advertencias de
+#   plantilla, pregunta abierta del periodo de medicion.)
+# Actualizacion previa: 2026-10-27 (sesion planner, refinar #1288: la interfaz SEMANAL es un ciclo
 #   de exactamente 7 dias (dia 1 = lunes); quincenal o de 3 semanas es un ciclo generico de 14/21 dias.
 #   La interfaz ROTATIVA se disena por bloques de dias consecutivos. Tocada: Plantilla de turnos.
 #   Issues #1288, #1300.)
@@ -685,13 +691,15 @@ terms:
     definition: >
       Juicio que la Plantilla de turnos hace de su propio diseno contra la Jornada asociada.
       Sin Jornada, la unica advertencia es PlantillaSinJornada (ningun otro control corre). Con Jornada,
-      TODOS los controles se aplican siempre, este completa o no: DiaSinTurno (dia vacio, o con turno
-      retirado o incompleto), SuperaTopeDiario / PorDebajoDelMinimoDiario (dias de trabajo, en minutos),
-      SuperaHorasSemanales / PorDebajoDeHorasSemanales (valor exacto, en minutos) y FaltanDiasDeDescanso /
-      SobranDiasDeDescanso (valor exacto, solo si el parametro > 0, en dias). Orientan, no bloquean.
+      los controles DIARIOS se aplican siempre, este completa o no: DiaSinTurno (dia vacio, o con turno
+      retirado o incompleto) y SuperaTopeDiario / PorDebajoDelMinimoDiario (dias de trabajo, en minutos).
+      Las SEMANALES (SuperaHorasSemanales / PorDebajoDeHorasSemanales, FaltanDiasDeDescanso /
+      SobranDiasDeDescanso) NO corren en la plantilla de ciclo 1..N desde #1292: un ciclo de N dias no
+      tiene semana del molde; quedan pendientes del catalogo de modalidades de jornada (#1290).
+      Orientan, no bloquean.
     context: Programacion
     date_added: 2026-10-06
-    date_updated: 2026-10-27
+    date_updated: 2026-10-31
     rejected_synonyms: [Auditoria calculada al leer, DiaConTurnoIncompleto]
     rejection_reason: >
       Calcularlas en el GET dejaba las reglas fuera de la plantilla (Tell-don't-Ask, experto
@@ -2073,7 +2081,7 @@ actors:
     note: "Usuario directo solo cuando se construya el modulo de registro propio. Actualmente, sus marcaciones llegan via Sistema de marcacion externo. Pregunta 'como le llamamos en el dominio?': resuelta en #330 -- colaborador."
     interacts_with: []
     open_questions:
-  - question: "Periodo de medicion de la Verificacion semanal de la programacion: configurable (semana por defecto; ciclo de N dias como alternativa -- esquemas tipo petroleras 20x10, promedio de hasta 3 semanas del art. 165 CST)? Aparcada en #850: hoy solo semana. 2026-10-26: la reactiva la Plantilla de turnos generica (un 6x2 alterna semanas de 40 y 48 h); investigacion de todas las formas de control de jornada en #1290."
+  - question: "Periodo de medicion de la Verificacion semanal de la programacion: configurable (semana por defecto; ciclo de N dias como alternativa -- esquemas tipo petroleras 20x10, promedio de hasta 3 semanas del art. 165 CST)? Aparcada en #850: hoy solo semana. 2026-10-26: la reactiva la Plantilla de turnos generica (un 6x2 alterna semanas de 40 y 48 h); investigacion de todas las formas de control de jornada en #1290. 2026-10-31: #1290 se reenfoca a un catalogo de modalidades legales de jornada con nombre propio (ordinaria, flexible 161a, turnos sucesivos 161d, turnos con promedio 165, sin solucion de continuidad 166, excluidos 162...) cuyas reglas el Programador pondria a la Jornada; tension abierta con el principio 'la Jornada no impone modalidades legales'. Nombre del concepto provisional."
     context: Programacion
     date: 2026-10-05
     priority: low
