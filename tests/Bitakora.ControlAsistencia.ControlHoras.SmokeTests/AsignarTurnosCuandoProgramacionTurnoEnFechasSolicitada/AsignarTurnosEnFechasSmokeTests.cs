@@ -11,7 +11,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarTurnosCuando
 
 public class AsignarTurnosEnFechasSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
-    private const string RutaSolicitud = "/api/programacion/solicitudes-en-fechas";
+    private const string RutaSolicitud = "/api/programacion/solicitudes";
     private const string TopicDiasDepurados = "dias-depurados";
     private const string SuscripcionSmokeTests = "smoke-tests";
     private const string SchemaControlHoras = "control_horas";

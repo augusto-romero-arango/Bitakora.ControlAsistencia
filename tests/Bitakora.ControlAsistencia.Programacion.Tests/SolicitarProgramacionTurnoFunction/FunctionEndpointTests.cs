@@ -143,36 +143,6 @@ public class FunctionEndpointTests
         result.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
-
-    [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_Retorna201SinLocationConElResultado_CuandoComandoEsValidoEnElAliasTemporal()
-    {
-        var esperado = new ResultadoSolicitudProgramacion(
-            [new FechaRespetada(new DateOnly(2026, 10, 13), "Vacaciones")]);
-        var function = new FunctionEndpointRutaEnFechas(
-            new FakeSolicitudRequestValidator(ComandoValido()),
-            new FakeSolicitudCommandRouter(resultado: esperado));
-
-        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
-
-        var creado = result.Should().BeAssignableTo<CreatedResult>().Subject;
-        creado.StatusCode.Should().Be(StatusCodes.Status201Created);
-        creado.Location.Should().BeNull();
-        creado.Value.Should().BeEquivalentTo(esperado);
-    }
-
-    [Fact]
-    public async Task SolicitarProgramacionTurnoEnFechas_Retorna409_CuandoUnaReglaDeNegocioDeclinaEnElAliasTemporal()
-    {
-        var function = new FunctionEndpointRutaEnFechas(
-            new FakeSolicitudRequestValidator(ComandoValido()),
-            new FakeSolicitudCommandRouter(lanzar: new ReglaDeNegocioDeclinadaException("todas con ausencia")));
-
-        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
-
-        result.Should().BeAssignableTo<IStatusCodeActionResult>()
-            .Which.StatusCode.Should().Be(StatusCodes.Status409Conflict);
-    }
 }
 
 internal class FakeSolicitudRequestValidator(
