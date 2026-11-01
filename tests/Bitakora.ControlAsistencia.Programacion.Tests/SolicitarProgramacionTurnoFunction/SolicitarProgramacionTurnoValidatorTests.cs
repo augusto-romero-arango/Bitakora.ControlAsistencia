@@ -1,17 +1,17 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
-using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction;
-using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoEnFechasFunction.CommandHandler;
+using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
+using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 
-namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoEnFechasFunction;
+namespace Bitakora.ControlAsistencia.Programacion.Tests.SolicitarProgramacionTurnoFunction;
 
-public class SolicitarProgramacionTurnoEnFechasValidatorTests
+public class SolicitarProgramacionTurnoValidatorTests
 {
-    private readonly SolicitarProgramacionTurnoEnFechasValidator _validator = new();
+    private readonly SolicitarProgramacionTurnoValidator _validator = new();
 
     private static ColaboradorSolicitado ColaboradorValido() => new("CC-12345678", "E001", "Juan Perez");
 
-    private static SolicitarProgramacionTurnoEnFechas Valido() => new(
+    private static SolicitarProgramacionTurno Valido() => new(
         Guid.NewGuid(), Guid.NewGuid(),
         ColaboradorValido(),
         [new DateOnly(2026, 4, 7)]);
@@ -44,7 +44,7 @@ public class SolicitarProgramacionTurnoEnFechasValidatorTests
         var resultado = _validator.Validate(Valido() with { TurnoId = Guid.Empty });
 
         resultado.IsValid.Should().BeFalse();
-        resultado.Errors.Should().Contain(e => e.PropertyName == nameof(SolicitarProgramacionTurnoEnFechas.TurnoId));
+        resultado.Errors.Should().Contain(e => e.PropertyName == nameof(SolicitarProgramacionTurno.TurnoId));
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class SolicitarProgramacionTurnoEnFechasValidatorTests
         var resultado = _validator.Validate(Valido() with { Colaborador = null! });
 
         resultado.IsValid.Should().BeFalse();
-        resultado.Errors.Should().Contain(e => e.PropertyName == nameof(SolicitarProgramacionTurnoEnFechas.Colaborador));
+        resultado.Errors.Should().Contain(e => e.PropertyName == nameof(SolicitarProgramacionTurno.Colaborador));
     }
 
     [Fact]
@@ -135,6 +135,6 @@ public class SolicitarProgramacionTurnoEnFechasValidatorTests
         var resultado = _validator.Validate(Valido() with { JornadaId = Guid.Empty });
 
         resultado.IsValid.Should().BeFalse();
-        resultado.Errors.Should().Contain(e => e.PropertyName == nameof(SolicitarProgramacionTurnoEnFechas.JornadaId));
+        resultado.Errors.Should().Contain(e => e.PropertyName == nameof(SolicitarProgramacionTurno.JornadaId));
     }
 }
