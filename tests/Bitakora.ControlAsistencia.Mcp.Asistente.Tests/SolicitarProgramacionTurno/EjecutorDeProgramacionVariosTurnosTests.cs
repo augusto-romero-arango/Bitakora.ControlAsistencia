@@ -10,7 +10,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.SolicitarProgramacionTu
 
 public class EjecutorDeProgramacionVariosTurnosTests
 {
-    private const string RutaSolicitudes = "/api/programacion/solicitudes-en-fechas";
+    private const string RutaSolicitudes = "/api/programacion/solicitudes";
 
     private static readonly JsonSerializerOptions OpcionesJson = new(JsonSerializerDefaults.Web);
     private static readonly TurnoAProgramar Manana = new(Guid.Parse("11111111-1111-1111-1111-111111111111"), "Manana", false);

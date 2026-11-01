@@ -15,7 +15,7 @@ public class SolicitarProgramacionTurnoToolTests
     private const string SedeCodigo = "SUBA";
     private const string VentanaDesde = "2026-09-01";
     private const string VentanaHasta = "2026-09-30";
-    private const string RutaSolicitudes = "/api/programacion/solicitudes-en-fechas";
+    private const string RutaSolicitudes = "/api/programacion/solicitudes";
 
     private static string TurnosJson => Fixtures.Leer("SolicitarProgramacionTurno", "turnos.json");
     private static string SedeJson => Fixtures.Leer("SolicitarProgramacionTurno", "sede.json");

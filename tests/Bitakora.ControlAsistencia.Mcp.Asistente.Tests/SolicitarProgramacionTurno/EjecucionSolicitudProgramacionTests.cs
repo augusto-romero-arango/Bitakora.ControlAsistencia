@@ -15,7 +15,7 @@ public class EjecucionSolicitudProgramacionTests
     private const string NombreEvento = "EjecucionSolicitudProgramacion";
     private const string TurnoId = "8f14e45f-ceea-4b3c-8f0a-000000000001";
     private const string SedeProgramacion = "SUBA";
-    private const string RutaSolicitudes = "/api/programacion/solicitudes-en-fechas";
+    private const string RutaSolicitudes = "/api/programacion/solicitudes";
 
     private static string TurnosJson => Fixtures.Leer("SolicitarProgramacionTurno", "turnos.json");
     private static string SedeJson => Fixtures.Leer("SolicitarProgramacionTurno", "sede.json");

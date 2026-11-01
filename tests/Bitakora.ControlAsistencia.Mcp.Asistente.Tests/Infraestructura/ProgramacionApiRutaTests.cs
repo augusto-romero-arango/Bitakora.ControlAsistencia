@@ -9,7 +9,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Infraestructura;
 
 public class ProgramacionApiRutaTests
 {
-    private const string RutaEnFechas = "/api/programacion/solicitudes-en-fechas";
+    private const string RutaSolicitudes = "/api/programacion/solicitudes";
 
     private static SolicitudProgramacionTurno Solicitud() => new(
         Guid.Parse("8f14e45f-ceea-4b3c-8f0a-0000000000aa"),
@@ -43,27 +43,27 @@ public class ProgramacionApiRutaTests
     }
 
     [Fact]
-    public async Task ConfigurarServiciosMcp_EnrutaPorLaRutaEnFechas_CuandoElSettingEstaAusente()
+    public async Task ConfigurarServiciosMcp_EnrutaPorLaRutaSolicitudes_CuandoElSettingEstaAusente()
     {
         var handler = await EnviarDesdeElHostCompuesto(null);
 
         handler.UltimaRequest!.Method.Should().Be(HttpMethod.Post);
-        handler.UltimaRequest.RequestUri!.AbsolutePath.Should().Be(RutaEnFechas);
+        handler.UltimaRequest.RequestUri!.AbsolutePath.Should().Be(RutaSolicitudes);
     }
 
     [Fact]
-    public async Task ConfigurarServiciosMcp_EnrutaPorLaRutaEnFechas_CuandoElSettingEsFalse()
+    public async Task ConfigurarServiciosMcp_EnrutaPorLaRutaSolicitudes_CuandoElSettingEsFalse()
     {
         var handler = await EnviarDesdeElHostCompuesto("false");
 
-        handler.UltimaRequest!.RequestUri!.AbsolutePath.Should().Be(RutaEnFechas);
+        handler.UltimaRequest!.RequestUri!.AbsolutePath.Should().Be(RutaSolicitudes);
     }
 
     [Fact]
-    public async Task ConfigurarServiciosMcp_EnrutaPorLaRutaEnFechasSinFallar_CuandoElSettingNoEsBooleano()
+    public async Task ConfigurarServiciosMcp_EnrutaPorLaRutaSolicitudesSinFallar_CuandoElSettingNoEsBooleano()
     {
         var handler = await EnviarDesdeElHostCompuesto("talvez");
 
-        handler.UltimaRequest!.RequestUri!.AbsolutePath.Should().Be(RutaEnFechas);
+        handler.UltimaRequest!.RequestUri!.AbsolutePath.Should().Be(RutaSolicitudes);
     }
 }
