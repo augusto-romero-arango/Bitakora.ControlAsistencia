@@ -921,6 +921,39 @@ terms:
       capacidad la compondra el asistente encima de este atomo.
     date_added: 2026-08-29
 
+  - name: Borrador de programacion
+    definition: >
+      Lo que el Programador armo y todavia no rige: los turnos programados en los
+      dias de un colaborador que NUNCA se han publicado. Solo Publicar programacion la pone en vigor
+      para el calculo. Existe solo antes de la primera publicacion de cada dia: un dia queda EN FIRME
+      cuando se le publica un turno (o ya tenia programacion previa a esta funcionalidad), y desde
+      entonces sus cambios se aplican directo, como modificacion de la programacion en firme, sin
+      borrador ni nueva publicacion. Un dia vacio dentro del rango publicado no queda en firme. Una
+      solicitud que mezcla ambos se parte. Uno por colaborador, compartido entre programadores. Un
+      borrador vencido (su fecha llego sin publicarse) sigue pendiente y se marca; nada entra en
+      vigor solo. Las ausencias NO pasan por el borrador: siguen en firme. La cancelacion de programacion solo
+      actua sobre dias en firme; cancelar un dia sin publicar lo quita del borrador. Inverso: Descartar
+      borrador. Publicar y descartar admiten tres alcances (colaborador, grupo, todo lo pendiente)
+      con rango de fechas opcional.
+    context: Programacion
+    date_added: 2026-10-31
+    rejected_synonyms: [programacion propuesta, cambios sin publicar, provisional]
+    rejection_reason: >
+      El experto eligio "borrador" (sesion planner 2026-10-31). Es coherente: el glosario lo rechazo
+      para el turno (Turno incompleto, CA-ADR-0033) porque el turno no tiene ciclo de publicacion; la
+      programacion si lo tiene. "Provisional" ya es estado del DiaCalculado.
+    note: "Refinamiento #1405 (2026-11-01): el borrador guarda la COPIA del turno, la sede y la Jornada al programar (como la solicitud, sin sincronizar con el diseno); un turno retirado despues se publica igual; las fechas con ausencia al publicar no se publican y siguen en borrador. Aggregate ProgramacionColaborador (pc:{codigo}). Modelo en CA-ADR-0045 (#1404); desglose #1405-#1412, #1420, #1421. Lo programado antes de la funcionalidad cuenta como en firme (se reconstruye desde las solicitudes y cancelaciones persistidas)."
+
+  - name: Publicar programacion
+    definition: >
+      Acto del Programador que pone en vigor el Borrador de programacion y deja en firme los dias
+      publicados: solo entonces esa programacion viaja a ControlHoras (lote de CA-ADR-0043) y rige el calculo. Evento
+      ProgramacionPublicada, gancho futuro para notificar al colaborador o mostrarle su
+      programacion sin cambios intermedios. Publicar sobre un dia Aprobado no lo mueve.
+    context: Programacion
+    date_added: 2026-10-31
+    note: "CA-ADR-0045 (#1404), #1405 (colaborador), #1409 (grupo y todo lo pendiente)."
+
   - name: Ausencia
     definition: >
       Dia completo en que no se espera que el colaborador trabaje, con un Motivo de ausencia.
@@ -2135,6 +2168,11 @@ external_systems:
 # Backlog de exploracion para futuras sesiones del agente `event-stormer`
 # -------------------------
 open_questions:
+  - question: "Como se entera el colaborador de su programacion publicada? (notificacion o vista propia; hoy el colaborador no se autentica). ProgramacionPublicada queda como gancho (CA-ADR-0045, #1404)."
+    context: Programacion
+    date: 2026-10-31
+    priority: low
+
   - question: "Le decimos empleado, trabajador o colaborador? Que datos nos importan de el?"
     context: Empleados
     date: 2026-04-04
