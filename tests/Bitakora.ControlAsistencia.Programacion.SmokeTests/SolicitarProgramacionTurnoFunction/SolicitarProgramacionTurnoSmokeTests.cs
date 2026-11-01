@@ -437,7 +437,6 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
             SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(1);
     }
 
-
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task SolicitarProgramacionTurno_Retorna201ConListaVaciaDeRespetadas_CuandoElColaboradorNoTieneAusencias()
