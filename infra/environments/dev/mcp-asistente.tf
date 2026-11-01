@@ -66,10 +66,6 @@ module "function_app_mcp_asistente" {
     Identidad__OrganizationMembershipIdInterino = "om-smoke"
     Mcp__ResourceUri                            = module.apim_mcp_asistente.resource_uri
     Mcp__AuthorizationServer                    = var.mcp_authorization_server_url
-    # Interruptor del camino de programacion en lote (#1340, CA-ADR-0043 decision 10).
-    # "true" = camino en lote. Queda prendido en dev para medirlo (CA-ADR-0043, CA-ADR-0044);
-    # se vuelve a "false" (camino por dia) con otro PR si hace falta.
-    Programacion__SolicitudEnFechas = "true"
   }
   tags = local.tags
 }
