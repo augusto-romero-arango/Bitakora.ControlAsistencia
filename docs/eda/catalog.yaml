@@ -63,13 +63,18 @@ events:
       - field: SolicitudId
         type: Guid
         note: "CorrelationId que apunta a la solicitud original"
-      - field: Empleado
-        type: InformacionEmpleado
+      - field: Colaborador
+        type: ResumenColaborador
       - field: Fechas
-        type: List<DateOnly>
+        type: IReadOnlyList<DateOnly>
         note: "Fechas libres de la solicitud"
       - field: DetalleTurno
         type: DetalleTurno
+      - field: Jornada
+        type: DetalleJornada
+      - field: Sede
+        type: DetalleSede?
+        note: "Sede de programacion, opcional"
     published_to: "topic 'programacion-turno-en-fechas-solicitada' del ASB interno; entra por la cola compartida 'actualizar-control-diario' (GroupId = CodigoColaborador)"
     consumed_by: [ControlHoras]  # dominio del mismo BC -> intra-BC, privado
     used_in: ["#10"]
@@ -78,6 +83,12 @@ events:
     context: ControlHoras
     description: Lote de dias depurados de un colaborador, para que ControlHoras los reciba por el bus (CA-ADR-0043)
     visibility: private  # IPrivateEvent: ControlHoras -> ControlHoras
+    payload:
+      - field: CodigoColaborador
+        type: string
+      - field: Dias
+        type: IReadOnlyList<DiaDepurado>
+        note: "Partido por tamano serializado, por debajo de 256 KB"
     published_to: "topic 'dias-depurados' del ASB interno; misma cola 'actualizar-control-diario'"
     consumed_by: [ControlHoras]
 

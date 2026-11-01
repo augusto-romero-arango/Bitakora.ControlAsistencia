@@ -40,7 +40,7 @@ flow:
       description: >
         Un programador define turnos en el catalogo y solicita la programacion
         de un turno para un empleado en fechas concretas. La solicitud viaja en un solo
-        mensaje por colaborador (lote, CA-ADR-0043), que cruza a ControlHoras por Service Bus.
+        mensaje con todas las fechas libres (lote por colaborador, CA-ADR-0043), que cruza a ControlHoras por Service Bus.
       steps:
         - step: 1
           actor: Programador de turnos

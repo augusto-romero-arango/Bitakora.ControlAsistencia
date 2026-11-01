@@ -26,17 +26,19 @@ service_bus:
       description: "Solicitud de programacion de un colaborador con todas sus fechas libres (un mensaje por solicitud)"
       events: [ProgramacionTurnoEnFechasSolicitada]
       subscriptions:
-        - name: actualizar-control-diario
+        - name: control-horas-escucha-programacion-en-fechas
           consumer: ControlHoras
+          forward_to: actualizar-control-diario
           note: "Cola compartida con sesion; GroupId = CodigoColaborador. Handler AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada"
     - name: dias-depurados
       owner: ControlHoras
       description: "Lote de dias depurados de un colaborador (ControlHoras -> ControlHoras)"
       events: [DiasDepurados]
       subscriptions:
-        - name: actualizar-control-diario
+        - name: control-horas-escucha-dias-depurados
           consumer: ControlHoras
-          note: "Misma cola compartida"
+          forward_to: actualizar-control-diario
+          note: "Misma cola compartida. Handler RecibirDepuracionesCuandoDiasDepurados"
     # Ejemplo de estructura (se poblara al usar el eda-modeler):
     # - name: turno-creado
     #   owner: Programacion
