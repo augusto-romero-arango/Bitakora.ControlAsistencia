@@ -24,11 +24,8 @@ public partial class BorradorMensual : AggregateRoot
         _entradas = entradas;
     }
 
-    public void Apply(ProgramacionPublicada e)
-    {
-        Id = ComputarStreamId(e.Colaborador.CodigoColaborador, e.Fechas[0]);
+    public void Apply(ProgramacionPublicada e) =>
         _entradas = _entradas.Where(p => !e.Fechas.Contains(p.Key)).ToDictionary(p => p.Key, p => p.Value);
-    }
 
     internal ResultadoPublicacion Publicar(DateOnly desde, DateOnly hasta, AusenciasColaborador? ausencias)
     {

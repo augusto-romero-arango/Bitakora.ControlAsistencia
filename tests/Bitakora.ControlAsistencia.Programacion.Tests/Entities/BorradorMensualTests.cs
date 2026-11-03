@@ -59,8 +59,7 @@ public class BorradorMensualTests
         borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 6)));
         borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 10, 6)));
 
-        borrador.FechasEnBorrador.Should().BeEquivalentTo(new[] { new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 6) });
-        borrador.FechasEnBorrador.Should().HaveCount(2);
+        borrador.FechasEnBorrador.Should().Equal(new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 6));
     }
 
     [Fact]

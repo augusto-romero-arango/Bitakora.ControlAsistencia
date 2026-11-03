@@ -9,7 +9,7 @@ namespace Bitakora.ControlAsistencia.Programacion.PublicarProgramacionFunction;
 
 public partial class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
-    // \z y no $: "$" acepta un "\n" final. Mismo charset URL-safe que la invariante de #387.
+    // \z y no $: "$" acepta un "\n" final.
     [GeneratedRegex(@"\A[A-Za-z0-9._~-]+\z")]
     private static partial Regex CodigoUrlSafe();
 
