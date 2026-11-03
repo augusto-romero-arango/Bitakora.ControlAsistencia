@@ -9,10 +9,40 @@ public partial class BorradorMensual : AggregateRoot
 
     private IReadOnlyDictionary<DateOnly, EntradaBorrador> _entradas = new Dictionary<DateOnly, EntradaBorrador>();
 
+    private IReadOnlySet<DateOnly> _enFirme = new HashSet<DateOnly>();
+
     internal IReadOnlyList<DateOnly> FechasEnBorrador => [.. _entradas.Keys.Order()];
 
     public static string ComputarStreamId(string codigoColaborador, DateOnly fecha)
         => $"{PrefijoStream}:{codigoColaborador}:{fecha:yyyyMM}";
+
+    public static BorradorMensual Iniciar(ProgramacionTurnoAgregadaAlBorrador evento)
+    {
+        var borrador = new BorradorMensual();
+        borrador._uncommittedEvents.Add(evento);
+        borrador.Apply(evento);
+        return borrador;
+    }
+
+    public IReadOnlyList<DateOnly> Programar(
+        Guid solicitudId,
+        ColaboradorProgramado colaborador,
+        IReadOnlyList<DateOnly> fechas,
+        TurnoProgramado turno,
+        SedeProgramada? sede,
+        JornadaProgramada jornada)
+    {
+        var enFirme = fechas.Where(_enFirme.Contains).ToList();
+        var nuevas = fechas.Where(f => !_enFirme.Contains(f)).ToList();
+        if (nuevas.Count > 0)
+        {
+            var evento = new ProgramacionTurnoAgregadaAlBorrador(
+                solicitudId, colaborador, nuevas, turno, sede, jornada);
+            _uncommittedEvents.Add(evento);
+        }
+
+        return enFirme;
+    }
 
     public void Apply(ProgramacionTurnoAgregadaAlBorrador e)
     {
@@ -24,8 +54,11 @@ public partial class BorradorMensual : AggregateRoot
         _entradas = entradas;
     }
 
-    public void Apply(ProgramacionPublicada e) =>
+    public void Apply(ProgramacionPublicada e)
+    {
         _entradas = _entradas.Where(p => !e.Fechas.Contains(p.Key)).ToDictionary(p => p.Key, p => p.Value);
+        _enFirme = _enFirme.Union(e.Fechas).ToHashSet();
+    }
 
     internal ResultadoPublicacion Publicar(DateOnly desde, DateOnly hasta, AusenciasColaborador? ausencias)
     {

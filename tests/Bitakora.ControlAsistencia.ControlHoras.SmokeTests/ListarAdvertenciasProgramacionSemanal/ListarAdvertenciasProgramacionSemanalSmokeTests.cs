@@ -214,6 +214,11 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
         }, ct);
         solicitud.StatusCode.Should().Be(HttpStatusCode.Created);
 
+        var publicacion = await programacion.PostAsJsonAsync(
+            $"/api/programacion/colaboradores/{codigoColaborador}/borrador:publicar",
+            new { desde = fechas[0], hasta = fechas[^1] }, ct);
+        publicacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
         var filtro = new
         {
             fecha = lunes.AddDays(2),
@@ -308,6 +313,11 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
                 jornadaId
             }, ct);
             solicitud.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            var publicacion = await programacion.PostAsJsonAsync(
+                $"/api/programacion/colaboradores/{codigoColaborador}/borrador:publicar",
+                new { desde = fecha.ToString("yyyy-MM-dd"), hasta = fecha.ToString("yyyy-MM-dd") }, ct);
+            publicacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
         }
 
         await ProgramarAsync(turnoNoche, domingo);
@@ -388,6 +398,11 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
                 jornadaId
             }, ct);
             solicitud.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            var publicacion = await programacion.PostAsJsonAsync(
+                $"/api/programacion/colaboradores/{codigoColaborador}/borrador:publicar",
+                new { desde = fecha.ToString("yyyy-MM-dd"), hasta = fecha.ToString("yyyy-MM-dd") }, ct);
+            publicacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
         }
 
         await ProgramarAsync(turnoNoche, domingo);
@@ -474,6 +489,11 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
                 jornadaId
             }, ct);
             solicitud.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            var publicacion = await programacion.PostAsJsonAsync(
+                $"/api/programacion/colaboradores/{codigoColaborador}/borrador:publicar",
+                new { desde = fecha.ToString("yyyy-MM-dd"), hasta = fecha.ToString("yyyy-MM-dd") }, ct);
+            publicacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
         }
 
         await ProgramarAsync(turnoNoche, domingo);
