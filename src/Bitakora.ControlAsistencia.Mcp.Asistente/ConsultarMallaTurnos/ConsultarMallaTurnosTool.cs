@@ -29,7 +29,8 @@ public partial class ConsultarMallaTurnosTool(
             + "programar y dias fuera de la vinculacion. Sin fecha revisa la PROXIMA semana. Filtra por sede, "
             + "etiquetas (pares categoria:valor) o codigos de colaborador. Pagina por colaborador completo: "
             + "usa cursor para la pagina siguiente. Para el detalle del turno y sus bloques de un dia, usa "
-            + "consultar_programacion; para lo que se sale de la Jornada, consultar_advertencias_programacion.")]
+            + "consultar_programacion; para lo que se sale de la Jornada, consultar_advertencias_programacion. "
+            + "Los dias en borrador (programados y aun sin publicar) van marcados; se ponen en vigor con publicar_programacion.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("fecha", "Cualquier dia de la semana a revisar, formato yyyy-MM-dd. Si se omite, la proxima semana.")]
@@ -79,6 +80,23 @@ public partial class ConsultarMallaTurnosTool(
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 
         var lista = (await respuesta.Content.ReadFromJsonAsync<ListaMallaSemanal>(OpcionesLectura, ct))!;
+
+        var borradores = new Dictionary<(string Codigo, DateOnly Fecha), DiaPendienteBorrador>();
+        if (lista.Elementos.Count > 0)
+        {
+            var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(reloj.GetUtcNow(), ZonaBogota).DateTime);
+            var vista = await _programacion.ListarBorradoresDeProgramacion(
+                hoy, [.. lista.Elementos.Select(f => f.CodigoColaborador)], lunes, domingo, ct);
+
+            if (await vista.LeerFalloAsync(ct) is { } falloVista)
+                return string.Format(Mensajes.RechazoDelDominio, falloVista);
+
+            var pendientes = (await vista.Content.ReadFromJsonAsync<ListaBorradoresPendientes>(OpcionesLectura, ct))!;
+            foreach (var colaborador in pendientes.Elementos)
+                foreach (var dia in colaborador.Dias)
+                    borradores[(colaborador.CodigoColaborador.ToUpperInvariant(), dia.Fecha)] = dia;
+        }
+
         var nombres = candidatos
             .GroupBy(c => c.CodigoColaborador, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().NombreCompleto.Trim(), StringComparer.OrdinalIgnoreCase);
@@ -87,7 +105,8 @@ public partial class ConsultarMallaTurnosTool(
             .Select(f => new ColaboradorEnMalla(
                 f.CodigoColaborador,
                 nombres.GetValueOrDefault(f.CodigoColaborador, string.Empty),
-                [.. f.Casillas.Select(DescribirDia)]))
+                [.. f.Casillas.Select(c => DescribirDia(
+                    c, borradores.GetValueOrDefault((f.CodigoColaborador.ToUpperInvariant(), c.Fecha))))]))
             .ToList();
 
         return RespuestaJson.Serializar(new MallaDeLaSemana(
@@ -99,8 +118,11 @@ public partial class ConsultarMallaTurnosTool(
             lista.SiguienteCursor is null ? null : string.Format(Mensajes.NotaMasColaboradores, lista.SiguienteCursor)));
     }
 
-    private static string DescribirDia(CasillaMallaSemanal c)
+    private static string DescribirDia(CasillaMallaSemanal c, DiaPendienteBorrador? borrador)
     {
+        if (borrador is not null && c.Tipo is not ("Trabajo" or "Descanso" or "Ausencia"))
+            return DescribirBorrador(c.Fecha, borrador);
+
         var estado = c.Tipo switch
         {
             "Trabajo" when c.EsHorarioAbierto => string.Format(
@@ -118,11 +140,30 @@ public partial class ConsultarMallaTurnosTool(
         return $"{Formatear(c.Fecha)} {DiasAbreviados[IndiceIso(c.Fecha)]}: {estado}";
     }
 
-    private static int MinutosOrdinarios(CasillaMallaSemanal c) =>
-        (int)c.Bloques.Where(b => b.Tipo == TipoBloque.Ordinaria).Sum(b => (b.Fin - b.Inicio).TotalMinutes);
+    private static string DescribirBorrador(DateOnly fecha, DiaPendienteBorrador d)
+    {
+        var estado = d.Bloques.Count == 0
+            ? Mensajes.DiaDescanso
+            : d.EsHorarioAbierto
+                ? string.Format(Mensajes.DiaHorarioAbierto, NotacionDuracion.Texto(MinutosOrdinarios(d.Bloques)), SedesDe(d.Bloques))
+                : string.Format(
+                    Mensajes.DiaTrabajo,
+                    string.IsNullOrWhiteSpace(d.HorarioResumido) ? d.NombreTurno : d.HorarioResumido,
+                    SedesDe(d.Bloques));
 
-    private static string SedesDe(CasillaMallaSemanal c) =>
-        string.Join(", ", c.Bloques.Select(b => b.NombreSede).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct());
+        var marcado = string.Format(d.Vencido ? Mensajes.DiaEnBorradorVencido : Mensajes.DiaEnBorrador, estado);
+        return $"{Formatear(fecha)} {DiasAbreviados[IndiceIso(fecha)]}: {marcado}";
+    }
+
+    private static int MinutosOrdinarios(CasillaMallaSemanal c) => MinutosOrdinarios(c.Bloques);
+
+    private static int MinutosOrdinarios(IReadOnlyList<BloqueMallaSemanal> bloques) =>
+        (int)bloques.Where(b => b.Tipo == TipoBloque.Ordinaria).Sum(b => (b.Fin - b.Inicio).TotalMinutes);
+
+    private static string SedesDe(CasillaMallaSemanal c) => SedesDe(c.Bloques);
+
+    private static string SedesDe(IReadOnlyList<BloqueMallaSemanal> bloques) =>
+        string.Join(", ", bloques.Select(b => b.NombreSede).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct());
 
     private (DateOnly Fecha, string? Error) ResolverFecha(string? fecha)
     {
