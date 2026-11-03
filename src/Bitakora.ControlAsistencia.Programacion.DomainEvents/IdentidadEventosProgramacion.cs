@@ -47,6 +47,8 @@ public static class IdentidadEventosProgramacion
         typeof(LimitesDeJornadaDePlantillaDeTurnosSincronizados),
         typeof(JornadaDesactivada),
         typeof(JornadaActivada),
-        typeof(VentanaDeEntradaModificada)
+        typeof(VentanaDeEntradaModificada),
+        typeof(ProgramacionTurnoAgregadaAlBorrador),
+        typeof(ProgramacionPublicada)
     ];
 }
