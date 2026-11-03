@@ -60,6 +60,20 @@ public partial class BorradorMensual : AggregateRoot
         _enFirme = _enFirme.Union(e.Fechas).ToHashSet();
     }
 
+    public void Apply(BorradorDeProgramacionDescartado e) =>
+        _entradas = _entradas.Where(p => !e.Fechas.Contains(p.Key)).ToDictionary(p => p.Key, p => p.Value);
+
+    public void Descartar(IReadOnlyCollection<DateOnly> fechas)
+    {
+        var presentes = fechas.Distinct().Where(_entradas.ContainsKey).Order().ToList();
+        if (presentes.Count == 0)
+            return;
+
+        var evento = new BorradorDeProgramacionDescartado(_entradas[presentes[0]].Colaborador, presentes);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
+
     internal ResultadoPublicacion Publicar(DateOnly desde, DateOnly hasta, AusenciasColaborador? ausencias)
     {
         var enRango = _entradas.Keys.Where(f => f >= desde && f <= hasta).Order().ToList();
