@@ -49,6 +49,7 @@ public class ComposicionDelServidorTests
                 "aplicar_plantilla_semanal_por_grupo", "aplicar_plantilla", "aplicar_plantilla_por_grupo",
                 "programar_ausencia", "cancelar_ausencia", "publicar_programacion",
                 "descartar_borrador_de_programacion",
+                "publicar_programacion_por_grupo", "descartar_borrador_de_programacion_por_grupo",
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
                 "asignar_turno_a_dia_de_plantilla", "asignar_jornada_a_plantilla",
                 "quitar_jornada_de_plantilla", "retirar_plantilla",
@@ -729,6 +730,45 @@ public class ComposicionDelServidorTests
     [Fact]
     public void HostJson_MencionaLaToolDePublicarProgramacion_CuandoSeLeenLasInstructions() =>
         LeerHostJson().Should().Contain("publicar_programacion");
+
+    [Fact]
+    public void PublicarProgramacionPorGrupo_DeclaraTodosSusParametrosOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("publicar_programacion_por_grupo").Should().BeEquivalentTo(
+            [("sede", false), ("etiquetas", false), ("todo_lo_pendiente", false), ("desde", false), ("hasta", false)]);
+
+    [Fact]
+    public void DescartarBorradorDeProgramacionPorGrupo_DeclaraTodosSusParametrosOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("descartar_borrador_de_programacion_por_grupo").Should().BeEquivalentTo(
+            [("sede", false), ("etiquetas", false), ("todo_lo_pendiente", false), ("desde", false), ("hasta", false)]);
+
+    [Fact]
+    public void PublicarProgramacionPorGrupo_DeclaraSusHints_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("publicar_programacion_por_grupo"))!.GetCustomAttribute<McpMetadataAttribute>()!
+            .Json.Should().Contain("\"readOnlyHint\": false")
+            .And.Contain("\"destructiveHint\": false");
+
+    [Fact]
+    public void DescartarBorradorDeProgramacionPorGrupo_DeclaraSusHints_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("descartar_borrador_de_programacion_por_grupo"))!.GetCustomAttribute<McpMetadataAttribute>()!
+            .Json.Should().Contain("\"readOnlyHint\": false")
+            .And.Contain("\"destructiveHint\": true");
+
+    [Fact]
+    public void HostJson_MencionaLasDosToolsDeBorradorPorGrupo_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("publicar_programacion_por_grupo")
+            .And.Contain("descartar_borrador_de_programacion_por_grupo");
+
+    [Fact]
+    public void PublicarProgramacion_RemiteALaToolDeGrupo_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("publicar_programacion"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("publicar_programacion_por_grupo");
+
+    [Fact]
+    public void DescartarBorradorDeProgramacion_RemiteALaToolDeGrupo_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("descartar_borrador_de_programacion"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("descartar_borrador_de_programacion_por_grupo");
 
     [Fact]
     public void SolicitarProgramacionTurnoPorGrupo_DeclaraLaVentanaYElTurnoObligatoriosYLaSedeDeProgramacionOpcional_CuandoSeInspeccionaLaTool() =>

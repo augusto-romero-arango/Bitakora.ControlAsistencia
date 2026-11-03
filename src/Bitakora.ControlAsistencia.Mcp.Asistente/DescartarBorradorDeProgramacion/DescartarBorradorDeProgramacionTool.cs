@@ -29,7 +29,8 @@ public partial class DescartarBorradorDeProgramacionTool(
             + "tal como la devuelve buscarcolaboradores. Con desde y hasta (maximo 366 dias) descarta "
             + "los dias del borrador en ese periodo; sin periodo descarta todo el borrador pendiente del "
             + "colaborador tal como lo registra la consulta de pendientes. Descartar de nuevo lo ya "
-            + "descartado no cambia nada.")]
+            + "descartado no cambia nada. Para descartar el borrador de un grupo usa "
+            + "descartar_borrador_de_programacion_por_grupo.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(

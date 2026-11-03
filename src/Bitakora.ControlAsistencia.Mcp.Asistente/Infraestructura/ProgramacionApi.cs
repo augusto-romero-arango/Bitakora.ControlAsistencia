@@ -150,15 +150,24 @@ public sealed class ProgramacionApi(HttpClient http)
             ct);
 
     public Task<HttpResponseMessage> ListarBorradoresDeProgramacion(
-        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador, CancellationToken ct)
+        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador, CancellationToken ct) =>
+        ListarBorradoresDeProgramacion(fechaReferencia, codigosColaborador, null, null, ct);
+
+    public Task<HttpResponseMessage> ListarBorradoresDeProgramacion(
+        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador,
+        DateOnly? desde, DateOnly? hasta, CancellationToken ct)
     {
+        var cuerpo = new Dictionary<string, object> { ["fechaReferencia"] = fechaReferencia };
+        if (codigosColaborador is { Count: > 0 })
+            cuerpo["colaboradores"] = codigosColaborador;
+        if (desde is { } d)
+            cuerpo["desde"] = d;
+        if (hasta is { } h)
+            cuerpo["hasta"] = h;
+
         var request = new HttpRequestMessage(Query, "api/programacion/borradores")
         {
-            Content = JsonContent.Create(new
-            {
-                fechaReferencia,
-                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null
-            })
+            Content = JsonContent.Create(cuerpo)
         };
 
         return http.SendAsync(request, ct);
