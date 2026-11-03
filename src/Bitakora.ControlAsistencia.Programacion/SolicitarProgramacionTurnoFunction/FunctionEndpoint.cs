@@ -1,6 +1,7 @@
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
+using Marten.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -29,7 +30,7 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         {
             resultado = await commandRouter.InvokeAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion>(comando!, ct);
         }
-        catch (Marten.Exceptions.ExistingStreamIdCollisionException)
+        catch (ExistingStreamIdCollisionException)
         {
             return new ConflictObjectResult(SolicitarProgramacionTurnoCommandHandler.Mensajes.ColisionBorradorMensual);
         }

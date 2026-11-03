@@ -99,9 +99,9 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
         _eventStore.StartStream(solicitud);
 
-        var colaborador = MapearResumenColaborador(command.Colaborador);
         if (enFirme.Count > 0)
         {
+            var colaborador = MapearResumenColaborador(command.Colaborador);
             // Los mapeos viven aqui: esta Function App es el unico proyecto que ve ambos ensamblados
             // (CA-ADR-0029 decision #5, payload por rol).
             var eventoPrivado = new ProgramacionTurnoEnFechasSolicitada(

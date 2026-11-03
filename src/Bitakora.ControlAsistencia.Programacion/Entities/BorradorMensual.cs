@@ -57,7 +57,7 @@ public partial class BorradorMensual : AggregateRoot
     public void Apply(ProgramacionPublicada e)
     {
         _entradas = _entradas.Where(p => !e.Fechas.Contains(p.Key)).ToDictionary(p => p.Key, p => p.Value);
-        _enFirme = new HashSet<DateOnly>(_enFirme.Concat(e.Fechas));
+        _enFirme = _enFirme.Union(e.Fechas).ToHashSet();
     }
 
     internal ResultadoPublicacion Publicar(DateOnly desde, DateOnly hasta, AusenciasColaborador? ausencias)
