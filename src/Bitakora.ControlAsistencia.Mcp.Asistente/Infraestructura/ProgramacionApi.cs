@@ -144,11 +144,25 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> DescartarBorradorDeProgramacion(
         string codigoColaborador, DateOnly desde, DateOnly hasta, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync(
+            $"api/programacion/colaboradores/{Uri.EscapeDataString(codigoColaborador)}/borrador:descartar",
+            new { desde, hasta },
+            ct);
 
     public Task<HttpResponseMessage> ListarBorradoresDeProgramacion(
-        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador, CancellationToken ct) =>
-        throw new NotImplementedException();
+        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador, CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(Query, "api/programacion/borradores")
+        {
+            Content = JsonContent.Create(new
+            {
+                fechaReferencia,
+                colaboradores = codigosColaborador is { Count: > 0 } ? codigosColaborador : null
+            })
+        };
+
+        return http.SendAsync(request, ct);
+    }
 
     public Task<HttpResponseMessage> CancelarAusencia(
         string codigoColaborador, string id, IReadOnlyList<DateOnly> fechas, CancellationToken ct) =>

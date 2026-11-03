@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -11,10 +14,14 @@ public partial class DescartarBorradorDeProgramacionTool(
     private readonly ColaboradoresApi _colaboradores = colaboradores;
     private readonly TimeProvider _reloj = reloj ?? TimeProvider.System;
 
+    private const int MaximoDiasDelPeriodo = 366;
+    private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
+    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
+
     internal const string NombreTool = "descartar_borrador_de_programacion";
 
     [Function("DescartarBorradorDeProgramacion")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Descarta el borrador de programacion de un colaborador: quita los turnos del borrador y "
@@ -36,5 +43,72 @@ public partial class DescartarBorradorDeProgramacionTool(
         [McpToolProperty("hasta", "Ultimo dia del periodo, formato yyyy-MM-dd.", isRequired: false)]
         string? hasta,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (string.IsNullOrWhiteSpace(identificacion))
+            return string.Format(Mensajes.CampoObligatorio, "identificacion");
+        if (string.IsNullOrWhiteSpace(desde) != string.IsNullOrWhiteSpace(hasta))
+            return Mensajes.PeriodoIncompleto;
+
+        DateOnly fechaDesde = default, fechaHasta = default;
+        var conPeriodo = !string.IsNullOrWhiteSpace(desde);
+        if (conPeriodo)
+        {
+            if (!DateOnly.TryParseExact(
+                desde, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out fechaDesde))
+                return string.Format(Mensajes.FechaInvalida, "desde", desde);
+            if (!DateOnly.TryParseExact(
+                hasta, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out fechaHasta))
+                return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
+            if (fechaDesde > fechaHasta)
+                return Mensajes.PeriodoInvertido;
+            if (fechaHasta.DayNumber - fechaDesde.DayNumber + 1 > MaximoDiasDelPeriodo)
+                return Mensajes.PeriodoExcedeElMaximo;
+        }
+
+        var solicitada = identificacion.Trim();
+        var respuestaDirectorio = await _colaboradores.BuscarEnDirectorio([solicitada], 1, ct);
+        if (await respuestaDirectorio.LeerFalloAsync(ct) is { } falloDirectorio)
+            return string.Format(Mensajes.RechazoDelDominio, falloDirectorio);
+        var directorio = (await respuestaDirectorio.Content
+            .ReadFromJsonAsync<SobreDeLista<EntradaDirectorio>>(OpcionesLectura, ct))?.Elementos ?? [];
+
+        var entrada = directorio.FirstOrDefault(e => string.Equals(
+            e.Identificacion.Trim(), solicitada, StringComparison.OrdinalIgnoreCase));
+        if (entrada is null)
+            return string.Format(Mensajes.ColaboradorNoEncontrado, solicitada);
+
+        if (!conPeriodo)
+        {
+            var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(_reloj.GetUtcNow(), ZonaBogota).DateTime);
+            var respuestaVista = await _programacion.ListarBorradoresDeProgramacion(hoy, [entrada.CodigoColaborador], ct);
+            if (await respuestaVista.LeerFalloAsync(ct) is { } falloVista)
+                return string.Format(Mensajes.RechazoDelDominio, falloVista);
+            var pendientes = (await respuestaVista.Content
+                .ReadFromJsonAsync<SobreDeLista<BorradorDeProgramacion>>(OpcionesLectura, ct))?.Elementos ?? [];
+
+            var fechas = pendientes
+                .Where(b => b.CodigoColaborador == entrada.CodigoColaborador)
+                .SelectMany(b => b.Dias)
+                .Select(d => d.Fecha)
+                .ToList();
+            if (fechas.Count == 0)
+                return string.Format(Mensajes.SinBorradorPendiente, entrada.NombreCompleto);
+
+            fechaDesde = fechas.Min();
+            fechaHasta = fechas.Max();
+        }
+
+        foreach (var tramo in CorteEnTramos.Cortar(fechaDesde, fechaHasta, MaximoDiasDelPeriodo))
+        {
+            var respuesta = await _programacion.DescartarBorradorDeProgramacion(entrada.CodigoColaborador, tramo.Desde, tramo.Hasta, ct);
+            if (await respuesta.LeerFalloAsync(ct) is { } rechazo)
+                return string.Format(Mensajes.RechazoDelDominio, rechazo);
+        }
+
+        return RespuestaJson.Serializar(new BorradorDescartadoResumen(
+            Mensajes.ResultadoBorradorDescartado, entrada.NombreCompleto, fechaDesde, fechaHasta));
+    }
 }
+
+public sealed record BorradorDescartadoResumen(
+    string Resultado, string Colaborador, DateOnly Desde, DateOnly Hasta);
