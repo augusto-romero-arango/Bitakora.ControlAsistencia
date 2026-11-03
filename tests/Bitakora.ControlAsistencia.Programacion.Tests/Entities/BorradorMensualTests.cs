@@ -86,6 +86,40 @@ public class BorradorMensualTests
     }
 
     [Fact]
+    public void Descartar_QuitaSoloLasFechasDeLaLista_CuandoNoSonContiguas()
+    {
+        var borrador = new BorradorMensual();
+        borrador.Apply(Agregada(Guid.NewGuid(),
+            new DateOnly(2026, 11, 2), new DateOnly(2026, 11, 3), new DateOnly(2026, 11, 4), new DateOnly(2026, 11, 5)));
+
+        borrador.Descartar([new DateOnly(2026, 11, 2), new DateOnly(2026, 11, 5)]);
+
+        borrador.FechasEnBorrador.Should().Equal(new DateOnly(2026, 11, 3), new DateOnly(2026, 11, 4));
+    }
+
+    [Fact]
+    public void Descartar_IgnoraLasFechasQueNoEstan_CuandoLaListaMezclaFechasAjenas()
+    {
+        var borrador = new BorradorMensual();
+        borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 11, 2), new DateOnly(2026, 11, 3)));
+
+        borrador.Descartar([new DateOnly(2026, 11, 3), new DateOnly(2026, 11, 20)]);
+
+        borrador.FechasEnBorrador.Should().Equal(new DateOnly(2026, 11, 2));
+    }
+
+    [Fact]
+    public void Descartar_NoCambiaNada_CuandoNingunaFechaEstaEnElBorrador()
+    {
+        var borrador = new BorradorMensual();
+        borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 11, 2)));
+
+        borrador.Descartar([new DateOnly(2026, 11, 20)]);
+
+        borrador.FechasEnBorrador.Should().Equal(new DateOnly(2026, 11, 2));
+    }
+
+    [Fact]
     public void Iniciar_NaceConLasFechasNuevas_CuandoElMesNoTenia()
     {
         var borrador = BorradorMensual.Iniciar(Agregada(Guid.NewGuid(), new DateOnly(2026, 11, 2), new DateOnly(2026, 11, 3)));
