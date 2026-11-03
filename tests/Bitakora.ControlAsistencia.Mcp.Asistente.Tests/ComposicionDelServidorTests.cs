@@ -1013,6 +1013,7 @@ public class ComposicionDelServidorTests
             .And.Contain("publicar_programacion")
             .And.Contain("publicar_programacion_por_grupo")
             .And.Contain("descartar_borrador_de_programacion")
-            .And.Contain("descartar_borrador_de_programacion_por_grupo");
+            .And.Contain("descartar_borrador_de_programacion_por_grupo")
+            .And.Contain("preguntale si lo publica");
     }
 }

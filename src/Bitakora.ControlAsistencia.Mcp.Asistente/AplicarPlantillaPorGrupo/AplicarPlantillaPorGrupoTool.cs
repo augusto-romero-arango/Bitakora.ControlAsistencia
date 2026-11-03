@@ -167,7 +167,7 @@ public partial class AplicarPlantillaPorGrupoTool(
             ejecucion.Omitidos,
             ejecucion.Fallidos,
             EjecutorDeProgramacion.ElegirNota(
-                ejecucion.Programados, true, Mensajes.NotaVisibilidadEventual),
+                ejecucion.Programados, porGrupo: true, Mensajes.NotaVisibilidadEventual),
             ejecucion.Avisos));
     }
 }

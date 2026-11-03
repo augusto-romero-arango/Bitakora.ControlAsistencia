@@ -143,33 +143,33 @@ internal static partial class EjecutorDeProgramacion
             {
                 foreach (var envio in enviosDelColaborador)
                 {
-                var solicitud = new SolicitudProgramacionTurno(
-                    Guid.CreateVersion7(),
-                    envio.Turno.Id,
-                    new ColaboradorSolicitado(
-                        envio.Entrada.Identificacion,
-                        envio.Entrada.CodigoColaborador,
-                        envio.Entrada.NombreCompleto),
-                    envio.Dias,
-                    planDeSede.Para(envio.Entrada).Sede,
-                    envio.Entrada.JornadaId);
+                    var solicitud = new SolicitudProgramacionTurno(
+                        Guid.CreateVersion7(),
+                        envio.Turno.Id,
+                        new ColaboradorSolicitado(
+                            envio.Entrada.Identificacion,
+                            envio.Entrada.CodigoColaborador,
+                            envio.Entrada.NombreCompleto),
+                        envio.Dias,
+                        planDeSede.Para(envio.Entrada).Sede,
+                        envio.Entrada.JornadaId);
 
-                var respuestaSolicitud = await programacion.SolicitarProgramacion(solicitud, tokenInterno);
+                    var respuestaSolicitud = await programacion.SolicitarProgramacion(solicitud, tokenInterno);
 
-                if (respuestaSolicitud.IsSuccessStatusCode)
-                {
-                    var (respetadas, enBorrador) = await LeerRespuestaAsync(respuestaSolicitud, tokenInterno);
-                    resultados.Add(new ResultadoEnvio(envio, true, respetadas, enBorrador, null));
-                    if (conPostExitoso.TryAdd(envio.Entrada.Identificacion, 0))
-                        Interlocked.Increment(ref contadores.Programados);
-                }
-                else
-                {
-                    var motivo = await respuestaSolicitud.Content.ReadAsStringAsync(tokenInterno);
-                    resultados.Add(new ResultadoEnvio(envio, false, [], [], motivo));
-                    if (conPostRechazado.TryAdd(envio.Entrada.Identificacion, 0))
-                        Interlocked.Increment(ref contadores.Fallidos);
-                }
+                    if (respuestaSolicitud.IsSuccessStatusCode)
+                    {
+                        var (respetadas, enBorrador) = await LeerRespuestaAsync(respuestaSolicitud, tokenInterno);
+                        resultados.Add(new ResultadoEnvio(envio, true, respetadas, enBorrador, null));
+                        if (conPostExitoso.TryAdd(envio.Entrada.Identificacion, 0))
+                            Interlocked.Increment(ref contadores.Programados);
+                    }
+                    else
+                    {
+                        var motivo = await respuestaSolicitud.Content.ReadAsStringAsync(tokenInterno);
+                        resultados.Add(new ResultadoEnvio(envio, false, [], [], motivo));
+                        if (conPostRechazado.TryAdd(envio.Entrada.Identificacion, 0))
+                            Interlocked.Increment(ref contadores.Fallidos);
+                    }
                 }
             });
 
@@ -258,7 +258,6 @@ internal static partial class EjecutorDeProgramacion
         }
     }
 
-    /// <summary>Elige la nota segun haya dias en borrador: remite a publicar o descartar, o deja la actual.</summary>
     internal static string ElegirNota(
         IReadOnlyList<ColaboradorProgramadoResumen> programados, bool porGrupo, string notaActual) =>
         programados.Any(p => p.EnBorrador is not null)

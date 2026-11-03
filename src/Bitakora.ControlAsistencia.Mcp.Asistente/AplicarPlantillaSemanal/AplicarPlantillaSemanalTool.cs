@@ -157,7 +157,7 @@ public partial class AplicarPlantillaSemanalTool(
             ejecucion.Omitidos + omitidosPorDirectorio,
             ejecucion.Fallidos,
             EjecutorDeProgramacion.ElegirNota(
-                ejecucion.Programados, false, Mensajes.NotaVisibilidadEventual),
+                ejecucion.Programados, porGrupo: false, Mensajes.NotaVisibilidadEventual),
             ejecucion.Avisos));
     }
 }
