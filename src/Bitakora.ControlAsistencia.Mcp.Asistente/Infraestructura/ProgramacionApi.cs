@@ -137,7 +137,10 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> PublicarProgramacion(
         string codigoColaborador, DateOnly desde, DateOnly hasta, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PostAsJsonAsync(
+            $"api/programacion/colaboradores/{Uri.EscapeDataString(codigoColaborador)}/borrador:publicar",
+            new { desde, hasta },
+            ct);
 
     public Task<HttpResponseMessage> CancelarAusencia(
         string codigoColaborador, string id, IReadOnlyList<DateOnly> fechas, CancellationToken ct) =>
