@@ -65,7 +65,7 @@ arquitectura**, sin detalles de implementacion: los nombres se fijan al refinar 
     de ese mes estan en firme. Programar, publicar y descartar actuan por fechas: si cruzan meses (la semana del
     28 de octubre al 3 de noviembre), tocan el borrador de cada mes. El corte acota la historia de cada
     borrador. Es mensual y no anual porque el cruce de periodos ocurre en cada programacion semanal y asi se
-    ejercita siempre, no una vez al ano.
+    ejercita siempre, no solo una vez cada doce meses.
 15. **Lo programado antes de esta decision no cuenta como en firme.** Sigue rigiendo para el calculo (ya esta en
     ControlHoras) y reprogramarlo pasa por el borrador, como cualquier dia sin publicar; al publicarse, lo
     reemplaza. No se reconstruye nada: ese conjunto queda congelado al adoptar la decision, porque desde
@@ -99,7 +99,7 @@ arquitectura**, sin detalles de implementacion: los nombres se fijan al refinar 
   segundo obliga a terminar todo antes de publicar algo.
 - **Un borrador perpetuo por colaborador.** Descartada: su historia crece sin limite con cada mes programado, y
   acotarla despues exige compactar o archivar.
-- **Borrador por ano.** Descartada: el cruce de periodos ocurriria una vez al ano y se perderia sensibilidad a
+- **Borrador anual.** Descartada: el cruce de periodos ocurriria una vez cada doce meses y se perderia sensibilidad a
   esos casos.
 - **Resolver "sin rango" dentro del acto.** Descartada: obliga a buscar en la persistencia que meses tienen
   pendientes, o a que un acto de escritura lea la vista, que llega con retraso.
