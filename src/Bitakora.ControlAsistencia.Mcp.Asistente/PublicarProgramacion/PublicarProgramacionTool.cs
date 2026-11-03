@@ -61,7 +61,7 @@ public partial class PublicarProgramacionTool(ProgramacionApi programacion, Cola
         if (await respuestaDirectorio.LeerFalloAsync(ct) is { } falloDirectorio)
             return string.Format(Mensajes.RechazoDelDominio, falloDirectorio);
         var directorio = (await respuestaDirectorio.Content
-            .ReadFromJsonAsync<SobreDeLista<EntradaDirectorio>>(OpcionesLectura, ct))?.Elementos.ToList() ?? [];
+            .ReadFromJsonAsync<SobreDeLista<EntradaDirectorio>>(OpcionesLectura, ct))?.Elementos ?? [];
 
         var entrada = directorio.FirstOrDefault(e => string.Equals(
             e.Identificacion.Trim(), solicitada, StringComparison.OrdinalIgnoreCase));
