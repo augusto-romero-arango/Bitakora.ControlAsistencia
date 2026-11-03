@@ -4,6 +4,7 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.Infraestructura;
 using Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
+using Bitakora.ControlAsistencia.ReadModels;
 using Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
@@ -1213,5 +1214,48 @@ public class ConfiguracionMartenProjectionsTests
         provider.GetService<IControlHorasProjectionStore>().Should().NotBeNull();
         provider.GetService<IColaboradoresProjectionStore>().Should().NotBeNull();
         provider.GetService<ISedesProjectionStore>().Should().NotBeNull();
+    }
+
+    // Issue #1408: la proyeccion N2 del borrador se registra Async en el worker.
+    [Fact]
+    public void ConfigurarProgramacion_RegistraBorradorDeProgramacionProjectionComoAsync()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        provider.GetRequiredService<IProgramacionProjectionStore>()
+            .AssertProyeccionAsyncRegistrada("BorradorDeProgramacion");
+    }
+
+    [Fact]
+    public void ConfigurarProgramacion_MaterializaBorradorDeProgramacionConRevisionNumerica()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(BorradorDeProgramacion));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ConfigurarProgramacion_MaterializaBorradorDeProgramacionSobreLaTablaQueConsultaElWriteSide()
+    {
+        using var provider = ProviderDeProgramacion();
+
+        var mapping = provider.GetRequiredService<IProgramacionProjectionStore>()
+            .Options.FindOrResolveDocumentType(typeof(BorradorDeProgramacion));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_borradordeprogramacion");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(BorradorDeProgramacion.Id));
+    }
+
+    [Fact]
+    public void BorradorDeProgramacion_LlevaLaMarcaMaterializadoPorProyeccion()
+    {
+        typeof(BorradorDeProgramacion).GetCustomAttributes(typeof(MaterializadoPorProyeccionAttribute), false)
+            .Should().NotBeEmpty();
     }
 }

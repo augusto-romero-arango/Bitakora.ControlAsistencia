@@ -771,4 +771,31 @@ public class ComposicionServiciosTests
             mapping.Metadata.Version.Enabled.Should().BeFalse("version de {0}", tipo.Name);
         }
     }
+
+    // Issue #1408: composicion del endpoint de borradores y par 2 de BorradorDeProgramacion.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveListarBorradoresDeProgramacionEndpoint_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<
+            Bitakora.ControlAsistencia.Programacion.ListarBorradoresDeProgramacion.FunctionEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaBorradorDeProgramacion()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<Marten.IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(BorradorDeProgramacion));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
 }
