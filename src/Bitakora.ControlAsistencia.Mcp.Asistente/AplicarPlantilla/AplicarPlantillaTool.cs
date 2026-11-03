@@ -27,7 +27,7 @@ public partial class AplicarPlantillaTool(
             + "fecha_inicio puede ser anterior a la ventana; para continuar una rotacion ya aplicada, usa la misma fecha_inicio de la vez anterior (preguntala al usuario). "
             + "Los dias de la ventana anteriores a fecha_inicio no se programan. Recibe el id de la plantilla (ubicala con buscar_plantillas), "
             + "la sede de programacion opcional y las identificaciones completas separadas por coma. "
-            + "A cada colaborador le programa solo los dias que su vinculacion cubre y respeta sus ausencias.")]
+            + "A cada colaborador le programa solo los dias que su vinculacion cubre y respeta sus ausencias. Los dias que quedan en el borrador de programacion (enBorrador en la respuesta) no rigen para el calculo hasta publicarlos con publicar_programacion; los dias en firme (enFirme) rigen de una vez. Si el usuario pidio programar y publicar, publica enseguida el mismo periodo; si no, dile que quedo en borrador y preguntale si lo publica.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("plantilla_id", "Id de la plantilla de turnos, tal como lo da buscar_plantillas.", isRequired: true)]
@@ -158,7 +158,8 @@ public partial class AplicarPlantillaTool(
             ejecucion.Programados,
             ejecucion.Omitidos + omitidosPorDirectorio,
             ejecucion.Fallidos,
-            Mensajes.NotaVisibilidadEventual,
+            EjecutorDeProgramacion.ElegirNota(
+                ejecucion.Programados, false, Mensajes.NotaVisibilidadEventual),
             ejecucion.Avisos));
     }
 }

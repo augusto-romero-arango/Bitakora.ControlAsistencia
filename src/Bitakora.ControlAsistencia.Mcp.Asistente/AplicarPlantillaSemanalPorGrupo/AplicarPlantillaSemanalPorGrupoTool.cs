@@ -34,7 +34,7 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
             + "plantilla se ubica con buscar_plantillas, se alinea al lunes de la semana que contiene 'desde' y "
             + "solo aplica plantillas de 7 dias (lunes a domingo); para ciclos de otra longitud usa "
             + "aplicar_plantilla_por_grupo con su fecha de inicio. Para "
-            + "personas concretas usa aplicar_plantilla_semanal.")]
+            + "personas concretas usa aplicar_plantilla_semanal. Los dias que quedan en el borrador de programacion (enBorrador en la respuesta) no rigen para el calculo hasta publicarlos con publicar_programacion_por_grupo; los dias en firme (enFirme) rigen de una vez. Si el usuario pidio programar y publicar, publica enseguida con la misma sede, las mismas etiquetas y el mismo periodo; si no, dile que quedo en borrador y preguntale si lo publica.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("desde", "Primer dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
@@ -165,7 +165,8 @@ public partial class AplicarPlantillaSemanalPorGrupoTool(
             ejecucion.Programados,
             ejecucion.Omitidos,
             ejecucion.Fallidos,
-            Mensajes.NotaVisibilidadEventual,
+            EjecutorDeProgramacion.ElegirNota(
+                ejecucion.Programados, true, Mensajes.NotaVisibilidadEventual),
             ejecucion.Avisos));
     }
 }
