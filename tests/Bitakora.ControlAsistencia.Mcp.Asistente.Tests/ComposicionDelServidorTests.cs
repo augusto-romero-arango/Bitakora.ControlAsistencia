@@ -43,7 +43,7 @@ public class ComposicionDelServidorTests
                 "buscar_plantillas", "listar_plantillas", "obtener_plantilla",
                 "crear_plantilla_semanal", "crear_plantilla", "crear_plantilla_rotativa",
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
-                "consultar_malla_turnos", "consultar_dias_sin_programar",
+                "consultar_malla_turnos", "consultar_dias_sin_programar", "consultar_borradores_de_programacion",
                 "solicitar_programacion_turno",
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
                 "aplicar_plantilla_semanal_por_grupo", "aplicar_plantilla", "aplicar_plantilla_por_grupo",

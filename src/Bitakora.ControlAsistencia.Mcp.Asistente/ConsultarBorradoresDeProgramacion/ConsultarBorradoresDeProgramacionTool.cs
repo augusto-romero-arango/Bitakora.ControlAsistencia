@@ -50,15 +50,16 @@ public partial class ConsultarBorradoresDeProgramacionTool(
         if (hayDesde != hayHasta)
             return Mensajes.RangoIncompleto;
 
-        DateOnly desdeFecha = default, hastaFecha = default;
+        (DateOnly Desde, DateOnly Hasta)? periodo = null;
         if (hayDesde)
         {
-            if (!TryParseFecha(desde, out desdeFecha))
+            if (!TryParseFecha(desde, out var desdeFecha))
                 return string.Format(Mensajes.FechaInvalida, "desde", desde);
-            if (!TryParseFecha(hasta, out hastaFecha))
+            if (!TryParseFecha(hasta, out var hastaFecha))
                 return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
             if (desdeFecha > hastaFecha)
                 return Mensajes.DesdePosteriorAHasta;
+            periodo = (desdeFecha, hastaFecha);
         }
 
         var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(reloj.GetUtcNow(), ZonaBogota).DateTime);
@@ -70,7 +71,7 @@ public partial class ConsultarBorradoresDeProgramacionTool(
         IReadOnlyList<string>? sujetos = codigosPedidos;
         if (sedeNormalizada is not null || filtrosEtiqueta.Count > 0)
         {
-            var grupo = await resolutor.ResolverAsync(hayDesde ? desdeFecha : hoy, sedeNormalizada, filtrosEtiqueta, ct);
+            var grupo = await resolutor.ResolverAsync(periodo?.Desde ?? hoy, sedeNormalizada, filtrosEtiqueta, ct);
             if (grupo.FalloDeLectura is { } falloGrupo)
                 return string.Format(Mensajes.RechazoDelDominio, falloGrupo);
 
@@ -84,9 +85,7 @@ public partial class ConsultarBorradoresDeProgramacionTool(
         }
 
         var respuesta = await api.ListarBorradoresDeProgramacion(
-            hoy, sujetos,
-            hayDesde ? desdeFecha : null, hayHasta ? hastaFecha : null,
-            MaximoColaboradores, string.IsNullOrWhiteSpace(cursor) ? null : cursor, ct);
+            hoy, sujetos, periodo?.Desde, periodo?.Hasta, MaximoColaboradores, string.IsNullOrWhiteSpace(cursor) ? null : cursor, ct);
 
         var fallo = await respuesta.LeerFalloAsync(ct);
         if (fallo is not null)
@@ -99,7 +98,7 @@ public partial class ConsultarBorradoresDeProgramacionTool(
             return string.Format(
                 Mensajes.SinBorradores,
                 criterio.Length == 0 ? "" : $" ({criterio})",
-                hayDesde ? $" entre {Formatear(desdeFecha)} y {Formatear(hastaFecha)}" : "");
+                periodo is { } p ? string.Format(Mensajes.Periodo, Formatear(p.Desde), Formatear(p.Hasta)) : "");
 
         var visibles = lista.Elementos
             .Select(b => new ColaboradorConBorrador(
@@ -107,8 +106,8 @@ public partial class ConsultarBorradoresDeProgramacionTool(
             .ToList();
 
         return RespuestaJson.Serializar(new BorradoresPendientes(
-            hayDesde ? Formatear(desdeFecha) : null,
-            hayDesde ? Formatear(hastaFecha) : null,
+            periodo is null ? null : Formatear(periodo.Value.Desde),
+            periodo is null ? null : Formatear(periodo.Value.Hasta),
             visibles.Count,
             visibles,
             lista.SiguienteCursor,
@@ -167,6 +166,6 @@ public sealed record BorradoresPendientes(
 
 public sealed record ColaboradorConBorrador(
     string Codigo,
-    string? Identificacion,
+    string Identificacion,
     string Nombre,
     IReadOnlyList<string> Dias);

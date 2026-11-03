@@ -42,8 +42,12 @@ public class ConsultarBorradoresDeProgramacionToolTests
                 ["nombreCompleto"] = $"Colaborador {i}",
                 ["dias"] = new JsonArray(new JsonObject
                 {
-                    ["fecha"] = "2026-11-03", ["nombreTurno"] = "Tarde", ["horarioResumido"] = "14:00-22:00",
-                    ["esHorarioAbierto"] = false, ["vencido"] = false, ["bloques"] = new JsonArray()
+                    ["fecha"] = "2026-11-03",
+                    ["nombreTurno"] = "Tarde",
+                    ["horarioResumido"] = "14:00-22:00",
+                    ["esHorarioAbierto"] = false,
+                    ["vencido"] = false,
+                    ["bloques"] = new JsonArray()
                 })
             }).ToArray()),
             ["siguienteCursor"] = cursor

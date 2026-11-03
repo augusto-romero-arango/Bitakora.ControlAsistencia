@@ -20,8 +20,11 @@ public partial class ConsultarBorradoresDeProgramacionTool
         /// <summary>{0}: rechazo del dominio.</summary>
         public static string RechazoDelDominio => ResourceManager.GetString(nameof(RechazoDelDominio))!;
 
-        /// <summary>{0}: criterio entre parentesis o vacio, {1}: periodo (" entre X y Y") o vacio.</summary>
+        /// <summary>{0}: criterio entre parentesis o vacio, {1}: <see cref="Periodo"/> o vacio.</summary>
         public static string SinBorradores => ResourceManager.GetString(nameof(SinBorradores))!;
+
+        /// <summary>{0}: desde, {1}: hasta.</summary>
+        public static string Periodo => ResourceManager.GetString(nameof(Periodo))!;
 
         /// <summary>{0}: criterio.</summary>
         public static string GrupoSinColaboradores => ResourceManager.GetString(nameof(GrupoSinColaboradores))!;

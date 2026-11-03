@@ -35,6 +35,9 @@
   <data name="SinBorradores" xml:space="preserve">
     <value>No hay borrador de programacion pendiente{0}{1}.</value>
   </data>
+  <data name="Periodo" xml:space="preserve">
+    <value> entre {0} y {1}</value>
+  </data>
   <data name="GrupoSinColaboradores" xml:space="preserve">
     <value>No hay colaboradores vinculados vigentes que cumplan el criterio ({0}).</value>
   </data>
