@@ -8,7 +8,7 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.DescartarBorradorDeProgramacion;
 
-public class DescartarBorradorDeProgramacionToolSinPeriodoTests
+public class DescartarBorradorDeProgramacionToolTests
 {
     private const string RutaActo = "/api/programacion/colaboradores/AR01/borrador:descartar";
     private const string RutaVista = "/api/programacion/borradores";
@@ -23,7 +23,9 @@ public class DescartarBorradorDeProgramacionToolSinPeriodoTests
     private static Fakes CrearTool(
         string vistaJson,
         HttpStatusCode statusVista = HttpStatusCode.OK,
-        Func<HttpRequestMessage, string?, HttpResponseMessage>? acto = null)
+        Func<HttpRequestMessage, string?, HttpResponseMessage>? acto = null,
+        string? directorioJson = null,
+        HttpStatusCode statusDirectorio = HttpStatusCode.OK)
     {
         var (clienteProgramacion, handlerProgramacion) = ClienteFalso.ConRutas();
         handlerProgramacion.Responde(Query, RutaVista, statusVista, vistaJson);
@@ -31,7 +33,8 @@ public class DescartarBorradorDeProgramacionToolSinPeriodoTests
             HttpMethod.Post, RutaActo, acto ?? ((_, _) => new HttpResponseMessage(HttpStatusCode.NoContent)));
 
         var (clienteColaboradores, handlerColaboradores) =
-            ClienteFalso.Con(Fixtures.Leer("DescartarBorradorDeProgramacion", "directorio.json"));
+            ClienteFalso.Con(
+                directorioJson ?? Fixtures.Leer("DescartarBorradorDeProgramacion", "directorio.json"), statusDirectorio);
         var tool = new DescartarBorradorDeProgramacionTool(
             new ProgramacionApi(clienteProgramacion), new ColaboradoresApi(clienteColaboradores), RelojDeNoche);
         return new Fakes(tool, handlerProgramacion, handlerColaboradores);
@@ -235,6 +238,19 @@ public class DescartarBorradorDeProgramacionToolSinPeriodoTests
         var resultado = await Ejecutar(fakes.Tool, identificacion: "CC-9999");
 
         resultado.Should().Be(string.Format(DescartarBorradorDeProgramacionTool.Mensajes.ColaboradorNoEncontrado, "CC-9999"));
+        fakes.Programacion.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DescartarBorradorDeProgramacion_DevuelveElRechazoComoTextoSinLlamar_CuandoElDirectorioRechaza()
+    {
+        const string rechazo = "Directorio no disponible";
+        var fakes = CrearTool(
+            Vista("borradores.json"), directorioJson: rechazo, statusDirectorio: HttpStatusCode.ServiceUnavailable);
+
+        var resultado = await Ejecutar(fakes.Tool, desde: "2026-09-01", hasta: "2026-09-03");
+
+        resultado.Should().Be(string.Format(DescartarBorradorDeProgramacionTool.Mensajes.RechazoDelDominio, rechazo));
         fakes.Programacion.Requests.Should().BeEmpty();
     }
 }

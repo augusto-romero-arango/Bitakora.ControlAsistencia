@@ -10,15 +10,15 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.DescartarBorradorDeProgramaci
 public partial class DescartarBorradorDeProgramacionTool(
     ProgramacionApi programacion, ColaboradoresApi colaboradores, TimeProvider? reloj = null)
 {
-    private readonly ProgramacionApi _programacion = programacion;
-    private readonly ColaboradoresApi _colaboradores = colaboradores;
+    internal const string NombreTool = "descartar_borrador_de_programacion";
+
     private readonly TimeProvider _reloj = reloj ?? TimeProvider.System;
 
     private const int MaximoDiasDelPeriodo = 366;
-    private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
-    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
-    internal const string NombreTool = "descartar_borrador_de_programacion";
+    private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
+
+    private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     [Function("DescartarBorradorDeProgramacion")]
     public async Task<string> Run(
@@ -26,7 +26,7 @@ public partial class DescartarBorradorDeProgramacionTool(
             NombreTool,
             "Descarta el borrador de programacion de un colaborador: quita los turnos del borrador y "
             + "esos dias quedan sin programar. No toca lo publicado. Recibe la identificacion completa "
-            + "tal como la devuelve buscar_colaboradores. Con desde y hasta (maximo 366 dias) descarta "
+            + "tal como la devuelve buscarcolaboradores. Con desde y hasta (maximo 366 dias) descarta "
             + "los dias del borrador en ese periodo; sin periodo descarta todo el borrador pendiente del "
             + "colaborador tal como lo registra la consulta de pendientes. Descartar de nuevo lo ya "
             + "descartado no cambia nada.")]
@@ -66,7 +66,7 @@ public partial class DescartarBorradorDeProgramacionTool(
         }
 
         var solicitada = identificacion.Trim();
-        var respuestaDirectorio = await _colaboradores.BuscarEnDirectorio([solicitada], 1, ct);
+        var respuestaDirectorio = await colaboradores.BuscarEnDirectorio([solicitada], 1, ct);
         if (await respuestaDirectorio.LeerFalloAsync(ct) is { } falloDirectorio)
             return string.Format(Mensajes.RechazoDelDominio, falloDirectorio);
         var directorio = (await respuestaDirectorio.Content
@@ -80,7 +80,7 @@ public partial class DescartarBorradorDeProgramacionTool(
         if (!conPeriodo)
         {
             var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(_reloj.GetUtcNow(), ZonaBogota).DateTime);
-            var respuestaVista = await _programacion.ListarBorradoresDeProgramacion(hoy, [entrada.CodigoColaborador], ct);
+            var respuestaVista = await programacion.ListarBorradoresDeProgramacion(hoy, [entrada.CodigoColaborador], ct);
             if (await respuestaVista.LeerFalloAsync(ct) is { } falloVista)
                 return string.Format(Mensajes.RechazoDelDominio, falloVista);
             var pendientes = (await respuestaVista.Content
@@ -100,7 +100,7 @@ public partial class DescartarBorradorDeProgramacionTool(
 
         foreach (var tramo in CorteEnTramos.Cortar(fechaDesde, fechaHasta, MaximoDiasDelPeriodo))
         {
-            var respuesta = await _programacion.DescartarBorradorDeProgramacion(entrada.CodigoColaborador, tramo.Desde, tramo.Hasta, ct);
+            var respuesta = await programacion.DescartarBorradorDeProgramacion(entrada.CodigoColaborador, tramo.Desde, tramo.Hasta, ct);
             if (await respuesta.LeerFalloAsync(ct) is { } rechazo)
                 return string.Format(Mensajes.RechazoDelDominio, rechazo);
         }
