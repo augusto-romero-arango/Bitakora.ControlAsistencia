@@ -27,6 +27,9 @@ public class FunctionEndpointTests
         return resultado.Should().BeAssignableTo<IStatusCodeActionResult>().Subject.StatusCode;
     }
 
+    private static Task<int?> EjecutarConTakeAsync(int take) =>
+        EjecutarAsync($$"""{"fechaReferencia":"2026-10-13","take":{{take}}}""");
+
     [Fact]
     public async Task ListarBorradoresDeProgramacion_Retorna415_CuandoElContentTypeNoEsJson() =>
         (await EjecutarAsync("{}", "text/plain")).Should().Be(StatusCodes.Status415UnsupportedMediaType);
@@ -48,13 +51,17 @@ public class FunctionEndpointTests
         (await EjecutarAsync("""{"fechaReferencia":"2026-10-13","desde":"2026-10-19","hasta":"2026-10-13"}"""))
             .Should().Be(StatusCodes.Status422UnprocessableEntity);
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    [InlineData(201)]
-    public async Task ListarBorradoresDeProgramacion_Retorna422_CuandoTakeEstaFueraDeRango(int take) =>
-        (await EjecutarAsync($$"""{"fechaReferencia":"2026-10-13","take":{{take}}}"""))
-            .Should().Be(StatusCodes.Status422UnprocessableEntity);
+    [Fact]
+    public async Task ListarBorradoresDeProgramacion_Retorna422_CuandoTakeEsCero() =>
+        (await EjecutarConTakeAsync(0)).Should().Be(StatusCodes.Status422UnprocessableEntity);
+
+    [Fact]
+    public async Task ListarBorradoresDeProgramacion_Retorna422_CuandoTakeEsNegativo() =>
+        (await EjecutarConTakeAsync(-1)).Should().Be(StatusCodes.Status422UnprocessableEntity);
+
+    [Fact]
+    public async Task ListarBorradoresDeProgramacion_Retorna422_CuandoTakeSuperaElMaximo() =>
+        (await EjecutarConTakeAsync(201)).Should().Be(StatusCodes.Status422UnprocessableEntity);
 
     [Fact]
     public async Task ListarBorradoresDeProgramacion_Retorna422_CuandoElCursorEsInvalido() =>

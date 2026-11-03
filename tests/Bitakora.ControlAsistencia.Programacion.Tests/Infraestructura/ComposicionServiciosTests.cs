@@ -772,7 +772,6 @@ public class ComposicionServiciosTests
         }
     }
 
-    // Issue #1408: composicion del endpoint de borradores y par 2 de BorradorDeProgramacion.
     [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveListarBorradoresDeProgramacionEndpoint_CuandoElContenedorEstaCompuesto()
     {
@@ -797,5 +796,20 @@ public class ComposicionServiciosTests
         mapping.Metadata.Revision.Enabled.Should().BeTrue();
         mapping.Metadata.Revision.Type.Should().Be("bigint");
         mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Segunda dimension del par 2 para BorradorDeProgramacion: tabla, tenancy e IdMember del worker.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveBorradorDeProgramacionSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(BorradorDeProgramacion));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_borradordeprogramacion");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(BorradorDeProgramacion.Id));
     }
 }

@@ -10,8 +10,6 @@ namespace Bitakora.ControlAsistencia.Projections.Programacion;
 /// </summary>
 public sealed partial class BorradorDeProgramacionProjection : MultiStreamProjection<BorradorDeProgramacion, string>
 {
-    private const int MinutosPorDia = 1440;
-
     public BorradorDeProgramacionProjection()
     {
         Identity<ProgramacionTurnoAgregadaAlBorrador>(e => e.Colaborador.CodigoColaborador);
@@ -62,50 +60,28 @@ public sealed partial class BorradorDeProgramacionProjection : MultiStreamProjec
         return dias.Count == 0 ? null : vista with { Dias = dias };
     }
 
-    private static List<DiaDeBorrador> CasillasDe(ProgramacionTurnoAgregadaAlBorrador e) =>
-        e.Fechas.Distinct()
+    // La sede de programacion rellena las franjas sin sede; la aritmetica de bloques vive en
+    // TurnoProgramado.Segmentar (MEF-ADR-0012).
+    private static List<DiaDeBorrador> CasillasDe(ProgramacionTurnoAgregadaAlBorrador e)
+    {
+        var turno = e.DetalleTurno.ConSedePorDefecto(e.Sede);
+        return e.Fechas.Distinct()
             .Select(fecha => new DiaDeBorrador(
                 fecha,
-                e.DetalleTurno.Nombre,
-                e.DetalleTurno.Descripcion,
-                BloquesDe(e, fecha),
-                e.DetalleTurno.EsHorarioAbierto))
-            .ToList();
-
-    private static List<Bloque> BloquesDe(ProgramacionTurnoAgregadaAlBorrador e, DateOnly fecha)
-    {
-        var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
-        return e.DetalleTurno.FranjasOrdinarias
-            .SelectMany(f => Recortar(f, f.Sede ?? e.Sede))
-            .Select(t => new Bloque(t.Tipo, medianoche.AddMinutes(t.Inicio), medianoche.AddMinutes(t.Fin),
-                t.Sede?.Id, t.Sede?.Nombre))
+                turno.Nombre,
+                turno.Descripcion,
+                turno.Segmentar(fecha).Select(MapearBloque).ToList(),
+                turno.EsHorarioAbierto))
             .ToList();
     }
 
-    private static IEnumerable<(TipoBloque Tipo, int Inicio, int Fin, SedeProgramada? Sede)> Recortar(
-        FranjaProgramada franja, SedeProgramada? sede)
+    private static readonly Dictionary<TipoBloqueProgramado, TipoBloque> Tipos = new()
     {
-        var subs = franja.Descansos
-            .Select(d => (Tipo: TipoBloque.Descanso, Inicio: Minutos(d.HoraInicio, d.DiaOffsetInicio),
-                Fin: Minutos(d.HoraFin, d.DiaOffsetFin)))
-            .Concat(franja.Extras.Select(x => (Tipo: TipoBloque.Extra, Inicio: Minutos(x.HoraInicio, x.DiaOffsetInicio),
-                Fin: Minutos(x.HoraFin, x.DiaOffsetFin))))
-            .OrderBy(s => s.Inicio);
+        [TipoBloqueProgramado.Ordinaria] = TipoBloque.Ordinaria,
+        [TipoBloqueProgramado.Descanso] = TipoBloque.Descanso,
+        [TipoBloqueProgramado.Extra] = TipoBloque.Extra
+    };
 
-        var finFranja = Minutos(franja.HoraFin, franja.DiaOffsetFin);
-        var cursor = Minutos(franja.HoraInicio, 0);
-        foreach (var sub in subs)
-        {
-            if (sub.Inicio > cursor)
-                yield return (TipoBloque.Ordinaria, cursor, sub.Inicio, sede);
-            yield return (sub.Tipo, sub.Inicio, sub.Fin, sede);
-            cursor = sub.Fin;
-        }
-
-        if (cursor < finFranja)
-            yield return (TipoBloque.Ordinaria, cursor, finFranja, sede);
-    }
-
-    private static int Minutos(TimeOnly hora, int diaOffset) =>
-        hora.Hour * 60 + hora.Minute + diaOffset * MinutosPorDia;
+    private static Bloque MapearBloque(BloqueProgramado bloque) =>
+        new(Tipos[bloque.Tipo], bloque.Inicio, bloque.Fin, bloque.Sede?.Id, bloque.Sede?.Nombre);
 }

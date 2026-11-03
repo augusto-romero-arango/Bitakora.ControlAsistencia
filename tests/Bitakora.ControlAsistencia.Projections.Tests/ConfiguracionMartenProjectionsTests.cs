@@ -1216,7 +1216,6 @@ public class ConfiguracionMartenProjectionsTests
         provider.GetService<ISedesProjectionStore>().Should().NotBeNull();
     }
 
-    // Issue #1408: la proyeccion N2 del borrador se registra Async en el worker.
     [Fact]
     public void ConfigurarProgramacion_RegistraBorradorDeProgramacionProjectionComoAsync()
     {

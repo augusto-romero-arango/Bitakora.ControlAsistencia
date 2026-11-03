@@ -95,6 +95,28 @@ public class BorradorDeProgramacionProjectionTests
                 Oct(14).ToDateTime(new TimeOnly(6, 0))));
     }
 
+    // CA-1: el descanso parte la franja en bloques ordinarios alrededor suyo, con la misma sede.
+    [Fact]
+    public void Create_ParteLaFranjaEnBloques_CuandoLaFranjaTraeUnDescanso()
+    {
+        var sede = new SedeProgramada("sede-1", "Sede Norte");
+        var conDescanso = new TurnoProgramado("Turno Manana",
+            [new FranjaProgramada(new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+                [new SubFranjaProgramada(new TimeOnly(10, 0), new TimeOnly(10, 30), 0, 0, "(10:00-10:30)")],
+                [], "(06:00-14:00)", sede)],
+            "Turno Manana: (06:00-14:00)");
+
+        var vista = BorradorDeProgramacionProjection.Create(Agregar(conDescanso, null, Oct(13)));
+
+        vista.Dias.Single().Bloques.Should().Equal(
+            new BloqueVista(TipoBloqueVista.Ordinaria, Oct(13).ToDateTime(new TimeOnly(6, 0)),
+                Oct(13).ToDateTime(new TimeOnly(10, 0)), "sede-1", "Sede Norte"),
+            new BloqueVista(TipoBloqueVista.Descanso, Oct(13).ToDateTime(new TimeOnly(10, 0)),
+                Oct(13).ToDateTime(new TimeOnly(10, 30)), "sede-1", "Sede Norte"),
+            new BloqueVista(TipoBloqueVista.Ordinaria, Oct(13).ToDateTime(new TimeOnly(10, 30)),
+                Oct(13).ToDateTime(new TimeOnly(14, 0)), "sede-1", "Sede Norte"));
+    }
+
     [Fact]
     public void Create_MarcaLaCasillaComoHorarioAbierto_CuandoElTurnoEsDeHorarioAbierto()
     {
