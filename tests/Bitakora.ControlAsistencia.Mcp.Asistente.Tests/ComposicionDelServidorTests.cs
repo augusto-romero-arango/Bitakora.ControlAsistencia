@@ -1004,4 +1004,15 @@ public class ComposicionDelServidorTests
         instructions.Should().Contain("asignar_etiqueta");
         instructions.Should().Contain("retirar_etiqueta");
     }
+
+    [Fact]
+    public void HostJson_ExplicaElCicloDelBorradorDeProgramacion_CuandoSeLeenLasInstructions()
+    {
+        var host = LeerHostJson();
+        host.Should().Contain("enBorrador").And.Contain("enFirme")
+            .And.Contain("publicar_programacion")
+            .And.Contain("publicar_programacion_por_grupo")
+            .And.Contain("descartar_borrador_de_programacion")
+            .And.Contain("descartar_borrador_de_programacion_por_grupo");
+    }
 }

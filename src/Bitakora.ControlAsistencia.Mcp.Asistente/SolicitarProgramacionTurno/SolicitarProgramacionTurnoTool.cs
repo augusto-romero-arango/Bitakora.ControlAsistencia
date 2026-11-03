@@ -192,7 +192,8 @@ public sealed record SedeResumen(string Codigo, string Nombre);
 
 public sealed record ColaboradorProgramadoResumen(
     string Identificacion, string Nombre, string CodigoColaborador, DateOnly Desde, DateOnly Hasta, int Dias,
-    IReadOnlyList<DiasRespetadosResumen>? Respetados = null, string? Sede = null);
+    IReadOnlyList<DiasRespetadosResumen>? Respetados = null, string? Sede = null,
+    string? EnBorrador = null, string? EnFirme = null);
 
 public sealed record DiasRespetadosResumen(string Motivo, string Tramos);
 
