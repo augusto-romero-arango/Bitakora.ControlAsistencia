@@ -30,7 +30,8 @@ public partial class PublicarProgramacionTool(
             + "(maximo 366 dias) publica los dias del borrador en ese periodo; si acabas de programar, "
             + "pasa ese mismo periodo. Sin periodo publica todo el borrador pendiente del colaborador "
             + "tal como lo registra la consulta de pendientes, que tarda unos segundos en reflejar lo "
-            + "recien programado. Publicar de nuevo lo ya publicado no cambia nada.")]
+            + "recien programado. Publicar de nuevo lo ya publicado no cambia nada. Para publicar el "
+            + "borrador de un grupo usa publicar_programacion_por_grupo.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(

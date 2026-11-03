@@ -12,7 +12,7 @@ public partial class PublicarProgramacionPorGrupoTool(
     internal const string NombreTool = "publicar_programacion_por_grupo";
 
     [Function("PublicarProgramacionPorGrupo")]
-    public Task<string> Run(
+    public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
             "Publica el borrador de programacion de un grupo de colaboradores, definido por sede y/o etiquetas (los dos criterios se combinan), o de todos los que tienen borrador pendiente (todo_lo_pendiente). Solo lo publicado rige para el calculo. Con desde y hasta publica los dias del borrador en ese rango (maximo 366 dias); sin rango publica todos los dias pendientes de cada colaborador. Para un colaborador usa publicar_programacion; los fallidos se reintentan con esa tool.")]
@@ -28,7 +28,24 @@ public partial class PublicarProgramacionPorGrupoTool(
         string? desde,
         [McpToolProperty("hasta", "Ultimo dia del rango, formato yyyy-MM-dd.", isRequired: false)]
         string? hasta,
-        CancellationToken ct) => throw new NotImplementedException();
+        CancellationToken ct)
+    {
+        var mensajes = new MensajesDeActoPorGrupo(
+            Mensajes.AlcanceObligatorio, Mensajes.AlcanceExcluyente, Mensajes.EtiquetaMalFormada,
+            Mensajes.SedeDelSelectorNoExiste, Mensajes.SedeDelSelectorInactiva, Mensajes.RechazoDelDominio,
+            Mensajes.FechaInvalida, Mensajes.RangoIncompleto, Mensajes.RangoInvertido,
+            Mensajes.RangoExcedeElMaximo, Mensajes.AlcanceTodoLoPendiente, Mensajes.SinRango);
+        var resultado = await EjecutorDeActoPorGrupo.EjecutarAsync(
+            new SolicitudDeActoPorGrupo(sede, etiquetas, todoLoPendiente, desde, hasta),
+            programacion, resolutorSedes, resolutorCandidatos, programacion.PublicarProgramacion,
+            reloj ?? TimeProvider.System, mensajes, ct);
+        if (resultado.Rechazo is not null)
+            return resultado.Rechazo;
+
+        return RespuestaJson.Serializar(new PublicarProgramacionPorGrupoResumen(
+            Mensajes.ResultadoProgramacionPublicada, resultado.Alcance, resultado.Rango, resultado.Colaboradores,
+            resultado.Fallidos, Mensajes.Nota));
+    }
 }
 
 public sealed record PublicarProgramacionPorGrupoResumen(
