@@ -664,6 +664,16 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
+    public void ConsultarMallaTurnos_LaDescripcionMarcaLosDiasEnBorradorYRemiteAPublicar_CuandoSeInspeccionaLaTool()
+    {
+        var descripcion = MetodoDe("consultar_malla_turnos").GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolTriggerAttribute>())
+            .Single(a => a is not null)!.Description;
+
+        descripcion.Should().Contain("borrador").And.Contain("publicar_programacion");
+    }
+
+    [Fact]
     public void ConsultarAdvertenciasProgramacion_TodosSusParametrosSonString_CuandoSeInspeccionaLaTool() =>
         MetodoDe("consultar_advertencias_programacion").GetParameters()
             .Where(p => p.GetCustomAttribute<McpToolPropertyAttribute>() is not null)

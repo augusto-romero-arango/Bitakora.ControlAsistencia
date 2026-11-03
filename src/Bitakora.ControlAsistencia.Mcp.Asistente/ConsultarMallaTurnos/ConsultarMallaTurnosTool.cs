@@ -9,8 +9,10 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarMallaTurnos;
 
 public partial class ConsultarMallaTurnosTool(
-    ControlHorasApi controlHoras, ResolutorCandidatosPorGrupo resolutor, TimeProvider reloj)
+    ControlHorasApi controlHoras, ProgramacionApi programacion, ResolutorCandidatosPorGrupo resolutor, TimeProvider reloj)
 {
+    private readonly ProgramacionApi _programacion = programacion;
+
     internal const string NombreTool = "consultar_malla_turnos";
     internal const int MaximoColaboradores = 50;
     private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
