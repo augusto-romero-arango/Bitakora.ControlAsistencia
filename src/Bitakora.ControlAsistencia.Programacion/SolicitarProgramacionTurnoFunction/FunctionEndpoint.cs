@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
+using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -27,6 +28,10 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         try
         {
             resultado = await commandRouter.InvokeAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion>(comando!, ct);
+        }
+        catch (Marten.Exceptions.ExistingStreamIdCollisionException)
+        {
+            return new ConflictObjectResult(SolicitarProgramacionTurnoCommandHandler.Mensajes.ColisionBorradorMensual);
         }
         catch (PrecondicionComandoException ex)
         {
