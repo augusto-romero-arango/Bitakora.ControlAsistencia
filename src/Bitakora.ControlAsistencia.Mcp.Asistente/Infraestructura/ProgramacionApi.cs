@@ -173,6 +173,11 @@ public sealed class ProgramacionApi(HttpClient http)
         return http.SendAsync(request, ct);
     }
 
+    public Task<HttpResponseMessage> ListarBorradoresDeProgramacion(
+        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador,
+        DateOnly? desde, DateOnly? hasta, int? take, string? cursor, CancellationToken ct) =>
+        throw new NotImplementedException();
+
     public Task<HttpResponseMessage> CancelarAusencia(
         string codigoColaborador, string id, IReadOnlyList<DateOnly> fechas, CancellationToken ct) =>
         http.PostAsJsonAsync(
