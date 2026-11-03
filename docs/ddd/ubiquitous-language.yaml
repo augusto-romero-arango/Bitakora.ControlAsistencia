@@ -4,7 +4,13 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-31 (sesion planner, refinar #1290: el experto reenfoca la investigacion
+# Ultima actualizacion: 2026-11-01 (sesion planner, accionable de #1290: se ACUNA Modalidad de jornada
+#   (termino de Mintrabajo, Concepto 115750/2026) como atributo OPCIONAL de la Jornada con catalogo
+#   cerrado; dos capas de advertencias (contra lo pactado y contra la ley); el sistema advierte, no
+#   certifica. Nace Descanso acumulado (art. 184, marca propia de la Jornada). Rechazados Regimen de
+#   jornada, Jornada especial y Tipo de jornada. Tocadas: Jornada, pregunta abierta del periodo de
+#   medicion. Issues #1435-#1445; #1411 actualizado.)
+# Actualizacion previa: 2026-10-31 (sesion planner, refinar #1290: el experto reenfoca la investigacion
 #   del control de jornada a un CATALOGO DE MODALIDADES LEGALES con nombre propio (CST arts. 161-166),
 #   cada una con sus reglas medibles, para que el Programador ponga esas reglas a la Jornada. Entregable:
 #   docs/referencia/modalidades_jornada_colombia.md. "Modalidad de jornada" es nombre PROVISIONAL, no se
@@ -1324,6 +1330,49 @@ terms:
       SIN GENERAL EN MEMORIA (2026-10-07, #901): "General" ya no es una Jornada con Guid fijo; es
       solo el nombre coloquial de los VALORES INICIALES de la predeterminada (42 h semanales,
       tope diario 8 h, minimo diario 0, 1 dia de descanso -- CST arts. 161 y 172).
+      ENMIENDA 2026-11-01 (sesion planner, CA-ADR-0046 en #1435; se formaliza al registrar el ADR): la
+      Jornada puede declarar una Modalidad de jornada (opcional) y la marca de Descanso acumulado. Lo
+      pactado sigue siendo valor exacto; la modalidad agrega TECHOS de ley con sus propias advertencias.
+      El principio "no impone modalidades legales ni certifica cumplimiento" se enmienda a: ADVIERTE
+      contra la modalidad declarada, NO certifica ni bloquea. Sin modalidad = pactada libre.
+
+  - name: Modalidad de jornada
+    definition: >
+      Marco legal bajo el que se pacto una Jornada, de un catalogo CERRADO que el sistema codifica (como
+      el Festivo colombiano) con las reglas medibles de la ley: tope diario, minimo diario, techo
+      semanal y descansos. Atributo OPCIONAL de la Jornada (sin ella = pactada libre, solo advertencias
+      contra lo pactado). Primer catalogo: Ordinaria (161 inc. 1), Flexible (161 lit. a), Turnos
+      sucesivos (161 lit. d), Sin solucion de continuidad (166), Excluidos (162). Fuera por ahora:
+      Menores (franja y edad), Turnos con promedio (165, requiere periodo de medicion, #1444) e
+      Insalubres (161 lit. b, sin cifras). Viaja estampada al programar con los techos vigentes a la
+      fecha del dia. Las advertencias de ley orientan: "sin advertencias contra la modalidad X", nunca
+      "conforme a la ley".
+    context: Programacion
+    date_added: 2026-11-01
+    rejected_synonyms: [Regimen de jornada, Jornada especial, Tipo de jornada]
+    rejection_reason: >
+      El CST no tiene termino generico (dice jornada ordinaria y llama excepciones a los literales del
+      161); Mintrabajo dice "modalidades de jornadas laborales" (Concepto 115750/2026, via Accounter).
+      "Regimen" solo lo usa motor_horas_colombia_v2.md; "Jornada especial" deja fuera a la ordinaria
+      y Mintrabajo lo reserva para lo atipico (14x7, 7x7); "Tipo" no dice que es un marco legal.
+    note: >
+      La "modalidad" de las tools MCP (CA-ADR-0039) y el campo de telemetria Modalidad de
+      EjecutorDeProgramacion son tecnicos, no de dominio; la Plantilla semanal en modalidad semanal es
+      historica. Fuente: docs/referencia/modalidades_jornada_colombia.md (#1290). Issues #1435-#1444.
+      Pendiente (#1435): si dos Jornadas con los mismos limites y distinta modalidad pueden convivir.
+
+  - name: Descanso acumulado
+    definition: >
+      Marca opcional de la Jornada, independiente de su modalidad, para operaciones cuyo descanso no
+      cae cada semana sino que se acumula (art. 184 CST; ciclos 14x14, 20x10). Cambia la medicion de la
+      semana sin dia de descanso: se debe un dia de descanso por cada semana de trabajo seguido, tomados
+      en la semana siguiente al fin de la racha.
+    context: Programacion
+    date_added: 2026-11-01
+    note: >
+      El art. 184 habla de labores que no pueden suspenderse "como los viajes fluviales o maritimos";
+      su alcance fuera de esos ejemplos no esta verificado (validar con abogado). El experto prefirio la
+      marca a advertir siempre. Issues #1437, #1442.
 
   - name: Jornada predeterminada
     definition: >
@@ -2081,7 +2130,7 @@ actors:
     note: "Usuario directo solo cuando se construya el modulo de registro propio. Actualmente, sus marcaciones llegan via Sistema de marcacion externo. Pregunta 'como le llamamos en el dominio?': resuelta en #330 -- colaborador."
     interacts_with: []
     open_questions:
-  - question: "Periodo de medicion de la Verificacion semanal de la programacion: configurable (semana por defecto; ciclo de N dias como alternativa -- esquemas tipo petroleras 20x10, promedio de hasta 3 semanas del art. 165 CST)? Aparcada en #850: hoy solo semana. 2026-10-26: la reactiva la Plantilla de turnos generica (un 6x2 alterna semanas de 40 y 48 h); investigacion de todas las formas de control de jornada en #1290. 2026-10-31: #1290 se reenfoca a un catalogo de modalidades legales de jornada con nombre propio (ordinaria, flexible 161a, turnos sucesivos 161d, turnos con promedio 165, sin solucion de continuidad 166, excluidos 162...) cuyas reglas el Programador pondria a la Jornada; tension abierta con el principio 'la Jornada no impone modalidades legales'. Nombre del concepto provisional."
+  - question: "Periodo de medicion de la Verificacion semanal de la programacion: configurable (semana por defecto; ciclo de N dias como alternativa -- esquemas tipo petroleras 20x10, promedio de hasta 3 semanas del art. 165 CST)? Aparcada en #850: hoy solo semana. 2026-10-26: la reactiva la Plantilla de turnos generica (un 6x2 alterna semanas de 40 y 48 h); investigacion de todas las formas de control de jornada en #1290. 2026-10-31: #1290 se reenfoca a un catalogo de modalidades legales de jornada con nombre propio (ordinaria, flexible 161a, turnos sucesivos 161d, turnos con promedio 165, sin solucion de continuidad 166, excluidos 162...) cuyas reglas el Programador pondria a la Jornada; tension abierta con el principio 'la Jornada no impone modalidades legales'. Nombre del concepto provisional. 2026-11-01: se acuna Modalidad de jornada (opcional, advierte y no certifica); el primer catalogo cabe en la semana; el periodo de medicion (165 y la capa pactada de ciclos no multiplos de 7) queda en #1444."
     context: Programacion
     date: 2026-10-05
     priority: low
