@@ -47,7 +47,7 @@ public class ComposicionDelServidorTests
                 "solicitar_programacion_turno",
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
                 "aplicar_plantilla_semanal_por_grupo", "aplicar_plantilla", "aplicar_plantilla_por_grupo",
-                "programar_ausencia", "cancelar_ausencia",
+                "programar_ausencia", "cancelar_ausencia", "publicar_programacion",
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
                 "asignar_turno_a_dia_de_plantilla", "asignar_jornada_a_plantilla",
                 "quitar_jornada_de_plantilla", "retirar_plantilla",
@@ -688,6 +688,26 @@ public class ComposicionDelServidorTests
     public void CancelarAusencia_DeclaraCompletaComoOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("cancelar_ausencia").Should().BeEquivalentTo(
             [("identificacion", true), ("desde", true), ("hasta", true), ("completa", false)]);
+
+    [Fact]
+    public void PublicarProgramacion_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("publicar_programacion").Should().BeEquivalentTo(
+            [("identificacion", true), ("desde", true), ("hasta", true)]);
+
+    [Fact]
+    public void PublicarProgramacion_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("publicar_programacion").Should().OnlyContain(p => p.ParameterType == typeof(string));
+
+    [Fact]
+    public void PublicarProgramacion_DeclaraSusHints_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("publicar_programacion"))!.GetCustomAttribute<McpMetadataAttribute>()!
+            .Json.Should().Contain("\"readOnlyHint\": false")
+            .And.Contain("\"destructiveHint\": false")
+            .And.Contain("\"idempotentHint\": true");
+
+    [Fact]
+    public void HostJson_MencionaLaToolDePublicarProgramacion_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("publicar_programacion");
 
     [Fact]
     public void SolicitarProgramacionTurnoPorGrupo_DeclaraLaVentanaYElTurnoObligatoriosYLaSedeDeProgramacionOpcional_CuandoSeInspeccionaLaTool() =>
