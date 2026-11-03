@@ -48,6 +48,7 @@ public class ComposicionDelServidorTests
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
                 "aplicar_plantilla_semanal_por_grupo", "aplicar_plantilla", "aplicar_plantilla_por_grupo",
                 "programar_ausencia", "cancelar_ausencia", "publicar_programacion",
+                "descartar_borrador_de_programacion",
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
                 "asignar_turno_a_dia_de_plantilla", "asignar_jornada_a_plantilla",
                 "quitar_jornada_de_plantilla", "retirar_plantilla",
@@ -690,9 +691,29 @@ public class ComposicionDelServidorTests
             [("identificacion", true), ("desde", true), ("hasta", true), ("completa", false)]);
 
     [Fact]
-    public void PublicarProgramacion_DeclaraTodosSusParametrosComoObligatorios_CuandoSeInspeccionaLaTool() =>
+    public void PublicarProgramacion_DeclaraIdentificacionObligatoriaYElPeriodoOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("publicar_programacion").Should().BeEquivalentTo(
-            [("identificacion", true), ("desde", true), ("hasta", true)]);
+            [("identificacion", true), ("desde", false), ("hasta", false)]);
+
+    [Fact]
+    public void DescartarBorradorDeProgramacion_DeclaraIdentificacionObligatoriaYElPeriodoOpcional_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("descartar_borrador_de_programacion").Should().BeEquivalentTo(
+            [("identificacion", true), ("desde", false), ("hasta", false)]);
+
+    [Fact]
+    public void DescartarBorradorDeProgramacion_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("descartar_borrador_de_programacion").Should().OnlyContain(p => p.ParameterType == typeof(string));
+
+    [Fact]
+    public void DescartarBorradorDeProgramacion_DeclaraSusHints_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("descartar_borrador_de_programacion"))!.GetCustomAttribute<McpMetadataAttribute>()!
+            .Json.Should().Contain("\"readOnlyHint\": false")
+            .And.Contain("\"destructiveHint\": true")
+            .And.Contain("\"idempotentHint\": true");
+
+    [Fact]
+    public void HostJson_MencionaLaToolDeDescartarBorradorDeProgramacion_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("descartar_borrador_de_programacion");
 
     [Fact]
     public void PublicarProgramacion_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>

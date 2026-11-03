@@ -7,9 +7,12 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.PublicarProgramacion;
 
-public partial class PublicarProgramacionTool(ProgramacionApi programacion, ColaboradoresApi colaboradores)
+public partial class PublicarProgramacionTool(
+    ProgramacionApi programacion, ColaboradoresApi colaboradores, TimeProvider? reloj = null)
 {
     internal const string NombreTool = "publicar_programacion";
+
+    private readonly TimeProvider _reloj = reloj ?? TimeProvider.System;
 
     private const int MaximoDiasDelPeriodo = 366;
 
@@ -32,10 +35,10 @@ public partial class PublicarProgramacionTool(ProgramacionApi programacion, Cola
             + "(ej. 'CC-79879078').",
             isRequired: true)]
         string identificacion,
-        [McpToolProperty("desde", "Primer dia del periodo, formato yyyy-MM-dd.", isRequired: true)]
-        string desde,
-        [McpToolProperty("hasta", "Ultimo dia del periodo, formato yyyy-MM-dd.", isRequired: true)]
-        string hasta,
+        [McpToolProperty("desde", "Primer dia del periodo, formato yyyy-MM-dd.", isRequired: false)]
+        string? desde,
+        [McpToolProperty("hasta", "Ultimo dia del periodo, formato yyyy-MM-dd.", isRequired: false)]
+        string? hasta,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(identificacion))

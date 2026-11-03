@@ -142,6 +142,14 @@ public sealed class ProgramacionApi(HttpClient http)
             new { desde, hasta },
             ct);
 
+    public Task<HttpResponseMessage> DescartarBorradorDeProgramacion(
+        string codigoColaborador, DateOnly desde, DateOnly hasta, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<HttpResponseMessage> ListarBorradoresDeProgramacion(
+        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador, CancellationToken ct) =>
+        throw new NotImplementedException();
+
     public Task<HttpResponseMessage> CancelarAusencia(
         string codigoColaborador, string id, IReadOnlyList<DateOnly> fechas, CancellationToken ct) =>
         http.PostAsJsonAsync(
