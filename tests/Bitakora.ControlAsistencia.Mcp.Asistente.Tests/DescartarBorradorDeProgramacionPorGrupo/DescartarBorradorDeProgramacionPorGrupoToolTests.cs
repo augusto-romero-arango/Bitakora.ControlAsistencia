@@ -248,4 +248,16 @@ public class DescartarBorradorDeProgramacionPorGrupoToolTests
         resultado.Should().StartWith(string.Format(DescartarBorradorDeProgramacionPorGrupoTool.Mensajes.RechazoDelDominio, "").TrimEnd());
         e.Actos(Verbo).Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task DescartarBorradorDeProgramacionPorGrupoTool_RespondeElRechazoDelDominioSinAplicarActos_CuandoFallaLaLecturaDeFichas()
+    {
+        var e = EntornoDeActoPorGrupo.Crear(Verbo, DosFichas, fallaFichas: true);
+
+        var resultado = await Ejecutar(e, desde: "2026-09-01", hasta: "2026-09-03");
+
+        resultado.Should().StartWith(string.Format(DescartarBorradorDeProgramacionPorGrupoTool.Mensajes.RechazoDelDominio, "").TrimEnd());
+        e.Actos(Verbo).Should().BeEmpty();
+        e.LeyoLaVista.Should().BeFalse();
+    }
 }

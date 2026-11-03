@@ -3,7 +3,6 @@ using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.PublicarProgramacionPorGrupo;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.AsignarJornada;
-using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.PublicarProgramacionPorGrupo;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.PublicarProgramacionPorGrupo;
 
@@ -247,5 +246,17 @@ public class PublicarProgramacionPorGrupoToolTests
 
         resultado.Should().StartWith(string.Format(PublicarProgramacionPorGrupoTool.Mensajes.RechazoDelDominio, "").TrimEnd());
         e.Actos(Verbo).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PublicarProgramacionPorGrupoTool_RespondeElRechazoDelDominioSinAplicarActos_CuandoFallaLaLecturaDeFichas()
+    {
+        var e = EntornoDeActoPorGrupo.Crear(Verbo, DosFichas, fallaFichas: true);
+
+        var resultado = await Ejecutar(e, desde: "2026-09-01", hasta: "2026-09-03");
+
+        resultado.Should().StartWith(string.Format(PublicarProgramacionPorGrupoTool.Mensajes.RechazoDelDominio, "").TrimEnd());
+        e.Actos(Verbo).Should().BeEmpty();
+        e.LeyoLaVista.Should().BeFalse();
     }
 }

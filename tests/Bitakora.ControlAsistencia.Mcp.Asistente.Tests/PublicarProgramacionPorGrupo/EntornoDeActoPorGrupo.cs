@@ -36,7 +36,8 @@ internal sealed class EntornoDeActoPorGrupo
         string vistaJson = "{\"elementos\":[],\"siguienteCursor\":null}",
         HttpStatusCode statusVista = HttpStatusCode.OK,
         Func<string, HttpResponseMessage>? respuestaActo = null,
-        IReadOnlyList<string>? codigos = null)
+        IReadOnlyList<string>? codigos = null,
+        bool fallaFichas = false)
     {
         var (clienteProgramacion, programacion) = ClienteFalso.ConRutas();
         programacion.Responde(Query, RutaVista, statusVista, vistaJson);
@@ -51,8 +52,9 @@ internal sealed class EntornoDeActoPorGrupo
                 : new HttpResponseMessage(HttpStatusCode.NotFound));
 
         var colaboradores = new ColaboradoresFalso(fichas);
-        var apiColaboradores = new ColaboradoresApi(
-            new HttpClient(colaboradores) { BaseAddress = new Uri("https://dominio.falso.local") });
+        var apiColaboradores = new ColaboradoresApi(fallaFichas
+            ? ClienteFalso.ConFuncion(_ => ColaboradoresFalso.Json(HttpStatusCode.InternalServerError, "fichas caidas")).Cliente
+            : new HttpClient(colaboradores) { BaseAddress = new Uri("https://dominio.falso.local") });
 
         return new EntornoDeActoPorGrupo
         {

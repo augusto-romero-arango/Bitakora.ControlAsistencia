@@ -65,7 +65,7 @@ internal static class EjecutorDeActoPorGrupo
         if (string.IsNullOrWhiteSpace(solicitud.Desde) != string.IsNullOrWhiteSpace(solicitud.Hasta))
             return ResultadoDeActoPorGrupo.Rechazar(mensajes.RangoIncompleto);
 
-        DateOnly? desde = null, hasta = null;
+        (DateOnly Desde, DateOnly Hasta)? rango = null;
         if (!string.IsNullOrWhiteSpace(solicitud.Desde))
         {
             if (!DateOnly.TryParseExact(
@@ -79,8 +79,7 @@ internal static class EjecutorDeActoPorGrupo
             var dias = h.DayNumber - d.DayNumber + 1;
             if (dias > MaximoDiasDelRango)
                 return ResultadoDeActoPorGrupo.Rechazar(string.Format(mensajes.RangoExcedeElMaximo, dias));
-            desde = d;
-            hasta = h;
+            rango = (d, h);
         }
 
         SelectorDeGrupo? selector = null;
@@ -94,21 +93,21 @@ internal static class EjecutorDeActoPorGrupo
 
         var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(reloj.GetUtcNow(), ZonaBogota).DateTime);
         var alcance = selector?.Descripcion ?? mensajes.AlcanceTodoLoPendiente;
-        var rangoAplicado = desde is { } rd && hasta is { } rh
-            ? $"{rd:yyyy-MM-dd} a {rh:yyyy-MM-dd}"
+        var rangoAplicado = rango is { } r
+            ? $"{r.Desde:yyyy-MM-dd} a {r.Hasta:yyyy-MM-dd}"
             : mensajes.SinRango;
 
         List<Objetivo> objetivos;
         if (selector is not null)
         {
             var candidatos = await resolutorCandidatos.ResolverAsync(
-                desde ?? hoy, selector.CodigoSede, selector.Filtros, ct);
+                rango?.Desde ?? hoy, selector.CodigoSede, selector.Filtros, ct);
             if (candidatos.FalloDeLectura is { } falloFichas)
                 return ResultadoDeActoPorGrupo.Rechazar(string.Format(mensajes.RechazoDelDominio, falloFichas));
 
-            if (desde is { } dg && hasta is { } hg)
+            if (rango is { } rg)
             {
-                objetivos = [.. candidatos.Candidatos.Select(c => new Objetivo(c.CodigoColaborador, c.NombreCompleto, dg, hg))];
+                objetivos = [.. candidatos.Candidatos.Select(c => new Objetivo(c.CodigoColaborador, c.NombreCompleto, rg.Desde, rg.Hasta))];
             }
             else
             {
@@ -125,17 +124,17 @@ internal static class EjecutorDeActoPorGrupo
         }
         else
         {
-            var pendientes = await LeerVistaAsync(programacion, hoy, null, desde, hasta, ct);
+            var pendientes = await LeerVistaAsync(programacion, hoy, null, rango?.Desde, rango?.Hasta, ct);
             if (pendientes.Fallo is { } falloVista)
                 return ResultadoDeActoPorGrupo.Rechazar(string.Format(mensajes.RechazoDelDominio, falloVista));
-            objetivos = desde is { } dt && hasta is { } ht
+            objetivos = rango is { } rt
                 ? [.. pendientes.Borradores
                     .Where(b => b.Dias.Count > 0)
-                    .Select(b => new Objetivo(b.CodigoColaborador, b.NombreCompleto, dt, ht))]
+                    .Select(b => new Objetivo(b.CodigoColaborador, b.NombreCompleto, rt.Desde, rt.Hasta))]
                 : [.. PendientesComoObjetivos(pendientes.Borradores)];
         }
 
-        var exitosos = new ConcurrentBag<string>();
+        var exitosos = 0;
         var fallidos = new ConcurrentBag<ColaboradorFallidoDeGrupo>();
         await Parallel.ForEachAsync(
             objetivos,
@@ -152,11 +151,11 @@ internal static class EjecutorDeActoPorGrupo
                     }
                 }
 
-                exitosos.Add(objetivo.Codigo);
+                Interlocked.Increment(ref exitosos);
             });
 
         return new ResultadoDeActoPorGrupo(
-            null, alcance, rangoAplicado, exitosos.Count,
+            null, alcance, rangoAplicado, exitosos,
             fallidos.IsEmpty
                 ? null
                 : [.. fallidos.OrderBy(f => f.CodigoColaborador, StringComparer.Ordinal)]);

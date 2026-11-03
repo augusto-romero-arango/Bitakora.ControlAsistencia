@@ -9,27 +9,30 @@ public class DescartarBorradorDeProgramacionPorGrupoSmokeTests(McpFixture mcp)
 {
     private static readonly TimeSpan TimeoutPolling = TimeSpan.FromSeconds(30);
 
+    private async Task<JsonDocument> DescartarAsync(Dictionary<string, object?> argumentos, CancellationToken ct)
+    {
+        var respuesta = await mcp.Cliente.CallToolAsync(
+            "descartar_borrador_de_programacion_por_grupo", argumentos, cancellationToken: ct);
+        return JsonDocument.Parse(respuesta.Content.OfType<TextContentBlock>().Single().Text);
+    }
+
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DescartarBorradorDeProgramacionPorGrupo_AplicaElActoALosDosColaboradoresDeLaSede_CuandoElGrupoSeDefinePorSede()
+    public async Task DescartarBorradorDeProgramacionPorGrupo_AplicaElActoConRangoYLeeLaVistaSinRango_CuandoElGrupoSeDefinePorSede()
     {
         var ct = TestContext.Current.CancellationToken;
         var codigoSede = await Sembrado.RegistrarSedeAsync(mcp.Cliente, ct);
         await Sembrado.RegistrarColaboradorAsync(mcp.Cliente, codigoSede, ct);
         await Sembrado.RegistrarColaboradorAsync(mcp.Cliente, codigoSede, ct);
 
-        var argumentos = new Dictionary<string, object?>
-        {
-            ["sede"] = codigoSede
-        };
-
-        using var documento = await Polling.WaitUntilAsync(
+        // Con rango no lee la vista: colaboradores = 2 solo cuando las fichas ya materializaron a los dos.
+        using var conRango = await Polling.WaitUntilAsync(
             async () =>
             {
-                var respuesta = await mcp.Cliente.CallToolAsync("descartar_borrador_de_programacion_por_grupo", argumentos, cancellationToken: ct);
-                var candidato = JsonDocument.Parse(respuesta.Content.OfType<TextContentBlock>().Single().Text);
-
-                if (candidato.RootElement.TryGetProperty("colaboradores", out _))
+                var candidato = await DescartarAsync(
+                    new() { ["sede"] = codigoSede, ["desde"] = "2026-09-01", ["hasta"] = "2026-09-03" }, ct);
+                if (candidato.RootElement.TryGetProperty("colaboradores", out var colaboradores)
+                    && colaboradores.GetInt32() == 2)
                     return candidato;
 
                 candidato.Dispose();
@@ -37,8 +40,13 @@ public class DescartarBorradorDeProgramacionPorGrupoSmokeTests(McpFixture mcp)
             },
             TimeoutPolling);
 
-        var resultado = documento.RootElement;
+        conRango.RootElement.TryGetProperty("fallidos", out _).Should().BeFalse();
+
+        using var sinRango = await DescartarAsync(new() { ["sede"] = codigoSede }, ct);
+
+        var resultado = sinRango.RootElement;
         resultado.GetProperty("resultado").GetString().Should().NotBeNullOrWhiteSpace();
+        resultado.GetProperty("colaboradores").GetInt32().Should().Be(0, "los colaboradores recien sembrados no tienen borrador");
         resultado.TryGetProperty("fallidos", out _).Should().BeFalse();
     }
 }
