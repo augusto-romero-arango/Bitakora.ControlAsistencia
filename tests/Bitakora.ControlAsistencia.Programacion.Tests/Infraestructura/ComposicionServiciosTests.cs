@@ -231,6 +231,32 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeProgramacionTurnoAgregadaAlBorrador()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(ProgramacionTurnoAgregadaAlBorrador)).Alias;
+
+        alias.Should().Be("programacion_turno_agregada_al_borrador");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeProgramacionPublicada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(ProgramacionPublicada)).Alias;
+
+        alias.Should().Be("programacion_publicada");
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaDePlantillaDeTurnosAsignada()
     {
         await using var provider = ComponerServiceProvider();
