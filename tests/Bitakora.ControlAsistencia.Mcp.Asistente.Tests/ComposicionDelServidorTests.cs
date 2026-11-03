@@ -43,7 +43,7 @@ public class ComposicionDelServidorTests
                 "buscar_plantillas", "listar_plantillas", "obtener_plantilla",
                 "crear_plantilla_semanal", "crear_plantilla", "crear_plantilla_rotativa",
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
-                "consultar_malla_turnos", "consultar_dias_sin_programar",
+                "consultar_malla_turnos", "consultar_dias_sin_programar", "consultar_borradores_de_programacion",
                 "solicitar_programacion_turno",
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
                 "aplicar_plantilla_semanal_por_grupo", "aplicar_plantilla", "aplicar_plantilla_por_grupo",
@@ -721,6 +721,44 @@ public class ComposicionDelServidorTests
             .Json.Should().Contain("\"readOnlyHint\": false")
             .And.Contain("\"destructiveHint\": true")
             .And.Contain("\"idempotentHint\": true");
+
+    [Fact]
+    public void ConsultarBorradoresDeProgramacion_DeclaraSusSeisParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("consultar_borradores_de_programacion").Should().BeEquivalentTo(
+            [("desde", false), ("hasta", false), ("sede", false), ("etiquetas", false),
+             ("codigos_colaborador", false), ("cursor", false)]);
+
+    [Fact]
+    public void ConsultarBorradoresDeProgramacion_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("consultar_borradores_de_programacion").Should().OnlyContain(p => p.ParameterType == typeof(string));
+
+    [Fact]
+    public void ConsultarBorradoresDeProgramacion_DeclaraSoloLecturaComoHint_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("consultar_borradores_de_programacion"))!.GetCustomAttribute<McpMetadataAttribute>()!
+            .Json.Should().Contain("\"readOnlyHint\": true");
+
+    [Fact]
+    public void ConsultarBorradoresDeProgramacion_RemiteAPublicarDescartarYLaMalla_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("consultar_borradores_de_programacion"))!.GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("publicar_programacion")
+            .And.Contain("descartar_borrador_de_programacion")
+            .And.Contain("consultar_malla_turnos");
+
+    [Fact]
+    public void PublicarProgramacion_RemiteALaConsultaDeBorradores_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("publicar_programacion"))!.GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("consultar_borradores_de_programacion")
+            .And.NotContain("la consulta de pendientes");
+
+    [Fact]
+    public void DescartarBorradorDeProgramacion_RemiteALaConsultaDeBorradores_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("descartar_borrador_de_programacion"))!.GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("consultar_borradores_de_programacion")
+            .And.NotContain("la consulta de pendientes");
+
+    [Fact]
+    public void HostJson_MencionaLaToolConsultarBorradoresDeProgramacion_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("consultar_borradores_de_programacion");
 
     [Fact]
     public void HostJson_MencionaLaToolDeDescartarBorradorDeProgramacion_CuandoSeLeenLasInstructions() =>

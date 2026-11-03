@@ -155,7 +155,12 @@ public sealed class ProgramacionApi(HttpClient http)
 
     public Task<HttpResponseMessage> ListarBorradoresDeProgramacion(
         DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador,
-        DateOnly? desde, DateOnly? hasta, CancellationToken ct)
+        DateOnly? desde, DateOnly? hasta, CancellationToken ct) =>
+        ListarBorradoresDeProgramacion(fechaReferencia, codigosColaborador, desde, hasta, null, null, ct);
+
+    public Task<HttpResponseMessage> ListarBorradoresDeProgramacion(
+        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador,
+        DateOnly? desde, DateOnly? hasta, int? take, string? cursor, CancellationToken ct)
     {
         var cuerpo = new Dictionary<string, object> { ["fechaReferencia"] = fechaReferencia };
         if (codigosColaborador is { Count: > 0 })
@@ -164,6 +169,10 @@ public sealed class ProgramacionApi(HttpClient http)
             cuerpo["desde"] = d;
         if (hasta is { } h)
             cuerpo["hasta"] = h;
+        if (take is { } t)
+            cuerpo["take"] = t;
+        if (cursor is not null)
+            cuerpo["cursor"] = cursor;
 
         var request = new HttpRequestMessage(Query, "api/programacion/borradores")
         {
