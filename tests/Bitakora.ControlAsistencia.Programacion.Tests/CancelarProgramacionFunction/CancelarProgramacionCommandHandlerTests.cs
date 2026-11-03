@@ -36,7 +36,6 @@ public class CancelarProgramacionCommandHandlerTests
     protected override ICommandHandlerAsync<CancelarProgramacion> Handler =>
         new CancelarProgramacionCommandHandler(EventStore, PrivateEventSender);
 
-    // CA-1
     [Fact]
     public async Task CancelarProgramacion_EmiteCancelacionSolicitadaYPublicaEvento_CuandoDatosValidos()
     {
@@ -50,7 +49,6 @@ public class CancelarProgramacionCommandHandlerTests
         And<SolicitudCancelacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
 
-    // CA-1
     [Fact]
     public async Task CancelarProgramacion_PublicaUnEventoPorCadaFecha_CuandoHayMultiplesFechas()
     {
@@ -65,7 +63,7 @@ public class CancelarProgramacionCommandHandlerTests
         And<SolicitudCancelacionAggregateRoot, int>(s => s.Fechas.Count, 2);
     }
 
-    // CA-1: delata que alguno de los dos mapeos componga o permute un campo de la terna.
+    // Delata que alguno de los dos mapeos componga o permute un campo de la terna.
     [Fact]
     public async Task CancelarProgramacion_PersisteLaTernaDeIdentidadDelColaborador_CuandoDatosValidos()
     {
@@ -124,7 +122,6 @@ public class CancelarProgramacionCommandHandlerTests
 
     private static int FechasRestantes(BorradorMensual b) => b.FechasEnBorrador.Count;
 
-    // CA-1
     [Fact]
     public async Task CancelarProgramacion_EmiteBorradorDescartadoConLasFechasCanceladas_CuandoEstanEnElBorrador()
     {
@@ -141,7 +138,6 @@ public class CancelarProgramacionCommandHandlerTests
         And<BorradorMensual, int>(StreamOctubre, FechasRestantes, 1);
     }
 
-    // CA-2
     [Fact]
     public async Task CancelarProgramacion_EnviaMensajeDeLasFechasDelBorrador_CuandoSeCancelan()
     {
@@ -158,7 +154,6 @@ public class CancelarProgramacionCommandHandlerTests
         And<BorradorMensual, int>(StreamOctubre, FechasRestantes, 0);
     }
 
-    // CA-3
     [Fact]
     public async Task CancelarProgramacion_DescartaEnCadaBorradorMensual_CuandoLasFechasCruzanMesYSonSueltas()
     {
@@ -179,7 +174,6 @@ public class CancelarProgramacionCommandHandlerTests
         And<BorradorMensual, int>(StreamNoviembre, FechasRestantes, 2);
     }
 
-    // CA-4
     [Fact]
     public async Task CancelarProgramacion_NoEmiteEventoDeBorrador_CuandoElBorradorNoTieneNingunaFecha()
     {
@@ -195,7 +189,6 @@ public class CancelarProgramacionCommandHandlerTests
         And<BorradorMensual, int>(StreamOctubre, FechasRestantes, 1);
     }
 
-    // CA-4: sin borrador en el mes no se crea ninguno; el unico stream tocado es el de la solicitud.
     [Fact]
     public async Task CancelarProgramacion_NoCreaBorrador_CuandoElMesNoTieneBorrador()
     {
@@ -211,7 +204,6 @@ public class CancelarProgramacionCommandHandlerTests
         And<SolicitudCancelacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
 
-    // CA-4: el 409 por Id duplicado no toca el borrador.
     [Fact]
     public async Task CancelarProgramacion_NoDescartaNada_CuandoSolicitudYaExiste()
     {
