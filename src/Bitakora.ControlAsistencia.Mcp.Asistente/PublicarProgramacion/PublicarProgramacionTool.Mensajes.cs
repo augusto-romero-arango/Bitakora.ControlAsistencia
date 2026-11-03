@@ -28,6 +28,12 @@ public partial class PublicarProgramacionTool
         public static string RechazoDelDominio =>
             ResourceManager.GetString(nameof(RechazoDelDominio))!;
 
+        public static string PeriodoIncompleto =>
+            ResourceManager.GetString(nameof(PeriodoIncompleto))!;
+
+        public static string SinBorradorPendiente =>
+            ResourceManager.GetString(nameof(SinBorradorPendiente))!;
+
         public static string ResultadoProgramacionPublicada =>
             ResourceManager.GetString(nameof(ResultadoProgramacionPublicada))!;
     }

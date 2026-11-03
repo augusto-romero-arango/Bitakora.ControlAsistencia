@@ -111,28 +111,6 @@ public class PublicarProgramacionToolTests
     }
 
     [Fact]
-    public async Task PublicarProgramacion_RechazaSinEscribir_CuandoFaltaDesde()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(fakes.Tool, desde: "");
-
-        resultado.Should().Be(string.Format(PublicarProgramacionTool.Mensajes.CampoObligatorio, "desde"));
-        fakes.Programacion.Requests.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task PublicarProgramacion_RechazaSinEscribir_CuandoFaltaHasta()
-    {
-        var fakes = CrearTool();
-
-        var resultado = await Ejecutar(fakes.Tool, hasta: "");
-
-        resultado.Should().Be(string.Format(PublicarProgramacionTool.Mensajes.CampoObligatorio, "hasta"));
-        fakes.Programacion.Requests.Should().BeEmpty();
-    }
-
-    [Fact]
     public async Task PublicarProgramacion_RechazaSinEscribir_CuandoLaFechaTieneFormatoInvalido()
     {
         var fakes = CrearTool();

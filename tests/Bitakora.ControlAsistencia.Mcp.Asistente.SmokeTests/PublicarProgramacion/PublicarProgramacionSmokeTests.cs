@@ -55,4 +55,42 @@ public class PublicarProgramacionSmokeTests(McpFixture mcp)
         documento.RootElement.GetProperty("resultado").GetString().Should().NotBeNullOrWhiteSpace();
         documento.RootElement.GetProperty("colaborador").GetString().Should().NotBeNullOrWhiteSpace();
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task PublicarProgramacion_RespondeSinRechazoYNombraAlColaborador_CuandoNoSePasaPeriodo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sufijo = Guid.CreateVersion7();
+        var numeroIdentificacion = sufijo.ToString("N").ToUpperInvariant();
+        var identificacion = $"CC-{numeroIdentificacion}";
+
+        await mcp.Cliente.CallToolAsync(
+            "registrar_colaborador",
+            new Dictionary<string, object?>
+            {
+                ["tipo_identificacion"] = "CC",
+                ["numero_identificacion"] = numeroIdentificacion,
+                ["primer_nombre"] = "[TEST]",
+                ["primer_apellido"] = "MCP",
+                ["codigo_colaborador"] = $"TEST-{sufijo}",
+                ["fecha_inicio"] = "2026-09-01"
+            },
+            cancellationToken: ct);
+
+        var texto = await Polling.WaitUntilAsync(
+            async () =>
+            {
+                var respuesta = await mcp.Cliente.CallToolAsync(
+                    "publicar_programacion",
+                    new Dictionary<string, object?> { ["identificacion"] = identificacion },
+                    cancellationToken: ct);
+                var candidato = respuesta.Content.OfType<TextContentBlock>().Single().Text;
+                return candidato.Contains("[TEST]") ? candidato : null;
+            },
+            TimeoutPolling);
+
+        texto.Should().Contain("[TEST]");
+        texto.Should().NotContain("rechazo");
+    }
 }

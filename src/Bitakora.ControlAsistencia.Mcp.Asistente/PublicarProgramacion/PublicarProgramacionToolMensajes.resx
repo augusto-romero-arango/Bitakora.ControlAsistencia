@@ -41,4 +41,10 @@
   <data name="ResultadoProgramacionPublicada" xml:space="preserve">
     <value>Programacion publicada</value>
   </data>
+  <data name="PeriodoIncompleto" xml:space="preserve">
+    <value>Pasa 'desde' y 'hasta' juntos, o ninguno de los dos.</value>
+  </data>
+  <data name="SinBorradorPendiente" xml:space="preserve">
+    <value>{0} no tiene borrador pendiente.</value>
+  </data>
 </root>
