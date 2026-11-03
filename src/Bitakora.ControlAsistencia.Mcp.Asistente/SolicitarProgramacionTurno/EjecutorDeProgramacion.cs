@@ -89,7 +89,7 @@ internal static class IndicadorDeEjecucion
 
 // Parte comun de solicitar_programacion_turno y solicitar_programacion_turno_por_grupo (MEF-ADR-0018):
 // ambas difieren solo en como obtienen los candidatos.
-internal static class EjecutorDeProgramacion
+internal static partial class EjecutorDeProgramacion
 {
     internal const int PostsSimultaneos = 8;
 
@@ -98,7 +98,8 @@ internal static class EjecutorDeProgramacion
     private sealed record Envio(CandidatoProgramacion Entrada, TurnoAProgramar Turno, IReadOnlyList<DateOnly> Dias);
 
     private sealed record ResultadoEnvio(
-        Envio Envio, bool Exito, IReadOnlyList<FechaRespetadaPorAusencia> Respetadas, string? Motivo);
+        Envio Envio, bool Exito, IReadOnlyList<FechaRespetadaPorAusencia> Respetadas,
+        IReadOnlyList<DateOnly> EnBorrador, string? Motivo);
 
     public static async Task<ResultadoEjecucion> EjecutarAsync(
         ProgramacionApi programacion,
@@ -129,37 +130,46 @@ internal static class EjecutorDeProgramacion
         var conPostExitoso = new ConcurrentDictionary<string, byte>();
         var conPostRechazado = new ConcurrentDictionary<string, byte>();
 
+        // Un colaborador es el limite de consistencia (CA-ADR-0043): sus envios van en secuencia.
+        var enviosPorColaborador = envios
+            .GroupBy(e => e.Entrada.Identificacion)
+            .Select(g => g.ToList())
+            .ToList();
+
         await Parallel.ForEachAsync(
-            envios,
+            enviosPorColaborador,
             new ParallelOptions { MaxDegreeOfParallelism = PostsSimultaneos, CancellationToken = ct },
-            async (envio, tokenInterno) =>
+            async (enviosDelColaborador, tokenInterno) =>
             {
-                var solicitud = new SolicitudProgramacionTurno(
-                    Guid.CreateVersion7(),
-                    envio.Turno.Id,
-                    new ColaboradorSolicitado(
-                        envio.Entrada.Identificacion,
-                        envio.Entrada.CodigoColaborador,
-                        envio.Entrada.NombreCompleto),
-                    envio.Dias,
-                    planDeSede.Para(envio.Entrada).Sede,
-                    envio.Entrada.JornadaId);
-
-                var respuestaSolicitud = await programacion.SolicitarProgramacion(solicitud, tokenInterno);
-
-                if (respuestaSolicitud.IsSuccessStatusCode)
+                foreach (var envio in enviosDelColaborador)
                 {
-                    var respetadas = await LeerRespetadasAsync(respuestaSolicitud, tokenInterno);
-                    resultados.Add(new ResultadoEnvio(envio, true, respetadas, null));
-                    if (conPostExitoso.TryAdd(envio.Entrada.Identificacion, 0))
-                        Interlocked.Increment(ref contadores.Programados);
-                }
-                else
-                {
-                    var motivo = await respuestaSolicitud.Content.ReadAsStringAsync(tokenInterno);
-                    resultados.Add(new ResultadoEnvio(envio, false, [], motivo));
-                    if (conPostRechazado.TryAdd(envio.Entrada.Identificacion, 0))
-                        Interlocked.Increment(ref contadores.Fallidos);
+                    var solicitud = new SolicitudProgramacionTurno(
+                        Guid.CreateVersion7(),
+                        envio.Turno.Id,
+                        new ColaboradorSolicitado(
+                            envio.Entrada.Identificacion,
+                            envio.Entrada.CodigoColaborador,
+                            envio.Entrada.NombreCompleto),
+                        envio.Dias,
+                        planDeSede.Para(envio.Entrada).Sede,
+                        envio.Entrada.JornadaId);
+
+                    var respuestaSolicitud = await programacion.SolicitarProgramacion(solicitud, tokenInterno);
+
+                    if (respuestaSolicitud.IsSuccessStatusCode)
+                    {
+                        var (respetadas, enBorrador) = await LeerRespuestaAsync(respuestaSolicitud, tokenInterno);
+                        resultados.Add(new ResultadoEnvio(envio, true, respetadas, enBorrador, null));
+                        if (conPostExitoso.TryAdd(envio.Entrada.Identificacion, 0))
+                            Interlocked.Increment(ref contadores.Programados);
+                    }
+                    else
+                    {
+                        var motivo = await respuestaSolicitud.Content.ReadAsStringAsync(tokenInterno);
+                        resultados.Add(new ResultadoEnvio(envio, false, [], [], motivo));
+                        if (conPostRechazado.TryAdd(envio.Entrada.Identificacion, 0))
+                            Interlocked.Increment(ref contadores.Fallidos);
+                    }
                 }
             });
 
@@ -188,6 +198,13 @@ internal static class EjecutorDeProgramacion
                 .Where(r => conjuntoProgramados.Contains(r.Fecha))
                 .ToList();
             var fechasRespetadas = respetadas.Select(r => r.Fecha).ToHashSet();
+            var enBorradorDelColaborador = exitosos
+                .SelectMany(r => r.EnBorrador)
+                .Where(f => conjuntoProgramados.Contains(f) && !fechasRespetadas.Contains(f))
+                .ToHashSet();
+            var enFirme = diasProgramados
+                .Where(d => !fechasRespetadas.Contains(d) && !enBorradorDelColaborador.Contains(d))
+                .ToList();
             var respetados = respetadas
                 .GroupBy(r => r.Motivo)
                 .OrderBy(g => g.Key, StringComparer.Ordinal)
@@ -204,7 +221,11 @@ internal static class EjecutorDeProgramacion
                 diasProgramados[^1],
                 diasProgramados.Count(d => !fechasRespetadas.Contains(d)),
                 respetados.Count == 0 ? null : respetados,
-                planDeSede.HaySedeExplicita ? null : sedeDelCandidato.Sede?.Id));
+                planDeSede.HaySedeExplicita ? null : sedeDelCandidato.Sede?.Id,
+                enBorradorDelColaborador.Count == 0
+                    ? null
+                    : ComprimirEnTramos(enBorradorDelColaborador, diasProgramados[0]),
+                enFirme.Count == 0 ? null : ComprimirEnTramos(enFirme, diasProgramados[0])));
             if (sedeDelCandidato.MotivoDeAviso is { } motivoAviso
                 && exitosos.Any(r => r.Envio.Turno.TieneFranjaSinSede))
                 avisos.Add(new AvisoDeSede(entrada.Identificacion, motivoAviso));
@@ -217,23 +238,31 @@ internal static class EjecutorDeProgramacion
             avisos.Count == 0 ? null : [.. avisos.OrderBy(a => a.Identificacion, StringComparer.Ordinal)]);
     }
 
-    private static async Task<IReadOnlyList<FechaRespetadaPorAusencia>> LeerRespetadasAsync(
-        HttpResponseMessage respuesta, CancellationToken ct)
+    // Lector tolerante: sin cuerpo, JSON invalido o sin fechasEnBorrador (endpoint anterior al
+    // borrador), todo cuenta como en firme.
+    private static async Task<(IReadOnlyList<FechaRespetadaPorAusencia> Respetadas, IReadOnlyList<DateOnly> EnBorrador)>
+        LeerRespuestaAsync(HttpResponseMessage respuesta, CancellationToken ct)
     {
         var cuerpo = await respuesta.Content.ReadAsStringAsync(ct);
         if (string.IsNullOrWhiteSpace(cuerpo))
-            return [];
+            return ([], []);
 
         try
         {
-            return JsonSerializer.Deserialize<RespuestaSolicitudCreada>(cuerpo, OpcionesLectura)
-                ?.FechasRespetadas ?? [];
+            var creada = JsonSerializer.Deserialize<RespuestaSolicitudCreada>(cuerpo, OpcionesLectura);
+            return (creada?.FechasRespetadas ?? [], creada?.FechasEnBorrador ?? []);
         }
         catch (JsonException)
         {
-            return [];
+            return ([], []);
         }
     }
+
+    internal static string ElegirNota(
+        IReadOnlyList<ColaboradorProgramadoResumen> programados, bool porGrupo, string notaActual) =>
+        programados.Any(p => p.EnBorrador is not null)
+            ? (porGrupo ? Mensajes.NotaBorradorPorGrupo : Mensajes.NotaBorradorPorLista)
+            : notaActual;
 
     // Los extremos van como dia del mes cuando caen en el mes de referencia (primer dia
     // programado del colaborador) y como yyyy-MM-dd cuando salen de el; en ese caso el tramo se
