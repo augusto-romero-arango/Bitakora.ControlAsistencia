@@ -14,6 +14,18 @@ public partial class BorradorMensual : AggregateRoot
     public static string ComputarStreamId(string codigoColaborador, DateOnly fecha)
         => $"{PrefijoStream}:{codigoColaborador}:{fecha:yyyyMM}";
 
+    public static BorradorMensual Iniciar(ProgramacionTurnoAgregadaAlBorrador evento)
+        => throw new NotImplementedException();
+
+    public IReadOnlyList<DateOnly> Programar(
+        Guid solicitudId,
+        ColaboradorProgramado colaborador,
+        IReadOnlyList<DateOnly> fechas,
+        TurnoProgramado turno,
+        SedeProgramada? sede,
+        JornadaProgramada jornada)
+        => throw new NotImplementedException();
+
     public void Apply(ProgramacionTurnoAgregadaAlBorrador e)
     {
         Id = ComputarStreamId(e.Colaborador.CodigoColaborador, e.Fechas[0]);

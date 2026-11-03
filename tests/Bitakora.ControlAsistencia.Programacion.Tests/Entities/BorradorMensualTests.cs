@@ -84,4 +84,64 @@ public class BorradorMensualTests
         resultado.Lotes.Should().BeEmpty();
         borrador.FechasEnBorrador.Should().Equal(new DateOnly(2026, 10, 5));
     }
+
+    [Fact]
+    public void Iniciar_NaceConLasFechasNuevas_CuandoElMesNoTenia()
+    {
+        var borrador = BorradorMensual.Iniciar(Agregada(Guid.NewGuid(), new DateOnly(2026, 11, 2), new DateOnly(2026, 11, 3)));
+
+        borrador.FechasEnBorrador.Should().Equal(new DateOnly(2026, 11, 2), new DateOnly(2026, 11, 3));
+    }
+
+    [Fact]
+    public void Programar_DevuelveLasFechasPublicadasYAgregaSoloLasNuevas_CuandoHayDiasEnFirme()
+    {
+        var borrador = new BorradorMensual();
+        borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 6)));
+        borrador.Apply(new ProgramacionPublicada(Colaborador, [new DateOnly(2026, 10, 5)]));
+
+        var enFirme = borrador.Programar(
+            Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 7)], Turno, null, Jornada);
+
+        enFirme.Should().Equal(new DateOnly(2026, 10, 5));
+        borrador.FechasEnBorrador.Should().Equal(new DateOnly(2026, 10, 6));
+    }
+
+    [Fact]
+    public void Programar_NoEmiteNada_CuandoTodasLasFechasEstanEnFirme()
+    {
+        var borrador = new BorradorMensual();
+        borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 10, 5)));
+        borrador.Apply(new ProgramacionPublicada(Colaborador, [new DateOnly(2026, 10, 5)]));
+
+        var enFirme = borrador.Programar(Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5)], Turno, null, Jornada);
+
+        enFirme.Should().Equal(new DateOnly(2026, 10, 5));
+        borrador.FechasEnBorrador.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Programar_NoLasTrataComoEnFirme_CuandoLasFechasSoloEstanEnBorrador()
+    {
+        var borrador = new BorradorMensual();
+        borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 10, 5)));
+
+        var enFirme = borrador.Programar(Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5)], Turno, null, Jornada);
+
+        enFirme.Should().BeEmpty();
+        borrador.FechasEnBorrador.Should().Equal(new DateOnly(2026, 10, 5));
+    }
+
+    [Fact]
+    public void Programar_RegistraComoEnFirme_CuandoLaPublicacionVinoDePublicar()
+    {
+        var borrador = new BorradorMensual();
+        borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 10, 5)));
+        borrador.Publicar(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31), null);
+
+        var enFirme = borrador.Programar(Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5)], Turno, null, Jornada);
+
+        enFirme.Should().Equal(new DateOnly(2026, 10, 5));
+        borrador.FechasEnBorrador.Should().BeEmpty();
+    }
 }

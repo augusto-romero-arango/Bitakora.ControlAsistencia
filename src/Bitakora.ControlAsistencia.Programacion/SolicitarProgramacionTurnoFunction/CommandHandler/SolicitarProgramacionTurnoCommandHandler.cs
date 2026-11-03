@@ -89,7 +89,8 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 
         await _privateEventSender.PublishAsync(new PublishOptions { GroupId = colaborador.CodigoColaborador }, eventoPrivado);
         return new ResultadoSolicitudProgramacion(
-            clasificacion.ConAusencia.Select(f => new FechaRespetada(f.Fecha, f.Motivo.ToString())).ToList());
+            clasificacion.ConAusencia.Select(f => new FechaRespetada(f.Fecha, f.Motivo.ToString())).ToList(),
+            []);
     }
 
     // La terna fluye tal cual del body: componer "{Tipo}-{Numero}" o concatenar nombres es del
