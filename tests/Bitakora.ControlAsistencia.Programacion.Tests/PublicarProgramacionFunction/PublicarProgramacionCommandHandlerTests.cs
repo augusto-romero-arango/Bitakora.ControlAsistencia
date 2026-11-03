@@ -242,6 +242,38 @@ public class PublicarProgramacionCommandHandlerTests : CommandHandlerAsyncTest<P
     }
 
     [Fact]
+    public async Task PublicarProgramacion_EnviaDescansosYExtrasDeLaFranja_CuandoElTurnoLosTiene()
+    {
+        var turnoConSubFranjas = new TurnoProgramado(
+            "Turno Mixto",
+            new List<FranjaProgramada>
+            {
+                new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+                    new List<SubFranjaProgramada> { new(new TimeOnly(10, 0), new TimeOnly(10, 30), 0, 0, "Desayuno") }.AsReadOnly(),
+                    new List<SubFranjaProgramada> { new(new TimeOnly(13, 0), new TimeOnly(14, 0), 0, 0, "Extra") }.AsReadOnly(),
+                    "06:00-14:00")
+            }.AsReadOnly(),
+            "06:00-14:00");
+        var detalleEsperado = new DetalleTurno(
+            "Turno Mixto",
+            new List<DetalleFranjaOrdinaria>
+            {
+                new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0,
+                    new List<DetalleSubFranja> { new(new TimeOnly(10, 0), new TimeOnly(10, 30), 0, 0, "Desayuno") }.AsReadOnly(),
+                    new List<DetalleSubFranja> { new(new TimeOnly(13, 0), new TimeOnly(14, 0), 0, 0, "Extra") }.AsReadOnly(),
+                    "06:00-14:00")
+            }.AsReadOnly(),
+            "06:00-14:00");
+        Given(StreamOctubre, Agregada(Solicitud1, turnoConSubFranjas, null, Oct(5)));
+
+        await WhenAsync(Comando(Oct(1), Oct(31)));
+
+        Then(StreamOctubre, Publicada(Oct(5)));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, Lote(Solicitud1, detalleEsperado, null, Oct(5)));
+        And<BorradorMensual, int>(StreamOctubre, EnBorrador, 0);
+    }
+
+    [Fact]
     public async Task PublicarProgramacion_NoEmiteNiEnvia_CuandoSeRepublicaLoYaPublicado()
     {
         Given(StreamOctubre,
