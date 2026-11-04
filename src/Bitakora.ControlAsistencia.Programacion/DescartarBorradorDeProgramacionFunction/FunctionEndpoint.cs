@@ -21,8 +21,7 @@ public partial class FunctionEndpoint(IRequestValidator requestValidator, IComma
         CancellationToken ct)
     {
         if (!CodigoUrlSafe().IsMatch(codigo ?? string.Empty))
-            return new BadRequestObjectResult(
-                "El codigo del colaborador solo admite letras sin tilde, digitos y los caracteres - . _ ~");
+            return new BadRequestObjectResult(Mensajes.CodigoNoEsUrlSafe);
 
         var (body, error) = await requestValidator.ValidarAsync<DescartarBorradorDeProgramacionBody>(req, ct);
         if (error is not null)

@@ -66,7 +66,9 @@ public class FunctionEndpointTests
 
             var result = await function.Run(FakeHttpRequest(), codigo, CancellationToken.None);
 
-            result.Should().BeOfType<BadRequestObjectResult>($"el codigo '{codigo}' no es URL-safe");
+            result.Should().BeOfType<BadRequestObjectResult>($"el codigo '{codigo}' no es URL-safe")
+                .Which.Value.Should().Be(
+                    "El codigo del colaborador solo admite letras sin tilde, digitos y los caracteres - . _ ~");
             router.Comandos.Should().BeEmpty();
         }
     }

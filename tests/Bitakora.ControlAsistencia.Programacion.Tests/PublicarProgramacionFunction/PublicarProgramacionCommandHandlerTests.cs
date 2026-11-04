@@ -82,6 +82,8 @@ public class PublicarProgramacionCommandHandlerTests : CommandHandlerAsyncTest<P
 
     private static ProgramacionPublicada Publicada(params DateOnly[] fechas) => new(Colaborador, fechas);
 
+    private static BorradorDeProgramacionDescartado Descartado(params DateOnly[] fechas) => new(Colaborador, fechas);
+
     private static ProgramacionTurnoEnFechasSolicitada Lote(
         Guid solicitud, DetalleTurno turno, DetalleSede? sede, params DateOnly[] fechas) =>
         new(solicitud, Resumen, fechas, turno, DetalleJornadaEsperado, sede);
@@ -284,6 +286,34 @@ public class PublicarProgramacionCommandHandlerTests : CommandHandlerAsyncTest<P
 
         Then(StreamOctubre);
         ThenIsPublishedPrivately();
+        And<BorradorMensual, int>(StreamOctubre, EnBorrador, 0);
+    }
+
+    [Fact]
+    public async Task PublicarProgramacion_NoEmiteNiEnvia_CuandoElRangoYaSeDescarto()
+    {
+        Given(StreamOctubre,
+            Agregada(Solicitud1, TurnoManana, null, Oct(5), Oct(6)),
+            Descartado(Oct(5), Oct(6)));
+
+        await WhenAsync(Comando(Oct(1), Oct(31)));
+
+        Then(StreamOctubre);
+        ThenIsPublishedPrivately();
+        And<BorradorMensual, int>(StreamOctubre, EnBorrador, 0);
+    }
+
+    [Fact]
+    public async Task PublicarProgramacion_PublicaSoloLasQueNoSeDescartaron_CuandoUnDescartePrevioQuitoParteDelBorrador()
+    {
+        Given(StreamOctubre,
+            Agregada(Solicitud1, TurnoManana, null, Oct(5), Oct(6), Oct(7), Oct(8)),
+            Descartado(Oct(6), Oct(7)));
+
+        await WhenAsync(Comando(Oct(1), Oct(31)));
+
+        Then(StreamOctubre, Publicada(Oct(5), Oct(8)));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador, Lote(Solicitud1, DetalleManana, null, Oct(5), Oct(8)));
         And<BorradorMensual, int>(StreamOctubre, EnBorrador, 0);
     }
 }

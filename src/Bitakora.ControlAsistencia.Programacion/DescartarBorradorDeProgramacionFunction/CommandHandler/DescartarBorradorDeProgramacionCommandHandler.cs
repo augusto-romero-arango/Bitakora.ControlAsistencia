@@ -18,10 +18,7 @@ public partial class DescartarBorradorDeProgramacionCommandHandler : ICommandHan
         {
             var borrador = await _eventStore.GetAggregateRootAsync<BorradorMensual>(
                 BorradorMensual.ComputarStreamId(command.CodigoColaborador, mes), ct);
-            if (borrador is null)
-                continue;
-
-            borrador.Descartar([.. borrador.FechasEnBorrador.Where(f => f >= command.Desde && f <= command.Hasta)]);
+            borrador?.Descartar(command.Desde, command.Hasta);
         }
     }
 

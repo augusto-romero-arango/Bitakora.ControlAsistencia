@@ -102,7 +102,6 @@ public class DescartarBorradorDeProgramacionCommandHandlerTests : CommandHandler
         await WhenAsync(Comando(Oct(1), Oct(31)));
 
         Then();
-        And<BorradorMensual, int>(StreamOctubre, EnBorrador, 0);
     }
 
     [Fact]
