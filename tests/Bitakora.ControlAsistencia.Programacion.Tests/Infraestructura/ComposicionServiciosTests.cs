@@ -309,6 +309,16 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeBorradorDeProgramacionDescartado()
+    {
+        await using var provider = ComponerServiceProvider();
+        var store = provider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(BorradorDeProgramacionDescartado)).Alias;
+        alias.Should().Be("borrador_de_programacion_descartado");
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaCreada()
     {
         await using var provider = ComponerServiceProvider();

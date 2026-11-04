@@ -1,0 +1,7 @@
+using FluentValidation;
+
+namespace Bitakora.ControlAsistencia.Programacion.DescartarBorradorDeProgramacionFunction.CommandHandler;
+
+public partial class DescartarBorradorDeProgramacionBodyValidator : AbstractValidator<DescartarBorradorDeProgramacionBody>
+{
+}
