@@ -62,4 +62,32 @@ public class ConsultarMallaTurnosSmokeTests(McpFixture mcp)
         resultado.IsError.Should().NotBeTrue();
         VerificarSobreOFrase(resultado.Content.OfType<TextContentBlock>().Single().Text);
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ConsultarMallaTurnos_ResponderConLaFilaDelColaborador_CuandoLeeElBorradorDeUnColaboradorSembrado()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (_, codigo) = await Sembrado.RegistrarColaboradorAsync(mcp.Cliente, null, ct);
+
+        var texto = string.Empty;
+        for (var intento = 0; intento < 10; intento++)
+        {
+            var resultado = await mcp.Cliente.CallToolAsync(
+                "consultar_malla_turnos",
+                new Dictionary<string, object?> { ["fecha"] = "2027-03-03", ["codigos_colaborador"] = codigo },
+                cancellationToken: ct);
+
+            resultado.IsError.Should().NotBeTrue();
+            texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
+            if (texto.TrimStart().StartsWith('{'))
+                break;
+            await Task.Delay(TimeSpan.FromSeconds(3), ct);
+        }
+
+        texto.TrimStart().Should().StartWith("{", "la ficha sembrada debe materializarse y devolver el sobre con su fila");
+        using var json = JsonDocument.Parse(texto);
+        json.RootElement.GetProperty("colaboradores").EnumerateArray()
+            .Select(c => c.GetProperty("codigo").GetString()).Should().Contain(codigo);
+    }
 }

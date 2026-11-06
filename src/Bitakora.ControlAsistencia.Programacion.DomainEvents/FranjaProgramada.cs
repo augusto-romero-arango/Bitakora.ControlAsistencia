@@ -64,4 +64,42 @@ public record FranjaProgramada(
         hash.Add(Sede);
         return hash.ToHashCode();
     }
+
+    private const int MinutosPorDia = 1440;
+
+    /// <summary>
+    /// Recorta la franja por sus descansos y extras en bloques absolutos contra
+    /// <paramref name="fecha"/>, el dia en que empieza. Todos los bloques llevan la sede de la
+    /// franja. No rompe en la medianoche: el bloque nocturno termina al dia siguiente.
+    /// </summary>
+    internal IEnumerable<BloqueProgramado> Segmentar(DateOnly fecha)
+    {
+        var medianoche = fecha.ToDateTime(TimeOnly.MinValue);
+        BloqueProgramado Bloque(TipoBloqueProgramado tipo, int inicio, int fin) =>
+            new(tipo, medianoche.AddMinutes(inicio), medianoche.AddMinutes(fin), Sede);
+
+        var subFranjas = Descansos.Select(d => Tramo(TipoBloqueProgramado.Descanso, d))
+            .Concat(Extras.Select(x => Tramo(TipoBloqueProgramado.Extra, x)))
+            .OrderBy(sub => sub.Inicio);
+
+        var cursor = Minutos(HoraInicio, 0);
+        foreach (var sub in subFranjas)
+        {
+            if (sub.Inicio > cursor)
+                yield return Bloque(TipoBloqueProgramado.Ordinaria, cursor, sub.Inicio);
+            yield return Bloque(sub.Tipo, sub.Inicio, sub.Fin);
+            cursor = sub.Fin;
+        }
+
+        var finFranja = Minutos(HoraFin, DiaOffsetFin);
+        if (cursor < finFranja)
+            yield return Bloque(TipoBloqueProgramado.Ordinaria, cursor, finFranja);
+    }
+
+    private static (TipoBloqueProgramado Tipo, int Inicio, int Fin) Tramo(
+        TipoBloqueProgramado tipo, SubFranjaProgramada sub) =>
+        (tipo, Minutos(sub.HoraInicio, sub.DiaOffsetInicio), Minutos(sub.HoraFin, sub.DiaOffsetFin));
+
+    private static int Minutos(TimeOnly hora, int diaOffset) =>
+        hora.Hour * 60 + hora.Minute + diaOffset * MinutosPorDia;
 }

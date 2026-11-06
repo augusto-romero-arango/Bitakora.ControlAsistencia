@@ -36,7 +36,7 @@ public partial class AplicarPlantillaSemanalTool(
             + "sugierela al usuario y, si prefiere la sede de cada colaborador, omite el parametro -- y las "
             + "identificaciones completas separadas por coma, tal como las devuelven buscar_colaboradores "
             + "o listar_colaboradores. A cada colaborador le programa solo los dias que su vinculacion "
-            + "cubre y respeta sus ausencias.")]
+            + "cubre y respeta sus ausencias. Los dias que quedan en el borrador de programacion (enBorrador en la respuesta) no rigen para el calculo hasta publicarlos con publicar_programacion; los dias en firme (enFirme) rigen de una vez. Si el usuario pidio programar y publicar, publica enseguida el mismo periodo; si no, dile que quedo en borrador y preguntale si lo publica.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("desde", "Primer dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
@@ -156,7 +156,8 @@ public partial class AplicarPlantillaSemanalTool(
             ejecucion.Programados,
             ejecucion.Omitidos + omitidosPorDirectorio,
             ejecucion.Fallidos,
-            Mensajes.NotaVisibilidadEventual,
+            EjecutorDeProgramacion.ElegirNota(
+                ejecucion.Programados, porGrupo: false, Mensajes.NotaVisibilidadEventual),
             ejecucion.Avisos));
     }
 }

@@ -624,4 +624,36 @@ public class SolicitarProgramacionTurnoToolTests
         programado["respetados"]!.AsArray().Single()!["tramos"]!.GetValue<string>()
             .Should().Be("29 a 2026-10-01, 2026-10-03");
     }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_SeparaEnBorradorYEnFirmeYRemiteAPublicar_CuandoElCreatedTraeFechasEnBorrador()
+    {
+        var fakes = CrearTool(cuerpoSolicitud: """{"fechasEnBorrador":["2026-09-01","2026-09-02"]}""");
+
+        var resultado = await Ejecutar(
+            fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!;
+        var programado = json["programados"]!.AsArray().Single()!;
+        programado["dias"]!.GetValue<int>().Should().Be(30);
+        programado["enBorrador"]!.GetValue<string>().Should().Be("1-2");
+        programado["enFirme"]!.GetValue<string>().Should().Be("3-30");
+        json["nota"]!.GetValue<string>().Should().Contain("publicar_programacion")
+            .And.Contain("descartar_borrador_de_programacion").And.NotContain("_por_grupo");
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_DejaTodoEnFirmeSinEnBorrador_CuandoElCreatedNoTraeFechasEnBorrador()
+    {
+        var fakes = CrearTool(cuerpoSolicitud: CuerpoConRespetadas(("2026-09-13", "Vacaciones")));
+
+        var resultado = await Ejecutar(
+            fakes.Tool, identificaciones: "CC-1111", ct: TestContext.Current.CancellationToken);
+
+        var json = JsonNode.Parse(resultado)!;
+        var programado = json["programados"]!.AsArray().Single()!.AsObject();
+        programado.ContainsKey("enBorrador").Should().BeFalse();
+        programado["enFirme"]!.GetValue<string>().Should().Be("1-12, 14-30");
+        json["nota"]!.GetValue<string>().Should().Be(SolicitarProgramacionTurnoTool.Mensajes.NotaVisibilidadEventual);
+    }
 }
