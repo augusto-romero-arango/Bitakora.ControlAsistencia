@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="FechaInvalida" xml:space="preserve">
+    <value>'{0}' debe ser una fecha con formato yyyy-MM-dd; llego '{1}'.</value>
+  </data>
+  <data name="RangoIncompleto" xml:space="preserve">
+    <value>Para acotar por periodo pasa 'desde' y 'hasta' juntos, o ninguno de los dos.</value>
+  </data>
+  <data name="DesdePosteriorAHasta" xml:space="preserve">
+    <value>'desde' no puede ser posterior a 'hasta'.</value>
+  </data>
+  <data name="RechazoDelDominio" xml:space="preserve">
+    <value>El dominio rechazo la consulta: {0}</value>
+  </data>
+  <data name="SinBorradores" xml:space="preserve">
+    <value>No hay borrador de programacion pendiente{0}{1}.</value>
+  </data>
+  <data name="Periodo" xml:space="preserve">
+    <value> entre {0} y {1}</value>
+  </data>
+  <data name="GrupoSinColaboradores" xml:space="preserve">
+    <value>No hay colaboradores vinculados vigentes que cumplan el criterio ({0}).</value>
+  </data>
+  <data name="NotaMasColaboradores" xml:space="preserve">
+    <value>Hay mas colaboradores con borrador pendiente. Para acotar usa sede o etiquetas; para ver los siguientes, repite con cursor = siguienteCursor.</value>
+  </data>
+  <data name="CriterioSede" xml:space="preserve">
+    <value>sede {0}</value>
+  </data>
+  <data name="CriterioEtiquetas" xml:space="preserve">
+    <value>etiquetas {0}</value>
+  </data>
+  <data name="CriterioCodigos" xml:space="preserve">
+    <value>codigos {0}</value>
+  </data>
+</root>

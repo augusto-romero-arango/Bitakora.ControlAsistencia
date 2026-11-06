@@ -11,6 +11,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.ConsultarMallaTurnos;
 
 public class ConsultarMallaTurnosToolTests
 {
+    private const string VistaVacia = """{"elementos":[],"siguienteCursor":null}""";
+
     private static readonly RelojFalso Hoy = new(new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.FromHours(-5)));
 
     private static (ConsultarMallaTurnosTool Tool, HandlerEnlatado Malla, HandlerEnlatado Fichas)
@@ -21,6 +23,7 @@ public class ConsultarMallaTurnosToolTests
         var (clienteFichas, handlerFichas) = ClienteFalso.Con(jsonFichas ?? Leer("fichas-grupo.json"), statusFichas);
         var tool = new ConsultarMallaTurnosTool(
             new ControlHorasApi(clienteMalla),
+            new ProgramacionApi(ClienteFalso.Con(VistaVacia).Cliente),
             new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteFichas)),
             Hoy);
         return (tool, handlerMalla, handlerFichas);
