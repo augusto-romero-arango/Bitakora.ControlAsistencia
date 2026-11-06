@@ -43,11 +43,13 @@ public class ComposicionDelServidorTests
                 "buscar_plantillas", "listar_plantillas", "obtener_plantilla",
                 "crear_plantilla_semanal", "crear_plantilla", "crear_plantilla_rotativa",
                 "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
-                "consultar_malla_turnos", "consultar_dias_sin_programar",
+                "consultar_malla_turnos", "consultar_dias_sin_programar", "consultar_borradores_de_programacion",
                 "solicitar_programacion_turno",
                 "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal",
                 "aplicar_plantilla_semanal_por_grupo", "aplicar_plantilla", "aplicar_plantilla_por_grupo",
-                "programar_ausencia", "cancelar_ausencia",
+                "programar_ausencia", "cancelar_ausencia", "publicar_programacion",
+                "descartar_borrador_de_programacion",
+                "publicar_programacion_por_grupo", "descartar_borrador_de_programacion_por_grupo",
                 "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
                 "asignar_turno_a_dia_de_plantilla", "asignar_jornada_a_plantilla",
                 "quitar_jornada_de_plantilla", "retirar_plantilla",
@@ -662,6 +664,16 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
+    public void ConsultarMallaTurnos_LaDescripcionMarcaLosDiasEnBorradorYRemiteAPublicar_CuandoSeInspeccionaLaTool()
+    {
+        var descripcion = MetodoDe("consultar_malla_turnos").GetParameters()
+            .Select(p => p.GetCustomAttribute<McpToolTriggerAttribute>())
+            .Single(a => a is not null)!.Description;
+
+        descripcion.Should().Contain("borrador").And.Contain("publicar_programacion");
+    }
+
+    [Fact]
     public void ConsultarAdvertenciasProgramacion_TodosSusParametrosSonString_CuandoSeInspeccionaLaTool() =>
         MetodoDe("consultar_advertencias_programacion").GetParameters()
             .Where(p => p.GetCustomAttribute<McpToolPropertyAttribute>() is not null)
@@ -688,6 +700,123 @@ public class ComposicionDelServidorTests
     public void CancelarAusencia_DeclaraCompletaComoOpcional_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("cancelar_ausencia").Should().BeEquivalentTo(
             [("identificacion", true), ("desde", true), ("hasta", true), ("completa", false)]);
+
+    [Fact]
+    public void PublicarProgramacion_DeclaraIdentificacionObligatoriaYElPeriodoOpcional_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("publicar_programacion").Should().BeEquivalentTo(
+            [("identificacion", true), ("desde", false), ("hasta", false)]);
+
+    [Fact]
+    public void DescartarBorradorDeProgramacion_DeclaraIdentificacionObligatoriaYElPeriodoOpcional_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("descartar_borrador_de_programacion").Should().BeEquivalentTo(
+            [("identificacion", true), ("desde", false), ("hasta", false)]);
+
+    [Fact]
+    public void DescartarBorradorDeProgramacion_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("descartar_borrador_de_programacion").Should().OnlyContain(p => p.ParameterType == typeof(string));
+
+    [Fact]
+    public void DescartarBorradorDeProgramacion_DeclaraSusHints_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("descartar_borrador_de_programacion"))!.GetCustomAttribute<McpMetadataAttribute>()!
+            .Json.Should().Contain("\"readOnlyHint\": false")
+            .And.Contain("\"destructiveHint\": true")
+            .And.Contain("\"idempotentHint\": true");
+
+    [Fact]
+    public void ConsultarBorradoresDeProgramacion_DeclaraSusSeisParametrosComoOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("consultar_borradores_de_programacion").Should().BeEquivalentTo(
+            [("desde", false), ("hasta", false), ("sede", false), ("etiquetas", false),
+             ("codigos_colaborador", false), ("cursor", false)]);
+
+    [Fact]
+    public void ConsultarBorradoresDeProgramacion_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("consultar_borradores_de_programacion").Should().OnlyContain(p => p.ParameterType == typeof(string));
+
+    [Fact]
+    public void ConsultarBorradoresDeProgramacion_DeclaraSoloLecturaComoHint_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("consultar_borradores_de_programacion"))!.GetCustomAttribute<McpMetadataAttribute>()!
+            .Json.Should().Contain("\"readOnlyHint\": true");
+
+    [Fact]
+    public void ConsultarBorradoresDeProgramacion_RemiteAPublicarDescartarYLaMalla_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("consultar_borradores_de_programacion"))!.GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("publicar_programacion")
+            .And.Contain("descartar_borrador_de_programacion")
+            .And.Contain("consultar_malla_turnos");
+
+    [Fact]
+    public void PublicarProgramacion_RemiteALaConsultaDeBorradores_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("publicar_programacion"))!.GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("consultar_borradores_de_programacion")
+            .And.NotContain("la consulta de pendientes");
+
+    [Fact]
+    public void DescartarBorradorDeProgramacion_RemiteALaConsultaDeBorradores_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("descartar_borrador_de_programacion"))!.GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("consultar_borradores_de_programacion")
+            .And.NotContain("la consulta de pendientes");
+
+    [Fact]
+    public void HostJson_MencionaLaToolConsultarBorradoresDeProgramacion_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("consultar_borradores_de_programacion");
+
+    [Fact]
+    public void HostJson_MencionaLaToolDeDescartarBorradorDeProgramacion_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("descartar_borrador_de_programacion");
+
+    [Fact]
+    public void PublicarProgramacion_DeclaraSusParametrosComoString_CuandoSeInspeccionaLaTool() =>
+        ParametrosDeTool("publicar_programacion").Should().OnlyContain(p => p.ParameterType == typeof(string));
+
+    [Fact]
+    public void PublicarProgramacion_DeclaraSusHints_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("publicar_programacion"))!.GetCustomAttribute<McpMetadataAttribute>()!
+            .Json.Should().Contain("\"readOnlyHint\": false")
+            .And.Contain("\"destructiveHint\": false")
+            .And.Contain("\"idempotentHint\": true");
+
+    [Fact]
+    public void HostJson_MencionaLaToolDePublicarProgramacion_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("publicar_programacion");
+
+    [Fact]
+    public void PublicarProgramacionPorGrupo_DeclaraTodosSusParametrosOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("publicar_programacion_por_grupo").Should().BeEquivalentTo(
+            [("sede", false), ("etiquetas", false), ("todo_lo_pendiente", false), ("desde", false), ("hasta", false)]);
+
+    [Fact]
+    public void DescartarBorradorDeProgramacionPorGrupo_DeclaraTodosSusParametrosOpcionales_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("descartar_borrador_de_programacion_por_grupo").Should().BeEquivalentTo(
+            [("sede", false), ("etiquetas", false), ("todo_lo_pendiente", false), ("desde", false), ("hasta", false)]);
+
+    [Fact]
+    public void PublicarProgramacionPorGrupo_DeclaraSusHints_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("publicar_programacion_por_grupo"))!.GetCustomAttribute<McpMetadataAttribute>()!
+            .Json.Should().Contain("\"readOnlyHint\": false")
+            .And.Contain("\"destructiveHint\": false");
+
+    [Fact]
+    public void DescartarBorradorDeProgramacionPorGrupo_DeclaraSusHints_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("descartar_borrador_de_programacion_por_grupo"))!.GetCustomAttribute<McpMetadataAttribute>()!
+            .Json.Should().Contain("\"readOnlyHint\": false")
+            .And.Contain("\"destructiveHint\": true");
+
+    [Fact]
+    public void HostJson_MencionaLasDosToolsDeBorradorPorGrupo_CuandoSeLeenLasInstructions() =>
+        LeerHostJson().Should().Contain("publicar_programacion_por_grupo")
+            .And.Contain("descartar_borrador_de_programacion_por_grupo");
+
+    [Fact]
+    public void PublicarProgramacion_RemiteALaToolDeGrupo_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("publicar_programacion"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("publicar_programacion_por_grupo");
+
+    [Fact]
+    public void DescartarBorradorDeProgramacion_RemiteALaToolDeGrupo_CuandoSeInspeccionaSuDescripcion() =>
+        ParametroTrigger(MetodoDe("descartar_borrador_de_programacion"))!
+            .GetCustomAttribute<McpToolTriggerAttribute>()!
+            .Description.Should().Contain("descartar_borrador_de_programacion_por_grupo");
 
     [Fact]
     public void SolicitarProgramacionTurnoPorGrupo_DeclaraLaVentanaYElTurnoObligatoriosYLaSedeDeProgramacionOpcional_CuandoSeInspeccionaLaTool() =>
@@ -874,5 +1003,17 @@ public class ComposicionDelServidorTests
 
         instructions.Should().Contain("asignar_etiqueta");
         instructions.Should().Contain("retirar_etiqueta");
+    }
+
+    [Fact]
+    public void HostJson_ExplicaElCicloDelBorradorDeProgramacion_CuandoSeLeenLasInstructions()
+    {
+        var host = LeerHostJson();
+        host.Should().Contain("enBorrador").And.Contain("enFirme")
+            .And.Contain("publicar_programacion")
+            .And.Contain("publicar_programacion_por_grupo")
+            .And.Contain("descartar_borrador_de_programacion")
+            .And.Contain("descartar_borrador_de_programacion_por_grupo")
+            .And.Contain("preguntale si lo publica");
     }
 }
