@@ -245,4 +245,12 @@ public class AliasEventosProgramacionTests
 
         AliasDe<ProgramacionPublicada>(options).Should().Be("programacion_publicada");
     }
+
+    [Fact]
+    public void BorradorDeProgramacionDescartado_TieneAliasBorradorDeProgramacionDescartado()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<BorradorDeProgramacionDescartado>(options).Should().Be("borrador_de_programacion_descartado");
+    }
 }

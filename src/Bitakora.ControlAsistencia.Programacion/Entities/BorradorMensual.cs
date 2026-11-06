@@ -63,6 +63,9 @@ public partial class BorradorMensual : AggregateRoot
     public void Apply(BorradorDeProgramacionDescartado e) =>
         _entradas = _entradas.Where(p => !e.Fechas.Contains(p.Key)).ToDictionary(p => p.Key, p => p.Value);
 
+    public void Descartar(DateOnly desde, DateOnly hasta) =>
+        Descartar([.. _entradas.Keys.Where(f => f >= desde && f <= hasta)]);
+
     public void Descartar(IReadOnlyCollection<DateOnly> fechas)
     {
         var presentes = fechas.Distinct().Where(_entradas.ContainsKey).Order().ToList();
