@@ -149,6 +149,8 @@ public partial class SolicitarProgramacionTurnoSmokeTests(
         var respetado = programado.GetProperty("respetados").EnumerateArray().Single();
         respetado.GetProperty("motivo").GetString().Should().Be("Vacaciones");
         respetado.GetProperty("tramos").GetString().Should().Be("2");
+        (programado.TryGetProperty("enFirme", out _) || programado.TryGetProperty("enBorrador", out _))
+            .Should().BeTrue("los dias programados quedan en firme o en borrador");
     }
 
     [Fact]
@@ -235,6 +237,17 @@ public partial class SolicitarProgramacionTurnoSmokeTests(
                 return null;
             },
             TimeoutPolling);
+
+        var publicacion = await mcp.Cliente.CallToolAsync(
+            "publicar_programacion",
+            new Dictionary<string, object?>
+            {
+                ["identificacion"] = identificacion,
+                ["desde"] = dia,
+                ["hasta"] = dia
+            },
+            cancellationToken: ct);
+        publicacion.IsError.Should().NotBeTrue();
 
         var advertenciaEsperada = $"{dia}: supera el tope diario";
         var advertencias = await Polling.WaitUntilAsync(

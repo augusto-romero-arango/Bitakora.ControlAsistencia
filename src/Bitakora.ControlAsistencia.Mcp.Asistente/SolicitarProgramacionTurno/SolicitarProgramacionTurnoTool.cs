@@ -37,8 +37,8 @@ public partial class SolicitarProgramacionTurnoTool(
             + "numeros sin tipo. A cada colaborador le programa solo los dias de la ventana que su "
             + "vinculacion cubre; los que no cubren ninguno o no se encuentran se omiten sin "
             + "detalle. Respeta las ausencias de cada colaborador: la respuesta dice cuales dias se "
-            + "respetaron y por que. Responde quienes quedaron programados y con que fechas. La "
-            + "programacion aparece en consultar_programacion unos segundos despues. Para programar a todo "
+            + "respetaron y por que. Responde quienes quedaron programados y con que fechas. Los "
+            + "dias en firme aparecen en consultar_programacion unos segundos despues. Los dias que quedan en el borrador de programacion (enBorrador en la respuesta) no rigen para el calculo hasta publicarlos con publicar_programacion; los dias en firme (enFirme) rigen de una vez. Si el usuario pidio programar y publicar, publica enseguida el mismo periodo; si no, dile que quedo en borrador y preguntale si lo publica. Para programar a todo "
             + "un grupo por sede o etiquetas usa solicitar_programacion_turno_por_grupo.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
@@ -163,12 +163,14 @@ public partial class SolicitarProgramacionTurnoTool(
             ejecucion.Programados,
             ejecucion.Omitidos + omitidosPorDirectorio,
             ejecucion.Fallidos,
-            Mensajes.NotaVisibilidadEventual,
+            EjecutorDeProgramacion.ElegirNota(
+                ejecucion.Programados, porGrupo: false, Mensajes.NotaVisibilidadEventual),
             ejecucion.Avisos));
     }
 }
 
-internal sealed record RespuestaSolicitudCreada(IReadOnlyList<FechaRespetadaPorAusencia>? FechasRespetadas);
+internal sealed record RespuestaSolicitudCreada(
+    IReadOnlyList<FechaRespetadaPorAusencia>? FechasRespetadas, IReadOnlyList<DateOnly>? FechasEnBorrador = null);
 
 internal sealed record FechaRespetadaPorAusencia(DateOnly Fecha, string Motivo);
 
@@ -192,7 +194,8 @@ public sealed record SedeResumen(string Codigo, string Nombre);
 
 public sealed record ColaboradorProgramadoResumen(
     string Identificacion, string Nombre, string CodigoColaborador, DateOnly Desde, DateOnly Hasta, int Dias,
-    IReadOnlyList<DiasRespetadosResumen>? Respetados = null, string? Sede = null);
+    IReadOnlyList<DiasRespetadosResumen>? Respetados = null, string? Sede = null,
+    string? EnBorrador = null, string? EnFirme = null);
 
 public sealed record DiasRespetadosResumen(string Motivo, string Tramos);
 

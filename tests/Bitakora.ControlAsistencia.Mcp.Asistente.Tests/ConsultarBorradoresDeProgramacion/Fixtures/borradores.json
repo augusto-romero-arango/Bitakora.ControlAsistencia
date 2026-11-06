@@ -1,0 +1,24 @@
+{
+  "elementos": [
+    {
+      "codigoColaborador": "C-102",
+      "identificacion": "CC-1020",
+      "nombreCompleto": "Ana Pérez",
+      "dias": [
+        { "fecha": "2026-11-03", "nombreTurno": "Tarde", "horarioResumido": "14:00-22:00", "esHorarioAbierto": false, "vencido": false, "bloques": [] },
+        { "fecha": "2026-11-04", "nombreTurno": "Tarde", "horarioResumido": "14:00-22:00", "esHorarioAbierto": false, "vencido": true, "bloques": [] },
+        { "fecha": "2026-11-05", "nombreTurno": "Tarde", "horarioResumido": "14:00-22:00", "esHorarioAbierto": false, "vencido": false, "bloques": [] },
+        { "fecha": "2026-11-10", "nombreTurno": "Tarde", "horarioResumido": "14:00-22:00", "esHorarioAbierto": false, "vencido": false, "bloques": [] }
+      ]
+    },
+    {
+      "codigoColaborador": "C-103",
+      "identificacion": "CC-1030",
+      "nombreCompleto": "Luis Gómez",
+      "dias": [
+        { "fecha": "2026-11-12", "nombreTurno": "Noche", "horarioResumido": "22:00-06:00", "esHorarioAbierto": false, "vencido": false, "bloques": [] }
+      ]
+    }
+  ],
+  "siguienteCursor": null
+}
