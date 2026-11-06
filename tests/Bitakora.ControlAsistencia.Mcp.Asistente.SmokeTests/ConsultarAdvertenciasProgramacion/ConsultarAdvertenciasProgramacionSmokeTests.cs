@@ -70,6 +70,11 @@ public partial class ConsultarAdvertenciasProgramacionSmokeTests(McpFixture mcp,
         }, ct);
         solicitud.StatusCode.Should().Be(HttpStatusCode.Created);
 
+        var publicar = await programacion.Client.PostAsJsonAsync(
+            $"/api/programacion/colaboradores/{codigo}/borrador:publicar",
+            new { desde = lunes.ToString("yyyy-MM-dd"), hasta = lunes.AddDays(6).ToString("yyyy-MM-dd") }, ct);
+        publicar.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
         var documento = await Polling.WaitUntilAsync(
             async () =>
             {
