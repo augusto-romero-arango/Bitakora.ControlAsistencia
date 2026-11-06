@@ -172,4 +172,20 @@ public class AplicarPlantillaSemanalPorGrupoToolTests
         JsonNode.Parse(resultado)!["programados"]!.AsArray().Should().BeEmpty();
         NoHuboPosts(entorno);
     }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanalPorGrupo_RemiteAPublicarODescartar_CuandoAlgunColaboradorQuedaEnBorrador()
+    {
+        var entorno = Crear(fichas: [Ficha(1)]);
+        entorno.Programacion.Responde(
+            HttpMethod.Post, RutaSolicitudes, HttpStatusCode.Created, """{"fechasEnBorrador":["2026-11-02"]}""");
+
+        var resultado = await Ejecutar(entorno);
+
+        var json = JsonNode.Parse(resultado)!;
+        json["programados"]!.AsArray().Single()!["enBorrador"]!.GetValue<string>().Should().Be("2");
+        var nota = json["nota"]!.GetValue<string>();
+        nota.Should().Contain("publicar_programacion_por_grupo")
+            .And.Contain("descartar_borrador_de_programacion_por_grupo");
+    }
 }

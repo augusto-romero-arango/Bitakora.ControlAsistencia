@@ -570,4 +570,19 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
             SolicitarProgramacionTurnoPorGrupoTool.Mensajes.RechazoDelDominio, "boom"));
         programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurnoPorGrupo_RemiteAPublicarODescartarPorGrupo_CuandoAlgunColaboradorQuedaEnBorrador()
+    {
+        var entorno = CrearEntorno(
+            paginas: [[Ficha(1)]],
+            respuestaPost: _ => Respuesta(HttpStatusCode.Created, """{"fechasEnBorrador":["2026-09-01"]}"""));
+
+        var resultado = await Ejecutar(entorno);
+
+        var json = JsonNode.Parse(resultado)!;
+        json["programados"]!.AsArray().Single()!["enBorrador"]!.GetValue<string>().Should().Be("1");
+        json["nota"]!.GetValue<string>().Should().Contain("publicar_programacion_por_grupo")
+            .And.Contain("descartar_borrador_de_programacion_por_grupo");
+    }
 }

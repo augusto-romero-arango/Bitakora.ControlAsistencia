@@ -44,6 +44,12 @@ public partial class ConsultarMallaTurnosTool
 
         public static string DiaSinProgramar => ResourceManager.GetString(nameof(DiaSinProgramar))!;
 
+        /// <summary>{0}: estado del dia (trabajo, horario abierto o descanso).</summary>
+        public static string DiaEnBorrador => ResourceManager.GetString(nameof(DiaEnBorrador))!;
+
+        /// <summary>{0}: estado del dia (trabajo, horario abierto o descanso).</summary>
+        public static string DiaEnBorradorVencido => ResourceManager.GetString(nameof(DiaEnBorradorVencido))!;
+
         public static string DiaFueraDeVinculacion => ResourceManager.GetString(nameof(DiaFueraDeVinculacion))!;
     }
 }

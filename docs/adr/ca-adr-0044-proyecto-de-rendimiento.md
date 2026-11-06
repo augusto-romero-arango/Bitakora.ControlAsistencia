@@ -5,6 +5,9 @@
 Aceptado (2026-10-31). Origen: #1335 (prueba de carga de programacion masiva). Complementa CA-ADR-0041 y
 actualiza la meta de CA-ADR-0043.
 
+Enmendado 2026-11-02 por CA-ADR-0045: la decision 8 mide el SLI de programacion masiva desde la
+publicacion.
+
 ## Contexto
 
 CA-ADR-0043 fijo una meta de throughput para la programacion masiva y dejo dos caminos (por dia y en fechas)
@@ -78,3 +81,4 @@ App, recursos del worker de proyecciones. Sin eso no se puede atribuir una mejor
 ## Control de cambios
 
 - 2026-10-31: creado (#1335).
+- 2026-11-02: enmienda de la decision 8 por CA-ADR-0045: el SLI de programacion masiva se mide desde la publicacion (#1404).

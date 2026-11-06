@@ -229,4 +229,20 @@ public class AliasEventosProgramacionTests
         AliasDe<LimitesDeJornadaDePlantillaDeTurnosSincronizados>(options)
             .Should().Be("limites_de_jornada_de_plantilla_de_turnos_sincronizados");
     }
+
+    [Fact]
+    public void ProgramacionTurnoAgregadaAlBorrador_TieneAliasProgramacionTurnoAgregadaAlBorrador()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<ProgramacionTurnoAgregadaAlBorrador>(options).Should().Be("programacion_turno_agregada_al_borrador");
+    }
+
+    [Fact]
+    public void ProgramacionPublicada_TieneAliasProgramacionPublicada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<ProgramacionPublicada>(options).Should().Be("programacion_publicada");
+    }
 }

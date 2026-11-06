@@ -1,0 +1,14 @@
+{
+  "elementos": [
+    {
+      "codigoColaborador": "AR01",
+      "nombreCompleto": "Ana Ruiz",
+      "dias": [
+        { "fecha": "2026-09-05" },
+        { "fecha": "2026-09-02" },
+        { "fecha": "2026-09-10" }
+      ]
+    }
+  ],
+  "siguienteCursor": null
+}
