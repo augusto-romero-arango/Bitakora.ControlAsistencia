@@ -13,11 +13,13 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "quitar_franja", "agregar_subfranja", "quitar_subfranja", "asignar_sede_franja",
         "crear_plantilla_semanal", "crear_plantilla", "crear_plantilla_rotativa", "buscar_plantillas", "listar_plantillas", "obtener_plantilla",
         "consultar_programacion", "consultar_ausencias", "consultar_advertencias_programacion",
-        "consultar_malla_turnos", "consultar_dias_sin_programar",
+        "consultar_malla_turnos", "consultar_dias_sin_programar", "consultar_borradores_de_programacion",
         "solicitar_programacion_turno",
         "solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal", "aplicar_plantilla_semanal_por_grupo",
         "aplicar_plantilla", "aplicar_plantilla_por_grupo",
-        "programar_ausencia", "cancelar_ausencia",
+        "programar_ausencia", "cancelar_ausencia", "publicar_programacion",
+        "descartar_borrador_de_programacion",
+        "publicar_programacion_por_grupo", "descartar_borrador_de_programacion_por_grupo",
         "listar_jornadas", "crear_jornada", "modificar_limites_jornada", "asignar_jornada_predeterminada",
         "asignar_turno_a_dia_de_plantilla", "asignar_jornada_a_plantilla",
         "quitar_jornada_de_plantilla", "retirar_plantilla",
@@ -62,6 +64,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["consultar_advertencias_programacion"] = [],
         ["consultar_malla_turnos"] = [],
         ["consultar_dias_sin_programar"] = [],
+        ["consultar_borradores_de_programacion"] = [],
         ["solicitar_programacion_turno"] = ["desde", "hasta", "turno_id", "identificaciones"],
         ["solicitar_programacion_turno_por_grupo"] = ["desde", "hasta", "turno_id"],
         ["aplicar_plantilla_semanal"] = ["desde", "hasta", "plantilla_id", "identificaciones"],
@@ -70,6 +73,10 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["aplicar_plantilla_por_grupo"] = ["plantilla_id", "fecha_inicio", "desde", "hasta"],
         ["programar_ausencia"] = ["identificacion", "desde", "hasta", "motivo"],
         ["cancelar_ausencia"] = ["identificacion", "desde", "hasta"],
+        ["publicar_programacion"] = ["identificacion"],
+        ["descartar_borrador_de_programacion"] = ["identificacion"],
+        ["publicar_programacion_por_grupo"] = [],
+        ["descartar_borrador_de_programacion_por_grupo"] = [],
         ["listar_jornadas"] = [],
         ["crear_jornada"] = ["horas_semanales", "tope_diario", "minimo_diario", "dias_descanso_por_semana"],
         ["modificar_limites_jornada"] =
@@ -136,7 +143,9 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
                 or "solicitar_programacion_turno"
                 or "solicitar_programacion_turno_por_grupo" or "aplicar_plantilla_semanal"
                 or "aplicar_plantilla_semanal_por_grupo" or "aplicar_plantilla" or "aplicar_plantilla_por_grupo"
-                or "programar_ausencia" or "cancelar_ausencia"
+                or "programar_ausencia" or "cancelar_ausencia" or "publicar_programacion"
+                or "descartar_borrador_de_programacion"
+                or "publicar_programacion_por_grupo" or "descartar_borrador_de_programacion_por_grupo"
                 or "crear_jornada" or "modificar_limites_jornada" or "asignar_jornada_predeterminada"
                 or "asignar_turno_a_dia_de_plantilla" or "asignar_jornada_a_plantilla"
                 or "quitar_jornada_de_plantilla" or "retirar_plantilla"

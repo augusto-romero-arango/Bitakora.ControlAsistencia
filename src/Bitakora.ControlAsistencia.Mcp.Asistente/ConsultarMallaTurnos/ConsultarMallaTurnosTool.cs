@@ -9,7 +9,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarMallaTurnos;
 
 public partial class ConsultarMallaTurnosTool(
-    ControlHorasApi controlHoras, ResolutorCandidatosPorGrupo resolutor, TimeProvider reloj)
+    ControlHorasApi controlHoras, ProgramacionApi programacion, ResolutorCandidatosPorGrupo resolutor, TimeProvider reloj)
 {
     internal const string NombreTool = "consultar_malla_turnos";
     internal const int MaximoColaboradores = 50;
@@ -17,6 +17,7 @@ public partial class ConsultarMallaTurnosTool(
     private static readonly CultureInfo Cultura = new("es-CO");
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
     private static readonly string[] DiasAbreviados = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
+    private static readonly Dictionary<(string Codigo, DateOnly Fecha), DiaDeBorrador> SinBorradores = [];
 
     [Function("ConsultarMallaTurnos")]
     public async Task<string> Run(
@@ -27,7 +28,8 @@ public partial class ConsultarMallaTurnosTool(
             + "programar y dias fuera de la vinculacion. Sin fecha revisa la PROXIMA semana. Filtra por sede, "
             + "etiquetas (pares categoria:valor) o codigos de colaborador. Pagina por colaborador completo: "
             + "usa cursor para la pagina siguiente. Para el detalle del turno y sus bloques de un dia, usa "
-            + "consultar_programacion; para lo que se sale de la Jornada, consultar_advertencias_programacion.")]
+            + "consultar_programacion; para lo que se sale de la Jornada, consultar_advertencias_programacion. "
+            + "Los dias en borrador (programados y aun sin publicar) van marcados; se ponen en vigor con publicar_programacion.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("fecha", "Cualquier dia de la semana a revisar, formato yyyy-MM-dd. Si se omite, la proxima semana.")]
@@ -77,6 +79,11 @@ public partial class ConsultarMallaTurnosTool(
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 
         var lista = (await respuesta.Content.ReadFromJsonAsync<ListaMallaSemanal>(OpcionesLectura, ct))!;
+
+        var (borradores, falloBorrador) = await LeerBorradoresAsync(lista.Elementos, lunes, domingo, ct);
+        if (falloBorrador is not null)
+            return string.Format(Mensajes.RechazoDelDominio, falloBorrador);
+
         var nombres = candidatos
             .GroupBy(c => c.CodigoColaborador, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().NombreCompleto.Trim(), StringComparer.OrdinalIgnoreCase);
@@ -85,7 +92,8 @@ public partial class ConsultarMallaTurnosTool(
             .Select(f => new ColaboradorEnMalla(
                 f.CodigoColaborador,
                 nombres.GetValueOrDefault(f.CodigoColaborador, string.Empty),
-                [.. f.Casillas.Select(DescribirDia)]))
+                [.. f.Casillas.Select(c => DescribirDia(
+                    c, borradores.GetValueOrDefault((f.CodigoColaborador.ToUpperInvariant(), c.Fecha))))]))
             .ToList();
 
         return RespuestaJson.Serializar(new MallaDeLaSemana(
@@ -97,43 +105,79 @@ public partial class ConsultarMallaTurnosTool(
             lista.SiguienteCursor is null ? null : string.Format(Mensajes.NotaMasColaboradores, lista.SiguienteCursor)));
     }
 
-    private static string DescribirDia(CasillaMallaSemanal c)
+    private async Task<(IReadOnlyDictionary<(string Codigo, DateOnly Fecha), DiaDeBorrador> Dias, string? Fallo)>
+        LeerBorradoresAsync(IReadOnlyList<FilaMallaSemanal> filas, DateOnly lunes, DateOnly domingo, CancellationToken ct)
     {
+        if (filas.Count == 0)
+            return (SinBorradores, null);
+
+        var respuesta = await programacion.ListarBorradoresDeProgramacion(
+            Hoy(), [.. filas.Select(f => f.CodigoColaborador)], lunes, domingo, ct);
+        if (await respuesta.LeerFalloAsync(ct) is { } fallo)
+            return (SinBorradores, fallo);
+
+        var vista = (await respuesta.Content.ReadFromJsonAsync<SobreDeLista<BorradorDeProgramacion>>(OpcionesLectura, ct))!;
+        var dias = new Dictionary<(string Codigo, DateOnly Fecha), DiaDeBorrador>();
+        foreach (var borrador in vista.Elementos)
+            foreach (var dia in borrador.Dias)
+                dias[(borrador.CodigoColaborador.ToUpperInvariant(), dia.Fecha)] = dia;
+
+        return (dias, null);
+    }
+
+    private static string DescribirDia(CasillaMallaSemanal c, DiaDeBorrador? borrador)
+    {
+        if (borrador is not null && c.Tipo is not ("Trabajo" or "Descanso" or "Ausencia"))
+            return Linea(c.Fecha, DescribirBorrador(borrador));
+
         var estado = c.Tipo switch
         {
-            "Trabajo" when c.EsHorarioAbierto => string.Format(
-                Mensajes.DiaHorarioAbierto, NotacionDuracion.Texto(MinutosOrdinarios(c)), SedesDe(c)),
-            "Trabajo" => string.Format(
-                Mensajes.DiaTrabajo,
-                string.IsNullOrWhiteSpace(c.HorarioResumido) ? c.NombreTurno : c.HorarioResumido,
-                SedesDe(c)),
+            "Trabajo" => DescribirTurno(c.Bloques, c.EsHorarioAbierto, c.HorarioResumido, c.NombreTurno),
             "Descanso" => Mensajes.DiaDescanso,
             "Ausencia" => string.Format(Mensajes.DiaAusencia, c.MotivoAusencia),
             "FueraDeVinculacion" => Mensajes.DiaFueraDeVinculacion,
             _ => Mensajes.DiaSinProgramar
         };
 
-        return $"{Formatear(c.Fecha)} {DiasAbreviados[IndiceIso(c.Fecha)]}: {estado}";
+        return Linea(c.Fecha, estado);
     }
 
-    private static int MinutosOrdinarios(CasillaMallaSemanal c) =>
-        (int)c.Bloques.Where(b => b.Tipo == TipoBloque.Ordinaria).Sum(b => (b.Fin - b.Inicio).TotalMinutes);
+    private static string DescribirBorrador(DiaDeBorrador d)
+    {
+        var estado = d.Bloques.Count == 0
+            ? Mensajes.DiaDescanso
+            : DescribirTurno(d.Bloques, d.EsHorarioAbierto, d.HorarioResumido, d.NombreTurno);
 
-    private static string SedesDe(CasillaMallaSemanal c) =>
-        string.Join(", ", c.Bloques.Select(b => b.NombreSede).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct());
+        return string.Format(d.Vencido ? Mensajes.DiaEnBorradorVencido : Mensajes.DiaEnBorrador, estado);
+    }
+
+    private static string DescribirTurno(
+        IReadOnlyList<BloqueMallaSemanal> bloques, bool esHorarioAbierto, string? horarioResumido, string? nombreTurno) =>
+        esHorarioAbierto
+            ? string.Format(Mensajes.DiaHorarioAbierto, NotacionDuracion.Texto(MinutosOrdinarios(bloques)), SedesDe(bloques))
+            : string.Format(
+                Mensajes.DiaTrabajo, string.IsNullOrWhiteSpace(horarioResumido) ? nombreTurno : horarioResumido, SedesDe(bloques));
+
+    private static string Linea(DateOnly fecha, string estado) =>
+        $"{Formatear(fecha)} {DiasAbreviados[IndiceIso(fecha)]}: {estado}";
+
+    private static int MinutosOrdinarios(IReadOnlyList<BloqueMallaSemanal> bloques) =>
+        (int)bloques.Where(b => b.Tipo == TipoBloque.Ordinaria).Sum(b => (b.Fin - b.Inicio).TotalMinutes);
+
+    private static string SedesDe(IReadOnlyList<BloqueMallaSemanal> bloques) =>
+        string.Join(", ", bloques.Select(b => b.NombreSede).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct());
 
     private (DateOnly Fecha, string? Error) ResolverFecha(string? fecha)
     {
         if (string.IsNullOrWhiteSpace(fecha))
-        {
-            var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(reloj.GetUtcNow(), ZonaBogota).DateTime);
-            return (hoy.AddDays(7), null);
-        }
+            return (Hoy().AddDays(7), null);
 
         return DateOnly.TryParseExact(fecha.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var f)
             ? (f, null)
             : (default, string.Format(Mensajes.FechaInvalida, fecha));
     }
+
+    private DateOnly Hoy() => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(reloj.GetUtcNow(), ZonaBogota).DateTime);
 
     private static string DescribirSemana(DateOnly lunes, DateOnly domingo) =>
         lunes.Month == domingo.Month

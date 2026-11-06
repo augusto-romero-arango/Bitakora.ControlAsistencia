@@ -68,4 +68,12 @@ public record TurnoProgramado(
             .ToList()
             .AsReadOnly()
     };
+
+    /// <summary>
+    /// Bloques del turno en <paramref name="fecha"/>: cada franja recortada por sus descansos y
+    /// extras, con su sede (Tell-don't-Ask, MEF-ADR-0012: la aritmetica vive en el dueno de las
+    /// franjas, no en quien proyecta).
+    /// </summary>
+    public IReadOnlyList<BloqueProgramado> Segmentar(DateOnly fecha) =>
+        FranjasOrdinarias.SelectMany(franja => franja.Segmentar(fecha)).ToList();
 }
