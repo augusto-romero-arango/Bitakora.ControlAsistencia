@@ -27,6 +27,14 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static readonly DateOnly Dia3 = new(2026, 10, 3);
     private static readonly DateOnly Dia4 = new(2026, 10, 4);
     private static readonly DateOnly Dia5 = new(2026, 10, 5);
+    private static readonly DateOnly Octubre10 = new(2026, 10, 10);
+    private static readonly DateOnly Octubre31 = new(2026, 10, 31);
+    private static readonly DateOnly Noviembre2 = new(2026, 11, 2);
+    private static readonly DateOnly Noviembre3 = new(2026, 11, 3);
+    private static readonly DateOnly Noviembre4 = new(2026, 11, 4);
+
+    private const string StreamBorradorOctubre = "bm:E001:202610";
+    private const string StreamBorradorNoviembre = "bm:E001:202611";
 
     private const string StreamAusencias = "ac:E001";
     private static readonly Guid AusenciaId = Guid.Parse("019600a0-0000-7000-8000-000000001337");
@@ -117,6 +125,11 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     public SolicitarProgramacionTurnoCommandHandlerTests()
     {
         Given(JornadaPorDefectoId.ToString(), JornadaCreada.Crear(JornadaPorDefectoId, Limites42()));
+        Given(StreamBorradorOctubre,
+            new ProgramacionTurnoAgregadaAlBorrador(
+                Guid.NewGuid(), ColaboradorProgramadoEsperado, [Dia1, Dia2, Dia3, Dia4, Dia5],
+                TurnoProgramadoEsperado, null, JornadaEsperada),
+            new ProgramacionPublicada(ColaboradorProgramadoEsperado, [Dia1, Dia2, Dia3, Dia4, Dia5]));
     }
 
     protected override ICommandHandlerAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion> Handler =>
@@ -730,6 +743,116 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                 new DetalleJornada(jid, 2520, 510, 240, 1)));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
         _asegurador.Invocaciones.Should().Be(0);
+    }
+
+
+    private ProgramacionTurnoAgregadaAlBorrador BorradorEsperado(params DateOnly[] fechas) =>
+        new(GuidAggregateId, ColaboradorProgramadoEsperado, fechas, TurnoProgramadoEsperado, null, JornadaEsperada);
+
+    private ProgramacionTurnoSolicitada SolicitadaEsperada(params DateOnly[] fechas) =>
+        new(GuidAggregateId, ColaboradorProgramadoEsperado, fechas, TurnoProgramadoEsperado, jornada: JornadaEsperada);
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_EnviaTodasLasFechasAlBorradorYRegistraSolicitudVacia_CuandoElMesNoTieneBorrador()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Noviembre2, Noviembre3]));
+
+        Then(SolicitadaEsperada());
+        Then(StreamBorradorNoviembre, BorradorEsperado(Noviembre2, Noviembre3));
+        ThenIsPublishedPrivately();
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 0);
+        And<BorradorMensual, int>(StreamBorradorNoviembre, b => b.FechasEnBorrador.Count, 2);
+        resultado.FechasEnBorrador.Should().Equal(Noviembre2, Noviembre3);
+        resultado.FechasRespetadas.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_PartePorFirmeYBorrador_CuandoElBorradorTienePublicadasAlgunasFechas()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2, Octubre10]));
+
+        Then(SolicitadaEsperada(Dia1, Dia2));
+        Then(StreamBorradorOctubre, BorradorEsperado(Octubre10));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
+            new ProgramacionTurnoEnFechasSolicitada(
+                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado, DetalleJornadaEsperado));
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
+        And<BorradorMensual, int>(StreamBorradorOctubre, b => b.FechasEnBorrador.Count, 1);
+        resultado.FechasEnBorrador.Should().Equal(Octubre10);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_NoEmiteEventoDeBorrador_CuandoTodasLasFechasEstanEnFirme()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2]));
+
+        Then(SolicitadaEsperada(Dia1, Dia2));
+        Then(StreamBorradorOctubre);
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
+            new ProgramacionTurnoEnFechasSolicitada(
+                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado, DetalleJornadaEsperado));
+        And<BorradorMensual, int>(StreamBorradorOctubre, b => b.FechasEnBorrador.Count, 0);
+        resultado.FechasEnBorrador.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_EscribeEnElBorradorDeCadaMes_CuandoLaSolicitudCruzaMeses()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Dia1, Octubre31, Noviembre2]));
+
+        Then(SolicitadaEsperada(Dia1));
+        Then(StreamBorradorOctubre, BorradorEsperado(Octubre31));
+        Then(StreamBorradorNoviembre, BorradorEsperado(Noviembre2));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
+            new ProgramacionTurnoEnFechasSolicitada(
+                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado, DetalleJornadaEsperado));
+        And<BorradorMensual, int>(StreamBorradorNoviembre, b => b.FechasEnBorrador.Count, 1);
+        resultado.FechasEnBorrador.Should().Equal(Octubre31, Noviembre2);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_RespetaLasAusenciasAntesDeRepartir_CuandoAlgunasFechasLasTienen()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        Given(StreamAusencias, Ausencia(Noviembre2, Noviembre3));
+
+        var resultado = await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Noviembre2, Noviembre3, Noviembre4]));
+
+        Then(SolicitadaEsperada());
+        Then(StreamBorradorNoviembre, BorradorEsperado(Noviembre4));
+        ThenIsPublishedPrivately();
+        And<BorradorMensual, int>(StreamBorradorNoviembre, b => b.FechasEnBorrador.Count, 1);
+        resultado.FechasEnBorrador.Should().Equal(Noviembre4);
+        resultado.FechasRespetadas.Select(f => f.Fecha).Should().Equal(Noviembre2, Noviembre3);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_LanzaRecursoYaExisteException_CuandoLaSolicitudAnteriorQuedoEnteraEnElBorrador()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        Given(SolicitadaEsperada());
+
+        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Noviembre2]));
+
+        await act.Should().ThrowExactlyAsync<RecursoYaExisteException>()
+            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.SolicitudYaExiste}*");
+        Then(StreamBorradorNoviembre);
+        ThenIsPublishedPrivately();
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 0);
     }
 
     // El nombre base del .resx es un literal que no sigue al namespace: si diverge, compila y lanza

@@ -135,6 +135,53 @@ public sealed class ProgramacionApi(HttpClient http)
         return http.SendAsync(request, ct);
     }
 
+    public Task<HttpResponseMessage> PublicarProgramacion(
+        string codigoColaborador, DateOnly desde, DateOnly hasta, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/colaboradores/{Uri.EscapeDataString(codigoColaborador)}/borrador:publicar",
+            new { desde, hasta },
+            ct);
+
+    public Task<HttpResponseMessage> DescartarBorradorDeProgramacion(
+        string codigoColaborador, DateOnly desde, DateOnly hasta, CancellationToken ct) =>
+        http.PostAsJsonAsync(
+            $"api/programacion/colaboradores/{Uri.EscapeDataString(codigoColaborador)}/borrador:descartar",
+            new { desde, hasta },
+            ct);
+
+    public Task<HttpResponseMessage> ListarBorradoresDeProgramacion(
+        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador, CancellationToken ct) =>
+        ListarBorradoresDeProgramacion(fechaReferencia, codigosColaborador, null, null, ct);
+
+    public Task<HttpResponseMessage> ListarBorradoresDeProgramacion(
+        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador,
+        DateOnly? desde, DateOnly? hasta, CancellationToken ct) =>
+        ListarBorradoresDeProgramacion(fechaReferencia, codigosColaborador, desde, hasta, null, null, ct);
+
+    public Task<HttpResponseMessage> ListarBorradoresDeProgramacion(
+        DateOnly fechaReferencia, IReadOnlyList<string>? codigosColaborador,
+        DateOnly? desde, DateOnly? hasta, int? take, string? cursor, CancellationToken ct)
+    {
+        var cuerpo = new Dictionary<string, object> { ["fechaReferencia"] = fechaReferencia };
+        if (codigosColaborador is { Count: > 0 })
+            cuerpo["colaboradores"] = codigosColaborador;
+        if (desde is { } d)
+            cuerpo["desde"] = d;
+        if (hasta is { } h)
+            cuerpo["hasta"] = h;
+        if (take is { } t)
+            cuerpo["take"] = t;
+        if (cursor is not null)
+            cuerpo["cursor"] = cursor;
+
+        var request = new HttpRequestMessage(Query, "api/programacion/borradores")
+        {
+            Content = JsonContent.Create(cuerpo)
+        };
+
+        return http.SendAsync(request, ct);
+    }
+
     public Task<HttpResponseMessage> CancelarAusencia(
         string codigoColaborador, string id, IReadOnlyList<DateOnly> fechas, CancellationToken ct) =>
         http.PostAsJsonAsync(

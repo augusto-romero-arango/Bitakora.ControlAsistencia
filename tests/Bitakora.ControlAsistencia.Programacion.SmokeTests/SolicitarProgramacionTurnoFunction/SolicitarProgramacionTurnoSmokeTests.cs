@@ -24,7 +24,19 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
     private const string ClaveOrganizationMembershipId = "organization_membership_id";
     private static readonly string[] FechasPedidas = ["2026-04-15", "2026-04-16"];
 
+    private const string TipoEventoAgregadaAlBorrador = "programacion_turno_agregada_al_borrador";
+
     private static string CodigoColaboradorUnico() => Guid.CreateVersion7().ToString();
+
+    private static string StreamIdBorrador(string codigoColaborador, string fecha) =>
+        $"bm:{codigoColaborador}:{fecha[..4]}{fecha.Substring(5, 2)}";
+
+    private async Task PublicarBorradorAsync(string codigoColaborador, string desde, string hasta, CancellationToken ct)
+    {
+        var response = await _client.PostAsJsonAsync(
+            $"/api/programacion/colaboradores/{codigoColaborador}/borrador:publicar", new { desde, hasta }, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -41,6 +53,7 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         var response = await _client.PostAsJsonAsync(Ruta, PayloadSolicitud(solicitudId, turnoId, FechasPedidas, codigoColaborador: codigoColaborador), ct);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+        await PublicarBorradorAsync(codigoColaborador, "2026-04-15", "2026-04-16", ct);
 
         var (evento, sessionId) = await serviceBus.WaitForMessageConSesionAsync<ProgramacionTurnoEnFechasSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
@@ -96,7 +109,8 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
     private sealed record TurnoMinimo(IReadOnlyList<FranjaMinima> FranjasOrdinarias);
     private sealed record SolicitudMinima(TurnoMinimo DetalleTurno, SedeMinima? Sede);
     private sealed record FechaRespetadaMinima(string Fecha, string Motivo);
-    private sealed record RespuestaSolicitudMinima(IReadOnlyList<FechaRespetadaMinima> FechasRespetadas);
+    private sealed record RespuestaSolicitudMinima(
+        IReadOnlyList<FechaRespetadaMinima> FechasRespetadas, IReadOnlyList<string> FechasEnBorrador);
     private sealed record SolicitudFechasMinima(IReadOnlyList<DateOnly> Fechas);
 
     private static readonly JsonSerializerOptions OpcionesRespuesta = new(JsonSerializerDefaults.Web);
@@ -195,12 +209,11 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         motivo = "Vacaciones"
     };
 
-    private async Task<SolicitudMinima> LeerPersistidoAsync(Guid solicitudId)
+    private async Task<SolicitudMinima> LeerPersistidoAsync(Guid solicitudId, string codigoColaborador, string fecha)
     {
-        var streamId = solicitudId.ToString();
         var json = await postgres.ObtenerEventoAsync<JsonElement>(
-            SchemaProgramacion, streamId, TipoEventoProgramacionSolicitada,
-            campoJson: "Id", valorJson: streamId, Timeout);
+            SchemaProgramacion, StreamIdBorrador(codigoColaborador, fecha), TipoEventoAgregadaAlBorrador,
+            campoJson: "SolicitudId", valorJson: solicitudId.ToString(), Timeout);
         var persistido = json.Deserialize<SolicitudMinima>(EventoPersistido.OpcionesLectura);
         persistido.Should().NotBeNull();
         return persistido!;
@@ -223,14 +236,18 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
         var turnoId = await CrearTurnoDePayloadAsync(id => TurnoSimplePayload(id, "[TEST] Turno Smoke En Fechas Membership"), ct);
         var solicitudId = Guid.CreateVersion7();
+        var codigo = CodigoColaboradorUnico();
 
-        var response = await _client.PostAsJsonAsync(Ruta, PayloadSolicitud(solicitudId, turnoId, ["2026-10-01"]), ct);
+        var response = await _client.PostAsJsonAsync(Ruta,
+            PayloadSolicitud(solicitudId, turnoId, ["2026-10-01"], codigoColaborador: codigo), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var membershipPersistido = await postgres.ObtenerHeaderDeEventoAsync(
-            SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada,
+            SchemaProgramacion, StreamIdBorrador(codigo, "2026-10-01"), TipoEventoAgregadaAlBorrador,
             ClaveOrganizationMembershipId, Timeout);
         membershipPersistido.Should().Be(api.OrganizationMembershipId);
+
+        await PublicarBorradorAsync(codigo, "2026-10-01", "2026-10-01", ct);
 
         var (_, propiedades) = await serviceBus.WaitForMessageConPropiedadesAsync<ProgramacionTurnoEnFechasSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
@@ -248,10 +265,13 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         var turnoId = await CrearTurnoDePayloadAsync(id => TurnoSimplePayload(id, "[TEST] Turno Smoke En Fechas Sede"), ct);
         var solicitudId = Guid.CreateVersion7();
         var sedeEsperada = new DetalleSede("SEDE-01", "[TEST] Sede Principal");
+        var codigo = CodigoColaboradorUnico();
 
         var response = await _client.PostAsJsonAsync(Ruta,
-            PayloadSolicitud(solicitudId, turnoId, ["2026-05-01"], new { id = sedeEsperada.Id, nombre = sedeEsperada.Nombre }), ct);
+            PayloadSolicitud(solicitudId, turnoId, ["2026-05-01"], new { id = sedeEsperada.Id, nombre = sedeEsperada.Nombre },
+                codigoColaborador: codigo), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+        await PublicarBorradorAsync(codigo, "2026-05-01", "2026-05-01", ct);
 
         var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoEnFechasSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
@@ -273,10 +293,13 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         var turnoId = await CrearTurnoDePayloadAsync(
             id => TurnoConFranjasMixtasPayload(id, sedeSuba.Id, sedeSuba.Nombre), ct);
         var solicitudId = Guid.CreateVersion7();
+        var codigo = CodigoColaboradorUnico();
 
         var response = await _client.PostAsJsonAsync(Ruta,
-            PayloadSolicitud(solicitudId, turnoId, ["2026-06-01"], new { id = sedePrincipal.Id, nombre = sedePrincipal.Nombre }), ct);
+            PayloadSolicitud(solicitudId, turnoId, ["2026-06-01"], new { id = sedePrincipal.Id, nombre = sedePrincipal.Nombre },
+                codigoColaborador: codigo), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+        await PublicarBorradorAsync(codigo, "2026-06-01", "2026-06-01", ct);
 
         var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoEnFechasSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
@@ -298,8 +321,12 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         var turnoId = await CrearTurnoDePayloadAsync(id => TurnoConSedePrearmadaPayload(id, sedeCatalogo), ct);
         var solicitudId = Guid.CreateVersion7();
 
-        var response = await _client.PostAsJsonAsync(Ruta, PayloadSolicitud(solicitudId, turnoId, ["2026-06-02"]), ct);
+        var codigo = CodigoColaboradorUnico();
+
+        var response = await _client.PostAsJsonAsync(Ruta,
+            PayloadSolicitud(solicitudId, turnoId, ["2026-06-02"], codigoColaborador: codigo), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+        await PublicarBorradorAsync(codigo, "2026-06-02", "2026-06-02", ct);
 
         var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoEnFechasSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
@@ -319,11 +346,14 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         var turnoId = await CrearTurnoDePayloadAsync(id => TurnoSimplePayload(id, "[TEST] Turno Smoke En Fechas CC"), ct);
         var solicitudId = Guid.CreateVersion7();
         var sedeEsperada = new DetalleSede("SEDE-CC-01", "[TEST] Sede Con Costeo", "CC-100-VENTAS");
+        var codigo = CodigoColaboradorUnico();
 
         var response = await _client.PostAsJsonAsync(Ruta,
             PayloadSolicitud(solicitudId, turnoId, ["2026-07-01"],
-                new { id = sedeEsperada.Id, nombre = sedeEsperada.Nombre, centroDeCostos = sedeEsperada.CentroDeCostos }), ct);
+                new { id = sedeEsperada.Id, nombre = sedeEsperada.Nombre, centroDeCostos = sedeEsperada.CentroDeCostos },
+                codigoColaborador: codigo), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+        await PublicarBorradorAsync(codigo, "2026-07-01", "2026-07-01", ct);
 
         var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoEnFechasSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
@@ -346,10 +376,13 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         foreach (var centroDeCostosCrudo in new[] { "", "   " })
         {
             var solicitudId = Guid.CreateVersion7();
+            var codigo = CodigoColaboradorUnico();
             var response = await _client.PostAsJsonAsync(Ruta,
                 PayloadSolicitud(solicitudId, turnoId, ["2026-07-02"],
-                    new { id = sedeEsperada.Id, nombre = sedeEsperada.Nombre, centroDeCostos = centroDeCostosCrudo }), ct);
+                    new { id = sedeEsperada.Id, nombre = sedeEsperada.Nombre, centroDeCostos = centroDeCostosCrudo },
+                    codigoColaborador: codigo), ct);
             response.StatusCode.Should().Be(HttpStatusCode.Created);
+            await PublicarBorradorAsync(codigo, "2026-07-02", "2026-07-02", ct);
 
             var evento = await serviceBus.WaitForMessageAsync<ProgramacionTurnoEnFechasSolicitada>(
                 TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
@@ -368,13 +401,15 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         var turnoId = await CrearTurnoDePayloadAsync(id => TurnoSimplePayload(id, "[TEST] Turno Smoke En Fechas CC Persistencia"), ct);
         var solicitudId = Guid.CreateVersion7();
         var sedeMinima = new SedeMinima("SEDE-CC-03", "[TEST] Sede Persistencia CC", "CC-200-NOMINA");
+        var codigo = CodigoColaboradorUnico();
 
         var response = await _client.PostAsJsonAsync(Ruta,
             PayloadSolicitud(solicitudId, turnoId, ["2026-07-03"],
-                new { id = sedeMinima.Id, nombre = sedeMinima.Nombre, centroDeCostos = sedeMinima.CentroDeCostos }), ct);
+                new { id = sedeMinima.Id, nombre = sedeMinima.Nombre, centroDeCostos = sedeMinima.CentroDeCostos },
+                codigoColaborador: codigo), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var persistido = await LeerPersistidoAsync(solicitudId);
+        var persistido = await LeerPersistidoAsync(solicitudId, codigo, "2026-07-03");
 
         persistido.Sede.Should().Be(sedeMinima);
         persistido.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
@@ -392,12 +427,14 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         var turnoId = await CrearTurnoDePayloadAsync(
             id => TurnoConFranjasMixtasPayload(id, sedeSuba.Id, sedeSuba.Nombre), ct);
         var solicitudId = Guid.CreateVersion7();
+        var codigo = CodigoColaboradorUnico();
 
         var response = await _client.PostAsJsonAsync(Ruta,
-            PayloadSolicitud(solicitudId, turnoId, ["2026-06-03"], new { id = sedePrincipal.Id, nombre = sedePrincipal.Nombre }), ct);
+            PayloadSolicitud(solicitudId, turnoId, ["2026-06-03"], new { id = sedePrincipal.Id, nombre = sedePrincipal.Nombre },
+                codigoColaborador: codigo), ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var persistido = await LeerPersistidoAsync(solicitudId);
+        var persistido = await LeerPersistidoAsync(solicitudId, codigo, "2026-06-03");
 
         persistido.DetalleTurno.FranjasOrdinarias.Should().HaveCount(2);
         persistido.DetalleTurno.FranjasOrdinarias[0].Sede.Should().Be(sedeSuba);
@@ -420,10 +457,12 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
             .StatusCode.Should().Be(HttpStatusCode.Created);
         var turnoId = await CrearTurnoDePayloadAsync(id => TurnoSimplePayload(id, "[TEST] Turno Smoke En Fechas Jornada"), ct);
         var solicitudId = Guid.CreateVersion7();
+        var codigo = CodigoColaboradorUnico();
 
         (await _client.PostAsJsonAsync(Ruta,
-            PayloadSolicitud(solicitudId, turnoId, ["2026-11-02"], jornadaId: jornadaId), ct))
+            PayloadSolicitud(solicitudId, turnoId, ["2026-11-02"], jornadaId: jornadaId, codigoColaborador: codigo), ct))
             .StatusCode.Should().Be(HttpStatusCode.Created);
+        await PublicarBorradorAsync(codigo, "2026-11-02", "2026-11-02", ct);
 
         var mensaje = await serviceBus.WaitForMessageAsync<ProgramacionTurnoEnFechasSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
@@ -452,6 +491,7 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var cuerpo = await response.Content.ReadFromJsonAsync<RespuestaSolicitudMinima>(OpcionesRespuesta, ct);
         cuerpo!.FechasRespetadas.Should().BeEmpty();
+        cuerpo.FechasEnBorrador.Should().Equal("2026-12-01", "2026-12-02");
         (await postgres.ContarEventosAsync(
             SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(1);
     }
@@ -479,18 +519,57 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         var cuerpo = await response.Content.ReadFromJsonAsync<RespuestaSolicitudMinima>(OpcionesRespuesta, ct);
         cuerpo!.FechasRespetadas.Should().ContainSingle()
             .Which.Should().Be(new FechaRespetadaMinima("2026-11-10", "Vacaciones"));
+        cuerpo.FechasEnBorrador.Should().BeEquivalentTo("2026-11-09", "2026-11-11");
+        await PublicarBorradorAsync(codigo, "2026-11-09", "2026-11-11", ct);
 
         var (evento, sessionId) = await serviceBus.WaitForMessageConSesionAsync<ProgramacionTurnoEnFechasSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
         sessionId.Should().Be(codigo);
         evento.Fechas.Should().BeEquivalentTo(new[] { new DateOnly(2026, 11, 9), new DateOnly(2026, 11, 11) });
 
-        var streamId = solicitudId.ToString();
         var json = await postgres.ObtenerEventoAsync<JsonElement>(
-            SchemaProgramacion, streamId, TipoEventoProgramacionSolicitada,
-            campoJson: "Id", valorJson: streamId, Timeout);
+            SchemaProgramacion, StreamIdBorrador(codigo, "2026-11-09"), TipoEventoAgregadaAlBorrador,
+            campoJson: "SolicitudId", valorJson: solicitudId.ToString(), Timeout);
         json.Deserialize<SolicitudFechasMinima>(EventoPersistido.OpcionesLectura)!.Fechas.Should()
             .Equal(new DateOnly(2026, 11, 9), new DateOnly(2026, 11, 11));
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task SolicitarProgramacionTurno_PartePorFirmeYBorrador_CuandoUnaFechaYaFuePublicada()
+    {
+        SaltarSiNoHayServiceBus(serviceBus);
+        var ct = TestContext.Current.CancellationToken;
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+        var turnoA = await CrearTurnoDePayloadAsync(id => TurnoSimplePayload(id, "[TEST] Turno Smoke Borrador A"), ct);
+        var turnoB = await CrearTurnoDePayloadAsync(id => TurnoSimplePayload(id, "[TEST] Turno Smoke Borrador B"), ct);
+        var codigo = CodigoColaboradorUnico();
+        string[] fechas = ["2027-02-01", "2027-02-02"];
+
+        var primera = await _client.PostAsJsonAsync(Ruta,
+            PayloadSolicitud(Guid.CreateVersion7(), turnoA, fechas, codigoColaborador: codigo), ct);
+        primera.StatusCode.Should().Be(HttpStatusCode.Created);
+        var cuerpoPrimera = await primera.Content.ReadFromJsonAsync<RespuestaSolicitudMinima>(OpcionesRespuesta, ct);
+        cuerpoPrimera!.FechasEnBorrador.Should().BeEquivalentTo(fechas);
+        cuerpoPrimera.FechasRespetadas.Should().BeEmpty();
+
+        await PublicarBorradorAsync(codigo, "2027-02-01", "2027-02-01", ct);
+        var (publicado, sesionPublicado) = await serviceBus.WaitForMessageConSesionAsync<ProgramacionTurnoEnFechasSolicitada>(
+            TopicSalida, Suscripcion, e => e.Colaborador.CodigoColaborador == codigo, Timeout);
+        sesionPublicado.Should().Be(codigo);
+        publicado.Fechas.Should().Equal(new DateOnly(2027, 2, 1));
+
+        var segundaId = Guid.CreateVersion7();
+        var segunda = await _client.PostAsJsonAsync(Ruta,
+            PayloadSolicitud(segundaId, turnoB, fechas, codigoColaborador: codigo), ct);
+        segunda.StatusCode.Should().Be(HttpStatusCode.Created);
+        var cuerpoSegunda = await segunda.Content.ReadFromJsonAsync<RespuestaSolicitudMinima>(OpcionesRespuesta, ct);
+        cuerpoSegunda!.FechasEnBorrador.Should().Equal("2027-02-02");
+
+        var (enFirme, sesionEnFirme) = await serviceBus.WaitForMessageConSesionAsync<ProgramacionTurnoEnFechasSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == segundaId, Timeout);
+        sesionEnFirme.Should().Be(codigo);
+        enFirme.Fechas.Should().Equal(new DateOnly(2027, 2, 1));
     }
 
     [Fact]
