@@ -7,6 +7,9 @@ Aceptado (investigacion de throughput de programacion masiva 2026-10-28/29; impl
 Enmendado 2026-10-31: camino por dia retirado (#1370-#1382) y ruta canonica `POST programacion/solicitudes`
 (#1373). Se conservan numero, archivo y numeracion de decisiones; la decision 10 cambia.
 
+Enmendado 2026-11-02 por CA-ADR-0045: para los dias sin publicar, la programacion llega a ControlHoras al
+publicar, no al solicitar; los dias en firme no cambian.
+
 ## Contexto
 
 La programacion masiva viaja hoy un mensaje por dia. Corrida del 2026-10-24 01:51 UTC: 394 solicitudes -> 3.632
@@ -99,3 +102,4 @@ fija los nombres de los dos eventos privados y sus topics, porque #1336 (infra) 
 - 2026-10-31: la meta medible pasa a 100 colaboradores x 1 mes en <= 1 min (CA-ADR-0044, #1335).
 - 2026-10-31: enmienda por el retiro del camino por dia (#1370-#1382); ruta canonica `POST programacion/solicitudes` (#1373).
 - 2026-10-31: cierre de la transicion de ruta; se retira el alias temporal y los clientes pasan a `programacion/solicitudes` (#1387).
+- 2026-11-02: enmienda por CA-ADR-0045 (borrador de programacion): los dias sin publicar llegan a ControlHoras al publicar (#1404).
