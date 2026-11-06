@@ -9,12 +9,15 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.ConsultarMallaTurnos;
 
 public class ConsultarMallaTurnosHorarioAbiertoTests
 {
+    private const string VistaVacia = """{"elementos":[],"siguienteCursor":null}""";
+
     private static async Task<string[]> DiasDelPrimero(string fixture = "malla-semana-horario-abierto.json")
     {
         var (clienteMalla, _) = ClienteFalso.Con(Fixtures.Leer("ConsultarMallaTurnos", fixture));
         var (clienteFichas, _) = ClienteFalso.Con(Fixtures.Leer("ConsultarMallaTurnos", "fichas-grupo.json"));
         var tool = new ConsultarMallaTurnosTool(
             new ControlHorasApi(clienteMalla),
+            new ProgramacionApi(ClienteFalso.Con(VistaVacia).Cliente),
             new ResolutorCandidatosPorGrupo(new ColaboradoresApi(clienteFichas)),
             new RelojFalso(new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.FromHours(-5))));
 

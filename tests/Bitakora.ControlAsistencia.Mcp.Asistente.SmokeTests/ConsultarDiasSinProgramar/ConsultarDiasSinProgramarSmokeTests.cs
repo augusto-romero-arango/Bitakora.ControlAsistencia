@@ -70,6 +70,11 @@ public partial class ConsultarDiasSinProgramarSmokeTests(McpFixture mcp, Program
         }, ct);
         solicitud.StatusCode.Should().Be(HttpStatusCode.Created);
 
+        var publicar = await programacion.Client.PostAsJsonAsync(
+            $"/api/programacion/colaboradores/{codigo}/borrador:publicar",
+            new { desde = lunes.ToString("yyyy-MM-dd"), hasta = lunes.AddDays(1).ToString("yyyy-MM-dd") }, ct);
+        publicar.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
         var esperado = $"{lunes.AddDays(2):yyyy-MM-dd} a {lunes.AddDays(6):yyyy-MM-dd}";
 
         var documento = await Polling.WaitUntilAsync(
