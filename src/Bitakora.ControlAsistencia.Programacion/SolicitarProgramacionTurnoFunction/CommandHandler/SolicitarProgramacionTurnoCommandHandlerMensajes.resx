@@ -38,4 +38,7 @@
   <data name="TodasLasFechasConAusencia" xml:space="preserve">
     <value>Todas las fechas solicitadas tienen una ausencia vigente del colaborador</value>
   </data>
+  <data name="ColisionBorradorMensual" xml:space="preserve">
+    <value>Otra solicitud del mismo colaborador esta creando el borrador de ese mes; reintenta en un momento</value>
+  </data>
 </root>

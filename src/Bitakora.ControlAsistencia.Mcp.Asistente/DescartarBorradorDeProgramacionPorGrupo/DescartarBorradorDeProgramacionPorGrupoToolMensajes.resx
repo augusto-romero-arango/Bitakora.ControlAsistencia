@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="AlcanceObligatorio" xml:space="preserve">
+    <value>Indica sede y/o etiquetas, o todo_lo_pendiente = true.</value>
+  </data>
+  <data name="AlcanceExcluyente" xml:space="preserve">
+    <value>todo_lo_pendiente no se combina con sede ni etiquetas.</value>
+  </data>
+  <data name="EtiquetaMalFormada" xml:space="preserve">
+    <value>La etiqueta '{0}' no tiene la forma categoria:valor.</value>
+  </data>
+  <data name="SedeDelSelectorNoExiste" xml:space="preserve">
+    <value>La sede '{0}' no existe.</value>
+  </data>
+  <data name="SedeDelSelectorInactiva" xml:space="preserve">
+    <value>La sede '{0}' esta inactiva.</value>
+  </data>
+  <data name="RechazoDelDominio" xml:space="preserve">
+    <value>No se pudo completar: {0}</value>
+  </data>
+  <data name="FechaInvalida" xml:space="preserve">
+    <value>'{0}' debe tener formato yyyy-MM-dd; llego '{1}'.</value>
+  </data>
+  <data name="RangoIncompleto" xml:space="preserve">
+    <value>Indica desde y hasta juntos, o ninguno.</value>
+  </data>
+  <data name="RangoInvertido" xml:space="preserve">
+    <value>La fecha 'desde' no puede ser posterior a 'hasta'.</value>
+  </data>
+  <data name="RangoExcedeElMaximo" xml:space="preserve">
+    <value>El rango de {0} dias excede el maximo de 366.</value>
+  </data>
+  <data name="ResultadoBorradorDescartado" xml:space="preserve">
+    <value>Borrador descartado.</value>
+  </data>
+  <data name="AlcanceTodoLoPendiente" xml:space="preserve">
+    <value>todo lo pendiente</value>
+  </data>
+  <data name="SinRango" xml:space="preserve">
+    <value>sin rango: todos los dias pendientes</value>
+  </data>
+  <data name="Nota" xml:space="preserve">
+    <value>Lo que quede pendiente se ve con la consulta de pendientes.</value>
+  </data>
+</root>

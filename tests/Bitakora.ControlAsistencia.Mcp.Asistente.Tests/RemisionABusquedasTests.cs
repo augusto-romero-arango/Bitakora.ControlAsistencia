@@ -166,4 +166,39 @@ public class RemisionABusquedasTests
         filas.Single(l => l.StartsWith("| Turnos")).Should().Contain("`buscar_turnos`");
         filas.Single(l => l.StartsWith("| Plantillas de turnos")).Should().Contain("`buscar_plantillas`");
     }
+
+    private static readonly string[] ToolsQueProgramanPorLista =
+        ["solicitar_programacion_turno", "aplicar_plantilla_semanal", "aplicar_plantilla"];
+
+    private static readonly string[] ToolsQueProgramanPorGrupo =
+        ["solicitar_programacion_turno_por_grupo", "aplicar_plantilla_semanal_por_grupo", "aplicar_plantilla_por_grupo"];
+
+    [Fact]
+    public void ToolsQuePrograman_ExplicanElBorradorYLaRegla_CuandoSeInspeccionanLasDescripciones()
+    {
+        foreach (var tool in ToolsQueProgramanPorLista.Concat(ToolsQueProgramanPorGrupo))
+            Regex.Replace(Descripcion(tool), @"\s+", " ").Should()
+                .Contain("enBorrador", tool).And.Contain("enFirme", tool).And.Contain("preguntale", tool);
+    }
+
+    [Fact]
+    public void ToolsQueProgramanPorLista_RemitenAPublicarProgramacion_CuandoSeInspeccionanLasDescripciones()
+    {
+        foreach (var tool in ToolsQueProgramanPorLista)
+            Descripcion(tool).Should()
+                .Contain("publicar_programacion", tool).And.NotContain("publicar_programacion_por_grupo", tool);
+    }
+
+    [Fact]
+    public void ToolsQueProgramanPorGrupo_RemitenAPublicarProgramacionPorGrupo_CuandoSeInspeccionanLasDescripciones()
+    {
+        foreach (var tool in ToolsQueProgramanPorGrupo)
+            Descripcion(tool).Should().Contain("publicar_programacion_por_grupo", tool);
+    }
+
+    [Fact]
+    public void SolicitarProgramacionTurno_NoAfirmaQueTodaLaProgramacionApareceEnConsultar_CuandoSeInspeccionaLaDescripcion() =>
+        Regex.Replace(Descripcion("solicitar_programacion_turno"), @"\s+", " ").Should()
+            .NotContain("La programacion aparece en consultar_programacion")
+            .And.Contain("Los dias en firme aparecen en consultar_programacion");
 }

@@ -243,4 +243,20 @@ public class AplicarPlantillaSemanalToolTests
         entorno.Posts.Should().HaveCount(7).And.OnlyContain(p => p["sede"]!["id"]!.GetValue<string>() == "SUBA");
         entorno.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Get && r.Ruta == RutaTurnos);
     }
+
+    [Fact]
+    public async Task AplicarPlantillaSemanal_RemiteAPublicarODescartar_CuandoAlgunColaboradorQuedaEnBorrador()
+    {
+        var entorno = Crear(Plantilla(dias: 7), DirectorioDe("CC-1111", "2025-01-01"));
+        entorno.Programacion.Responde(
+            HttpMethod.Post, RutaSolicitudes, HttpStatusCode.Created, """{"fechasEnBorrador":["2026-11-02"]}""");
+
+        var resultado = await Ejecutar(entorno);
+
+        var json = JsonNode.Parse(resultado)!;
+        json["programados"]!.AsArray().Single()!["enBorrador"]!.GetValue<string>().Should().Be("2");
+        var nota = json["nota"]!.GetValue<string>();
+        nota.Should().Contain("publicar_programacion").And.Contain("descartar_borrador_de_programacion")
+            .And.NotContain("_por_grupo");
+    }
 }
