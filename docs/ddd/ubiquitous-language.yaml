@@ -4,7 +4,11 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-10-31 (sesion planner, refinar #1290: el experto reenfoca la investigacion
+# Ultima actualizacion: 2026-11-02 (sesion planner, refinar #1410: la Malla semanal de turnos del
+#   asistente muestra como quedaria con el Borrador de programacion -- superpone la vista de pendientes
+#   y marca los dias en borrador; lo en firme y las ausencias mandan; ControlHoras no cambia. Se
+#   fusionan las dos entradas duplicadas de Malla semanal de turnos. Tocados: Malla semanal de turnos.)
+# Actualizacion previa: 2026-10-31 (sesion planner, refinar #1290: el experto reenfoca la investigacion
 #   del control de jornada a un CATALOGO DE MODALIDADES LEGALES con nombre propio (CST arts. 161-166),
 #   cada una con sus reglas medibles, para que el Programador ponga esas reglas a la Jornada. Entregable:
 #   docs/referencia/modalidades_jornada_colombia.md. "Modalidad de jornada" es nombre PROVISIONAL, no se
@@ -750,29 +754,6 @@ terms:
 
   - name: Malla semanal de turnos
     definition: >
-      Vista read-side de lo YA programado en una semana (lunes a domingo), en forma de grilla: una fila
-      por colaborador y una casilla por dia. Para que el Programador REVISE la programacion de un grupo:
-      que le toca a cada quien, que dias faltan por programar y quien esta ausente. Cada casilla trae el
-      turno con sus bloques (horario y sede), la ausencia con su motivo, "sin programar" o "fuera de
-      vinculacion". Tambien aparecen como fila los colaboradores sin nada programado en la semana. Se
-      pagina por colaborador (filas) y se navega por semanas (columnas).
-    context: ControlHoras
-    date_added: 2026-10-14
-    rejected_synonyms: [Cuadro de programacion, Cuadro semanal de programacion, Sabana semanal de turnos, Programacion semanal]
-    rejection_reason: >
-      "Cuadro" ya nombra la vista de la Plantilla semanal de turnos (sin personas): reusarlo crea
-      homonimia. "Programacion semanal" se confunde con las Advertencias de la programacion semanal.
-      Sabana es sinonimo valido pero menos usado; el experto eligio malla (2026-10-14). El glosario ya
-      reservaba Malla/Sabana para la grilla ASIGNADA al rechazarlas como sinonimo de Plantilla.
-    note: >
-      Codigo MallaSemanalTurnos. Se compone al LEER sobre TurnoVigente (patron de ListarDiasSinProgramar:
-      el llamador pasa los colaboradores vigentes, porque ControlHoras no conoce el universo), sin
-      proyeccion nueva. Se descarto extender AdvertenciasProgramacionSemanal (sin horario ni sede, sin
-      filas vacias). No reemplaza al listado por dia de consultar_programacion (#1046), que responde
-      preguntas. Issue #1079.
-
-  - name: Malla semanal de turnos
-    definition: >
       Grilla de la programacion ASIGNADA de una semana lunes-domingo: una fila por colaborador y siete
       casillas, una por dia, para que el Programador revise de un vistazo que le toca a cada quien,
       que dias faltan por programar y quien esta ausente, y corrija la programacion. Cada casilla es
@@ -782,7 +763,7 @@ terms:
       turnos, que es el molde de una plantilla sin personas.
     context: ControlHoras
     date_added: 2026-10-14
-    rejected_synonyms: [Sabana de turnos, Cuadro de turnos, Programacion semanal]
+    rejected_synonyms: [Sabana de turnos, Sabana semanal de turnos, Cuadro de turnos, Cuadro de programacion, Cuadro semanal de programacion, Programacion semanal]
     rejection_reason: >
       "Malla" ya era, en este glosario, el nombre reservado para la grilla asignada colaboradores x
       dias (ver Plantilla de turnos). "Cuadro" quedo para la plantilla (Cuadro semanal de turnos).
@@ -795,6 +776,11 @@ terms:
       con Take opcional y cursor opaco (CA-ADR-0039). Nombre y Jornada los pone el llamador; las
       advertencias se piden aparte. En el asistente: tool consultar_malla_turnos. Issues #1079
       (endpoint), #1084 (tool).
+      Con el Borrador de programacion (CA-ADR-0045 #11) la malla muestra COMO QUEDARIA: la tool del
+      asistente superpone la vista de pendientes (QUERY programacion/borradores, #1408) sobre la pagina
+      y marca los dias en borrador (y vencidos si su fecha paso); lo en firme y las ausencias mandan.
+      El endpoint de ControlHoras no cambia: ControlHoras no conoce el borrador (CA-ADR-0045 #13).
+      Issue #1410. (2026-11-02: se fusionaron dos entradas duplicadas de este termino.)
 
   - name: Dia de la semana
     definition: >
