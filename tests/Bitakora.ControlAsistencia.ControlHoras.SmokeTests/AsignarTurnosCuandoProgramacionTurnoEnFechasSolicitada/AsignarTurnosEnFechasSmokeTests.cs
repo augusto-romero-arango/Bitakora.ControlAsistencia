@@ -92,6 +92,11 @@ public class AsignarTurnosEnFechasSmokeTests(ServiceBusFixture serviceBus, Postg
 
         solicitud.StatusCode.Should().Be(HttpStatusCode.Created);
 
+        var publicacion = await programacion.PostAsJsonAsync(
+            $"/api/programacion/colaboradores/{codigoColaborador}/borrador:publicar",
+            new { desde = Fechas[0].ToString("yyyy-MM-dd"), hasta = Fechas[^1].ToString("yyyy-MM-dd") }, ct);
+        publicacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
         var (diasDepurados, sessionId) = await serviceBus.WaitForMessageConSesionAsync<DiasDepurados>(
             TopicDiasDepurados, SuscripcionSmokeTests, e => e.CodigoColaborador == codigoColaborador, Timeout);
 
