@@ -121,6 +121,9 @@ public static class ComposicionServicios
             // Issue #855: par 2 para LimitesDeJornada (ListarLimitesDeJornada), mismo motivo.
             options.Schema.For<LimitesDeJornada>().UseNumericRevisions(true);
 
+            // Par 2 para BorradorDeProgramacion (ListarBorradoresDeProgramacion), mismo motivo.
+            options.Schema.For<BorradorDeProgramacion>().UseNumericRevisions(true);
+
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {
                 stj.Configure(jsonOptions =>

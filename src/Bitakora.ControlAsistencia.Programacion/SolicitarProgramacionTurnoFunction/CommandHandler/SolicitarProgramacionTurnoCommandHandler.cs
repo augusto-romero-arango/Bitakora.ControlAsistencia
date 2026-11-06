@@ -8,7 +8,7 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
 
-// Publica un solo evento con todas las fechas libres del colaborador (CA-ADR-0043).
+// Reparte las fechas libres entre dias en firme (a ControlHoras) y borrador mensual (CA-ADR-0045).
 public partial class SolicitarProgramacionTurnoCommandHandler
     : ICommandHandlerAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion>
 {
@@ -69,27 +69,51 @@ public partial class SolicitarProgramacionTurnoCommandHandler
             throw new ReglaDeNegocioDeclinadaException($"{Mensajes.TodasLasFechasConAusencia}: {detalle}");
         }
 
-        var fechas = clasificacion.Libres;
-
         var colaboradorDominio = MapearColaboradorProgramado(command.Colaborador);
+
+        var enFirme = new List<DateOnly>();
+        var enBorrador = new List<DateOnly>();
+        foreach (var delMes in clasificacion.Libres.GroupBy(f => (f.Year, f.Month)).OrderBy(g => g.Key))
+        {
+            var fechasMes = delMes.Order().ToList();
+            var streamId = BorradorMensual.ComputarStreamId(command.Colaborador.CodigoColaborador, fechasMes[0]);
+            var borrador = await _eventStore.GetAggregateRootAsync<BorradorMensual>(streamId, ct);
+            if (borrador is null)
+            {
+                var inicial = new ProgramacionTurnoAgregadaAlBorrador(
+                    command.Id, colaboradorDominio, fechasMes, turnoProgramado, sedeSolicitada, jornadaProgramada);
+                _eventStore.StartStream(BorradorMensual.Iniciar(inicial));
+                enBorrador.AddRange(fechasMes);
+                continue;
+            }
+
+            var firmes = borrador.Programar(
+                command.Id, colaboradorDominio, fechasMes, turnoProgramado, sedeSolicitada, jornadaProgramada);
+            enFirme.AddRange(firmes);
+            enBorrador.AddRange(fechasMes.Except(firmes));
+        }
+
         var evento = new ProgramacionTurnoSolicitada(
-            command.Id, colaboradorDominio, fechas, turnoProgramado, sedeSolicitada, jornadaProgramada);
+            command.Id, colaboradorDominio, enFirme, turnoProgramado, sedeSolicitada, jornadaProgramada);
         var solicitud = SolicitudProgramacionAggregateRoot.Iniciar(evento);
 
         _eventStore.StartStream(solicitud);
 
-        // Los mapeos viven aqui: esta Function App es el unico proyecto que ve ambos ensamblados
-        // (CA-ADR-0029 decision #5, payload por rol).
-        var colaborador = MapearResumenColaborador(command.Colaborador);
-        var detalleTurno = MapearTurno(turnoProgramado);
-        var sede = MapearSede(sedeSolicitada);
-        var detalleJornada = MapearJornada(jornadaProgramada);
-        var eventoPrivado = new ProgramacionTurnoEnFechasSolicitada(
-            command.Id, colaborador, fechas.ToList().AsReadOnly(), detalleTurno, detalleJornada, sede);
+        if (enFirme.Count > 0)
+        {
+            var colaborador = MapearResumenColaborador(command.Colaborador);
+            // Los mapeos viven aqui: esta Function App es el unico proyecto que ve ambos ensamblados
+            // (CA-ADR-0029 decision #5, payload por rol).
+            var eventoPrivado = new ProgramacionTurnoEnFechasSolicitada(
+                command.Id, colaborador, enFirme.AsReadOnly(), MapearTurno(turnoProgramado),
+                MapearJornada(jornadaProgramada), MapearSede(sedeSolicitada));
 
-        await _privateEventSender.PublishAsync(new PublishOptions { GroupId = colaborador.CodigoColaborador }, eventoPrivado);
+            await _privateEventSender.PublishAsync(new PublishOptions { GroupId = colaborador.CodigoColaborador }, eventoPrivado);
+        }
+
         return new ResultadoSolicitudProgramacion(
-            clasificacion.ConAusencia.Select(f => new FechaRespetada(f.Fecha, f.Motivo.ToString())).ToList());
+            clasificacion.ConAusencia.Select(f => new FechaRespetada(f.Fecha, f.Motivo.ToString())).ToList(),
+            enBorrador);
     }
 
     // La terna fluye tal cual del body: componer "{Tipo}-{Numero}" o concatenar nombres es del

@@ -26,7 +26,7 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
             + "(ambos criterios se combinan), para los dias de una ventana de maximo 35 dias. La sede de "
             + "programacion es opcional: sugierela al usuario y, si prefiere la sede de cada colaborador, "
             + "omite el parametro; no es la sede de trabajo ni el selector sede del grupo. Para personas "
-            + "concretas usa solicitar_programacion_turno; los fallidos se reintentan con esa tool.")]
+            + "concretas usa solicitar_programacion_turno; los fallidos se reintentan con esa tool. Los dias que quedan en el borrador de programacion (enBorrador en la respuesta) no rigen para el calculo hasta publicarlos con publicar_programacion_por_grupo; los dias en firme (enFirme) rigen de una vez. Si el usuario pidio programar y publicar, publica enseguida con la misma sede, las mismas etiquetas y el mismo periodo; si no, dile que quedo en borrador y preguntale si lo publica.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("desde", "Primer dia de la ventana de trabajo, formato yyyy-MM-dd.", isRequired: true)]
@@ -147,7 +147,8 @@ public partial class SolicitarProgramacionTurnoPorGrupoTool(
             ejecucion.Programados,
             ejecucion.Omitidos,
             ejecucion.Fallidos,
-            Mensajes.NotaVisibilidadEventual,
+            EjecutorDeProgramacion.ElegirNota(
+                ejecucion.Programados, porGrupo: true, Mensajes.NotaVisibilidadEventual),
             ejecucion.Avisos));
     }
 }

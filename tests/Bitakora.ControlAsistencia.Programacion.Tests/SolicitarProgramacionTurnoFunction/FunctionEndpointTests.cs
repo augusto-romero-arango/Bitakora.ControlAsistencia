@@ -23,7 +23,7 @@ public class FunctionEndpointTests
     {
         var function = new FunctionEndpoint(
             new FakeSolicitudRequestValidator(ComandoValido()),
-            new FakeSolicitudCommandRouter(resultado: new ResultadoSolicitudProgramacion([])));
+            new FakeSolicitudCommandRouter(resultado: new ResultadoSolicitudProgramacion([], [])));
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
@@ -37,7 +37,8 @@ public class FunctionEndpointTests
     public async Task SolicitarProgramacionTurno_Retorna201ConLasFechasRespetadasEnElBody_CuandoHuboAusencias()
     {
         var esperado = new ResultadoSolicitudProgramacion(
-            [new FechaRespetada(new DateOnly(2026, 10, 13), "Vacaciones")]);
+            [new FechaRespetada(new DateOnly(2026, 10, 13), "Vacaciones")],
+            [new DateOnly(2026, 10, 14)]);
         var function = new FunctionEndpoint(
             new FakeSolicitudRequestValidator(ComandoValido()),
             new FakeSolicitudCommandRouter(resultado: esperado));
@@ -52,7 +53,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task SolicitarProgramacionTurno_Retorna201ConListaVacia_CuandoNoHuboAusencias()
     {
-        var esperado = new ResultadoSolicitudProgramacion([]);
+        var esperado = new ResultadoSolicitudProgramacion([], []);
         var function = new FunctionEndpoint(
             new FakeSolicitudRequestValidator(ComandoValido()),
             new FakeSolicitudCommandRouter(resultado: esperado));
@@ -70,7 +71,7 @@ public class FunctionEndpointTests
         var comando = ComandoValido() with { JornadaId = Guid.NewGuid() };
         var function = new FunctionEndpoint(
             new FakeSolicitudRequestValidator(comando),
-            new FakeSolicitudCommandRouter(resultado: new ResultadoSolicitudProgramacion([])));
+            new FakeSolicitudCommandRouter(resultado: new ResultadoSolicitudProgramacion([], [])));
 
         var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
 
@@ -129,6 +130,42 @@ public class FunctionEndpointTests
 
         result.Should().BeAssignableTo<IStatusCodeActionResult>()
             .Which.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_Retorna201ConFechasEnBorradorEnElBody_CuandoHuboDiasNuevos()
+    {
+        var esperado = new ResultadoSolicitudProgramacion([], [new DateOnly(2026, 11, 2), new DateOnly(2026, 11, 3)]);
+        var function = new FunctionEndpoint(
+            new FakeSolicitudRequestValidator(ComandoValido()),
+            new FakeSolicitudCommandRouter(resultado: esperado));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        var conBody = result.Should().BeAssignableTo<ObjectResult>().Subject;
+        conBody.StatusCode.Should().Be(StatusCodes.Status201Created);
+        conBody.Value.Should().BeOfType<ResultadoSolicitudProgramacion>()
+            .Which.FechasEnBorrador.Should().Equal(new DateOnly(2026, 11, 2), new DateOnly(2026, 11, 3));
+        System.Text.Json.JsonSerializer.Serialize(conBody.Value, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))
+            .Should().Contain("\"fechasEnBorrador\":[\"2026-11-02\",\"2026-11-03\"]");
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_Retorna409ConMensaje_CuandoColisionaLaCreacionDelBorradorMensual()
+    {
+        var colision = (Exception)System.Runtime.CompilerServices.RuntimeHelpers
+            .GetUninitializedObject(typeof(Marten.Exceptions.ExistingStreamIdCollisionException));
+        var function = new FunctionEndpoint(
+            new FakeSolicitudRequestValidator(ComandoValido()),
+            new FakeSolicitudCommandRouter(lanzar: colision));
+
+        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
+
+        var conflicto = result.Should().BeOfType<ConflictObjectResult>().Subject;
+        conflicto.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        conflicto.Value.Should().Be(
+            Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler
+                .SolicitarProgramacionTurnoCommandHandler.Mensajes.ColisionBorradorMensual);
     }
 
     [Fact]
