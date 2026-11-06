@@ -164,4 +164,118 @@ public class EjecutorDeProgramacionVariosTurnosTests
         programado.Respetados.Should().ContainSingle()
             .Which.Should().Be(new DiasRespetadosResumen("Vacaciones", "3-4"));
     }
+
+    private static string CuerpoCreado(string[]? respetadas = null, string[]? enBorrador = null)
+    {
+        var partes = new List<string>();
+        if (respetadas is not null)
+            partes.Add("\"fechasRespetadas\":[" + string.Join(",", respetadas.Select(f => $"{{\"fecha\":\"{f}\",\"motivo\":\"Vacaciones\"}}")) + "]");
+        if (enBorrador is not null)
+            partes.Add("\"fechasEnBorrador\":[" + string.Join(",", enBorrador.Select(f => $"\"{f}\"")) + "]");
+        return "{" + string.Join(",", partes) + "}";
+    }
+
+    private static HttpResponseMessage Creado(string cuerpo) =>
+        new(HttpStatusCode.Created) { Content = new StringContent(cuerpo, Encoding.UTF8, "application/json") };
+
+    [Fact]
+    public async Task EjecutarAsync_SeparaEnBorradorYEnFirmeDescontandoRespetados_CuandoElCreatedTraeFechasEnBorrador()
+    {
+        var (resultado, _, _) = await Ejecutar(
+            [Candidato("CC-1")], AsignacionDeTurno.UnSoloTurno(Manana),
+            _ => Creado(CuerpoCreado(
+                respetadas: ["2026-09-04"],
+                enBorrador: ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-05"])));
+
+        var programado = resultado.Programados.Should().ContainSingle().Subject;
+        programado.Dias.Should().Be(4);
+        programado.EnBorrador.Should().Be("1-3, 5");
+        programado.EnFirme.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_UneLasFechasDeTodosSusEnvios_CuandoElColaboradorTieneVariosTurnos()
+    {
+        var (resultado, _, _) = await Ejecutar(
+            [Candidato("CC-1")], MananaHastaElDia3(),
+            s => s.TurnoId == Manana.Id
+                ? Creado(CuerpoCreado(enBorrador: ["2026-09-01", "2026-09-02", "2026-09-03"]))
+                : Creado(CuerpoCreado(enBorrador: ["2026-09-04"])));
+
+        var programado = resultado.Programados.Should().ContainSingle().Subject;
+        programado.Dias.Should().Be(5);
+        programado.EnBorrador.Should().Be("1-4");
+        programado.EnFirme.Should().Be("5");
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_DejaTodoEnFirme_CuandoElCreatedNoTraeFechasEnBorrador()
+    {
+        var (resultado, _, _) = await Ejecutar(
+            [Candidato("CC-1")], AsignacionDeTurno.UnSoloTurno(Manana),
+            _ => Creado(CuerpoCreado(respetadas: ["2026-09-02"])));
+
+        var programado = resultado.Programados.Should().ContainSingle().Subject;
+        programado.EnBorrador.Should().BeNull();
+        programado.EnFirme.Should().Be("1, 3-5");
+        programado.Dias.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_DejaTodoEnFirme_CuandoElCreatedTraeElCuerpoVacio()
+    {
+        var (resultado, _, _) = await Ejecutar([Candidato("CC-1")], AsignacionDeTurno.UnSoloTurno(Manana));
+
+        var programado = resultado.Programados.Should().ContainSingle().Subject;
+        programado.EnBorrador.Should().BeNull();
+        programado.EnFirme.Should().Be("1-5");
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_NoIniciaElSegundoPostDelColaborador_HastaQueElPrimeroResponde()
+    {
+        var enCurso = new Dictionary<string, int>();
+        var maximoPorColaborador = 0;
+        var (_, posts, _) = await Ejecutar(
+            [Candidato("CC-1"), Candidato("CC-2")], MananaHastaElDia3(),
+            s =>
+            {
+                var id = s.Colaborador.Identificacion;
+                lock (enCurso)
+                {
+                    enCurso[id] = enCurso.GetValueOrDefault(id) + 1;
+                    maximoPorColaborador = Math.Max(maximoPorColaborador, enCurso[id]);
+                }
+
+                Thread.Sleep(80);
+                lock (enCurso)
+                    enCurso[id]--;
+                return Creado("");
+            });
+
+        posts.Should().HaveCount(4);
+        maximoPorColaborador.Should().Be(1, "los envios de un mismo colaborador van uno tras otro");
+    }
+
+    [Fact]
+    public async Task EjecutarAsync_EnviaEnParaleloLosColaboradoresDistintos_CuandoHayVarios()
+    {
+        var enCurso = 0;
+        var maximo = 0;
+        await Ejecutar(
+            [Candidato("CC-1"), Candidato("CC-2"), Candidato("CC-3")], AsignacionDeTurno.UnSoloTurno(Manana),
+            _ =>
+            {
+                var actual = Interlocked.Increment(ref enCurso);
+                lock (BloqueoMaximo)
+                    maximo = Math.Max(maximo, actual);
+                Thread.Sleep(150);
+                Interlocked.Decrement(ref enCurso);
+                return Creado("");
+            });
+
+        maximo.Should().BeGreaterThan(1);
+    }
+
+    private static readonly object BloqueoMaximo = new();
 }

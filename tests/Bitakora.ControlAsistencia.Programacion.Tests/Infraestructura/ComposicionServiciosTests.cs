@@ -231,6 +231,32 @@ public class ComposicionServiciosTests
     }
 
     [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeProgramacionTurnoAgregadaAlBorrador()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(ProgramacionTurnoAgregadaAlBorrador)).Alias;
+
+        alias.Should().Be("programacion_turno_agregada_al_borrador");
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_CongelaElAliasDeProgramacionPublicada()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+        var alias = store.Options.Events.AllKnownEventTypes()
+            .Single(e => e.EventType == typeof(ProgramacionPublicada)).Alias;
+
+        alias.Should().Be("programacion_publicada");
+    }
+
+    [Fact]
     public async Task AgregarServiciosProgramacion_CongelaElAliasDeJornadaDePlantillaDeTurnosAsignada()
     {
         await using var provider = ComponerServiceProvider();
@@ -744,5 +770,46 @@ public class ComposicionServiciosTests
             mapping.Metadata.Revision.Type.Should().Be("bigint", "revision de {0}", tipo.Name);
             mapping.Metadata.Version.Enabled.Should().BeFalse("version de {0}", tipo.Name);
         }
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveListarBorradoresDeProgramacionEndpoint_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var act = () => ActivatorUtilities.CreateInstance<
+            Bitakora.ControlAsistencia.Programacion.ListarBorradoresDeProgramacion.FunctionEndpoint>(scope.ServiceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task AgregarServiciosProgramacion_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaBorradorDeProgramacion()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<Marten.IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(BorradorDeProgramacion));
+
+        mapping.Metadata.Revision.Enabled.Should().BeTrue();
+        mapping.Metadata.Revision.Type.Should().Be("bigint");
+        mapping.Metadata.Version.Enabled.Should().BeFalse();
+    }
+
+    // Segunda dimension del par 2 para BorradorDeProgramacion: tabla, tenancy e IdMember del worker.
+    [Fact]
+    public async Task AgregarServiciosProgramacion_ResuelveBorradorDeProgramacionSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
+    {
+        await using var provider = ComponerServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mapping = scope.ServiceProvider.GetRequiredService<IDocumentStore>()
+            .Options.FindOrResolveDocumentType(typeof(BorradorDeProgramacion));
+
+        mapping.TableName.QualifiedName.Should().Be("programacion.mt_doc_borradordeprogramacion");
+        mapping.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
+        mapping.IdMember.Name.Should().Be(nameof(BorradorDeProgramacion.Id));
     }
 }
