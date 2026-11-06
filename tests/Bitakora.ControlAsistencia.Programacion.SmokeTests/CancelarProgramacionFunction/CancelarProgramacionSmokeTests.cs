@@ -17,12 +17,14 @@ public class CancelarProgramacionSmokeTests(
     private const string Suscripcion = "smoke-tests";
     private const string SchemaProgramacion = "programacion";
     private const string TipoEventoCancelacionSolicitada = "cancelacion_programacion_solicitada";
+    private const string TipoEventoBorradorDescartado = "borrador_de_programacion_descartado";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     // Forma minima del evento persistido: evita referenciar Programacion.DomainEvents desde los
     // smoke tests. La lectura case-insensitive la aporta EventoPersistido.OpcionesLectura.
     private sealed record ColaboradorMinimo(string Identificacion, string CodigoColaborador, string NombreCompleto);
     private sealed record CancelacionMinima(Guid Id, ColaboradorMinimo Colaborador, IReadOnlyList<DateOnly> Fechas);
+    private sealed record DescarteMinimo(IReadOnlyList<DateOnly> Fechas);
 
     [Fact]
     [Trait("Category", "Smoke")]
@@ -77,6 +79,70 @@ public class CancelarProgramacionSmokeTests(
             new ColaboradorMinimo(identificacion, codigoColaborador, nombreCompleto));
         eventoPersistido.Fechas.Should().BeEquivalentTo(
             new[] { DateOnly.Parse(fecha1), DateOnly.Parse(fecha2) });
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CancelarProgramacion_DescartaLaFechaDelBorradorYEnviaLaCancelacion_CuandoLaFechaEstabaEnElBorrador()
+    {
+        Assert.SkipWhen(!serviceBus.IsConfigured,
+            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+
+        var ct = TestContext.Current.CancellationToken;
+        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
+
+        using var tenant = new TenantDeTest(api);
+        var codigoColaborador = Guid.CreateVersion7().ToString();
+        var identificacion = "CC-555666888";
+        var nombreCompleto = "[TEST] Smoke Cancelacion Borrador";
+
+        var turnoId = Guid.CreateVersion7();
+        var turno = await tenant.Client.PostAsJsonAsync("/api/programacion/turnos", new
+        {
+            turnoId,
+            nombre = $"[TEST] Turno Smoke Cancelacion Borrador {turnoId}",
+            ordinarias = new[]
+            {
+                new
+                {
+                    inicio = "08:00:00",
+                    fin = "16:00:00",
+                    descansos = Array.Empty<object>(),
+                    extras = Array.Empty<object>()
+                }
+            }
+        }, ct);
+        turno.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var solicitud = await tenant.Client.PostAsJsonAsync("/api/programacion/solicitudes", new
+        {
+            id = Guid.CreateVersion7(),
+            turnoId,
+            colaborador = new { identificacion, codigoColaborador, nombreCompleto },
+            fechas = new[] { "2026-12-15", "2026-12-16" }
+        }, ct);
+        solicitud.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var cancelacionId = Guid.CreateVersion7();
+        var response = await tenant.Client.PostAsJsonAsync("/api/programacion/cancelaciones", new
+        {
+            id = cancelacionId,
+            colaborador = new { identificacion, codigoColaborador, nombreCompleto },
+            fechas = new[] { "2026-12-15" }
+        }, ct);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var streamBorrador = $"bm:{codigoColaborador}:202612";
+        var json = await postgres.ObtenerEventoAsync<JsonElement>(
+            SchemaProgramacion, streamBorrador, TipoEventoBorradorDescartado,
+            campoJson: "Fechas", valorJson: "[\"2026-12-15\"]", Timeout);
+        json.Deserialize<DescarteMinimo>(EventoPersistido.OpcionesLectura)!.Fechas.Should()
+            .BeEquivalentTo(new[] { new DateOnly(2026, 12, 15) });
+
+        var evento = await serviceBus.WaitForMessageAsync<CancelacionTurnoDiarioSolicitada>(
+            TopicSalida, Suscripcion, e => e.SolicitudId == cancelacionId, Timeout);
+        evento.Fecha.Should().Be(new DateOnly(2026, 12, 15));
     }
 
     [Fact]
