@@ -37,6 +37,14 @@ public partial class CancelarProgramacionCommandHandler
 
         _eventStore.StartStream(solicitud);
 
+        var porMes = command.Fechas.GroupBy(f => BorradorMensual.ComputarStreamId(
+            command.Colaborador.CodigoColaborador, f));
+        foreach (var mes in porMes)
+        {
+            var borrador = await _eventStore.GetAggregateRootAsync<BorradorMensual>(mes.Key, ct);
+            borrador?.Descartar([.. mes]);
+        }
+
         var colaborador = MapearResumenColaborador(command.Colaborador);
         var eventosPrivados = command.Fechas
             .Select(fecha => new CancelacionTurnoDiarioSolicitada(command.Id, colaborador, fecha))

@@ -323,4 +323,20 @@ public class AplicarPlantillaToolTests
         aviso["identificacion"]!.GetValue<string>().Should().Be("CC-1111");
         entorno.Posts.Should().OnlyContain(p => p["sede"] == null);
     }
+
+    [Fact]
+    public async Task AplicarPlantilla_RemiteAPublicarODescartar_CuandoAlgunColaboradorQuedaEnBorrador()
+    {
+        var entorno = Crear(Plantilla(), DirectorioDe("CC-1111", "2025-01-01"));
+        entorno.Programacion.Responde(
+            HttpMethod.Post, RutaSolicitudes, HttpStatusCode.Created, """{"fechasEnBorrador":["2026-09-01"]}""");
+
+        var resultado = await Ejecutar(entorno);
+
+        var json = JsonNode.Parse(resultado)!;
+        json["programados"]!.AsArray().Single()!["enBorrador"]!.GetValue<string>().Should().Be("1");
+        var nota = json["nota"]!.GetValue<string>();
+        nota.Should().Contain("publicar_programacion").And.Contain("descartar_borrador_de_programacion")
+            .And.NotContain("_por_grupo");
+    }
 }
