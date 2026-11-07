@@ -28,7 +28,8 @@ public partial class CrearJornadaTool(ProgramacionApi api)
             "Dias de descanso por semana, entero de 0 a 6 (0 = no se controla).",
             isRequired: true)]
         int diasDescansoPorSemana,
-        [McpToolProperty("modalidad", "Modalidad legal de la Jornada (opcional).")]
+        [McpToolProperty("modalidad", "Modalidad legal de la Jornada (opcional): Ordinaria, Flexible, TurnosSucesivos, "
+            + "SinSolucionDeContinuidad o ExcluidaDeJornadaMaxima.")]
         string? modalidad,
         CancellationToken ct)
     {
@@ -41,9 +42,17 @@ public partial class CrearJornadaTool(ProgramacionApi api)
         if (diasDescansoPorSemana is < 0 or > MaximoDiasDescanso)
             return string.Format(Mensajes.DiasDescansoInvalido, diasDescansoPorSemana);
 
+        string? modalidadNormalizada = null;
+        if (!string.IsNullOrWhiteSpace(modalidad))
+        {
+            if (!ModalidadesDeJornada.TryNormalizar(modalidad, out var reconocida))
+                return string.Format(Mensajes.ModalidadInvalida, modalidad);
+            modalidadNormalizada = reconocida;
+        }
+
         var jornadaId = Guid.CreateVersion7();
         var creada = await api.CrearJornada(
-            new JornadaACrear(jornadaId, semanales, tope, minimo, diasDescansoPorSemana), ct);
+            new JornadaACrear(jornadaId, semanales, tope, minimo, diasDescansoPorSemana, modalidadNormalizada), ct);
         if (await creada.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 

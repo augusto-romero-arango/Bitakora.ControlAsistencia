@@ -69,10 +69,10 @@ public sealed class ProgramacionApi(HttpClient http)
         http.PutAsJsonAsync($"api/programacion/jornadas/{id}/limites", limites, ct);
 
     public Task<HttpResponseMessage> AsignarModalidadAJornada(Guid id, string modalidad, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.PutAsJsonAsync($"api/programacion/jornadas/{id}/modalidad", new { modalidad }, ct);
 
     public Task<HttpResponseMessage> QuitarModalidadDeJornada(Guid id, CancellationToken ct) =>
-        throw new NotImplementedException();
+        http.DeleteAsync($"api/programacion/jornadas/{id}/modalidad", ct);
 
     public Task<HttpResponseMessage> ModificarVentanaDeEntrada(
         string id, HorasYMinutosJornada amplitud, CancellationToken ct) =>
