@@ -26,6 +26,7 @@ public class JornadaComoVistaTests
 
         jornada.ComoVista().Activa.Should().BeFalse();
     }
+
     [Fact]
     public void ComoVista_LlevaModalidadNulaYDescripcionDeLimites_CuandoLaJornadaNoTieneModalidad()
     {

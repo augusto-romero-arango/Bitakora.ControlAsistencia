@@ -251,6 +251,7 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
 
         var conModalidad = await ElementoAsync(
             e => e.GetProperty("modalidad").ValueKind == JsonValueKind.String);
+        conModalidad.GetProperty("modalidad").GetString().Should().Be("TurnosSucesivos");
         conModalidad.GetProperty("descripcion").GetString().Should().Contain("Turnos sucesivos");
 
         (await _client.DeleteAsync($"{Ruta}/{id}/modalidad", ct))

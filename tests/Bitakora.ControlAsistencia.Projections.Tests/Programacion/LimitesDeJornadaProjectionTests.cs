@@ -106,6 +106,7 @@ public class LimitesDeJornadaProjectionTests
             "40 h semanales, tope diario 8 h, mínimo diario 4 h, 2 días de descanso por semana",
             Activa: false));
     }
+
     private const string DescripcionSinModalidad = Descripcion47;
     private const string DescripcionFlexible = Descripcion47 + ", modalidad Flexible";
     private const string DescripcionOrdinaria = Descripcion47 + ", modalidad Ordinaria";

@@ -141,6 +141,7 @@ public class ComposicionListadoLimitesTests
 
         respuesta.Elementos.Select(e => e.Activa).Should().Equal(false, true);
     }
+
     [Fact]
     public void Componer_DevuelveModalidad_CuandoLaVistaLaTiene()
     {

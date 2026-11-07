@@ -51,13 +51,10 @@ public sealed partial class LimitesDeJornadaProjection : SingleStreamProjection<
 
     private static LimitesDeJornada Proyectar(string id, LimitesJornada limites, ModalidadJornada? modalidad = null) =>
         new(id,
-            MinutosTotales(limites.HorasSemanales),
-            MinutosTotales(limites.TopeDiario),
-            MinutosTotales(limites.MinimoDiario),
+            limites.HorasSemanales.TotalMinutos(),
+            limites.TopeDiario.TotalMinutos(),
+            limites.MinimoDiario.TotalMinutos(),
             limites.DiasDescansoPorSemana,
             DescripcionJornada.Componer(limites, modalidad),
-            true,
-            modalidad?.Nombre);
-
-    private static int MinutosTotales(HorasYMinutos tiempo) => tiempo.Horas * 60 + tiempo.Minutos;
+            Modalidad: modalidad?.Nombre);
 }
