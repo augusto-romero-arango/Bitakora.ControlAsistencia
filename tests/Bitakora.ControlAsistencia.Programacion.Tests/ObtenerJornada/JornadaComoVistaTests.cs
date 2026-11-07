@@ -26,4 +26,27 @@ public class JornadaComoVistaTests
 
         jornada.ComoVista().Activa.Should().BeFalse();
     }
+
+    [Fact]
+    public void ComoVista_LlevaModalidadNulaYDescripcionDeLimites_CuandoLaJornadaNoTieneModalidad()
+    {
+        var vista = Crear().ComoVista();
+
+        vista.Modalidad.Should().BeNull();
+        vista.Descripcion.Should().Be(
+            "42 h semanales, tope diario 8 h, sin mínimo diario, 1 día de descanso por semana");
+    }
+
+    [Fact]
+    public void ComoVista_LlevaModalidadYDescripcionConModalidad_CuandoLaJornadaTieneModalidad()
+    {
+        var jornada = Crear();
+        jornada.AsignarModalidad(ModalidadJornada.Flexible);
+
+        var vista = jornada.ComoVista();
+
+        vista.Modalidad.Should().Be("Flexible");
+        vista.Descripcion.Should().Be(
+            "42 h semanales, tope diario 8 h, sin mínimo diario, 1 día de descanso por semana, modalidad Flexible");
+    }
 }
