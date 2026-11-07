@@ -12,7 +12,9 @@ ciclos de 8 dias; #1280-#1300): el molde se generaliza a la **Plantilla de turno
 (N <= 42) que se aplica con una fecha de inicio. Cambian el titulo, la decision 1, la seccion "Aplicar una
 plantilla" y la decision 6, y nace la seccion "Retiro de la plantilla semanal" (#1289); las decisiones 2 a 5
 siguen vigentes con la generica como sujeto. Se enmienda y no se supera porque los issues #1280-#1300 citan
-sus decisiones por numero (precedente #886).
+sus decisiones por numero (precedente #886). Enmendado 2026-11-07 por CA-ADR-0046 (#1435): la autoauditoria de
+la plantilla gana la capa de ley, con los techos semanales juzgados sobre la peor ventana circular de 7 dias del
+ciclo.
 
 ## Contexto
 
@@ -292,3 +294,6 @@ Enmienda 2026-10-27 (#1302; ejecutado en #1289).
   al lunes) y rotativa (bloques). Decision 4: vaciar un dia descartado (#1282). Alternativas: `PlantillaTurnos`
   generico y modelo posicional, revertido/adoptado. Nueva seccion "Retiro de la plantilla semanal": borrado sin purga, sin SQL
   (CA-ADR-0040), MEF-ADR-0036 no aplica.
+- 2026-11-07: enmendado por CA-ADR-0046 (#1435). La autoauditoria de la plantilla gana la capa de ley: los techos
+  semanales de la modalidad de la Jornada se juzgan sobre la peor ventana circular de 7 dias del ciclo, sin
+  promedio (exacta con N no multiplo de 7, conservadora con N multiplo de 7).
