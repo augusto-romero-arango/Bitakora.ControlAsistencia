@@ -8,10 +8,10 @@ public class QuitarModalidadDeJornadaSmokeTests(McpFixture mcp)
 {
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task QuitarModalidadDeJornada_DevuelveLaJornadaSinModalidad_CuandoLaJornadaExiste()
+    public async Task QuitarModalidadDeJornada_DevuelveLaJornadaSinModalidad_CuandoLaJornadaTeniaModalidad()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (creada, _) = await SembradoDeJornadas.CrearAsync(mcp, ct);
+        var (creada, _) = await SembradoDeJornadas.CrearAsync(mcp, ct, "Ordinaria");
         var id = creada.GetProperty("jornada_id").GetString()!;
 
         var resultado = await mcp.Cliente.CallToolAsync(

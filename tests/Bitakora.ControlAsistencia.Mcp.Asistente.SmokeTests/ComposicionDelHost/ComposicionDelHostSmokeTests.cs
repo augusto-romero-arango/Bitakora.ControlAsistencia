@@ -26,7 +26,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
         "modificar_ventana_de_entrada", "crear_turno_de_horario_abierto",
         "asignar_etiqueta", "retirar_etiqueta",
-                "asignar_modalidad_a_jornada", "quitar_modalidad_de_jornada"
+        "asignar_modalidad_a_jornada", "quitar_modalidad_de_jornada"
     ];
 
     private static readonly Dictionary<string, string[]> RequeridasPorTool = new()

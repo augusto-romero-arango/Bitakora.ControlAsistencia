@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
@@ -29,16 +30,17 @@ public sealed record JornadaDelCatalogo(
 
 public static class ModalidadesDeJornada
 {
-    private static readonly string[] Reconocidas =
-    [
-        "Ordinaria", "Flexible", "TurnosSucesivos", "SinSolucionDeContinuidad", "ExcluidaDeJornadaMaxima"
-    ];
+    public const string Enumeradas =
+        "Ordinaria, Flexible, TurnosSucesivos, SinSolucionDeContinuidad o ExcluidaDeJornadaMaxima";
 
-    public static bool TryNormalizar(string? texto, out string modalidad)
+    private static readonly string[] Reconocidas =
+        ["Ordinaria", "Flexible", "TurnosSucesivos", "SinSolucionDeContinuidad", "ExcluidaDeJornadaMaxima"];
+
+    public static bool TryNormalizar(string? texto, [NotNullWhen(true)] out string? modalidad)
     {
         modalidad = Reconocidas.FirstOrDefault(
-            m => string.Equals(m, texto?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
-        return modalidad.Length > 0;
+            m => string.Equals(m, texto?.Trim(), StringComparison.OrdinalIgnoreCase));
+        return modalidad is not null;
     }
 }
 

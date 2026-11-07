@@ -12,17 +12,13 @@ public partial class AsignarModalidadAJornadaTool(ProgramacionApi api)
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Declara bajo que modalidad legal se pacto una Jornada: Ordinaria, Flexible, TurnosSucesivos, "
-            + "SinSolucionDeContinuidad o ExcluidaDeJornadaMaxima. Reemplaza la que tuviera. Con modalidad "
-            + "el sistema advierte contra la ley; no certifica cumplimiento.")]
+            "Declara bajo que modalidad legal se pacto una Jornada: " + ModalidadesDeJornada.Enumeradas
+            + ". Reemplaza la que tuviera. Con modalidad el sistema advierte contra la ley; no certifica cumplimiento.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("jornada_id", "Identificador de la Jornada, tal como lo da listar_jornadas.", isRequired: true)]
         string jornadaId,
-        [McpToolProperty(
-            "modalidad",
-            "Ordinaria, Flexible, TurnosSucesivos, SinSolucionDeContinuidad o ExcluidaDeJornadaMaxima.",
-            isRequired: true)]
+        [McpToolProperty("modalidad", ModalidadesDeJornada.Enumeradas + ".", isRequired: true)]
         string modalidad,
         CancellationToken ct)
     {

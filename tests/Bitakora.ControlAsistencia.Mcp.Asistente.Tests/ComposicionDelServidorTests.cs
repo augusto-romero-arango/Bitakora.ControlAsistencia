@@ -95,7 +95,7 @@ public class ComposicionDelServidorTests
     public void CrearJornada_DeclaraLosCuatroLimitesComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("crear_jornada").Should().BeEquivalentTo(
             [("horas_semanales", true), ("tope_diario", true), ("minimo_diario", true),
-             ("dias_descanso_por_semana", true)]);
+             ("dias_descanso_por_semana", true), ("modalidad", false)]);
 
     [Fact]
     public void ModificarLimitesJornada_DeclaraElIdYLosCuatroLimitesComoObligatorios_CuandoSeInspeccionaLaTool() =>
