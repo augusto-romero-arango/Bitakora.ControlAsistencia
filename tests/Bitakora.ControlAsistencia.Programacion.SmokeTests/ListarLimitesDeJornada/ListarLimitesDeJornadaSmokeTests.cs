@@ -223,6 +223,45 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task ListarLimitesDeJornada_MuestraLaModalidad_CuandoSeAsignaYSeQuita()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var id = await CrearJornadaAsync(LimitesDePrueba.ListarMuestraModalidad, ct);
+
+        async Task<JsonElement> ElementoAsync(Func<JsonElement, bool> condicion)
+        {
+            var crudo = await Polling.WaitUntilAsync(async () =>
+            {
+                var response = await _client.GetAsync(Ruta, ct);
+                response.StatusCode.Should().Be(HttpStatusCode.OK);
+                var cuerpo = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+                foreach (var e in cuerpo.GetProperty("elementos").EnumerateArray())
+                    if (e.GetProperty("jornadaId").GetGuid() == id && condicion(e))
+                        return e.GetRawText();
+                return null;
+            }, Timeout);
+            return JsonDocument.Parse(crudo).RootElement.Clone();
+        }
+
+        var sinModalidad = await ElementoAsync(e => true);
+        sinModalidad.GetProperty("modalidad").ValueKind.Should().Be(JsonValueKind.Null);
+
+        (await _client.PutAsJsonAsync($"{Ruta}/{id}/modalidad", new { modalidad = "TurnosSucesivos" }, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que AsignarModalidad funcione");
+
+        var conModalidad = await ElementoAsync(
+            e => e.GetProperty("modalidad").ValueKind == JsonValueKind.String);
+        conModalidad.GetProperty("descripcion").GetString().Should().Contain("Turnos sucesivos");
+
+        (await _client.DeleteAsync($"{Ruta}/{id}/modalidad", ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que QuitarModalidad funcione");
+
+        var quitada = await ElementoAsync(e => e.GetProperty("modalidad").ValueKind == JsonValueKind.Null);
+        quitada.GetProperty("descripcion").GetString().Should().NotContain("Turnos sucesivos");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task ListarLimitesDeJornada_DebeRetornar400_CuandoActivaEsInvalido()
     {
         var response = await _client.GetAsync($"{Ruta}?activa=quizas", TestContext.Current.CancellationToken);
