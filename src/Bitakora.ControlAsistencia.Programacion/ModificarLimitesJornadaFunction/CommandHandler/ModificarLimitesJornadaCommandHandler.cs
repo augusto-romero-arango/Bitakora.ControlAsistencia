@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
@@ -19,12 +20,11 @@ public partial class ModificarLimitesJornadaCommandHandler(
 
         var limites = command.ToLimitesJornada();
         var predeterminadaId = await asegurador.AsegurarAsync(ct);
-        var catalogo = await lector.ObtenerLimitesAsync(predeterminadaId, ct);
-        var igual = catalogo.FirstOrDefault(j => j.JornadaId != command.JornadaId && j.Limites.Equals(limites)
-            && Equals(j.Modalidad, jornada.Modalidad));
+        var catalogo = await lector.ObtenerConLimitesAsync(predeterminadaId, limites, ct);
+        var igual = jornada.BuscarColisionDeLimites(limites, catalogo);
         if (igual is not null)
-            throw new ReglaDeNegocioDeclinadaException(
-                string.Format(Mensajes.LimitesDuplicados, limites, igual.JornadaId));
+            throw new ReglaDeNegocioDeclinadaException(string.Format(
+                Mensajes.LimitesDuplicados, DescripcionJornada.Componer(limites, igual.Modalidad), igual.JornadaId));
 
         if (jornada.ModificarLimites(limites) == ResultadoModificarLimites.Modificados)
             await privateEventSender.PublishAsync(jornada.ComoLimitesActualizados());

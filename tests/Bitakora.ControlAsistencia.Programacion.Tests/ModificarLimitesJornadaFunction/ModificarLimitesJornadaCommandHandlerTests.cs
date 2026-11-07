@@ -113,7 +113,7 @@ public class ModificarLimitesJornadaCommandHandlerTests : CommandHandlerAsyncTes
         Given(JornadaCreada.Crear(GuidAggregateId, Limites(42, 9)),
             ModalidadDeJornadaAsignada.Crear(GuidAggregateId, ModalidadJornada.Ordinaria));
         await WhenAsync(Comando(GuidAggregateId, horasSemanales: 40));
-        Then(LimitesJornadaModificados.Crear(GuidAggregateId, Limites(40, 9)));
+        Then(LimitesJornadaModificados.Crear(GuidAggregateId, Limites(40, 8)));
         ThenIsPublishedPrivately(new LimitesDeJornadaActualizados(GuidAggregateId, 2, 40 * 60, 8 * 60, 0, 1));
         And<Jornada, int>(j => j.Describir().HorasSemanales.Horas, 40);
     }

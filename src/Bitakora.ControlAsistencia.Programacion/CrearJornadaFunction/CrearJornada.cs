@@ -8,6 +8,9 @@ public record CrearJornada(Guid JornadaId, HorasYMinutosSolicitadas HorasSemanal
     HorasYMinutosSolicitadas TopeDiario, HorasYMinutosSolicitadas MinimoDiario,
     int DiasDescansoPorSemana, string? Modalidad = null)
 {
+    public ModalidadJornada? ToModalidadJornada() =>
+        ModalidadJornada.TryDesde(Modalidad, out var modalidad) ? modalidad : null;
+
     public LimitesJornada ToLimitesJornada()
     {
         var errores = new List<Exception>();

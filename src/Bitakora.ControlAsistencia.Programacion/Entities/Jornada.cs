@@ -67,8 +67,10 @@ public partial class Jornada : AggregateRoot
     internal JornadaDelCatalogo? BuscarColision(ModalidadJornada? modalidad, IReadOnlyList<JornadaDelCatalogo> catalogo) =>
         Equals(_modalidad, modalidad)
             ? null
-            : catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId
-                && j.Limites.Equals(_limites) && Equals(j.Modalidad, modalidad));
+            : catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId && j.TieneIdentidad(_limites, modalidad));
+
+    internal JornadaDelCatalogo? BuscarColisionDeLimites(LimitesJornada limites, IReadOnlyList<JornadaDelCatalogo> catalogo) =>
+        catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId && j.TieneIdentidad(limites, _modalidad));
 
     internal ResultadoAsignarModalidad AsignarModalidad(ModalidadJornada modalidad)
     {

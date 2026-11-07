@@ -159,7 +159,7 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : 
         var lectura = await _client.GetAsync($"{Ruta}/{id}", ct);
         lectura.StatusCode.Should().Be(HttpStatusCode.OK);
         using var json = JsonDocument.Parse(await lectura.Content.ReadAsStringAsync(ct));
-        json.RootElement.GetProperty("modalidad").ValueKind.Should().Be(JsonValueKind.String);
+        json.RootElement.GetProperty("modalidad").GetString().Should().Be("Ordinaria");
         json.RootElement.GetProperty("descripcion").GetString().Should().Contain("Ordinaria");
     }
 

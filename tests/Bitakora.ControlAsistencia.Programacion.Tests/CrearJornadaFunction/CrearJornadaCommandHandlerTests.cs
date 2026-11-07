@@ -164,7 +164,7 @@ public class CrearJornadaCommandHandlerTests : CommandHandlerAsyncTest<CrearJorn
     {
         _lector = new FakeLectorLimitesJornada(_asegurador,
             new JornadaDelCatalogo(JornadaX, Limites(42, 8, 0, 1), ModalidadJornada.Ordinaria));
-        Given();
+        Given(JornadaX.ToString(), Evento(JornadaX), ModalidadDeJornadaAsignada.Crear(JornadaX, ModalidadJornada.Ordinaria));
         var act = async () => await WhenAsync(Comando(GuidAggregateId) with { Modalidad = "Ordinaria" });
         var ex = (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()).Which;
         ex.Message.Should().Contain(JornadaX.ToString());
