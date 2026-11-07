@@ -52,15 +52,6 @@ Este ADR registra **decisiones de dominio y de arquitectura**, sin nombres de ti
    aplicar la plantilla (7 es primo). Con N multiplo de 7 (14-42) es conservadora: puede advertir sobre una
    ventana que, segun el dia de aplicacion, nunca es semana; se acepta por "advierte, no certifica". La semanal
    (N = 7, dia 1 = lunes) se juzga sobre el ciclo.
-11. **Ordinaria admite 5 dias** (refinamiento 2026-11-07). El tope diario de ley de la Ordinaria es el techo
-    semanal vigente / 5 (8,4 h con 42 h), no las 8 h del inciso 1. Razon: repartir la jornada completa en 5 dias
-    es practica comun (sobre todo administrativa) y el 161 inc. 1 autoriza distribuir la semana "en 5 o 6 dias";
-    advertirla seria ruido en el caso mas frecuente. Se aparta de la letra del inciso 1 ("ocho (8) horas al dia")
-    con respaldo solo de fuentes secundarias: **lectura marcada para validar con el abogado**.
-12. **Unicidad** (refinamiento 2026-11-07). La identidad de una Jornada es limites + modalidad + marca de descanso
-    acumulado. Dos Jornadas con los mismos limites y distinta modalidad o marca conviven (p. ej. 36/6 Ordinaria y
-    36/6 Turnos sucesivos son distintas en descanso dominical y recargos). Asignar o quitar la modalidad (#1436) o
-    la marca (#1437) que colisione con otra Jornada responde 409 nombrando la existente, como #890.
 
 ### Arquitectura
 
@@ -71,6 +62,25 @@ Este ADR registra **decisiones de dominio y de arquitectura**, sin nombres de ti
    dias ya estampados, igual que editar la Jornada hoy.
 10. **Un solo calculador.** Toda advertencia, pactada o de ley, vive en `CalculadorAdvertencias`. Las
     advertencias sobre el borrador (#1411) lo reutilizan sobre dias propuestos.
+
+### Dominio (refinamiento 2026-11-07)
+
+11. **Ordinaria admite 5 dias** (refinamiento 2026-11-07). El tope diario de ley de la Ordinaria es el techo
+    semanal vigente / 5 (8,4 h con 42 h), no las 8 h del inciso 1. Razon: repartir la jornada completa en 5 dias
+    es practica comun (sobre todo administrativa) y el 161 inc. 1 autoriza distribuir la semana "en 5 o 6 dias";
+    advertirla seria ruido en el caso mas frecuente. Se aparta de la letra del inciso 1 ("ocho (8) horas al dia")
+    con respaldo solo de fuentes secundarias: **lectura marcada para validar con el abogado**.
+12. **Unicidad** (refinamiento 2026-11-07). La identidad de una Jornada es limites + modalidad + marca de descanso
+    acumulado. Dos Jornadas con los mismos limites y distinta modalidad o marca conviven (p. ej. 36/6 Ordinaria y
+    36/6 Turnos sucesivos son distintas en descanso dominical y recargos). Asignar o quitar la modalidad (#1436) o
+    la marca (#1437) que colisione con otra Jornada responde 409 nombrando la existente, como #890.
+
+### Enmiendas
+
+- **CA-ADR-0034:** la autoauditoria de la plantilla gana la capa de ley; los techos semanales de la modalidad se
+  juzgan sobre la peor ventana circular de 7 dias del ciclo (decision 8).
+- **Principio de la Jornada** ("no impone modalidades legales ni certifica cumplimiento"): la Jornada puede
+  llevar una modalidad legal, y el sistema advierte contra ella sin certificar ni bloquear (decision 4).
 
 ### Contexto legal
 
@@ -97,9 +107,10 @@ Este ADR registra **decisiones de dominio y de arquitectura**, sin nombres de ti
   sistema no verifica (166). Se advierte, no se certifica ni se bloquea.
 - **Modalidad en la Vinculacion:** descartada; la Jornada ya se asigna a la Vinculacion y se estampa al
   programar, y las reglas del catalogo son de la labor y no de la persona.
-- **"Regimen de jornada" y "Jornada especial":** descartados; "regimen" ya aparece en `motor_horas_colombia_v2.md`
-  con otro sentido y "jornada especial atipica" nombra los turnos 14x7 y 7x7 fuera del CST. Se adopta el termino
-  de Mintrabajo.
+- **"Regimen de jornada" y "Jornada especial":** descartados; se adopta el termino de Mintrabajo (decision 2).
+  "Regimen" es el termino informal de `motor_horas_colombia_v2.md`, sin respaldo en la fuente oficial citada, y
+  "jornada especial atipica" nombra para Mintrabajo los turnos 14x7 y 7x7 no regulados en el CST, lo que
+  volveria ambiguo el nombre.
 - **Advertir siempre sin marca de descanso acumulado:** descartada; 14x14 y 20x10 advertirian de forma
   permanente aunque el art. 184 los ampare.
 - **Duplicar el calculo o el catalogo en ControlHoras:** descartada; la plantilla necesita el catalogo en

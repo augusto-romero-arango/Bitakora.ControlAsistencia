@@ -358,7 +358,6 @@ Esta sección **no decide nada**. Las decisiones del experto se registraron en [
 11. **Día de descanso obligatorio y compensatorio.** ¿El sistema debe conocer el día de descanso pactado (179 par. 3) y advertir sobre el compensatorio de la semana siguiente (183) o sobre la habitualidad del mes calendario (179 par. 1)?
     - **Estado:** Fuera de alcance (CA-ADR-0046).
 12. **Verificaciones pendientes** marcadas «no verificado»:
-    - **Estado:** Pendiente del abogado.
     - las cifras de M3;
     - los cortes horarios de M4;
     - las combinaciones entre modalidades;
@@ -366,3 +365,5 @@ Esta sección **no decide nada**. Las decisiones del experto se registraron en [
     - la vigencia del art. 162 lit. d), del art. 182 y del Decreto 995/1968;
     - el alcance del art. 175;
     - el alcance de la exclusión del art. 162 sobre el descanso.
+
+    **Estado:** Pendiente del abogado.
