@@ -19,7 +19,7 @@ public partial class AsignarModalidadAJornadaCommandHandler(
 
         var modalidad = command.ToModalidadJornada();
         var predeterminadaId = await asegurador.AsegurarAsync(ct);
-        var catalogo = await lector.ObtenerLimitesAsync(predeterminadaId, ct);
+        var catalogo = await lector.ObtenerConLimitesAsync(predeterminadaId, jornada.Limites, ct);
         var colision = jornada.BuscarColision(modalidad, catalogo);
         if (colision is not null)
             throw new ReglaDeNegocioDeclinadaException(string.Format(

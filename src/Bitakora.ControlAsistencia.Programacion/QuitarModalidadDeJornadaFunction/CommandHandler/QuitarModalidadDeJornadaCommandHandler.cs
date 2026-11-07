@@ -17,7 +17,7 @@ public partial class QuitarModalidadDeJornadaCommandHandler(
             throw new RecursoNoEncontradoException(Mensajes.JornadaNoEncontrada);
 
         var predeterminadaId = await asegurador.AsegurarAsync(ct);
-        var catalogo = await lector.ObtenerLimitesAsync(predeterminadaId, ct);
+        var catalogo = await lector.ObtenerConLimitesAsync(predeterminadaId, jornada.Limites, ct);
         var colision = jornada.BuscarColision(null, catalogo);
         if (colision is not null)
             throw new ReglaDeNegocioDeclinadaException(string.Format(

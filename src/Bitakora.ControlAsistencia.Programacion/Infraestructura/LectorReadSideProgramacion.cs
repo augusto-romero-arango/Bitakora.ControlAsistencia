@@ -57,6 +57,28 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
         Guid predeterminadaId, CancellationToken ct)
     {
         await using var session = store.QuerySession(tenantContext.TenantId);
+        return await LeerCatalogoAsync(session, predeterminadaId, ct);
+    }
+
+    async Task<IReadOnlyList<JornadaDelCatalogo>> ILectorLimitesJornada.ObtenerConLimitesAsync(
+        Guid predeterminadaId, LimitesJornada limites, CancellationToken ct)
+    {
+        await using var session = store.QuerySession(tenantContext.TenantId);
+        var catalogo = await LeerCatalogoAsync(session, predeterminadaId, ct);
+
+        var conModalidad = new List<JornadaDelCatalogo>();
+        foreach (var jornada in catalogo.Where(j => j.Limites.Equals(limites)))
+        {
+            var stream = await session.Events.AggregateStreamAsync<Jornada>(jornada.JornadaId.ToString(), token: ct);
+            conModalidad.Add(jornada with { Modalidad = stream?.Modalidad });
+        }
+
+        return conModalidad;
+    }
+
+    private static async Task<IReadOnlyList<JornadaDelCatalogo>> LeerCatalogoAsync(
+        IQuerySession session, Guid predeterminadaId, CancellationToken ct)
+    {
         var vista = await session.Query<LimitesDeJornada>().ToListAsync(ct);
 
         // Proyeccion Async atrasada: la predeterminada recien materializada se lee de su stream.
@@ -65,15 +87,7 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
         if (vista.All(l => l.Id != idTexto))
             faltante = (await session.Events.AggregateStreamAsync<Jornada>(idTexto, token: ct))?.ComoVista();
 
-        var catalogo = CatalogoLimitesJornada.Componer(vista, faltante);
-        var conModalidad = new List<JornadaDelCatalogo>(catalogo.Count);
-        foreach (var jornada in catalogo)
-        {
-            var stream = await session.Events.AggregateStreamAsync<Jornada>(jornada.JornadaId.ToString(), token: ct);
-            conModalidad.Add(jornada with { Modalidad = stream?.Modalidad });
-        }
-
-        return conModalidad;
+        return CatalogoLimitesJornada.Componer(vista, faltante);
     }
 }
 
