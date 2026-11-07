@@ -333,20 +333,32 @@ El ciclo 6x2 son 6 días de 8 h seguidos de 2 de descanso. El ciclo dura 8 días
 
 ## 8. Puntos para decidir con el experto (CA-6)
 
-Esta sección **no decide nada**.
+Esta sección **no decide nada**. Las decisiones del experto se registraron en [CA-ADR-0046](../adr/ca-adr-0046-modalidades-de-jornada-y-advertencias-de-ley.md); cada punto marca abajo su estado.
 
 1. **Tope del art. 165.** El texto dice 48 h semanales y el art. 161 vigente dice 42 h. ¿Contra cuál se juzga el promedio? El 6x2 de 8 h cumple con 48 h y falla en la mitad de los periodos de 3 semanas con 42 h (§5.3). La misma pregunta vale para el «48» del art. 164.
+    - **Estado:** Pendiente de #1444.
 2. **42 h en 5 días.** Con el tope diario de 8 h, cinco días suman 40 h. ¿Se exige la flexible (M2), el art. 164 o se admiten 8,4 h diarias en la ordinaria?
+    - **Estado:** Decidido: CA-ADR-0046 decisión 11 (la Ordinaria admite 5 días, techo semanal / 5; lectura por validar con el abogado).
 3. **Nombre del concepto.** «Modalidad de jornada» es provisional: «modalidad» ya nombró a la plantilla semanal histórica, y `motor_horas_colombia_v2.md` dice «régimen». ¿Cuál es el término del lenguaje ubicuo?
+    - **Estado:** Decidido: CA-ADR-0046 decisión 2 ("modalidad de jornada", término de Mintrabajo).
 4. **Tensión con el principio de la Jornada.** Hoy la Jornada «no impone modalidades legales ni certifica cumplimiento». Si el sistema registra la modalidad y arma advertencias, ¿ese principio se enmienda o se reemplaza? ¿El sistema certifica o solo advierte?
+    - **Estado:** Decidido: CA-ADR-0046 decisión 4 (advierte, no certifica; enmienda el principio de la Jornada).
 5. **Convivencia.** ¿La modalidad legal convive con una Jornada pactada libre como la de hoy (Jornada sin modalidad), o toda Jornada nace con modalidad?
+    - **Estado:** Decidido: CA-ADR-0046 decisión 3 (la modalidad es opcional; sin modalidad = pactada libre).
 6. **Dónde se asigna.** ¿En la Jornada (catálogo) o en la Vinculación del colaborador? Hoy la Jornada se asigna a la Vinculación y se estampa al programar. Algunas condiciones son de la persona (menor, técnico irreemplazable del art. 182, cargo de dirección) y otras de la labor o de la empresa (M5, M6, M7).
+    - **Estado:** Decidido: CA-ADR-0046 decisión 2 (atributo de la Jornada).
 7. **«Sin descansos».** ¿Qué figura tenía en mente el experto: el art. 182, M5 sin dominical o el art. 184? (§4)
+    - **Estado:** Decidido: CA-ADR-0046 decisión 7 (marca de descanso acumulado, art. 184).
 8. **Techo contra valor exacto** de las horas semanales y de los días de descanso (§5.2, §6).
+    - **Estado:** Decidido: CA-ADR-0046 decisión 1 (dos capas: valor exacto pactado y techo de ley).
 9. **Ausencias en periodos largos.** Con la regla actual, una ausencia vuelve no juzgable su semana. En un periodo de 3 semanas o de un ciclo, ¿invalida el periodo entero o el día ausente cuenta con horas (CA-ADR-0036)?
+    - **Estado:** Pendiente de #1444.
 10. **Ciclos que no encajan** (6x2). ¿Se miden por ciclo, por periodo de hasta 3 semanas o se exige un múltiplo de 7? Si es por periodo, ¿fijo (desde qué fecha) o móvil?
+    - **Estado:** Decidido para la plantilla en CA-ADR-0046 decisión 8 (peor ventana circular de 7 días); en la programación, pendiente de #1444.
 11. **Día de descanso obligatorio y compensatorio.** ¿El sistema debe conocer el día de descanso pactado (179 par. 3) y advertir sobre el compensatorio de la semana siguiente (183) o sobre la habitualidad del mes calendario (179 par. 1)?
+    - **Estado:** Fuera de alcance (CA-ADR-0046).
 12. **Verificaciones pendientes** marcadas «no verificado»:
+    - **Estado:** Pendiente del abogado.
     - las cifras de M3;
     - los cortes horarios de M4;
     - las combinaciones entre modalidades;
