@@ -106,4 +106,56 @@ public class LimitesDeJornadaProjectionTests
             "40 h semanales, tope diario 8 h, mínimo diario 4 h, 2 días de descanso por semana",
             Activa: false));
     }
+    private const string DescripcionSinModalidad = Descripcion47;
+    private const string DescripcionFlexible = Descripcion47 + ", modalidad Flexible";
+    private const string DescripcionOrdinaria = Descripcion47 + ", modalidad Ordinaria";
+
+    private static LimitesDeJornada Vista47(string descripcion, string? modalidad, bool activa = true) =>
+        new(JornadaId.ToString(), 2850, 480, 0, 1, descripcion, activa, modalidad);
+
+    [Fact]
+    public void Apply_DejaModalidadYDescripcionConModalidad_CuandoModalidadDeJornadaAsignada()
+    {
+        var vista = LimitesDeJornadaProjection.Apply(
+            ModalidadDeJornadaAsignada.Crear(JornadaId, ModalidadJornada.Flexible),
+            Vista47(DescripcionSinModalidad, null));
+
+        vista.Should().Be(Vista47(DescripcionFlexible, "Flexible"));
+    }
+
+    [Fact]
+    public void Apply_ReemplazaModalidad_CuandoModalidadDeJornadaAsignadaSobreOtra()
+    {
+        var vista = LimitesDeJornadaProjection.Apply(
+            ModalidadDeJornadaAsignada.Crear(JornadaId, ModalidadJornada.Ordinaria),
+            Vista47(DescripcionFlexible, "Flexible"));
+
+        vista.Should().Be(Vista47(DescripcionOrdinaria, "Ordinaria"));
+    }
+
+    [Fact]
+    public void Apply_DejaModalidadNulaYDescripcionSoloConLimites_CuandoModalidadDeJornadaQuitada()
+    {
+        var vista = LimitesDeJornadaProjection.Apply(
+            ModalidadDeJornadaQuitada.Crear(JornadaId),
+            Vista47(DescripcionFlexible, "Flexible"));
+
+        vista.Should().Be(Vista47(DescripcionSinModalidad, null));
+    }
+
+    [Fact]
+    public void Apply_ConservaModalidadYActivaYRecomponeDescripcion_CuandoLimitesJornadaModificados()
+    {
+        var previa = Vista47(DescripcionFlexible, "Flexible", activa: false);
+        var nuevos = LimitesJornada.Crear(
+            HorasYMinutos.Crear(40, 0), HorasYMinutos.Crear(8, 0), HorasYMinutos.Crear(4, 0), 2);
+
+        var vista = LimitesDeJornadaProjection.Apply(
+            LimitesJornadaModificados.Crear(JornadaId, nuevos), previa);
+
+        vista.Should().Be(new LimitesDeJornada(
+            JornadaId.ToString(), 2400, 480, 240, 2,
+            "40 h semanales, tope diario 8 h, mínimo diario 4 h, 2 días de descanso por semana, modalidad Flexible",
+            false, "Flexible"));
+    }
 }

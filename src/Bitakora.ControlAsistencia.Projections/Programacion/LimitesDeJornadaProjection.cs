@@ -23,6 +23,12 @@ public sealed partial class LimitesDeJornadaProjection : SingleStreamProjection<
     public static LimitesDeJornada Apply(JornadaActivada e, LimitesDeJornada vista) =>
         vista with { Activa = true };
 
+    public static LimitesDeJornada Apply(ModalidadDeJornadaAsignada e, LimitesDeJornada vista) =>
+        throw new NotImplementedException();
+
+    public static LimitesDeJornada Apply(ModalidadDeJornadaQuitada e, LimitesDeJornada vista) =>
+        throw new NotImplementedException();
+
     private static LimitesDeJornada Proyectar(string id, LimitesJornada limites) =>
         new(id,
             MinutosTotales(limites.HorasSemanales),
