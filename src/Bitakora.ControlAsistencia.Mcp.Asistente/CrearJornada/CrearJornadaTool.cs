@@ -28,6 +28,8 @@ public partial class CrearJornadaTool(ProgramacionApi api)
             "Dias de descanso por semana, entero de 0 a 6 (0 = no se controla).",
             isRequired: true)]
         int diasDescansoPorSemana,
+        [McpToolProperty("modalidad", "Modalidad legal de la Jornada (opcional).")]
+        string? modalidad,
         CancellationToken ct)
     {
         if (!ValidadorDuracion.TryParsear(horasSemanales, out var semanales))

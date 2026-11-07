@@ -29,4 +29,7 @@
   <data name="DiasDescansoInvalido" xml:space="preserve">
     <value>'dias_descanso_por_semana' debe ser un entero de 0 a 6: {0}.</value>
   </data>
+  <data name="ModalidadInvalida" xml:space="preserve">
+    <value>'modalidad' no es una modalidad reconocida: '{0}'. Usa Ordinaria, Flexible, TurnosSucesivos, SinSolucionDeContinuidad o ExcluidaDeJornadaMaxima.</value>
+  </data>
 </root>

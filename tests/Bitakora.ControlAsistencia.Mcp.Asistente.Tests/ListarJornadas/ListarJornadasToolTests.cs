@@ -36,6 +36,15 @@ public class ListarJornadasToolTests
     }
 
     [Fact]
+    public async Task ListarJornadas_IncluyeLaModalidad_CuandoLaJornadaLaTiene()
+    {
+        var (json, _) = await Ejecutar("listar-jornadas-con-modalidad.json");
+
+        json["jornadas"]![0]!["modalidad"]!.GetValue<string>().Should().Be("Flexible");
+        json["jornadas"]![1]!.AsObject().ContainsKey("modalidad").Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ListarJornadas_PideTakeIgualAlTope_CuandoNoRecibeCursor()
     {
         var (_, handler) = await Ejecutar("listar-jornadas.json");

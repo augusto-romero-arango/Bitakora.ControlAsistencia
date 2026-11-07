@@ -55,7 +55,8 @@ public class ComposicionDelServidorTests
                 "quitar_jornada_de_plantilla", "retirar_plantilla",
                 "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
                 "modificar_ventana_de_entrada", "crear_turno_de_horario_abierto",
-                "asignar_etiqueta", "retirar_etiqueta"
+                "asignar_etiqueta", "retirar_etiqueta",
+                "asignar_modalidad_a_jornada", "quitar_modalidad_de_jornada"
             ]);
     }
 
@@ -101,6 +102,41 @@ public class ComposicionDelServidorTests
         PropiedadesDe("modificar_limites_jornada").Should().BeEquivalentTo(
             [("jornada_id", true), ("horas_semanales", true), ("tope_diario", true), ("minimo_diario", true),
              ("dias_descanso_por_semana", true)]);
+
+    [Fact]
+    public void AsignarModalidadAJornada_DeclaraElIdYLaModalidadComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("asignar_modalidad_a_jornada").Should().BeEquivalentTo([("jornada_id", true), ("modalidad", true)]);
+
+    [Fact]
+    public void QuitarModalidadDeJornada_DeclaraElIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("quitar_modalidad_de_jornada").Should().BeEquivalentTo([("jornada_id", true)]);
+
+    [Fact]
+    public void CrearJornada_DeclaraLaModalidadComoOpcionalDeTipoString_CuandoSeInspeccionaLaTool()
+    {
+        PropiedadesDe("crear_jornada").Should().Contain(("modalidad", false));
+        ParametrosDeTool("crear_jornada")
+            .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "modalidad")
+            .ParameterType.Should().Be(typeof(string));
+    }
+
+    [Fact]
+    public void ToolsDeModalidad_PublicanHintsIdempotentes_CuandoSeInspeccionanLasTools()
+    {
+        foreach (var nombre in new[] { "asignar_modalidad_a_jornada", "quitar_modalidad_de_jornada" })
+        {
+            var hints = ParametroTrigger(MetodoDe(nombre))!.GetCustomAttribute<McpMetadataAttribute>()!.Json;
+            hints.Should().Contain("\"readOnlyHint\": false, \"destructiveHint\": false");
+            hints.Should().Contain("\"idempotentHint\": true");
+        }
+    }
+
+    [Fact]
+    public void HostJson_MencionaLasToolsDeModalidad_CuandoSeLeenLasInstrucciones()
+    {
+        LeerHostJson().Should().Contain("asignar_modalidad_a_jornada");
+        LeerHostJson().Should().Contain("quitar_modalidad_de_jornada");
+    }
 
     [Fact]
     public void ModificarVentanaDeEntrada_DeclaraTurnoIdYAmplitudComoObligatorios_CuandoSeInspeccionaLaTool() =>
