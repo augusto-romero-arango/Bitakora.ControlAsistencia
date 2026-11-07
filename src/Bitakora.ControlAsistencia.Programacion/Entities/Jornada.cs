@@ -67,8 +67,10 @@ public partial class Jornada : AggregateRoot
     internal JornadaDelCatalogo? BuscarColision(ModalidadJornada? modalidad, IReadOnlyList<JornadaDelCatalogo> catalogo) =>
         Equals(_modalidad, modalidad)
             ? null
-            : catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId
-                && j.Limites.Equals(_limites) && Equals(j.Modalidad, modalidad));
+            : catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId && j.TieneIdentidad(_limites, modalidad));
+
+    internal JornadaDelCatalogo? BuscarColisionDeLimites(LimitesJornada limites, IReadOnlyList<JornadaDelCatalogo> catalogo) =>
+        catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId && j.TieneIdentidad(limites, _modalidad));
 
     internal ResultadoAsignarModalidad AsignarModalidad(ModalidadJornada modalidad)
     {
@@ -137,11 +139,13 @@ public partial class Jornada : AggregateRoot
 
     internal JornadaProgramada Estampar() => new(_jornadaId, _limites);
 
-    internal static Jornada Iniciar(JornadaCreada evento)
+    internal static Jornada Iniciar(JornadaCreada evento, ModalidadJornada? modalidad = null)
     {
         var jornada = new Jornada();
         jornada._uncommittedEvents.Add(evento);
         jornada.Apply(evento);
+        if (modalidad is not null)
+            jornada.AsignarModalidad(modalidad);
         return jornada;
     }
 }

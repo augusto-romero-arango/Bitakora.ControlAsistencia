@@ -103,4 +103,33 @@ public class ModificarLimitesJornadaCommandHandlerTests : CommandHandlerAsyncTes
         ThenIsPublishedPrivately();
         And<Jornada, int>(j => j.Describir().HorasSemanales.Horas, 42);
     }
+
+    [Fact]
+    public async Task ModificarLimitesJornada_EmiteLimitesJornadaModificados_CuandoLaOtraConEsosLimitesNoTieneModalidad()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(GuidAggregateId, Limites(42, 9), ModalidadJornada.Ordinaria),
+            new JornadaDelCatalogo(JornadaB, Limites(40, 8)));
+        Given(JornadaCreada.Crear(GuidAggregateId, Limites(42, 9)),
+            ModalidadDeJornadaAsignada.Crear(GuidAggregateId, ModalidadJornada.Ordinaria));
+        await WhenAsync(Comando(GuidAggregateId, horasSemanales: 40));
+        Then(LimitesJornadaModificados.Crear(GuidAggregateId, Limites(40, 8)));
+        ThenIsPublishedPrivately(new LimitesDeJornadaActualizados(GuidAggregateId, 2, 40 * 60, 8 * 60, 0, 1));
+        And<Jornada, int>(j => j.Describir().HorasSemanales.Horas, 40);
+    }
+
+    [Fact]
+    public async Task ModificarLimitesJornada_LanzaReglaDeNegocioDeclinada_CuandoLaOtraTieneMismosLimitesYModalidad()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(GuidAggregateId, Limites(42, 9), ModalidadJornada.Ordinaria),
+            new JornadaDelCatalogo(JornadaB, Limites(40, 8), ModalidadJornada.Ordinaria));
+        Given(JornadaCreada.Crear(GuidAggregateId, Limites(42, 9)),
+            ModalidadDeJornadaAsignada.Crear(GuidAggregateId, ModalidadJornada.Ordinaria));
+        var act = async () => await WhenAsync(Comando(GuidAggregateId, horasSemanales: 40));
+        var ex = (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()).Which;
+        ex.Message.Should().Contain(JornadaB.ToString());
+        Then();
+        And<Jornada, int>(j => j.Describir().HorasSemanales.Horas, 42);
+    }
 }

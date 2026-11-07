@@ -53,13 +53,6 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
             .ToListAsync(ct);
     }
 
-    async Task<IReadOnlyList<JornadaDelCatalogo>> ILectorLimitesJornada.ObtenerLimitesAsync(
-        Guid predeterminadaId, CancellationToken ct)
-    {
-        await using var session = store.QuerySession(tenantContext.TenantId);
-        return await LeerCatalogoAsync(session, predeterminadaId, ct);
-    }
-
     async Task<IReadOnlyList<JornadaDelCatalogo>> ILectorLimitesJornada.ObtenerConLimitesAsync(
         Guid predeterminadaId, LimitesJornada limites, CancellationToken ct)
     {

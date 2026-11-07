@@ -16,13 +16,14 @@ public partial class CrearJornadaCommandHandler(
             throw new RecursoYaExisteException(Mensajes.JornadaYaExiste);
 
         var limites = command.ToLimitesJornada();
+        var modalidad = command.ToModalidadJornada();
         var predeterminadaId = await asegurador.AsegurarAsync(ct);
-        var catalogo = await lector.ObtenerLimitesAsync(predeterminadaId, ct);
-        var igual = catalogo.FirstOrDefault(j => j.Limites.Equals(limites));
+        var catalogo = await lector.ObtenerConLimitesAsync(predeterminadaId, limites, ct);
+        var igual = catalogo.FirstOrDefault(j => j.TieneIdentidad(limites, modalidad));
         if (igual is not null)
-            throw new ReglaDeNegocioDeclinadaException(
-                string.Format(Mensajes.LimitesDuplicados, limites, igual.JornadaId));
+            throw new ReglaDeNegocioDeclinadaException(string.Format(
+                Mensajes.LimitesDuplicados, DescripcionJornada.Componer(limites, modalidad), igual.JornadaId));
 
-        eventStore.StartStream(Jornada.Iniciar(JornadaCreada.Crear(command.JornadaId, limites)));
+        eventStore.StartStream(Jornada.Iniciar(JornadaCreada.Crear(command.JornadaId, limites), modalidad));
     }
 }

@@ -98,6 +98,9 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites AsignarModalidadNoReconocida = Firma(35, 4);
     public static readonly FirmaDeLimites QuitarModalidadPersiste = Firma(35, 5);
     public static readonly FirmaDeLimites QuitarModalidadSinModalidad = Firma(35, 6);
+    public static readonly FirmaDeLimites CrearConModalidadPersiste = Firma(36, 1);
+    public static readonly FirmaDeLimites CrearConModalidadNoReconocida = Firma(36, 2);
+    public static readonly FirmaDeLimites CrearConModalidadIdentidadCompleta = Firma(36, 3);
     public static readonly FirmaDeLimites SolicitarProgramacion = Firma(42, 1, topeHoras: 8, topeMinutos: 30,
         minimoHoras: 4);
     public static readonly FirmaDeLimites SolicitarProgramacionEnFechas = Firma(42, 2, topeHoras: 8, topeMinutos: 30,
