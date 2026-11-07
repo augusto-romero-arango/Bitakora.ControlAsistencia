@@ -127,4 +127,59 @@ public class CrearJornadaCommandHandlerTests : CommandHandlerAsyncTest<CrearJorn
         Then(GuidAggregateId.ToString());
         And<Jornada, string>(Predeterminada.ToString(), j => j.Id, Predeterminada.ToString());
     }
+
+    [Fact]
+    public async Task CrearJornada_EmiteJornadaCreadaYModalidadAsignada_CuandoDeclaraModalidad()
+    {
+        Given();
+        await WhenAsync(Comando(GuidAggregateId) with { Modalidad = "Ordinaria" });
+        Then(Evento(GuidAggregateId), ModalidadDeJornadaAsignada.Crear(GuidAggregateId, ModalidadJornada.Ordinaria));
+        And<Jornada, string?>(j => j.Describir().Modalidad, "Ordinaria");
+    }
+
+    [Fact]
+    public async Task CrearJornada_EmiteSoloJornadaCreada_CuandoModalidadEsVacia()
+    {
+        Given();
+        await WhenAsync(Comando(GuidAggregateId) with { Modalidad = "" });
+        Then(Evento(GuidAggregateId));
+        And<Jornada, string?>(j => j.Describir().Modalidad, null);
+    }
+
+    [Fact]
+    public async Task CrearJornada_EmiteJornadaCreadaYModalidad_CuandoLasOtrasConEsosLimitesTienenOtraModalidadONinguna()
+    {
+        var otra = Guid.Parse("0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a63");
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(JornadaX, Limites(42, 8, 0, 1)),
+            new JornadaDelCatalogo(otra, Limites(42, 8, 0, 1), ModalidadJornada.Flexible));
+        Given();
+        await WhenAsync(Comando(GuidAggregateId) with { Modalidad = "Ordinaria" });
+        Then(Evento(GuidAggregateId), ModalidadDeJornadaAsignada.Crear(GuidAggregateId, ModalidadJornada.Ordinaria));
+        And<Jornada, string?>(j => j.Describir().Modalidad, "Ordinaria");
+    }
+
+    [Fact]
+    public async Task CrearJornada_LanzaReglaDeNegocioDeclinada_CuandoOtraTieneMismosLimitesYModalidad()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(JornadaX, Limites(42, 8, 0, 1), ModalidadJornada.Ordinaria));
+        Given();
+        var act = async () => await WhenAsync(Comando(GuidAggregateId) with { Modalidad = "Ordinaria" });
+        var ex = (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()).Which;
+        ex.Message.Should().Contain(JornadaX.ToString());
+        Then(GuidAggregateId.ToString());
+        And<Jornada, string>(JornadaX.ToString(), j => j.Id, JornadaX.ToString());
+    }
+
+    [Fact]
+    public async Task CrearJornada_EmiteJornadaCreada_CuandoSinModalidadYSoloExisteLaMismaConModalidad()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(JornadaX, Limites(42, 8, 0, 1), ModalidadJornada.Ordinaria));
+        Given();
+        await WhenAsync(Comando(GuidAggregateId));
+        Then(Evento(GuidAggregateId));
+        And<Jornada, string?>(j => j.Describir().Modalidad, null);
+    }
 }
