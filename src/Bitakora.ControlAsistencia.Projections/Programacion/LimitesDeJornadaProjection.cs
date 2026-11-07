@@ -15,7 +15,7 @@ public sealed partial class LimitesDeJornadaProjection : SingleStreamProjection<
         Proyectar(e.StreamKey!, e.Data.Limites);
 
     public static LimitesDeJornada Apply(LimitesJornadaModificados e, LimitesDeJornada vista) =>
-        Proyectar(vista.Id, e.Limites) with { Activa = vista.Activa };
+        Proyectar(vista.Id, e.Limites, ModalidadDe(vista)) with { Activa = vista.Activa };
 
     public static LimitesDeJornada Apply(JornadaDesactivada e, LimitesDeJornada vista) =>
         vista with { Activa = false };
@@ -24,18 +24,40 @@ public sealed partial class LimitesDeJornadaProjection : SingleStreamProjection<
         vista with { Activa = true };
 
     public static LimitesDeJornada Apply(ModalidadDeJornadaAsignada e, LimitesDeJornada vista) =>
-        throw new NotImplementedException();
+        vista with
+        {
+            Modalidad = e.Modalidad.Nombre,
+            Descripcion = DescripcionJornada.Componer(LimitesDe(vista), e.Modalidad),
+        };
 
     public static LimitesDeJornada Apply(ModalidadDeJornadaQuitada e, LimitesDeJornada vista) =>
-        throw new NotImplementedException();
+        vista with
+        {
+            Modalidad = null,
+            Descripcion = DescripcionJornada.Componer(LimitesDe(vista), null),
+        };
 
-    private static LimitesDeJornada Proyectar(string id, LimitesJornada limites) =>
+    private static ModalidadJornada? ModalidadDe(LimitesDeJornada vista) =>
+        vista.Modalidad is null ? null : ModalidadJornada.Desde(vista.Modalidad);
+
+    private static LimitesJornada LimitesDe(LimitesDeJornada vista) =>
+        LimitesJornada.Crear(
+            DeMinutos(vista.HorasSemanalesEnMinutos),
+            DeMinutos(vista.TopeDiarioEnMinutos),
+            DeMinutos(vista.MinimoDiarioEnMinutos),
+            vista.DiasDescansoPorSemana);
+
+    private static HorasYMinutos DeMinutos(int minutos) => HorasYMinutos.Crear(minutos / 60, minutos % 60);
+
+    private static LimitesDeJornada Proyectar(string id, LimitesJornada limites, ModalidadJornada? modalidad = null) =>
         new(id,
             MinutosTotales(limites.HorasSemanales),
             MinutosTotales(limites.TopeDiario),
             MinutosTotales(limites.MinimoDiario),
             limites.DiasDescansoPorSemana,
-            limites.ToString());
+            DescripcionJornada.Componer(limites, modalidad),
+            true,
+            modalidad?.Nombre);
 
     private static int MinutosTotales(HorasYMinutos tiempo) => tiempo.Horas * 60 + tiempo.Minutos;
 }
