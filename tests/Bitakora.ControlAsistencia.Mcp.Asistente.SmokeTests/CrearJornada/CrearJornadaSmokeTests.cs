@@ -17,4 +17,13 @@ public class CrearJornadaSmokeTests(McpFixture mcp)
         jornada.GetProperty("descripcion").GetString().Should().NotBeNullOrWhiteSpace();
         jornada.GetProperty("es_predeterminada").GetBoolean().Should().BeFalse();
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DevuelveLaModalidad_CuandoSeDeclaraAlCrear()
+    {
+        var (jornada, _) = await SembradoDeJornadas.CrearAsync(mcp, TestContext.Current.CancellationToken, "Ordinaria");
+
+        jornada.GetProperty("modalidad").GetString().Should().Be("Ordinaria");
+    }
 }
