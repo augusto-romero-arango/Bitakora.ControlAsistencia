@@ -10,6 +10,9 @@ public sealed partial class ModalidadJornada
 
     internal static class Mensajes
     {
+        public static string LabelModalidad =>
+            ResourceManager.GetString(nameof(LabelModalidad))!;
+
         public static string NombreNoReconocido =>
             ResourceManager.GetString(nameof(NombreNoReconocido))!;
     }

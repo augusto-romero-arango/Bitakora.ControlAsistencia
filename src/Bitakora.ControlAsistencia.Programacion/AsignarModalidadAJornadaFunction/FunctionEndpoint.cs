@@ -9,10 +9,38 @@ namespace Bitakora.ControlAsistencia.Programacion.AsignarModalidadAJornadaFuncti
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AsignarModalidadAJornada")]
-    public Task<IActionResult> Run(
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "programacion/jornadas/{id}/modalidad")]
         HttpRequest req,
         string id,
         CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        if (!Guid.TryParse(id, out var jornadaId))
+            return new BadRequestObjectResult("El id de la jornada no es un Guid valido");
+
+        var (body, error) = await requestValidator.ValidarAsync<AsignarModalidadAJornadaBody>(req, ct);
+        if (error is not null)
+            return error;
+
+        var comando = new AsignarModalidadAJornada(jornadaId, body!.Modalidad);
+
+        try
+        {
+            await commandRouter.InvokeAsync(comando, ct);
+        }
+        catch (RecursoNoEncontradoException ex)
+        {
+            return new NotFoundObjectResult(ex.Message);
+        }
+        catch (ReglaDeNegocioDeclinadaException ex)
+        {
+            return new ConflictObjectResult(ex.Message);
+        }
+        catch (AggregateException ex)
+        {
+            return new BadRequestObjectResult(ex.InnerExceptions.Select(e => e.Message));
+        }
+
+        return new NoContentResult();
+    }
 }

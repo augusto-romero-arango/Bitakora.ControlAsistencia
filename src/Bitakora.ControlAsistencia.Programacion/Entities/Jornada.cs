@@ -58,19 +58,39 @@ public partial class Jornada : AggregateRoot
         _limites = evento.Limites;
     }
 
-    public void Apply(ModalidadDeJornadaAsignada evento) => throw new NotImplementedException();
+    public void Apply(ModalidadDeJornadaAsignada evento) => _modalidad = evento.Modalidad;
 
-    public void Apply(ModalidadDeJornadaQuitada evento) => throw new NotImplementedException();
+    public void Apply(ModalidadDeJornadaQuitada evento) => _modalidad = null;
 
     internal ModalidadJornada? Modalidad => _modalidad;
 
     internal JornadaDelCatalogo? BuscarColision(ModalidadJornada? modalidad, IReadOnlyList<JornadaDelCatalogo> catalogo) =>
-        throw new NotImplementedException();
+        Equals(_modalidad, modalidad)
+            ? null
+            : catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId
+                && j.Limites.Equals(_limites) && Equals(j.Modalidad, modalidad));
 
-    internal ResultadoAsignarModalidad AsignarModalidad(ModalidadJornada modalidad) =>
-        throw new NotImplementedException();
+    internal ResultadoAsignarModalidad AsignarModalidad(ModalidadJornada modalidad)
+    {
+        if (Equals(_modalidad, modalidad))
+            return ResultadoAsignarModalidad.SinCambios;
 
-    internal ResultadoQuitarModalidad QuitarModalidad() => throw new NotImplementedException();
+        var evento = ModalidadDeJornadaAsignada.Crear(_jornadaId, modalidad);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoAsignarModalidad.Asignada;
+    }
+
+    internal ResultadoQuitarModalidad QuitarModalidad()
+    {
+        if (_modalidad is null)
+            return ResultadoQuitarModalidad.SinCambios;
+
+        var evento = ModalidadDeJornadaQuitada.Crear(_jornadaId);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+        return ResultadoQuitarModalidad.Quitada;
+    }
 
     internal LimitesJornada Limites => _limites;
 
@@ -91,9 +111,10 @@ public partial class Jornada : AggregateRoot
         Convertir(_limites.TopeDiario),
         Convertir(_limites.MinimoDiario),
         _limites.DiasDescansoPorSemana,
-        _limites.ToString(),
+        DescripcionJornada.Componer(_limites, _modalidad),
         predeterminadaId == _jornadaId,
-        _activa);
+        _activa,
+        _modalidad?.Nombre);
 
     private static HorasYMinutosRespuesta Convertir(HorasYMinutos valor) => new(valor.Horas, valor.Minutos);
 

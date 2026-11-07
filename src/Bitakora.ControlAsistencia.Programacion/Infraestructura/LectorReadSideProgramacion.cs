@@ -65,7 +65,15 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
         if (vista.All(l => l.Id != idTexto))
             faltante = (await session.Events.AggregateStreamAsync<Jornada>(idTexto, token: ct))?.ComoVista();
 
-        return CatalogoLimitesJornada.Componer(vista, faltante);
+        var catalogo = CatalogoLimitesJornada.Componer(vista, faltante);
+        var conModalidad = new List<JornadaDelCatalogo>(catalogo.Count);
+        foreach (var jornada in catalogo)
+        {
+            var stream = await session.Events.AggregateStreamAsync<Jornada>(jornada.JornadaId.ToString(), token: ct);
+            conModalidad.Add(jornada with { Modalidad = stream?.Modalidad });
+        }
+
+        return conModalidad;
     }
 }
 

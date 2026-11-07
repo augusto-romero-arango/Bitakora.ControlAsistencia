@@ -4,5 +4,5 @@ namespace Bitakora.ControlAsistencia.Programacion.AsignarModalidadAJornadaFuncti
 
 public record AsignarModalidadAJornada(Guid JornadaId, string Modalidad)
 {
-    public ModalidadJornada ToModalidadJornada() => throw new NotImplementedException();
+    public ModalidadJornada ToModalidadJornada() => ModalidadJornada.Desde(Modalidad);
 }

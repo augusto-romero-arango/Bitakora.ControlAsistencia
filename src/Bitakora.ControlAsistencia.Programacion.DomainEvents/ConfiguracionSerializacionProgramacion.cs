@@ -30,6 +30,9 @@ public static class ConfiguracionSerializacionProgramacion
         SubFranja.ConfigurarSerializacion(resolver);
         FranjaOrdinaria.ConfigurarSerializacion(resolver);
         MotivoAusencia.ConfigurarSerializacion(resolver);
+        ModalidadJornada.ConfigurarSerializacion(resolver);
+        ModalidadDeJornadaAsignada.ConfigurarSerializacion(resolver);
+        ModalidadDeJornadaQuitada.ConfigurarSerializacion(resolver);
         Turno.ConfigurarSerializacion(resolver);
         TurnoCreado.ConfigurarSerializacion(resolver);
         TurnoRetirado.ConfigurarSerializacion(resolver);
