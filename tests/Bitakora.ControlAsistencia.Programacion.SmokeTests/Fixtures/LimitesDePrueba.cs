@@ -92,6 +92,12 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites CrearPlantillaTurnosJornadaDesactivada = Firma(34, 7);
     public static readonly FirmaDeLimites DesactivarJornadaEnPlantillaTurnos = Firma(34, 8);
     public static readonly FirmaDeLimites ActivarJornadaPersiste = Firma(30, 27);
+    public static readonly FirmaDeLimites AsignarModalidadPersiste = Firma(35, 1);
+    public static readonly FirmaDeLimites AsignarModalidadRepite = Firma(35, 2);
+    public static readonly FirmaDeLimites AsignarModalidadReemplaza = Firma(35, 3);
+    public static readonly FirmaDeLimites AsignarModalidadNoReconocida = Firma(35, 4);
+    public static readonly FirmaDeLimites QuitarModalidadPersiste = Firma(35, 5);
+    public static readonly FirmaDeLimites QuitarModalidadSinModalidad = Firma(35, 6);
     public static readonly FirmaDeLimites SolicitarProgramacion = Firma(42, 1, topeHoras: 8, topeMinutos: 30,
         minimoHoras: 4);
     public static readonly FirmaDeLimites SolicitarProgramacionEnFechas = Firma(42, 2, topeHoras: 8, topeMinutos: 30,
