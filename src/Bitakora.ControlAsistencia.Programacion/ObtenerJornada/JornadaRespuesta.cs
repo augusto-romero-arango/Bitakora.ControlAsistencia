@@ -8,4 +8,5 @@ public sealed record JornadaRespuesta(
     int DiasDescansoPorSemana,
     string Descripcion,
     bool EsPredeterminada = false,
-    bool Activa = true);
+    bool Activa = true,
+    string? Modalidad = null);

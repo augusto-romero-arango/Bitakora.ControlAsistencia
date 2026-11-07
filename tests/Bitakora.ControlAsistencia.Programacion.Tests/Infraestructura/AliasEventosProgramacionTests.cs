@@ -253,4 +253,20 @@ public class AliasEventosProgramacionTests
 
         AliasDe<BorradorDeProgramacionDescartado>(options).Should().Be("borrador_de_programacion_descartado");
     }
+
+    [Fact]
+    public void ModalidadDeJornadaAsignada_TieneAliasModalidadDeJornadaAsignada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<ModalidadDeJornadaAsignada>(options).Should().Be("modalidad_de_jornada_asignada");
+    }
+
+    [Fact]
+    public void ModalidadDeJornadaQuitada_TieneAliasModalidadDeJornadaQuitada()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<ModalidadDeJornadaQuitada>(options).Should().Be("modalidad_de_jornada_quitada");
+    }
 }
