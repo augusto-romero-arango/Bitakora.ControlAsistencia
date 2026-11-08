@@ -60,8 +60,9 @@ Este ADR registra **decisiones de dominio y de arquitectura**, sin nombres de ti
    duplica el catalogo (lo necesita tambien la plantilla, en Programacion). Con el borrador (CA-ADR-0045) la
    estampa ocurre al agregar al borrador y viaja al publicar. Costo aceptado: corregir el catalogo no cambia los
    dias ya estampados, igual que editar la Jornada hoy.
-10. **Un solo calculador.** Toda advertencia, pactada o de ley, vive en `CalculadorAdvertencias`. Las
-    advertencias sobre el borrador (#1411) lo reutilizan sobre dias propuestos.
+10. **Un solo calculador para dias programados.** Toda advertencia, pactada o de ley, sobre dias programados
+    (programacion semanal y borrador, #1411) vive en `CalculadorAdvertencias`. La plantilla y la Jornada se
+    auditan a si mismas en Programacion: juzgan su propio diseno, no dias programados.
 
 ### Dominio (refinamiento 2026-11-07)
 
@@ -166,3 +167,5 @@ Este ADR registra **decisiones de dominio y de arquitectura**, sin nombres de ti
 
 - 2026-11-07: creado (sesion planner 2026-11-01 y refinamiento 2026-11-07; registro en #1435). Decisiones 11 y 12
   segun el refinamiento.
+- 2026-11-08: decision 10 precisada: `CalculadorAdvertencias` rige las advertencias sobre dias programados; la
+  plantilla y la Jornada se auditan a si mismas en Programacion (#1438).
