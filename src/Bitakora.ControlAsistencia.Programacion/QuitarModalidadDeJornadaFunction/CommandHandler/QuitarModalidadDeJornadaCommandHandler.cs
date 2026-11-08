@@ -1,4 +1,5 @@
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
@@ -21,7 +22,8 @@ public partial class QuitarModalidadDeJornadaCommandHandler(
         var colision = jornada.BuscarColision(null, catalogo);
         if (colision is not null)
             throw new ReglaDeNegocioDeclinadaException(string.Format(
-                Mensajes.LimitesDuplicadosSinModalidad, jornada.Limites, colision.JornadaId));
+                Mensajes.LimitesDuplicadosSinModalidad,
+                DescripcionJornada.Componer(jornada.Limites, null, jornada.DescansoAcumulado), colision.JornadaId));
 
         jornada.QuitarModalidad();
     }

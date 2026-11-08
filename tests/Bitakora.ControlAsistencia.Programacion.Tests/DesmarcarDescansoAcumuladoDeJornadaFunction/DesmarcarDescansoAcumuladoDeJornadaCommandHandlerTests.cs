@@ -85,7 +85,8 @@ public class DesmarcarDescansoAcumuladoDeJornadaCommandHandlerTests : CommandHan
         Given(Creada(GuidAggregateId), DescansoAcumuladoDeJornadaMarcado.Crear(GuidAggregateId));
         var act = async () => await WhenAsync(new DesmarcarDescansoAcumuladoDeJornada(GuidAggregateId));
         var ex = (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()).Which;
-        ex.Message.Should().Contain(JornadaB.ToString());
+        ex.Message.Should().Contain(JornadaB.ToString())
+            .And.NotContain(ModalidadJornada.Mensajes.LabelDescansoAcumulado);
         _lector.AseguradorInvocadoAntesDeLeer.Should().BeTrue();
         Then();
         And<Jornada, bool>(j => j.DescansoAcumulado, true);

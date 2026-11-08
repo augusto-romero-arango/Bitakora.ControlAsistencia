@@ -134,7 +134,8 @@ public class QuitarModalidadDeJornadaCommandHandlerTests : CommandHandlerAsyncTe
             DescansoAcumuladoDeJornadaMarcado.Crear(GuidAggregateId));
         var act = async () => await WhenAsync(new QuitarModalidadDeJornada(GuidAggregateId));
         var ex = (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()).Which;
-        ex.Message.Should().Contain(JornadaB.ToString());
+        ex.Message.Should().Contain(JornadaB.ToString())
+            .And.Contain(ModalidadJornada.Mensajes.LabelDescansoAcumulado);
         Then();
         And<Jornada, ModalidadJornada?>(j => j.Modalidad, ModalidadJornada.Flexible);
     }

@@ -17,7 +17,7 @@ public partial class DesmarcarDescansoAcumuladoDeJornadaCommandHandler(
         if (jornada is null)
             throw new RecursoNoEncontradoException(Mensajes.JornadaNoEncontrada);
 
-        if (jornada.DescansoAcumulado == false)
+        if (!jornada.DescansoAcumulado)
             return;
 
         var predeterminadaId = await asegurador.AsegurarAsync(ct);
