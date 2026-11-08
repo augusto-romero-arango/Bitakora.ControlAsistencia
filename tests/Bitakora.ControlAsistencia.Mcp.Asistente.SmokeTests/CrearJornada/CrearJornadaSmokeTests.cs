@@ -26,4 +26,14 @@ public class CrearJornadaSmokeTests(McpFixture mcp)
 
         jornada.GetProperty("modalidad").GetString().Should().Be("Ordinaria");
     }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DevuelveElDescansoAcumulado_CuandoSeCreaMarcada()
+    {
+        var (jornada, _) = await SembradoDeJornadas.CrearAsync(
+            mcp, TestContext.Current.CancellationToken, "Ordinaria", descansoAcumulado: true);
+
+        jornada.GetProperty("descanso_acumulado").GetBoolean().Should().BeTrue();
+    }
 }

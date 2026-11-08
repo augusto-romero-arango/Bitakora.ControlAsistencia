@@ -1,0 +1,27 @@
+{
+  "elementos": [
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000001",
+      "horasSemanales": { "horas": 42, "minutos": 0 },
+      "topeDiario": { "horas": 8, "minutos": 0 },
+      "minimoDiario": { "horas": 0, "minutos": 0 },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "42:00 semanales, descanso acumulado",
+      "esPredeterminada": false,
+      "activa": true,
+      "modalidad": "Ordinaria",
+      "descansoAcumulado": true
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000002",
+      "horasSemanales": { "horas": 36, "minutos": 0 },
+      "topeDiario": { "horas": 8, "minutos": 0 },
+      "minimoDiario": { "horas": 0, "minutos": 0 },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "36:00 semanales",
+      "esPredeterminada": false,
+      "activa": true
+    }
+  ],
+  "siguienteCursor": null
+}
