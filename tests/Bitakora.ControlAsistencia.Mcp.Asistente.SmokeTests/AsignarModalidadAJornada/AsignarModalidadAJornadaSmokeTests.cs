@@ -44,6 +44,6 @@ public class AsignarModalidadAJornadaSmokeTests(McpFixture mcp)
         json.RootElement.GetProperty("modalidad").GetString().Should().Be("Ordinaria");
         json.RootElement.GetProperty("advertencias").EnumerateArray()
             .Select(a => a.GetString())
-            .Should().NotBeEmpty().And.OnlyContain(a => !string.IsNullOrWhiteSpace(a));
+            .Should().ContainSingle().Which.Should().Contain("tope diario").And.Contain("Ordinaria");
     }
 }

@@ -9,6 +9,6 @@
   "esPredeterminada": false,
   "activa": true,
   "advertencias": [
-    { "tipo": "TopeDiarioSuperaLey", "magnitud": 60, "valorLey": 504, "descripcion": "El tope diario de 9:00 supera las 8:24 que la ley permite a la modalidad Ordinaria" }
+    { "tipo": "SuperaTopeDiarioDeLaModalidad", "magnitud": { "horas": 0, "minutos": 36 }, "valorDeLey": { "horas": 8, "minutos": 24 }, "descripcion": "El tope diario (9:00) supera en 0:36 el de la modalidad Ordinaria (8:24)" }
   ]
 }

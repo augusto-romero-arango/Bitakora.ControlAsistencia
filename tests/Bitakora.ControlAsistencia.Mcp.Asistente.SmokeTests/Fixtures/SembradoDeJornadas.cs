@@ -52,19 +52,19 @@ public static class SembradoDeJornadas
             $"No se pudo crear una Jornada de smoke en {MaximoIntentos} intentos: todos los sorteos repitieron limites.");
     }
 
-    // 42 h con tope diario de 9:00 excede el tope legal de la modalidad Ordinaria. Como el dominio
-    // rechaza limites repetidos y el residuo nunca se borra, el minimo diario y los dias de descanso
-    // se sortean.
+    // Tope 9:00 supera el de Ordinaria (8:24) sin pasar su techo semanal (42:00): asignarle Ordinaria deja
+    // una sola advertencia. Cada corrida deja una Jornada con Ordinaria y asignar_modalidad_a_jornada
+    // rechaza limites + modalidad repetidos sin reintento, asi que el espacio sorteado debe ser amplio.
     public static async Task<JsonElement> CrearConTopeDiarioExcedidoAsync(McpFixture mcp, CancellationToken ct)
     {
         for (var intento = 0; intento < MaximoIntentos; intento++)
         {
             var args = new Dictionary<string, object?>
             {
-                ["horas_semanales"] = "42:00",
+                ["horas_semanales"] = $"41:{Random.Shared.Next(60):00}",
                 ["tope_diario"] = "9:00",
-                ["minimo_diario"] = $"0:{Random.Shared.Next(60):00}",
-                ["dias_descanso_por_semana"] = Random.Shared.Next(1, 3)
+                ["minimo_diario"] = $"{Random.Shared.Next(9)}:{Random.Shared.Next(60):00}",
+                ["dias_descanso_por_semana"] = Random.Shared.Next(3)
             };
             var resultado = await mcp.Cliente.CallToolAsync("crear_jornada", args, cancellationToken: ct);
 
@@ -73,7 +73,7 @@ public static class SembradoDeJornadas
         }
 
         throw new InvalidOperationException(
-            $"No se pudo crear una Jornada 42 h / tope 9:00 en {MaximoIntentos} intentos: todos los sorteos repitieron limites.");
+            $"No se pudo crear una Jornada con tope 9:00 en {MaximoIntentos} intentos: todos los sorteos repitieron limites.");
     }
 
     public static async Task<JsonElement> PredeterminadaActualAsync(McpFixture mcp, CancellationToken ct)

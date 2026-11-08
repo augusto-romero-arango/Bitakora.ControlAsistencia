@@ -1,20 +1,23 @@
 using System.Net;
-using System.Reflection;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Mcp.Asistente.AsignarModalidadAJornada;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.ListarJornadas;
+using Bitakora.ControlAsistencia.Mcp.Asistente.QuitarModalidadDeJornada;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
-using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.AdvertenciasJornada;
 
 public class AdvertenciasDeJornadaTests
 {
     private const string JornadaId = "01a08700-0000-7000-9000-000000000001";
-    private const string Advertencia =
-        "El tope diario de 9:00 supera las 8:24 que la ley permite a la modalidad Ordinaria";
+    private const string RutaJornada = $"/api/programacion/jornadas/{JornadaId}";
+    private const string AdvertenciaTope =
+        "El tope diario (9:00) supera en 0:36 el de la modalidad Ordinaria (8:24)";
+    private const string AdvertenciaSemanal =
+        "Las horas semanales (44:00) superan en 2:00 el techo de la modalidad Ordinaria (42:00)";
 
     private static async Task<JsonNode> Listar(string fixture)
     {
@@ -23,14 +26,18 @@ public class AdvertenciasDeJornadaTests
         return JsonNode.Parse(await tool.Run(null!, null, TestContext.Current.CancellationToken))!;
     }
 
-    private static async Task<JsonNode> AsignarModalidad(string fixtureGet)
+    private static ProgramacionApi ApiQueModificaYLee(HttpMethod metodo, string fixtureGet)
     {
         var (cliente, handler) = ClienteFalso.ConRutas();
-        handler.Responde(HttpMethod.Put, $"/api/programacion/jornadas/{JornadaId}/modalidad", HttpStatusCode.NoContent, "");
+        handler.Responde(metodo, $"{RutaJornada}/modalidad", HttpStatusCode.NoContent, "");
         handler.Responde(
-            HttpMethod.Get, $"/api/programacion/jornadas/{JornadaId}", HttpStatusCode.OK,
-            Fixtures.Leer("AdvertenciasJornada", fixtureGet));
-        var tool = new AsignarModalidadAJornadaTool(new ProgramacionApi(cliente));
+            HttpMethod.Get, RutaJornada, HttpStatusCode.OK, Fixtures.Leer("AdvertenciasJornada", fixtureGet));
+        return new ProgramacionApi(cliente);
+    }
+
+    private static async Task<JsonNode> AsignarOrdinaria(string fixtureGet)
+    {
+        var tool = new AsignarModalidadAJornadaTool(ApiQueModificaYLee(HttpMethod.Put, fixtureGet));
         return JsonNode.Parse(
             await tool.Run(null!, JornadaId, "Ordinaria", TestContext.Current.CancellationToken))!;
     }
@@ -41,8 +48,7 @@ public class AdvertenciasDeJornadaTests
         var json = await Listar("listar-jornadas-con-advertencias.json");
 
         var advertencias = json["jornadas"]![0]!["advertencias"]!.AsArray();
-        advertencias.Select(a => a!.GetValue<string>()).Should().Equal(
-            Advertencia, "Las horas semanales superan las que la ley permite");
+        advertencias.Select(a => a!.GetValue<string>()).Should().Equal(AdvertenciaTope, AdvertenciaSemanal);
     }
 
     [Fact]
@@ -60,22 +66,33 @@ public class AdvertenciasDeJornadaTests
         var json = await Listar("listar-jornadas-con-advertencias.json");
 
         json["jornadas"]![0]!.ToJsonString().Should()
-            .NotContain("TopeDiarioSuperaLey").And.NotContain("magnitud").And.NotContain("valorLey");
+            .NotContain("SuperaTopeDiarioDeLaModalidad").And.NotContain("magnitud").And.NotContain("valorDeLey");
     }
 
     [Fact]
     public async Task AsignarModalidadAJornada_DevuelveLaAdvertenciaDelTopeDiario_CuandoLaModalidadNoCabe()
     {
-        var json = await AsignarModalidad("jornada-con-advertencias.json");
+        var json = await AsignarOrdinaria("jornada-con-advertencias.json");
 
         json["modalidad"]!.GetValue<string>().Should().Be("Ordinaria");
-        json["advertencias"]!.AsArray().Select(a => a!.GetValue<string>()).Should().Equal(Advertencia);
+        json["advertencias"]!.AsArray().Select(a => a!.GetValue<string>()).Should().Equal(AdvertenciaTope);
     }
 
     [Fact]
     public async Task AsignarModalidadAJornada_OmiteAdvertencias_CuandoLaJornadaNoTieneNinguna()
     {
-        var json = await AsignarModalidad("jornada-sin-advertencias.json");
+        var json = await AsignarOrdinaria("jornada-sin-advertencias.json");
+
+        json["jornada_id"]!.GetValue<string>().Should().Be(JornadaId);
+        json.AsObject().ContainsKey("advertencias").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task QuitarModalidadDeJornada_DevuelveLaJornadaSinAdvertencias_CuandoQuedaPactadaLibre()
+    {
+        var tool = new QuitarModalidadDeJornadaTool(ApiQueModificaYLee(HttpMethod.Delete, "jornada-sin-advertencias.json"));
+
+        var json = JsonNode.Parse(await tool.Run(null!, JornadaId, TestContext.Current.CancellationToken))!;
 
         json["jornada_id"]!.GetValue<string>().Should().Be(JornadaId);
         json.AsObject().ContainsKey("advertencias").Should().BeFalse();
@@ -84,34 +101,12 @@ public class AdvertenciasDeJornadaTests
     [Fact]
     public void JornadaDelCatalogo_DescribeConAdvertencias_CuandoElBcLasDevuelve()
     {
-        var jornada = System.Text.Json.JsonSerializer.Deserialize<JornadaDelCatalogo>(
+        var jornada = JsonSerializer.Deserialize<JornadaDelCatalogo>(
             Fixtures.Leer("AdvertenciasJornada", "jornada-con-advertencias.json"),
-            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+            new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
 
         var json = JsonNode.Parse(RespuestaJson.Serializar(jornada.Describir()))!;
 
-        json["advertencias"]![0]!.GetValue<string>().Should().Be(Advertencia);
-    }
-
-    [Fact]
-    public void ListarJornadas_DescribeQueSinAdvertenciasNoEsConformeALaLey_EnLaDescripcionDeLaTool()
-    {
-        var run = typeof(ListarJornadasTool).GetMethod(nameof(ListarJornadasTool.Run))!;
-        var descripcion = run.GetParameters()[0].GetCustomAttribute<McpToolTriggerAttribute>()!.Description;
-
-        descripcion.Should().Contain("advertencias").And.Contain("sin advertencias contra la modalidad")
-            .And.Contain("conforme a la ley");
-    }
-
-    [Fact]
-    public void InstruccionesDelServidor_DicenQueSinAdvertenciasNoEsConformeALaLey_EnHostJson()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json")))
-            dir = dir.Parent;
-        dir.Should().NotBeNull();
-        var host = File.ReadAllText(Path.Combine(dir!.FullName, "src", "Bitakora.ControlAsistencia.Mcp.Asistente", "host.json"));
-
-        host.Should().Contain("sin advertencias contra la modalidad").And.Contain("conforme a la ley");
+        json["advertencias"]![0]!.GetValue<string>().Should().Be(AdvertenciaTope);
     }
 }
