@@ -6,7 +6,7 @@ public record HorasYMinutosSolicitadas(int Horas, int Minutos);
 
 public record CrearJornada(Guid JornadaId, HorasYMinutosSolicitadas HorasSemanales,
     HorasYMinutosSolicitadas TopeDiario, HorasYMinutosSolicitadas MinimoDiario,
-    int DiasDescansoPorSemana, string? Modalidad = null)
+    int DiasDescansoPorSemana, string? Modalidad = null, bool? DescansoAcumulado = null)
 {
     public ModalidadJornada? ToModalidadJornada() =>
         ModalidadJornada.TryDesde(Modalidad, out var modalidad) ? modalidad : null;

@@ -106,6 +106,9 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites MarcarDescansoAcumuladoYaMarcada = Firma(37, 2);
     public static readonly FirmaDeLimites DesmarcarDescansoAcumuladoPersiste = Firma(37, 3);
     public static readonly FirmaDeLimites DesmarcarDescansoAcumuladoSinMarca = Firma(37, 4);
+    public static readonly FirmaDeLimites CrearMarcadaPersiste = Firma(38, 1);
+    public static readonly FirmaDeLimites CrearMarcadaIdentidad = Firma(38, 2);
+    public static readonly FirmaDeLimites CrearSinMarcaNoEmiteEvento = Firma(38, 3);
     public static readonly FirmaDeLimites SolicitarProgramacion = Firma(42, 1, topeHoras: 8, topeMinutos: 30,
         minimoHoras: 4);
     public static readonly FirmaDeLimites SolicitarProgramacionEnFechas = Firma(42, 2, topeHoras: 8, topeMinutos: 30,

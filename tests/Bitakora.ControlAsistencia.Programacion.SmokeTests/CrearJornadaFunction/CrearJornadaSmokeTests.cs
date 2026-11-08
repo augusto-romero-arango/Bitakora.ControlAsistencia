@@ -203,6 +203,83 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : 
         sinModalidad.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
+    private static object PayloadConMarca(FirmaDeLimites firma, Guid id, bool? descansoAcumulado) => new
+    {
+        jornadaId = id,
+        horasSemanales = new { horas = firma.SemanalesHoras, minutos = firma.SemanalesMinutos },
+        topeDiario = new { horas = firma.TopeHoras, minutos = firma.TopeMinutos },
+        minimoDiario = new { horas = firma.MinimoHoras, minutos = firma.MinimoMinutos },
+        diasDescansoPorSemana = firma.DiasDescansoPorSemana,
+        descansoAcumulado
+    };
+
+    private async Task<bool> LeerDescansoAcumuladoAsync(Guid id, CancellationToken ct)
+    {
+        var lectura = await _client.GetAsync($"{Ruta}/{id}", ct);
+        lectura.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var json = JsonDocument.Parse(await lectura.Content.ReadAsStringAsync(ct));
+        return json.RootElement.GetProperty("descansoAcumulado").GetBoolean();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeRetornar201YMostrarLaJornadaMarcada_CuandoDeclaraDescansoAcumulado()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var ct = TestContext.Current.CancellationToken;
+        var id = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync(Ruta,
+            PayloadConMarca(LimitesDePrueba.CrearMarcadaPersiste, id, true), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location!.ToString().Should().EndWith($"/programacion/jornadas/{id}");
+        (await postgres.ContarEventosDeStreamAsync(
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, id.ToString())).Should().Be(2);
+        (await LeerDescansoAcumuladoAsync(id, ct)).Should().BeTrue();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeRetornar201SinEventoDeMarca_CuandoDescansoAcumuladoEsFalso()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var ct = TestContext.Current.CancellationToken;
+        var id = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync(Ruta,
+            PayloadConMarca(LimitesDePrueba.CrearSinMarcaNoEmiteEvento, id, false), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        (await postgres.ContarEventosDeStreamAsync(
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, id.ToString())).Should().Be(1);
+        (await LeerDescansoAcumuladoAsync(id, ct)).Should().BeFalse();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeJuzgarLaMarcaEnLaIdentidad_CuandoLosLimitesCoincidenConOtraJornada()
+    {
+        var firma = LimitesDePrueba.CrearMarcadaIdentidad;
+        var ct = TestContext.Current.CancellationToken;
+        var idSinMarca = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync(Ruta, PayloadConMarca(firma, idSinMarca, null), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        var idMarcada = Guid.CreateVersion7();
+        var marcada = await _client.PostAsJsonAsync(Ruta, PayloadConMarca(firma, idMarcada, true), ct);
+        marcada.StatusCode.Should().Be(HttpStatusCode.Created);
+        (await Polling.WaitUntilTrueAsync(async () =>
+        {
+            var ids = (await ListarAsync(ct)).Select(e => e.GetProperty("jornadaId").GetGuid()).ToArray();
+            return ids.Contains(idSinMarca) && ids.Contains(idMarcada);
+        }, Timeout)).Should().BeTrue("las Jornadas del arrange deben estar en la lectura");
+
+        var repetida = await _client.PostAsJsonAsync(Ruta, PayloadConMarca(firma, Guid.CreateVersion7(), true), ct);
+
+        repetida.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await repetida.Content.ReadAsStringAsync(ct)).Should().Contain(idMarcada.ToString());
+    }
+
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearJornada_DebeRetornar400_CuandoMinutosDelTopeSonInvalidos()
