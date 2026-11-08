@@ -4,7 +4,32 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-02 (sesion planner, refinar #1410: la Malla semanal de turnos del
+# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1442 y desglose #1488-#1489: semana sin dia de
+#   descanso (172) solo sin marca; deuda del Descanso acumulado medida por racha, aparte. Tocada: Descanso
+#   acumulado.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1441 y desglose #1486: la plantilla copia la
+#   modalidad por LimitesDeJornadaActualizados (foto completa) y se audita contra la ley con la peor ventana
+#   circular de 7 dias. Tocada: Advertencias de plantilla.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1440 y desglose #1481: capa de ley en las
+#   Advertencias de la programacion semanal (sufijo DeLaModalidad); #1440 antes de #1411. Tocada:
+#   Advertencias de la programacion semanal.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1439: la estampa copia modalidad, marca y
+#   ficha de ley vigente, sin vigencias por fecha; extras a #1443. Tocada: Modalidad de jornada.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1438 y desglose #1477: se ACUNA Advertencias de
+#   la Jornada, capa de ley sobre los parametros de la Jornada contra su modalidad, derivadas al leer y
+#   sin regla de descansos. Tocada: Advertencias de la Jornada.)
+# Actualizacion previa: 2026-11-07 (sesion planner, refinar #1437 y desglose #1466-#1468: Descanso
+#   acumulado como atributo propio con PUT/DELETE programacion/jornadas/{id}/descanso-acumulado; se puede
+#   marcar sin modalidad, sin efecto. Tocada: Descanso acumulado.)
+# Actualizacion previa: 2026-11-07 (sesion planner, refinar #1436 y desglose #1461-#1463: valores del
+#   catalogo de Modalidad de jornada (ExcluidaDeJornadaMaxima para el art. 162); se asigna, se quita o se
+#   declara al crear; la descripcion de la Jornada la incluye. Tocada: Modalidad de jornada.)
+# Actualizacion previa: 2026-11-07 (sesion planner, refinar #1435 -> CA-ADR-0046: la identidad de la
+#   Jornada pasa a limites + Modalidad de jornada + marca de Descanso acumulado (unicidad); la Ordinaria
+#   admite repartir la semana en 5 dias (tope diario de ley = techo semanal / 5, 8,4 h con 42 h); la
+#   plantilla juzga los techos semanales de ley sobre la peor ventana circular de 7 dias, sin promedio.
+#   Tocadas: Jornada, Modalidad de jornada, Advertencias de plantilla.)
+# Actualizacion previa: 2026-11-02 (sesion planner, refinar #1410: la Malla semanal de turnos del
 #   asistente muestra como quedaria con el Borrador de programacion -- superpone la vista de pendientes
 #   y marca los dias en borrador; lo en firme y las ausencias mandan; ControlHoras no cambia. Se
 #   fusionan las dos entradas duplicadas de Malla semanal de turnos. Tocados: Malla semanal de turnos.)
@@ -705,7 +730,11 @@ terms:
       retirado o incompleto) y SuperaTopeDiario / PorDebajoDelMinimoDiario (dias de trabajo, en minutos).
       Las SEMANALES (SuperaHorasSemanales / PorDebajoDeHorasSemanales, FaltanDiasDeDescanso /
       SobranDiasDeDescanso) NO corren en la plantilla de ciclo 1..N desde #1292: un ciclo de N dias no
-      tiene semana del molde; quedan pendientes del catalogo de modalidades de jornada (#1290).
+      tiene semana del molde; siguen pendientes de un periodo de medicion (#1444).
+      CAPA DE LEY (CA-ADR-0046, #1441): si la Jornada declara Modalidad de jornada, la plantilla se
+      juzga ademas contra la ficha de ley: diarias en cada dia del ciclo y techos semanales sobre la
+      PEOR VENTANA CIRCULAR de 7 dias, sin promedio (exacta con N no multiplo de 7, conservadora con N
+      multiplo de 7; la semanal se juzga sobre su ciclo).
       Orientan, no bloquean.
     context: Programacion
     date_added: 2026-10-06
@@ -721,6 +750,12 @@ terms:
       plantilla y en el listado (sin conteo ni filtro por ahora). Se calculan sobre las COPIAS de turnos y
       Jornada que guarda la plantilla. Issues #868 (reglas puras), #889 (emision), #882 (vista),
       #883/#884 (sincronizacion de copias y re-auditoria).
+      REFINAMIENTO DE #1441 (2026-11-08): la plantilla copia la MODALIDAD de su Jornada (no la ficha ni la
+      marca) por LimitesDeJornadaActualizados, que pasa a ser foto completa (limites + modalidad) y se publica
+      tambien al asignar o quitar la modalidad; la version de la Jornada avanza con esos eventos. Tipos de ley:
+      SuperaTopeDiarioDeLaModalidad y PorDebajoDelMinimoDiarioDeLaModalidad (por dia) y una sola
+      SuperaHorasSemanalesDeLaModalidad con el dia de inicio de la peor ventana (empate: el menor). La ficha se
+      consulta al catalogo al auditarse. Nombrar la modalidad en el cuadro de turnos: #1486.
 
   - name: Cuadro semanal de turnos
     definition: >
@@ -1314,7 +1349,8 @@ terms:
       coincidir con la ley: el sistema no impone modalidades legales ni certifica cumplimiento.
       NO TIENE NOMBRE: una Jornada es sus limites; se identifica por su Id y se muestra con la
       descripcion de sus limites (LimitesJornada.ToString()). No puede haber dos Jornadas activas
-      con los mismos limites (409 que nombra la existente, #890).
+      con los mismos limites, Modalidad de jornada y marca de Descanso acumulado (409 que nombra la
+      existente, #890; ampliada por CA-ADR-0046).
       La Jornada ACOTA, la programacion DECIDE: no fija dias habiles ni descansos. Se asigna a la
       Vinculacion (Colaboradores, referencia opaca como SedeAsignada) y se ESTAMPA (copia de id y
       valores, sin nombre) al programar, por colaborador: el cliente manda solo el JornadaId asignado
@@ -1357,6 +1393,9 @@ terms:
       pactado sigue siendo valor exacto; la modalidad agrega TECHOS de ley con sus propias advertencias.
       El principio "no impone modalidades legales ni certifica cumplimiento" se enmienda a: ADVIERTE
       contra la modalidad declarada, NO certifica ni bloquea. Sin modalidad = pactada libre.
+      UNICIDAD (2026-11-07, refinamiento de #1435): la identidad es limites + modalidad + marca; dos
+      Jornadas 36/6, una Ordinaria y otra Turnos sucesivos, conviven (difieren en descanso dominical y
+      recargos). Asignar o quitar modalidad o marca que colisione responde 409 (#1436, #1437).
 
   - name: Modalidad de jornada
     definition: >
@@ -1381,7 +1420,25 @@ terms:
       La "modalidad" de las tools MCP (CA-ADR-0039) y el campo de telemetria Modalidad de
       EjecutorDeProgramacion son tecnicos, no de dominio; la Plantilla semanal en modalidad semanal es
       historica. Fuente: docs/referencia/modalidades_jornada_colombia.md (#1290). Issues #1435-#1444.
-      Pendiente (#1435): si dos Jornadas con los mismos limites y distinta modalidad pueden convivir.
+      Resuelto (#1435, 2026-11-07): dos Jornadas con los mismos limites y distinta modalidad conviven
+      (ver Jornada, unicidad). ORDINARIA EN 5 DIAS: su tope diario de ley es el techo semanal vigente / 5
+      (8,4 h con 42 h), no las 8 h de la letra del 161 inc. 1; la practica de repartir la semana en 5
+      dias es comun (administrativos) y el 161 autoriza distribuirla "en 5 o 6 dias". Lectura a validar
+      con el abogado. Ninguna modalidad del primer catalogo promedia entre semanas (el promedio entre
+      semanas es del art. 165, #1444).
+      VALORES (2026-11-07, refinamiento de #1436): Ordinaria, Flexible, TurnosSucesivos,
+      SinSolucionDeContinuidad y ExcluidaDeJornadaMaxima (art. 162; "Excluidos" nombra a los
+      trabajadores, no a la modalidad; descartados "Excluida", ambiguo, y "SinJornadaMaxima", que nombra
+      el efecto y no la figura). Catalogo cerrado ModalidadJornada, patron de MotivoAusencia. Se asigna
+      (PUT) o se quita (DELETE) sobre programacion/jornadas/{id}/modalidad, o se declara opcional al crear
+      la Jornada; la descripcion de la Jornada la incluye para distinguir Jornadas con los mismos limites.
+      Issues #1436, #1461 (crear), #1462 (catalogo de limites), #1463 (asistente).
+      ESTAMPA (refinamiento de #1439, 2026-11-08): al programar se copia en JornadaProgramada la
+      modalidad, la marca de Descanso acumulado y la FICHA DE LEY de la modalidad (tope diario, minimo
+      diario y techo semanal de ley; null = sin valor de ley), por valor: corregir el catalogo no cambia lo
+      estampado. Se estampa la ficha VIGENTE (42 h), sin vigencias por fecha: una solicitud lleva una sola
+      estampa y no hay dias reales anteriores al 15-jul-2026 (solo dev). Los topes de extras (167A) entran
+      con #1443.
 
   - name: Descanso acumulado
     definition: >
@@ -1395,6 +1452,36 @@ terms:
       El art. 184 habla de labores que no pueden suspenderse "como los viajes fluviales o maritimos";
       su alcance fuera de esos ejemplos no esta verificado (validar con abogado). El experto prefirio la
       marca a advertir siempre. Issues #1437, #1442.
+      REFINAMIENTO DE #1437 (2026-11-07): atributo propio, no parte de la declaracion de modalidad (el
+      experto descarto unirlos para no enmendar la decision 7 de CA-ADR-0046). Se marca (PUT) o desmarca
+      (DELETE) sobre programacion/jornadas/{id}/descanso-acumulado; verbos marcar/desmarcar. Se puede
+      marcar sin modalidad, pero solo surte efecto con ella (sin modalidad no hay advertencias de ley).
+      Entra en la identidad de la Jornada y en su descripcion ("con descanso acumulado"). Issues #1466
+      (crear), #1467 (catalogo de limites), #1468 (asistente).
+      REFINAMIENTO DE #1442 (2026-11-08): la semana de trabajo continuo NO advierte con la marca (el experto:
+      20x10 y similares no exigen descanso semanal). Sin marca, con modalidad, la semana con sus 7 dias de
+      trabajo advierte SemanaSinDiaDeDescanso (art. 172; ausencia y dia sin programar no disparan). La deuda
+      del 184 se mide por RACHA de dias de trabajo seguidos: un dia de descanso por cada 7 dias de racha, en
+      los 7 dias siguientes al fin de la racha (20x10 y 14x14 pagan; 21x1 no). Cruza semanas: #1488. Plantilla:
+      #1489 (copia la marca).
+
+  - name: Advertencias de la Jornada
+    definition: >
+      Capa de ley sobre los PROPIOS parametros de una Jornada con modalidad: su tope diario, horas
+      semanales y minimo diario se juzgan contra la ficha de ley de la Modalidad de jornada (Ordinaria:
+      tope = techo / 5 = 8 h 24, techo 42 h; Flexible: tope 9 h, minimo 4 h, techo 42 h; Turnos
+      sucesivos: tope 6 h, techo 36 h; Sin solucion de continuidad: techo 56 h; Excluida: ninguna). Tres
+      tipos: SuperaTopeDiarioDeLaModalidad, SuperaHorasSemanalesDeLaModalidad y
+      PorDebajoDelMinimoDiarioDeLaModalidad, con magnitud y valor de ley. Sin modalidad, ninguna.
+    context: Programacion
+    date_added: 2026-11-08
+    note: >
+      Refinamiento de #1438 (2026-11-08): se DERIVAN AL LEER (ObtenerJornada, ListarLimitesDeJornada), sin
+      evento: dependen solo de limites y modalidad, asi las Jornadas existentes y una correccion de la ficha
+      se reflejan solas (se descarto el evento de la plantilla, que si depende de copias externas). Los dias
+      de descanso no generan advertencia (el tope diario ya cubre la falta de dias; el descanso real es
+      #1442). Se distinguen de las Advertencias de plantilla y de las de la programacion semanal: juzgan el
+      diseno de la Jornada, no dias. Advierten, no certifican. Asistente: #1477.
 
   - name: Jornada predeterminada
     definition: >
@@ -1484,6 +1571,11 @@ terms:
       Refinamiento 2026-10-21 (#1128): advertencia diaria PorDebajoDelDescansoEntreTurnos (ver
       "Descanso entre turnos"). Es la primera que NO se mide contra la Jornada: sale tambien en
       una semana sin Jornada y no cambia si la semana es juzgable.
+      CAPA DE LEY (refinamiento de #1440, 2026-11-08): con Jornada estampada con modalidad (#1439) nacen
+      SuperaHorasSemanalesDeLaModalidad (toda semana, juzgable o no; solo techo), SuperaTopeDiarioDeLaModalidad
+      y PorDebajoDelMinimoDiarioDeLaModalidad (dias de trabajo), en el mismo CalculadorAdvertencias y en las
+      mismas listas, distinguidas por tipo y texto de las pactadas (conviven en el mismo dia). Sin modalidad o
+      con ExcluidaDeJornadaMaxima, ninguna. Va antes de #1411 (borrador). Asistente: #1481.
 
   - name: Descanso entre turnos
     definition: >
