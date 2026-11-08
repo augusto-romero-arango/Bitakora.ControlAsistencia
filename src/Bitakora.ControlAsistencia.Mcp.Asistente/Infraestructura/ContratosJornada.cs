@@ -28,7 +28,7 @@ public sealed record JornadaDelCatalogo(
     string JornadaId, string Descripcion, bool EsPredeterminada, bool Activa = true, string? Modalidad = null,
     bool DescansoAcumulado = false)
 {
-    public JornadaDescrita Describir() => new(JornadaId, Descripcion, EsPredeterminada, Modalidad);
+    public JornadaDescrita Describir() => new(JornadaId, Descripcion, EsPredeterminada, Modalidad, DescansoAcumulado);
 }
 
 public static class ModalidadesDeJornada

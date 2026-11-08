@@ -51,7 +51,7 @@ public partial class CrearJornadaTool(ProgramacionApi api)
 
         var jornadaId = Guid.CreateVersion7();
         var creada = await api.CrearJornada(
-            new JornadaACrear(jornadaId, semanales, tope, minimo, diasDescansoPorSemana, reconocida), ct);
+            new JornadaACrear(jornadaId, semanales, tope, minimo, diasDescansoPorSemana, reconocida, descansoAcumulado), ct);
         if (await creada.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 
