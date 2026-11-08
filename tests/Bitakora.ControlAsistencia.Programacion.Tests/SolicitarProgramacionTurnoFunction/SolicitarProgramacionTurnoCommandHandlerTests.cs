@@ -866,4 +866,56 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         propiedades.Should().NotBeEmpty();
         propiedades.Select(p => (string?)p.GetValue(null)).Should().AllSatisfy(m => m.Should().NotBeNullOrWhiteSpace());
     }
+
+    private static readonly Guid JornadaConModalidadId = Guid.Parse("018e4c1a-4f2b-7000-8000-00000000861c");
+
+    private static JornadaProgramada JornadaOrdinariaEstampada() => new(
+        JornadaConModalidadId, Limites42(), ModalidadJornada.Ordinaria, true, new FichaDeLey(504, null, 2520));
+
+    private static DetalleJornada DetalleOrdinariaEstampado() => new(
+        JornadaConModalidadId, 2520, 510, 240, 1, "Ordinaria", true, 504, null, 2520);
+
+    private void GivenJornadaConModalidadYMarca() =>
+        Given(JornadaConModalidadId.ToString(),
+            JornadaCreada.Crear(JornadaConModalidadId, Limites42()),
+            ModalidadDeJornadaAsignada.Crear(JornadaConModalidadId, ModalidadJornada.Ordinaria),
+            DescansoAcumuladoDeJornadaMarcado.Crear(JornadaConModalidadId));
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_LlevaLaEstampaCompletaEnLaSolicitudEnFirme_CuandoLaJornadaTieneModalidadYMarca()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        GivenJornadaConModalidadYMarca();
+
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Dia1], JornadaId: JornadaConModalidadId));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado,
+            jornada: JornadaOrdinariaEstampada()));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
+            new ProgramacionTurnoEnFechasSolicitada(
+                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado, DetalleOrdinariaEstampado()));
+        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
+    }
+
+    [Fact]
+    public async Task SolicitarProgramacionTurno_LlevaLaEstampaCompletaAlBorrador_CuandoLaJornadaTieneModalidadYMarca()
+    {
+        Given(TurnoId.ToString(), CrearEventoTurno());
+        GivenJornadaConModalidadYMarca();
+
+        await WhenAsync(new SolicitarProgramacionTurno(
+            GuidAggregateId, TurnoId, Colaborador, [Noviembre2], JornadaId: JornadaConModalidadId));
+
+        Then(new ProgramacionTurnoSolicitada(
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Noviembre2], TurnoProgramadoEsperado,
+            jornada: JornadaOrdinariaEstampada()));
+        Then(StreamBorradorNoviembre,
+            new ProgramacionTurnoAgregadaAlBorrador(
+                GuidAggregateId, ColaboradorProgramadoEsperado, [Noviembre2], TurnoProgramadoEsperado,
+                null, JornadaOrdinariaEstampada()));
+        ThenIsPublishedPrivately();
+        And<BorradorMensual, int>(StreamBorradorNoviembre, b => b.FechasEnBorrador.Count, 1);
+    }
 }

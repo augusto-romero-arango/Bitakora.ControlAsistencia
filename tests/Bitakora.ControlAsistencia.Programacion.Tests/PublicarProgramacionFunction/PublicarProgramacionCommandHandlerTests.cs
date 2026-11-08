@@ -316,4 +316,22 @@ public class PublicarProgramacionCommandHandlerTests : CommandHandlerAsyncTest<P
         ThenIsPublishedPrivately(OpcionesGrupoColaborador, Lote(Solicitud1, DetalleManana, null, Oct(5), Oct(8)));
         And<BorradorMensual, int>(StreamOctubre, EnBorrador, 0);
     }
+
+    [Fact]
+    public async Task PublicarProgramacion_EnviaLaEstampaDelBorradorSinReestamparla_CuandoLaJornadaTeniaModalidad()
+    {
+        var estampada = new JornadaProgramada(
+            JornadaId, Jornada.Limites, ModalidadJornada.Flexible, true, new FichaDeLey(540, 240, 2520));
+        Given(StreamOctubre,
+            new ProgramacionTurnoAgregadaAlBorrador(Solicitud1, Colaborador, [Oct(5)], TurnoManana, null, estampada));
+
+        await WhenAsync(Comando(Oct(1), Oct(31)));
+
+        Then(StreamOctubre, Publicada(Oct(5)));
+        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
+            new ProgramacionTurnoEnFechasSolicitada(
+                Solicitud1, Resumen, [Oct(5)], DetalleManana,
+                new DetalleJornada(JornadaId, 2520, 510, 240, 1, "Flexible", true, 540, 240, 2520)));
+        And<BorradorMensual, int>(StreamOctubre, EnBorrador, 0);
+    }
 }

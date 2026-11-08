@@ -446,4 +446,17 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
         Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId, null));
         And<ControlDiarioAggregateRoot, Guid>(Stream20, c => c.UltimaSolicitudId, SolicitudId);
     }
+
+    [Fact]
+    public async Task ProgramacionTurnoEnFechasSolicitada_PersisteLaEstampaDeLeyEnLaJornada_CuandoElEventoLaTrae()
+    {
+        var estampa = new DetalleJornada(JornadaId, 2520, 540, 240, 1, "Flexible", true, 540, 240, 2520);
+
+        await WhenAsync(new ProgramacionTurnoEnFechasSolicitada(
+            SolicitudId, ColaboradorResumen, [Dia20], TurnoDiurnoBus, estampa));
+
+        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId,
+            new JornadaProgramada(JornadaId, 2520, 540, 240, 1, "Flexible", true, 540, 240, 2520)));
+        And<ControlDiarioAggregateRoot, Guid>(Stream20, c => c.UltimaSolicitudId, SolicitudId);
+    }
 }
