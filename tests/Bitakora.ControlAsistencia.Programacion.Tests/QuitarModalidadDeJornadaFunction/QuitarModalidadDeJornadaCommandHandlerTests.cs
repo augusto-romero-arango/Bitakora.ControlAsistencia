@@ -108,4 +108,35 @@ public class QuitarModalidadDeJornadaCommandHandlerTests : CommandHandlerAsyncTe
         Then(ModalidadDeJornadaQuitada.Crear(GuidAggregateId));
         And<Jornada, ModalidadJornada?>(j => j.Modalidad, null);
     }
+
+    [Fact]
+    public async Task QuitarModalidadDeJornada_EmiteLaQuita_CuandoOtraJornadaSinModalidadTieneLosMismosLimitesPeroOtraMarca()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(GuidAggregateId, Limites(42, 9), ModalidadJornada.Flexible, true),
+            new JornadaDelCatalogo(JornadaB, Limites(42, 9)));
+        Given(Creada(GuidAggregateId),
+            ModalidadDeJornadaAsignada.Crear(GuidAggregateId, ModalidadJornada.Flexible),
+            DescansoAcumuladoDeJornadaMarcado.Crear(GuidAggregateId));
+        await WhenAsync(new QuitarModalidadDeJornada(GuidAggregateId));
+        Then(ModalidadDeJornadaQuitada.Crear(GuidAggregateId));
+        And<Jornada, ModalidadJornada?>(j => j.Modalidad, null);
+    }
+
+    [Fact]
+    public async Task QuitarModalidadDeJornada_LanzaReglaDeNegocioDeclinada_CuandoOtraJornadaSinModalidadTieneLosMismosLimitesYMarca()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(GuidAggregateId, Limites(42, 9), ModalidadJornada.Flexible, true),
+            new JornadaDelCatalogo(JornadaB, Limites(42, 9), null, true));
+        Given(Creada(GuidAggregateId),
+            ModalidadDeJornadaAsignada.Crear(GuidAggregateId, ModalidadJornada.Flexible),
+            DescansoAcumuladoDeJornadaMarcado.Crear(GuidAggregateId));
+        var act = async () => await WhenAsync(new QuitarModalidadDeJornada(GuidAggregateId));
+        var ex = (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()).Which;
+        ex.Message.Should().Contain(JornadaB.ToString())
+            .And.Contain(ModalidadJornada.Mensajes.LabelDescansoAcumulado);
+        Then();
+        And<Jornada, ModalidadJornada?>(j => j.Modalidad, ModalidadJornada.Flexible);
+    }
 }

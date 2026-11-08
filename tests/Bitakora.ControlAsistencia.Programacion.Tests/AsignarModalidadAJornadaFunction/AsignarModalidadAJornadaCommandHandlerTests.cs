@@ -142,4 +142,31 @@ public class AsignarModalidadAJornadaCommandHandlerTests : CommandHandlerAsyncTe
         Then(ModalidadDeJornadaAsignada.Crear(GuidAggregateId, ModalidadJornada.Ordinaria));
         And<Jornada, ModalidadJornada?>(j => j.Modalidad, ModalidadJornada.Ordinaria);
     }
+
+    [Fact]
+    public async Task AsignarModalidadAJornada_EmiteLaAsignacion_CuandoOtraJornadaConLosMismosLimitesYModalidadEstaMarcadaYLaPropiaNo()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(GuidAggregateId, Limites(42, 9)),
+            new JornadaDelCatalogo(JornadaB, Limites(42, 9), ModalidadJornada.Ordinaria, DescansoAcumulado: true));
+        Given(Creada(GuidAggregateId));
+        await WhenAsync(Comando(GuidAggregateId, "Ordinaria"));
+        Then(ModalidadDeJornadaAsignada.Crear(GuidAggregateId, ModalidadJornada.Ordinaria));
+        And<Jornada, ModalidadJornada?>(j => j.Modalidad, ModalidadJornada.Ordinaria);
+    }
+
+    [Fact]
+    public async Task AsignarModalidadAJornada_LanzaReglaDeNegocioDeclinada_CuandoOtraJornadaConLosMismosLimitesModalidadYMarcaExiste()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(GuidAggregateId, Limites(42, 9), null, true),
+            new JornadaDelCatalogo(JornadaB, Limites(42, 9), ModalidadJornada.Ordinaria, DescansoAcumulado: true));
+        Given(Creada(GuidAggregateId), DescansoAcumuladoDeJornadaMarcado.Crear(GuidAggregateId));
+        var act = async () => await WhenAsync(Comando(GuidAggregateId, "Ordinaria"));
+        var ex = (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()).Which;
+        ex.Message.Should().Contain(JornadaB.ToString())
+            .And.Contain(ModalidadJornada.Mensajes.LabelDescansoAcumulado);
+        Then();
+        And<Jornada, ModalidadJornada?>(j => j.Modalidad, null);
+    }
 }

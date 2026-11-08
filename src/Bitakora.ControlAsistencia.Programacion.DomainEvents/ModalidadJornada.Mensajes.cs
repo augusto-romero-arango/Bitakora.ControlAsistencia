@@ -13,6 +13,9 @@ public sealed partial class ModalidadJornada
         public static string LabelModalidad =>
             ResourceManager.GetString(nameof(LabelModalidad))!;
 
+        public static string LabelDescansoAcumulado =>
+            ResourceManager.GetString(nameof(LabelDescansoAcumulado))!;
+
         public static string NombreNoReconocido =>
             ResourceManager.GetString(nameof(NombreNoReconocido))!;
     }

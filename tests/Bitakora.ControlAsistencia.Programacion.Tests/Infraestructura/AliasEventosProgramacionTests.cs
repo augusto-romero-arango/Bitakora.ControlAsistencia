@@ -269,4 +269,20 @@ public class AliasEventosProgramacionTests
 
         AliasDe<ModalidadDeJornadaQuitada>(options).Should().Be("modalidad_de_jornada_quitada");
     }
+
+    [Fact]
+    public void DescansoAcumuladoDeJornadaMarcado_TieneAliasDescansoAcumuladoDeJornadaMarcado()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<DescansoAcumuladoDeJornadaMarcado>(options).Should().Be("descanso_acumulado_de_jornada_marcado");
+    }
+
+    [Fact]
+    public void DescansoAcumuladoDeJornadaDesmarcado_TieneAliasDescansoAcumuladoDeJornadaDesmarcado()
+    {
+        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
+
+        AliasDe<DescansoAcumuladoDeJornadaDesmarcado>(options).Should().Be("descanso_acumulado_de_jornada_desmarcado");
+    }
 }

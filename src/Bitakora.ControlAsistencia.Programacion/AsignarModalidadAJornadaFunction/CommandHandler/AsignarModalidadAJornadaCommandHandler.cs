@@ -23,7 +23,8 @@ public partial class AsignarModalidadAJornadaCommandHandler(
         var colision = jornada.BuscarColision(modalidad, catalogo);
         if (colision is not null)
             throw new ReglaDeNegocioDeclinadaException(string.Format(
-                Mensajes.ModalidadDuplicada, DescripcionJornada.Componer(jornada.Limites, modalidad), colision.JornadaId));
+                Mensajes.ModalidadDuplicada, DescripcionJornada.Componer(jornada.Limites, modalidad, jornada.DescansoAcumulado),
+                colision.JornadaId));
 
         jornada.AsignarModalidad(modalidad);
     }

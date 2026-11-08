@@ -24,7 +24,8 @@ public partial class ModificarLimitesJornadaCommandHandler(
         var igual = jornada.BuscarColisionDeLimites(limites, catalogo);
         if (igual is not null)
             throw new ReglaDeNegocioDeclinadaException(string.Format(
-                Mensajes.LimitesDuplicados, DescripcionJornada.Componer(limites, igual.Modalidad), igual.JornadaId));
+                Mensajes.LimitesDuplicados, DescripcionJornada.Componer(limites, igual.Modalidad, igual.DescansoAcumulado),
+                igual.JornadaId));
 
         if (jornada.ModificarLimites(limites) == ResultadoModificarLimites.Modificados)
             await privateEventSender.PublishAsync(jornada.ComoLimitesActualizados());

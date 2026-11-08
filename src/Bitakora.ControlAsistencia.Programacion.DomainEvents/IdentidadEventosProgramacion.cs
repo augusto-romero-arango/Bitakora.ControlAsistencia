@@ -52,6 +52,8 @@ public static class IdentidadEventosProgramacion
         typeof(ProgramacionPublicada),
         typeof(BorradorDeProgramacionDescartado),
         typeof(ModalidadDeJornadaAsignada),
-        typeof(ModalidadDeJornadaQuitada)
+        typeof(ModalidadDeJornadaQuitada),
+        typeof(DescansoAcumuladoDeJornadaMarcado),
+        typeof(DescansoAcumuladoDeJornadaDesmarcado)
     ];
 }

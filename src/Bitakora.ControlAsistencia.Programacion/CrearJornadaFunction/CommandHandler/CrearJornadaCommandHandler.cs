@@ -19,7 +19,7 @@ public partial class CrearJornadaCommandHandler(
         var modalidad = command.ToModalidadJornada();
         var predeterminadaId = await asegurador.AsegurarAsync(ct);
         var catalogo = await lector.ObtenerConLimitesAsync(predeterminadaId, limites, ct);
-        var igual = catalogo.FirstOrDefault(j => j.TieneIdentidad(limites, modalidad));
+        var igual = catalogo.FirstOrDefault(j => j.TieneIdentidad(limites, modalidad, descansoAcumulado: false));
         if (igual is not null)
             throw new ReglaDeNegocioDeclinadaException(string.Format(
                 Mensajes.LimitesDuplicados, DescripcionJornada.Componer(limites, modalidad), igual.JornadaId));
