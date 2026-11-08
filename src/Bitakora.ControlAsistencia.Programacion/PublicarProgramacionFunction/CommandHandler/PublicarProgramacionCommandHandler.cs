@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -57,7 +58,7 @@ public partial class PublicarProgramacionCommandHandler : ICommandHandlerAsync<P
             new ResumenColaborador(lote.Colaborador.Identificacion, lote.Colaborador.CodigoColaborador, lote.Colaborador.NombreCompleto),
             fechas,
             MapearTurno(lote.DetalleTurno),
-            MapearJornada(lote.Jornada),
+            DetalleJornadaMapeo.Mapear(lote.Jornada),
             MapearSede(lote.Sede));
 
     private static DetalleTurno MapearTurno(TurnoProgramado turno) =>
@@ -81,10 +82,4 @@ public partial class PublicarProgramacionCommandHandler : ICommandHandlerAsync<P
     private static DetalleSede? MapearSede(SedeProgramada? sede) =>
         sede is null ? null : new DetalleSede(sede.Id, sede.Nombre, sede.CentroDeCostos);
 
-    private static DetalleJornada MapearJornada(JornadaProgramada jornada) =>
-        new(jornada.JornadaId,
-            jornada.Limites.HorasSemanales.TotalMinutos(),
-            jornada.Limites.TopeDiario.TotalMinutos(),
-            jornada.Limites.MinimoDiario.TotalMinutos(),
-            jornada.Limites.DiasDescansoPorSemana);
 }

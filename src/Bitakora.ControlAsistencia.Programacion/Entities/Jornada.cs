@@ -173,7 +173,7 @@ public partial class Jornada : AggregateRoot
         _limites.MinimoDiario.TotalMinutos(),
         _limites.DiasDescansoPorSemana);
 
-    internal JornadaProgramada Estampar() => new(_jornadaId, _limites);
+    internal JornadaProgramada Estampar() => new(_jornadaId, _limites, _modalidad, _descansoAcumulado, _modalidad?.FichaDeLey());
 
     internal static Jornada Iniciar(JornadaCreada evento, ModalidadJornada? modalidad = null, bool descansoAcumulado = false)
     {

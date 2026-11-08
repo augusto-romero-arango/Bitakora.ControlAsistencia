@@ -45,7 +45,7 @@ public sealed partial class ModalidadJornada
         [ExcluidaDeJornadaMaxima.Nombre] = new(null, null, null),
     };
 
-    public FichaDeLey FichaDeLey() => throw new NotImplementedException();
+    public FichaDeLey FichaDeLey() => Fichas[Nombre];
 
     public IReadOnlyList<AdvertenciaJornada> Advertir(LimitesJornada limites)
     {
