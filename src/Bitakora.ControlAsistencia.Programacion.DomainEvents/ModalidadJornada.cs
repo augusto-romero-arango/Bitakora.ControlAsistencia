@@ -49,7 +49,7 @@ public sealed partial class ModalidadJornada
 
     public IReadOnlyList<AdvertenciaJornada> Advertir(LimitesJornada limites)
     {
-        var ficha = Fichas[Nombre];
+        var ficha = FichaDeLey();
         var tope = limites.TopeDiario.TotalMinutos();
         var semanales = limites.HorasSemanales.TotalMinutos();
         var minimo = limites.MinimoDiario.TotalMinutos();

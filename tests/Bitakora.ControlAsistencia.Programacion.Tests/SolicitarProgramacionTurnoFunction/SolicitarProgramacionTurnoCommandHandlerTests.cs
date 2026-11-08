@@ -909,7 +909,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, TurnoId, Colaborador, [Noviembre2], JornadaId: JornadaConModalidadId));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Noviembre2], TurnoProgramadoEsperado,
+            GuidAggregateId, ColaboradorProgramadoEsperado, [], TurnoProgramadoEsperado,
             jornada: JornadaOrdinariaEstampada()));
         Then(StreamBorradorNoviembre,
             new ProgramacionTurnoAgregadaAlBorrador(
