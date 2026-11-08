@@ -173,13 +173,15 @@ public partial class Jornada : AggregateRoot
 
     internal JornadaProgramada Estampar() => new(_jornadaId, _limites);
 
-    internal static Jornada Iniciar(JornadaCreada evento, ModalidadJornada? modalidad = null)
+    internal static Jornada Iniciar(JornadaCreada evento, ModalidadJornada? modalidad = null, bool descansoAcumulado = false)
     {
         var jornada = new Jornada();
         jornada._uncommittedEvents.Add(evento);
         jornada.Apply(evento);
         if (modalidad is not null)
             jornada.AsignarModalidad(modalidad);
+        if (descansoAcumulado)
+            jornada.MarcarDescansoAcumulado();
         return jornada;
     }
 }
