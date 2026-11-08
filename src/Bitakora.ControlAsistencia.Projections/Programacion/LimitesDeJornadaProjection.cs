@@ -37,6 +37,12 @@ public sealed partial class LimitesDeJornadaProjection : SingleStreamProjection<
             Descripcion = DescripcionJornada.Componer(LimitesDe(vista), null),
         };
 
+    public static LimitesDeJornada Apply(DescansoAcumuladoDeJornadaMarcado e, LimitesDeJornada vista) =>
+        throw new NotImplementedException();
+
+    public static LimitesDeJornada Apply(DescansoAcumuladoDeJornadaDesmarcado e, LimitesDeJornada vista) =>
+        throw new NotImplementedException();
+
     private static ModalidadJornada? ModalidadDe(LimitesDeJornada vista) =>
         vista.Modalidad is null ? null : ModalidadJornada.Desde(vista.Modalidad);
 

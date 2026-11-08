@@ -13,4 +13,5 @@ public sealed record LimitesDeJornada(
     int DiasDescansoPorSemana,
     string Descripcion,
     bool Activa = true,
-    string? Modalidad = null);
+    string? Modalidad = null,
+    bool DescansoAcumulado = false);

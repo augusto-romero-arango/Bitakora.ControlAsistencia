@@ -167,4 +167,30 @@ public class ComposicionListadoLimitesTests
 
         respuesta.Elementos.Single(e => e.JornadaId == IdP).Modalidad.Should().Be("Ordinaria");
     }
+
+    [Fact]
+    public void Componer_DevuelveDescansoAcumulado_CuandoLaVistaLoTiene()
+    {
+        var marcada = A with { DescansoAcumulado = true };
+
+        var respuesta = ComposicionListadoLimites.Componer([marcada, B], null, null, null);
+
+        respuesta.Elementos.Select(e => e.DescansoAcumulado).Should().Equal(true, false);
+    }
+
+    [Fact]
+    public void Componer_DevuelveDescansoAcumuladoFalse_CuandoLaPredeterminadaCompuestaNoLaTiene()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A], P, null, null);
+
+        respuesta.Elementos.Single(e => e.JornadaId == IdP).DescansoAcumulado.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Componer_DevuelveDescansoAcumuladoTrue_CuandoLaPredeterminadaCompuestaLaTiene()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A], P with { DescansoAcumulado = true }, null, null);
+
+        respuesta.Elementos.Single(e => e.JornadaId == IdP).DescansoAcumulado.Should().BeTrue();
+    }
 }
