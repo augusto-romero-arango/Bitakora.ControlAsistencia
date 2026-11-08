@@ -63,7 +63,7 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
         foreach (var jornada in catalogo.Where(j => j.Limites.Equals(limites)))
         {
             var stream = await session.Events.AggregateStreamAsync<Jornada>(jornada.JornadaId.ToString(), token: ct);
-            conModalidad.Add(jornada with { Modalidad = stream?.Modalidad });
+            conModalidad.Add(jornada with { Modalidad = stream?.Modalidad, DescansoAcumulado = stream?.DescansoAcumulado ?? false });
         }
 
         return conModalidad;

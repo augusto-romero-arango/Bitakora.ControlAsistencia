@@ -14,6 +14,7 @@ public partial class Jornada : AggregateRoot
     private long _version;
     private bool _activa;
     private ModalidadJornada? _modalidad;
+    private bool _descansoAcumulado;
 
     public void Apply(JornadaCreada evento)
     {
@@ -62,28 +63,46 @@ public partial class Jornada : AggregateRoot
 
     public void Apply(ModalidadDeJornadaQuitada evento) => _modalidad = null;
 
-    public void Apply(DescansoAcumuladoDeJornadaMarcado evento) => throw new NotImplementedException();
+    public void Apply(DescansoAcumuladoDeJornadaMarcado evento) => _descansoAcumulado = true;
 
-    public void Apply(DescansoAcumuladoDeJornadaDesmarcado evento) => throw new NotImplementedException();
+    public void Apply(DescansoAcumuladoDeJornadaDesmarcado evento) => _descansoAcumulado = false;
 
-    internal bool DescansoAcumulado => throw new NotImplementedException();
+    internal bool DescansoAcumulado => _descansoAcumulado;
 
-    internal void MarcarDescansoAcumulado() => throw new NotImplementedException();
+    internal void MarcarDescansoAcumulado()
+    {
+        if (_descansoAcumulado)
+            return;
 
-    internal void DesmarcarDescansoAcumulado() => throw new NotImplementedException();
+        var evento = DescansoAcumuladoDeJornadaMarcado.Crear(_jornadaId);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
+
+    internal void DesmarcarDescansoAcumulado()
+    {
+        if (!_descansoAcumulado)
+            return;
+
+        var evento = DescansoAcumuladoDeJornadaDesmarcado.Crear(_jornadaId);
+        _uncommittedEvents.Add(evento);
+        Apply(evento);
+    }
 
     internal JornadaDelCatalogo? BuscarColisionDeMarca(bool descansoAcumulado, IReadOnlyList<JornadaDelCatalogo> catalogo) =>
-        throw new NotImplementedException();
+        _descansoAcumulado == descansoAcumulado
+            ? null
+            : catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId && j.TieneIdentidad(_limites, _modalidad, descansoAcumulado));
 
     internal ModalidadJornada? Modalidad => _modalidad;
 
     internal JornadaDelCatalogo? BuscarColision(ModalidadJornada? modalidad, IReadOnlyList<JornadaDelCatalogo> catalogo) =>
         Equals(_modalidad, modalidad)
             ? null
-            : catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId && j.TieneIdentidad(_limites, modalidad));
+            : catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId && j.TieneIdentidad(_limites, modalidad, _descansoAcumulado));
 
     internal JornadaDelCatalogo? BuscarColisionDeLimites(LimitesJornada limites, IReadOnlyList<JornadaDelCatalogo> catalogo) =>
-        catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId && j.TieneIdentidad(limites, _modalidad));
+        catalogo.FirstOrDefault(j => j.JornadaId != _jornadaId && j.TieneIdentidad(limites, _modalidad, _descansoAcumulado));
 
     internal ResultadoAsignarModalidad AsignarModalidad(ModalidadJornada modalidad)
     {
@@ -126,10 +145,11 @@ public partial class Jornada : AggregateRoot
         Convertir(_limites.TopeDiario),
         Convertir(_limites.MinimoDiario),
         _limites.DiasDescansoPorSemana,
-        DescripcionJornada.Componer(_limites, _modalidad),
+        DescripcionJornada.Componer(_limites, _modalidad, _descansoAcumulado),
         predeterminadaId == _jornadaId,
         _activa,
-        _modalidad?.Nombre);
+        _modalidad?.Nombre,
+        _descansoAcumulado);
 
     private static HorasYMinutosRespuesta Convertir(HorasYMinutos valor) => new(valor.Horas, valor.Minutos);
 
@@ -139,7 +159,7 @@ public partial class Jornada : AggregateRoot
         _limites.TopeDiario.TotalMinutos(),
         _limites.MinimoDiario.TotalMinutos(),
         _limites.DiasDescansoPorSemana,
-        DescripcionJornada.Componer(_limites, _modalidad),
+        DescripcionJornada.Componer(_limites, _modalidad, _descansoAcumulado),
         _activa,
         _modalidad?.Nombre);
 

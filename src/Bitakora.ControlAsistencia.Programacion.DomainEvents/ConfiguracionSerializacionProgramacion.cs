@@ -33,6 +33,8 @@ public static class ConfiguracionSerializacionProgramacion
         ModalidadJornada.ConfigurarSerializacion(resolver);
         ModalidadDeJornadaAsignada.ConfigurarSerializacion(resolver);
         ModalidadDeJornadaQuitada.ConfigurarSerializacion(resolver);
+        DescansoAcumuladoDeJornadaMarcado.ConfigurarSerializacion(resolver);
+        DescansoAcumuladoDeJornadaDesmarcado.ConfigurarSerializacion(resolver);
         Turno.ConfigurarSerializacion(resolver);
         TurnoCreado.ConfigurarSerializacion(resolver);
         TurnoRetirado.ConfigurarSerializacion(resolver);

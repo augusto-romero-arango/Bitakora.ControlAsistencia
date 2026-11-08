@@ -11,4 +11,5 @@
   <data name="SinSolucionDeContinuidad" xml:space="preserve"><value>Sin solución de continuidad</value></data>
   <data name="ExcluidaDeJornadaMaxima" xml:space="preserve"><value>Excluida de la jornada máxima</value></data>
   <data name="LabelModalidad" xml:space="preserve"><value>modalidad</value></data>
+  <data name="LabelDescansoAcumulado" xml:space="preserve"><value>con descanso acumulado</value></data>
 </root>
