@@ -30,6 +30,10 @@ public partial class CrearJornadaTool(ProgramacionApi api)
         int diasDescansoPorSemana,
         [McpToolProperty("modalidad", "Modalidad legal de la Jornada (opcional): " + ModalidadesDeJornada.Enumeradas + ".")]
         string? modalidad,
+        [McpToolProperty(
+            "descanso_acumulado",
+            "Marca de descanso acumulado de la Jornada (opcional, art. 184): true para crearla marcada.")]
+        bool? descansoAcumulado,
         CancellationToken ct)
     {
         if (!ValidadorDuracion.TryParsear(horasSemanales, out var semanales))
