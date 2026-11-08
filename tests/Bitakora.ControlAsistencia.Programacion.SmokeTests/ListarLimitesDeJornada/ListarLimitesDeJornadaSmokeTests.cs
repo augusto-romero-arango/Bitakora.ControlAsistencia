@@ -263,6 +263,45 @@ public class ListarLimitesDeJornadaSmokeTests(ApiFixture api, PostgresFixture po
 
     [Fact]
     [Trait("Category", "Smoke")]
+    public async Task ListarLimitesDeJornada_MuestraElDescansoAcumulado_CuandoSeMarcaYSeDesmarca()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var id = await CrearJornadaAsync(LimitesDePrueba.ListarMuestraDescansoAcumulado, ct);
+
+        async Task<JsonElement> ElementoAsync(bool descansoAcumulado)
+        {
+            var crudo = await Polling.WaitUntilAsync(async () =>
+            {
+                var response = await _client.GetAsync(Ruta, ct);
+                response.StatusCode.Should().Be(HttpStatusCode.OK);
+                var cuerpo = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+                foreach (var e in cuerpo.GetProperty("elementos").EnumerateArray())
+                    if (e.GetProperty("jornadaId").GetGuid() == id
+                        && e.GetProperty("descansoAcumulado").GetBoolean() == descansoAcumulado)
+                        return e.GetRawText();
+                return null;
+            }, Timeout);
+            return JsonDocument.Parse(crudo).RootElement.Clone();
+        }
+
+        var sinMarca = await ElementoAsync(false);
+        var descripcionSinMarca = sinMarca.GetProperty("descripcion").GetString();
+
+        (await _client.PutAsync($"{Ruta}/{id}/descanso-acumulado", null, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que MarcarDescansoAcumulado funcione");
+
+        var conMarca = await ElementoAsync(true);
+        conMarca.GetProperty("descripcion").GetString().Should().NotBe(descripcionSinMarca);
+
+        (await _client.DeleteAsync($"{Ruta}/{id}/descanso-acumulado", ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent, "el arrange depende de que DesmarcarDescansoAcumulado funcione");
+
+        var desmarcada = await ElementoAsync(false);
+        desmarcada.GetProperty("descripcion").GetString().Should().Be(descripcionSinMarca);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
     public async Task ListarLimitesDeJornada_DebeRetornar400_CuandoActivaEsInvalido()
     {
         var response = await _client.GetAsync($"{Ruta}?activa=quizas", TestContext.Current.CancellationToken);
