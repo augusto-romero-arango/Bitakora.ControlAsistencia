@@ -174,6 +174,17 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
+    public void ListarJornadas_DescribeQueSinAdvertenciasNoEsConformeALaLey_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("listar_jornadas"))!.GetCustomAttribute<McpToolTriggerAttribute>()!.Description
+            .Should().Contain("advertencias").And.Contain("sin advertencias contra la modalidad")
+            .And.Contain("nunca 'conforme a la ley'");
+
+    [Fact]
+    public void HostJson_DiceQueSinAdvertenciasNoEsConformeALaLey_CuandoSeLeenLasInstrucciones() =>
+        LeerHostJson().Should().Contain("sin advertencias contra la modalidad")
+            .And.Contain("nunca 'conforme a la ley'");
+
+    [Fact]
     public void ModificarVentanaDeEntrada_DeclaraTurnoIdYAmplitudComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("modificar_ventana_de_entrada").Should().BeEquivalentTo([("turno_id", true), ("amplitud", true)]);
 
