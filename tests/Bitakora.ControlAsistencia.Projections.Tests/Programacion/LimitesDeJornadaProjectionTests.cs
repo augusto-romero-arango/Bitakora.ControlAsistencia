@@ -159,4 +159,72 @@ public class LimitesDeJornadaProjectionTests
             "40 h semanales, tope diario 8 h, mínimo diario 4 h, 2 días de descanso por semana, modalidad Flexible",
             false, "Flexible"));
     }
+
+    private const string DescripcionConMarca = Descripcion47 + ", con descanso acumulado";
+    private const string DescripcionFlexibleConMarca = DescripcionFlexible + ", con descanso acumulado";
+
+    private static LimitesDeJornada Vista47(string descripcion, string? modalidad, bool activa, bool descansoAcumulado) =>
+        new(JornadaId.ToString(), 2850, 480, 0, 1, descripcion, activa, modalidad, descansoAcumulado);
+
+    [Fact]
+    public void Apply_DejaDescansoAcumuladoTrueYDescripcionConMarca_CuandoDescansoAcumuladoDeJornadaMarcado()
+    {
+        var vista = LimitesDeJornadaProjection.Apply(
+            DescansoAcumuladoDeJornadaMarcado.Crear(JornadaId), Vista47(Descripcion47, null));
+
+        vista.Should().Be(Vista47(DescripcionConMarca, null, true, true));
+    }
+
+    [Fact]
+    public void Apply_MarcaConservaModalidad_CuandoDescansoAcumuladoDeJornadaMarcadoSobreJornadaConModalidad()
+    {
+        var vista = LimitesDeJornadaProjection.Apply(
+            DescansoAcumuladoDeJornadaMarcado.Crear(JornadaId), Vista47(DescripcionFlexible, "Flexible"));
+
+        vista.Should().Be(Vista47(DescripcionFlexibleConMarca, "Flexible", true, true));
+    }
+
+    [Fact]
+    public void Apply_DejaDescansoAcumuladoFalseYDescripcionSinMarca_CuandoDescansoAcumuladoDeJornadaDesmarcado()
+    {
+        var vista = LimitesDeJornadaProjection.Apply(
+            DescansoAcumuladoDeJornadaDesmarcado.Crear(JornadaId), Vista47(DescripcionConMarca, null, true, true));
+
+        vista.Should().Be(Vista47(Descripcion47, null));
+    }
+
+    [Fact]
+    public void Apply_ConservaMarcaYRecomponeDescripcion_CuandoLimitesJornadaModificados()
+    {
+        var previa = Vista47(DescripcionFlexibleConMarca, "Flexible", false, true);
+        var nuevos = LimitesJornada.Crear(
+            HorasYMinutos.Crear(40, 0), HorasYMinutos.Crear(8, 0), HorasYMinutos.Crear(4, 0), 2);
+
+        var vista = LimitesDeJornadaProjection.Apply(LimitesJornadaModificados.Crear(JornadaId, nuevos), previa);
+
+        vista.Should().Be(new LimitesDeJornada(
+            JornadaId.ToString(), 2400, 480, 240, 2,
+            "40 h semanales, tope diario 8 h, mínimo diario 4 h, 2 días de descanso por semana, modalidad Flexible, con descanso acumulado",
+            false, "Flexible", true));
+    }
+
+    [Fact]
+    public void Apply_ConservaMarcaYRecomponeDescripcion_CuandoModalidadDeJornadaAsignada()
+    {
+        var vista = LimitesDeJornadaProjection.Apply(
+            ModalidadDeJornadaAsignada.Crear(JornadaId, ModalidadJornada.Flexible),
+            Vista47(DescripcionConMarca, null, true, true));
+
+        vista.Should().Be(Vista47(DescripcionFlexibleConMarca, "Flexible", true, true));
+    }
+
+    [Fact]
+    public void Apply_ConservaMarcaYRecomponeDescripcion_CuandoModalidadDeJornadaQuitada()
+    {
+        var vista = LimitesDeJornadaProjection.Apply(
+            ModalidadDeJornadaQuitada.Crear(JornadaId),
+            Vista47(DescripcionFlexibleConMarca, "Flexible", true, true));
+
+        vista.Should().Be(Vista47(DescripcionConMarca, null, true, true));
+    }
 }

@@ -114,7 +114,8 @@ internal static class LimitesDeJornadaRespuesta
         vista.Descripcion,
         predeterminadaId is { } p && vista.Id == p.ToString(),
         vista.Activa,
-        vista.Modalidad);
+        vista.Modalidad,
+        vista.DescansoAcumulado);
 
     private static HorasYMinutosRespuesta Convertir(int minutos) => new(minutos / 60, minutos % 60);
 }

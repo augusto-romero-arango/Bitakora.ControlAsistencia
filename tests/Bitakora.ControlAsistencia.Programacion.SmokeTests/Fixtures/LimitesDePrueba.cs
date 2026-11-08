@@ -78,6 +78,7 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites ListarMarcaPredeterminada = Firma(47, 4);
     public static readonly FirmaDeLimites ListarFiltraPorActiva = Firma(47, 5);
     public static readonly FirmaDeLimites ListarMuestraModalidad = Firma(47, 6);
+    public static readonly FirmaDeLimites ListarMuestraDescansoAcumulado = Firma(47, 7);
     public static readonly FirmaDeLimites AsignarPredeterminada = Firma(30, 20);
     public static readonly FirmaDeLimites DesactivarJornadaPersiste = Firma(30, 21);
     public static readonly FirmaDeLimites DesactivarJornadaPredeterminada = Firma(30, 22);

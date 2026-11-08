@@ -161,7 +161,8 @@ public partial class Jornada : AggregateRoot
         _limites.DiasDescansoPorSemana,
         DescripcionJornada.Componer(_limites, _modalidad, _descansoAcumulado),
         _activa,
-        _modalidad?.Nombre);
+        _modalidad?.Nombre,
+        _descansoAcumulado);
 
     internal LimitesDeJornadaActualizados ComoLimitesActualizados() => new(
         _jornadaId,
