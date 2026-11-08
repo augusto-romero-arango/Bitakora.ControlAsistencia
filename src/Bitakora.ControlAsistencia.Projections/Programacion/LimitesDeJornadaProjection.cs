@@ -24,31 +24,23 @@ public sealed partial class LimitesDeJornadaProjection : SingleStreamProjection<
         vista with { Activa = true };
 
     public static LimitesDeJornada Apply(ModalidadDeJornadaAsignada e, LimitesDeJornada vista) =>
-        vista with
-        {
-            Modalidad = e.Modalidad.Nombre,
-            Descripcion = DescripcionJornada.Componer(LimitesDe(vista), e.Modalidad, vista.DescansoAcumulado),
-        };
+        Recomponer(vista, e.Modalidad, vista.DescansoAcumulado);
 
     public static LimitesDeJornada Apply(ModalidadDeJornadaQuitada e, LimitesDeJornada vista) =>
-        vista with
-        {
-            Modalidad = null,
-            Descripcion = DescripcionJornada.Componer(LimitesDe(vista), null, vista.DescansoAcumulado),
-        };
+        Recomponer(vista, null, vista.DescansoAcumulado);
 
     public static LimitesDeJornada Apply(DescansoAcumuladoDeJornadaMarcado e, LimitesDeJornada vista) =>
-        vista with
-        {
-            DescansoAcumulado = true,
-            Descripcion = DescripcionJornada.Componer(LimitesDe(vista), ModalidadDe(vista), true),
-        };
+        Recomponer(vista, ModalidadDe(vista), true);
 
     public static LimitesDeJornada Apply(DescansoAcumuladoDeJornadaDesmarcado e, LimitesDeJornada vista) =>
+        Recomponer(vista, ModalidadDe(vista), false);
+
+    private static LimitesDeJornada Recomponer(LimitesDeJornada vista, ModalidadJornada? modalidad, bool descansoAcumulado) =>
         vista with
         {
-            DescansoAcumulado = false,
-            Descripcion = DescripcionJornada.Componer(LimitesDe(vista), ModalidadDe(vista), false),
+            Modalidad = modalidad?.Nombre,
+            DescansoAcumulado = descansoAcumulado,
+            Descripcion = DescripcionJornada.Componer(LimitesDe(vista), modalidad, descansoAcumulado),
         };
 
     private static ModalidadJornada? ModalidadDe(LimitesDeJornada vista) =>

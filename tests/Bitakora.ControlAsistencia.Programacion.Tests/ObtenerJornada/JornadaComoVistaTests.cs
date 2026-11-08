@@ -49,4 +49,26 @@ public class JornadaComoVistaTests
         vista.Descripcion.Should().Be(
             "42 h semanales, tope diario 8 h, sin mínimo diario, 1 día de descanso por semana, modalidad Flexible");
     }
+
+    [Fact]
+    public void ComoVista_LlevaDescansoAcumuladoFalseYDescripcionSinMarca_CuandoLaJornadaNoEstaMarcada()
+    {
+        var vista = Crear().ComoVista();
+
+        vista.DescansoAcumulado.Should().BeFalse();
+        vista.Descripcion.Should().NotContain("descanso acumulado");
+    }
+
+    [Fact]
+    public void ComoVista_LlevaDescansoAcumuladoTrueYDescripcionConMarca_CuandoLaJornadaEstaMarcada()
+    {
+        var jornada = Crear();
+        jornada.MarcarDescansoAcumulado();
+
+        var vista = jornada.ComoVista();
+
+        vista.DescansoAcumulado.Should().BeTrue();
+        vista.Descripcion.Should().Be(
+            "42 h semanales, tope diario 8 h, sin mínimo diario, 1 día de descanso por semana, con descanso acumulado");
+    }
 }
