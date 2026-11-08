@@ -32,7 +32,7 @@ public static class SembradoDeJornadas
 
     // Un 409 por limites repetidos responde una frase, no JSON: se reintenta con otro sorteo.
     public static async Task<(JsonElement Jornada, LimitesDeSmoke Limites)> CrearAsync(
-        McpFixture mcp, CancellationToken ct, string? modalidad = null)
+        McpFixture mcp, CancellationToken ct, string? modalidad = null, bool? descansoAcumulado = null)
     {
         for (var intento = 0; intento < MaximoIntentos; intento++)
         {
@@ -40,6 +40,8 @@ public static class SembradoDeJornadas
             var args = limites.ComoArgumentos();
             if (modalidad is not null)
                 args["modalidad"] = modalidad;
+            if (descansoAcumulado is not null)
+                args["descanso_acumulado"] = descansoAcumulado;
             var resultado = await mcp.Cliente.CallToolAsync("crear_jornada", args, cancellationToken: ct);
 
             if (TryParsear(Texto(resultado), out var jornada))
