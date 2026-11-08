@@ -182,4 +182,57 @@ public class CrearJornadaCommandHandlerTests : CommandHandlerAsyncTest<CrearJorn
         Then(Evento(GuidAggregateId));
         And<Jornada, string?>(j => j.Describir().Modalidad, null);
     }
+
+    [Fact]
+    public async Task CrearJornada_EmiteJornadaCreadaYDescansoAcumuladoMarcado_CuandoDeclaraDescansoAcumulado()
+    {
+        Given();
+        await WhenAsync(Comando(GuidAggregateId) with { DescansoAcumulado = true });
+        Then(Evento(GuidAggregateId), DescansoAcumuladoDeJornadaMarcado.Crear(GuidAggregateId));
+        And<Jornada, bool>(j => j.Describir().DescansoAcumulado, true);
+    }
+
+    [Fact]
+    public async Task CrearJornada_EmiteSoloJornadaCreada_CuandoDescansoAcumuladoEsFalse()
+    {
+        Given();
+        await WhenAsync(Comando(GuidAggregateId) with { DescansoAcumulado = false });
+        Then(Evento(GuidAggregateId));
+        And<Jornada, bool>(j => j.Describir().DescansoAcumulado, false);
+    }
+
+    [Fact]
+    public async Task CrearJornada_EmiteJornadaCreadaYMarca_CuandoLaOtraConEsosLimitesNoEstaMarcada()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(JornadaX, Limites(42, 8, 0, 1)));
+        Given(JornadaX.ToString(), Evento(JornadaX));
+        await WhenAsync(Comando(GuidAggregateId) with { DescansoAcumulado = true });
+        Then(Evento(GuidAggregateId), DescansoAcumuladoDeJornadaMarcado.Crear(GuidAggregateId));
+        And<Jornada, bool>(j => j.Describir().DescansoAcumulado, true);
+    }
+
+    [Fact]
+    public async Task CrearJornada_LanzaReglaDeNegocioDeclinada_CuandoOtraTieneMismosLimitesYMarca()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(JornadaX, Limites(42, 8, 0, 1), DescansoAcumulado: true));
+        Given(JornadaX.ToString(), Evento(JornadaX), DescansoAcumuladoDeJornadaMarcado.Crear(JornadaX));
+        var act = async () => await WhenAsync(Comando(GuidAggregateId) with { DescansoAcumulado = true });
+        var ex = (await act.Should().ThrowExactlyAsync<ReglaDeNegocioDeclinadaException>()).Which;
+        ex.Message.Should().Contain(JornadaX.ToString());
+        Then(GuidAggregateId.ToString());
+        And<Jornada, bool>(JornadaX.ToString(), j => j.Describir().DescansoAcumulado, true);
+    }
+
+    [Fact]
+    public async Task CrearJornada_EmiteJornadaCreada_CuandoSinMarcaYSoloExisteLaMismaMarcada()
+    {
+        _lector = new FakeLectorLimitesJornada(_asegurador,
+            new JornadaDelCatalogo(JornadaX, Limites(42, 8, 0, 1), DescansoAcumulado: true));
+        Given();
+        await WhenAsync(Comando(GuidAggregateId));
+        Then(Evento(GuidAggregateId));
+        And<Jornada, bool>(j => j.Describir().DescansoAcumulado, false);
+    }
 }
