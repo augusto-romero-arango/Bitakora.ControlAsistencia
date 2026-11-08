@@ -62,6 +62,58 @@ public class JornadaAdvertenciasDescribirTests
     }
 
     [Fact]
+    public void Describir_RetornaAdvertenciasVacias_CuandoSeModificanLosLimitesAlTopeDeLaModalidad()
+    {
+        var jornada = Crear();
+        jornada.Apply(ModalidadDeJornadaAsignada.Crear(JornadaId, ModalidadJornada.Ordinaria));
+        jornada.Apply(LimitesJornadaModificados.Crear(JornadaId, LimitesJornada.Crear(
+            HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 24), HorasYMinutos.Crear(0, 0), 2)));
+
+        var respuesta = jornada.Describir();
+
+        respuesta.Advertencias.Should().NotBeNull().And.BeEmpty();
+    }
+
+    [Fact]
+    public void Describir_ConservaLaAdvertenciaDelTope_CuandoLaJornadaTieneDescansoAcumulado()
+    {
+        var jornada = Crear();
+        jornada.Apply(ModalidadDeJornadaAsignada.Crear(JornadaId, ModalidadJornada.Ordinaria));
+        jornada.Apply(DescansoAcumuladoDeJornadaMarcado.Crear(JornadaId));
+
+        var respuesta = jornada.Describir();
+
+        respuesta.Advertencias.Select(a => a.Descripcion).Should().Equal(DescripcionTope);
+    }
+
+    [Fact]
+    public void Describir_DescribeElMinimoPactado_CuandoLaModalidadEsFlexibleSinMinimo()
+    {
+        var jornada = Crear();
+        jornada.Apply(ModalidadDeJornadaAsignada.Crear(JornadaId, ModalidadJornada.Flexible));
+
+        var respuesta = jornada.Describir();
+
+        respuesta.Advertencias.Should().ContainSingle().Which.Should().Be(new AdvertenciaJornadaRespuesta(
+            "PorDebajoDelMinimoDiarioDeLaModalidad", new HorasYMinutosRespuesta(4, 0),
+            new HorasYMinutosRespuesta(4, 0),
+            "El minimo diario (0:00) queda por debajo en 4:00 del de la modalidad Flexible (4:00)"));
+    }
+
+    [Fact]
+    public void Describir_DescribeLasHorasSemanalesPactadas_CuandoSuperanElTechoDeTurnosSucesivos()
+    {
+        var jornada = Jornada.Iniciar(JornadaCreada.Crear(JornadaId, LimitesJornada.Crear(
+            HorasYMinutos.Crear(40, 0), HorasYMinutos.Crear(6, 0), HorasYMinutos.Crear(0, 0), 0)));
+        jornada.Apply(ModalidadDeJornadaAsignada.Crear(JornadaId, ModalidadJornada.TurnosSucesivos));
+
+        var respuesta = jornada.Describir();
+
+        respuesta.Advertencias.Select(a => a.Descripcion).Should().Equal(
+            "Las horas semanales (40:00) superan en 4:00 el techo de la modalidad Turnos sucesivos (36:00)");
+    }
+
+    [Fact]
     public void DesdeVista_IncluyeLasMismasAdvertencias_CuandoLaVistaTieneModalidadOrdinariaYTopeNueveHoras()
     {
         var vista = new LimitesDeJornada(JornadaId.ToString(), 2520, 540, 0, 1, "42 h", Modalidad: "Ordinaria");
@@ -90,7 +142,7 @@ public class JornadaAdvertenciasDescribirTests
 
         var respuesta = ComposicionListadoLimites.Componer([vista], null, null, null);
 
-        respuesta.Elementos.Single().Advertencias!.Select(a => a.Tipo)
+        respuesta.Elementos.Single().Advertencias.Select(a => a.Tipo)
             .Should().Equal("PorDebajoDelMinimoDiarioDeLaModalidad");
     }
 }

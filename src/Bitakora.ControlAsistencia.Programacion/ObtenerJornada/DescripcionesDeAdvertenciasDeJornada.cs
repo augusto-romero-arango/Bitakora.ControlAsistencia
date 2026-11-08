@@ -11,21 +11,17 @@ internal static class DescripcionesDeAdvertenciasDeJornada
 
     public static IReadOnlyList<AdvertenciaJornadaRespuesta> Describir(ModalidadJornada? modalidad, LimitesJornada limites) =>
         modalidad is null ? [] : modalidad.Advertir(limites)
-            .Select(a => Describir(a, modalidad, limites))
+            .Select(a => Describir(a, modalidad))
             .ToArray();
 
-    private static AdvertenciaJornadaRespuesta Describir(
-        AdvertenciaJornada advertencia, ModalidadJornada modalidad, LimitesJornada limites)
+    private static AdvertenciaJornadaRespuesta Describir(AdvertenciaJornada advertencia, ModalidadJornada modalidad)
     {
-        var actual = advertencia.Tipo switch
-        {
-            TipoAdvertenciaJornada.SuperaTopeDiarioDeLaModalidad => Formato(limites.TopeDiario.TotalMinutos()),
-            TipoAdvertenciaJornada.SuperaHorasSemanalesDeLaModalidad => Formato(limites.HorasSemanales.TotalMinutos()),
-            _ => Formato(limites.MinimoDiario.TotalMinutos())
-        };
+        var pactado = advertencia.Tipo == TipoAdvertenciaJornada.PorDebajoDelMinimoDiarioDeLaModalidad
+            ? advertencia.ValorDeLey - advertencia.Magnitud
+            : advertencia.ValorDeLey + advertencia.Magnitud;
         var tipo = advertencia.Tipo.ToString();
         var descripcion = string.Format(ResourceManager.GetString(tipo)!,
-            actual, Formato(advertencia.Magnitud), Formato(advertencia.ValorDeLey), modalidad);
+            Formato(pactado), Formato(advertencia.Magnitud), Formato(advertencia.ValorDeLey), modalidad);
         return new(tipo, Convertir(advertencia.Magnitud), Convertir(advertencia.ValorDeLey), descripcion);
     }
 

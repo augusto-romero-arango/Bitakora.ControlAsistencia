@@ -34,16 +34,17 @@ public sealed partial class ModalidadJornada
 
     private const int MinutosPorHora = 60;
     private const int DiasLaborablesOrdinaria = 5;
+    private const int TechoSemanalVigente = 42 * MinutosPorHora;
 
     private sealed record FichaDeLey(int? TopeDiario, int? MinimoDiario, int? TechoSemanal);
 
     private static readonly IReadOnlyDictionary<string, FichaDeLey> Fichas = new Dictionary<string, FichaDeLey>
     {
-        ["Ordinaria"] = new(42 * MinutosPorHora / DiasLaborablesOrdinaria, null, 42 * MinutosPorHora),
-        ["Flexible"] = new(9 * MinutosPorHora, 4 * MinutosPorHora, 42 * MinutosPorHora),
-        ["TurnosSucesivos"] = new(6 * MinutosPorHora, null, 36 * MinutosPorHora),
-        ["SinSolucionDeContinuidad"] = new(null, null, 56 * MinutosPorHora),
-        ["ExcluidaDeJornadaMaxima"] = new(null, null, null),
+        [Ordinaria.Nombre] = new(TechoSemanalVigente / DiasLaborablesOrdinaria, null, TechoSemanalVigente),
+        [Flexible.Nombre] = new(9 * MinutosPorHora, 4 * MinutosPorHora, TechoSemanalVigente),
+        [TurnosSucesivos.Nombre] = new(6 * MinutosPorHora, null, 36 * MinutosPorHora),
+        [SinSolucionDeContinuidad.Nombre] = new(null, null, 56 * MinutosPorHora),
+        [ExcluidaDeJornadaMaxima.Nombre] = new(null, null, null),
     };
 
     public IReadOnlyList<AdvertenciaJornada> Advertir(LimitesJornada limites)
