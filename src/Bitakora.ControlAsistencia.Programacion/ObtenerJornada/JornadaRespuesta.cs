@@ -10,4 +10,11 @@ public sealed record JornadaRespuesta(
     bool EsPredeterminada = false,
     bool Activa = true,
     string? Modalidad = null,
-    bool DescansoAcumulado = false);
+    bool DescansoAcumulado = false,
+    IReadOnlyList<AdvertenciaJornadaRespuesta>? Advertencias = null);
+
+public sealed record AdvertenciaJornadaRespuesta(
+    string Tipo,
+    HorasYMinutosRespuesta Magnitud,
+    HorasYMinutosRespuesta ValorDeLey,
+    string Descripcion);

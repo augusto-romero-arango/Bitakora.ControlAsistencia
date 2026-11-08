@@ -32,6 +32,8 @@ public sealed partial class ModalidadJornada
         return modalidad is not null;
     }
 
+    public IReadOnlyList<AdvertenciaJornada> Advertir(LimitesJornada limites) => throw new NotImplementedException();
+
     public override bool Equals(object? obj) => obj is ModalidadJornada otra && otra.Nombre == Nombre;
 
     public override int GetHashCode() => Nombre.GetHashCode();
