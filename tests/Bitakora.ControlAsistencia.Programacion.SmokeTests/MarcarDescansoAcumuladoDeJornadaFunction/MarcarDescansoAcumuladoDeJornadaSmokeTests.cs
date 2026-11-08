@@ -63,7 +63,7 @@ public class MarcarDescansoAcumuladoDeJornadaSmokeTests(ApiFixture api, Postgres
         Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
         var ct = TestContext.Current.CancellationToken;
         var id = await CrearJornadaAsync(LimitesDePrueba.MarcarDescansoAcumuladoYaMarcada);
-        (await await _client.PutAsync($"{Ruta}/{id}/descanso-acumulado", null, ct)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await _client.PutAsync($"{Ruta}/{id}/descanso-acumulado", null, ct)).StatusCode.Should().Be(HttpStatusCode.NoContent);
         var lineaBase = await postgres.ContarEventosDeStreamAsync(
             PostgresFixture.SchemaProgramacion, _tenant.TenantId, id.ToString());
 

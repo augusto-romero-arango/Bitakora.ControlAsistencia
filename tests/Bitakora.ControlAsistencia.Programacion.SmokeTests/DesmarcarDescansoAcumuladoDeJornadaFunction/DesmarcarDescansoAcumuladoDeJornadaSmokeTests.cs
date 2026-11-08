@@ -48,7 +48,7 @@ public class DesmarcarDescansoAcumuladoDeJornadaSmokeTests(ApiFixture api, Postg
     {
         var ct = TestContext.Current.CancellationToken;
         var id = await CrearJornadaAsync(LimitesDePrueba.DesmarcarDescansoAcumuladoPersiste);
-        (await await _client.PutAsync($"{Ruta}/{id}/descanso-acumulado", null, ct)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await _client.PutAsync($"{Ruta}/{id}/descanso-acumulado", null, ct)).StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var response = await _client.DeleteAsync($"{Ruta}/{id}/descanso-acumulado", ct);
 
