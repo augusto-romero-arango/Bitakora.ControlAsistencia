@@ -52,6 +52,30 @@ public static class SembradoDeJornadas
             $"No se pudo crear una Jornada de smoke en {MaximoIntentos} intentos: todos los sorteos repitieron limites.");
     }
 
+    // 42 h con tope diario de 9:00 excede el tope legal de la modalidad Ordinaria. Como el dominio
+    // rechaza limites repetidos y el residuo nunca se borra, el minimo diario y los dias de descanso
+    // se sortean.
+    public static async Task<JsonElement> CrearConTopeDiarioExcedidoAsync(McpFixture mcp, CancellationToken ct)
+    {
+        for (var intento = 0; intento < MaximoIntentos; intento++)
+        {
+            var args = new Dictionary<string, object?>
+            {
+                ["horas_semanales"] = "42:00",
+                ["tope_diario"] = "9:00",
+                ["minimo_diario"] = $"0:{Random.Shared.Next(60):00}",
+                ["dias_descanso_por_semana"] = Random.Shared.Next(1, 3)
+            };
+            var resultado = await mcp.Cliente.CallToolAsync("crear_jornada", args, cancellationToken: ct);
+
+            if (TryParsear(Texto(resultado), out var jornada))
+                return jornada;
+        }
+
+        throw new InvalidOperationException(
+            $"No se pudo crear una Jornada 42 h / tope 9:00 en {MaximoIntentos} intentos: todos los sorteos repitieron limites.");
+    }
+
     public static async Task<JsonElement> PredeterminadaActualAsync(McpFixture mcp, CancellationToken ct)
     {
         string? cursor = null;
