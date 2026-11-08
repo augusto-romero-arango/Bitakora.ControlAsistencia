@@ -11,7 +11,10 @@ public sealed record JornadaRespuesta(
     bool Activa = true,
     string? Modalidad = null,
     bool DescansoAcumulado = false,
-    IReadOnlyList<AdvertenciaJornadaRespuesta>? Advertencias = null);
+    IReadOnlyList<AdvertenciaJornadaRespuesta>? Advertencias = null)
+{
+    public IReadOnlyList<AdvertenciaJornadaRespuesta> Advertencias { get; init; } = Advertencias ?? [];
+}
 
 public sealed record AdvertenciaJornadaRespuesta(
     string Tipo,
