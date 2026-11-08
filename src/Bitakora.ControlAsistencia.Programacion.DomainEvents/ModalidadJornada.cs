@@ -36,8 +36,6 @@ public sealed partial class ModalidadJornada
     private const int DiasLaborablesOrdinaria = 5;
     private const int TechoSemanalVigente = 42 * MinutosPorHora;
 
-    private sealed record FichaDeLey(int? TopeDiario, int? MinimoDiario, int? TechoSemanal);
-
     private static readonly IReadOnlyDictionary<string, FichaDeLey> Fichas = new Dictionary<string, FichaDeLey>
     {
         [Ordinaria.Nombre] = new(TechoSemanalVigente / DiasLaborablesOrdinaria, null, TechoSemanalVigente),
@@ -47,18 +45,20 @@ public sealed partial class ModalidadJornada
         [ExcluidaDeJornadaMaxima.Nombre] = new(null, null, null),
     };
 
+    public FichaDeLey FichaDeLey() => Fichas[Nombre];
+
     public IReadOnlyList<AdvertenciaJornada> Advertir(LimitesJornada limites)
     {
-        var ficha = Fichas[Nombre];
+        var ficha = FichaDeLey();
         var tope = limites.TopeDiario.TotalMinutos();
         var semanales = limites.HorasSemanales.TotalMinutos();
         var minimo = limites.MinimoDiario.TotalMinutos();
         var advertencias = new List<AdvertenciaJornada>();
-        if (ficha.TopeDiario is { } topeLey && tope > topeLey)
+        if (ficha.TopeDiarioEnMinutos is { } topeLey && tope > topeLey)
             advertencias.Add(new(TipoAdvertenciaJornada.SuperaTopeDiarioDeLaModalidad, tope - topeLey, topeLey));
-        if (ficha.TechoSemanal is { } techo && semanales > techo)
+        if (ficha.HorasSemanalesEnMinutos is { } techo && semanales > techo)
             advertencias.Add(new(TipoAdvertenciaJornada.SuperaHorasSemanalesDeLaModalidad, semanales - techo, techo));
-        if (ficha.MinimoDiario is { } minimoLey && minimo < minimoLey)
+        if (ficha.MinimoDiarioEnMinutos is { } minimoLey && minimo < minimoLey)
             advertencias.Add(new(TipoAdvertenciaJornada.PorDebajoDelMinimoDiarioDeLaModalidad, minimoLey - minimo, minimoLey));
         return advertencias;
     }

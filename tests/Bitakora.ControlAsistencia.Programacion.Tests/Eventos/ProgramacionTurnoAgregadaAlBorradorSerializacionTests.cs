@@ -70,4 +70,57 @@ public class ProgramacionTurnoAgregadaAlBorradorSerializacionTests
         restaurado!.Sede.Should().BeNull();
         restaurado.Fechas.Should().Equal(new DateOnly(2026, 10, 28));
     }
+
+    [Fact]
+    public void RoundTrip_ConservaLaEstampaDeLaJornada_ConDatosCompletos()
+    {
+        var jornada = new JornadaProgramada(
+            JornadaId,
+            LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1),
+            ModalidadJornada.Flexible, true, new FichaDeLey(540, 240, 2520));
+        var evento = new ProgramacionTurnoAgregadaAlBorrador(
+            SolicitudId,
+            new ColaboradorProgramado("CC-12345678", "E001", "Juan Perez"),
+            [new DateOnly(2026, 10, 28)],
+            new TurnoProgramado("T", new List<FranjaProgramada>().AsReadOnly(), "T"),
+            null,
+            jornada);
+        var opciones = CrearOpcionesMarten();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoAgregadaAlBorrador>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.Jornada.Modalidad.Should().Be(ModalidadJornada.Flexible);
+        restaurado.Jornada.DescansoAcumulado.Should().BeTrue();
+        restaurado.Jornada.Ficha.Should().Be(new FichaDeLey(540, 240, 2520));
+    }
+
+    [Fact]
+    public void Deserializar_DejaModalidadNulaMarcaFalsaYFichaNula_CuandoLaJornadaPersistidaNoTraeLosCamposNuevos()
+    {
+        var evento = new ProgramacionTurnoAgregadaAlBorrador(
+            SolicitudId,
+            new ColaboradorProgramado("CC-12345678", "E001", "Juan Perez"),
+            [new DateOnly(2026, 10, 28)],
+            new TurnoProgramado("T", new List<FranjaProgramada>().AsReadOnly(), "T"),
+            null,
+            new JornadaProgramada(
+                JornadaId,
+                LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1)));
+        var opciones = CrearOpcionesMarten();
+        var nodo = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(evento, opciones))!.AsObject();
+        var jornadaNodo = nodo["Jornada"]!.AsObject();
+        jornadaNodo.Remove("Modalidad");
+        jornadaNodo.Remove("DescansoAcumulado");
+        jornadaNodo.Remove("Ficha");
+
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoAgregadaAlBorrador>(nodo.ToJsonString(), opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.Jornada.JornadaId.Should().Be(JornadaId);
+        restaurado.Jornada.Modalidad.Should().BeNull();
+        restaurado.Jornada.DescansoAcumulado.Should().BeFalse();
+        restaurado.Jornada.Ficha.Should().BeNull();
+    }
 }

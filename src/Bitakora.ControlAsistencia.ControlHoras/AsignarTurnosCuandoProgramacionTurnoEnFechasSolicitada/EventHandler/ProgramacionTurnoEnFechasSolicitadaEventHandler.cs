@@ -164,7 +164,9 @@ public partial class ProgramacionTurnoEnFechasSolicitadaEventHandler
         jornada is null
             ? null
             : new JornadaProgramada(jornada.JornadaId, jornada.HorasSemanalesEnMinutos,
-                jornada.TopeDiarioEnMinutos, jornada.MinimoDiarioEnMinutos, jornada.DiasDescansoPorSemana);
+                jornada.TopeDiarioEnMinutos, jornada.MinimoDiarioEnMinutos, jornada.DiasDescansoPorSemana,
+                jornada.Modalidad, jornada.DescansoAcumulado, jornada.TopeDiarioDeLeyEnMinutos,
+                jornada.MinimoDiarioDeLeyEnMinutos, jornada.HorasSemanalesDeLeyEnMinutos);
 
     private static SubFranjaProgramada MapearSubFranja(DetalleSubFranja sub) =>
         new(sub.HoraInicio, sub.HoraFin, sub.DiaOffsetInicio, sub.DiaOffsetFin, sub.Descripcion);
