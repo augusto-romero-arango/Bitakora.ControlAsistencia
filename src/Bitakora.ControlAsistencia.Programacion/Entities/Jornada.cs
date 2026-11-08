@@ -62,6 +62,19 @@ public partial class Jornada : AggregateRoot
 
     public void Apply(ModalidadDeJornadaQuitada evento) => _modalidad = null;
 
+    public void Apply(DescansoAcumuladoDeJornadaMarcado evento) => throw new NotImplementedException();
+
+    public void Apply(DescansoAcumuladoDeJornadaDesmarcado evento) => throw new NotImplementedException();
+
+    internal bool DescansoAcumulado => throw new NotImplementedException();
+
+    internal void MarcarDescansoAcumulado() => throw new NotImplementedException();
+
+    internal void DesmarcarDescansoAcumulado() => throw new NotImplementedException();
+
+    internal JornadaDelCatalogo? BuscarColisionDeMarca(bool descansoAcumulado, IReadOnlyList<JornadaDelCatalogo> catalogo) =>
+        throw new NotImplementedException();
+
     internal ModalidadJornada? Modalidad => _modalidad;
 
     internal JornadaDelCatalogo? BuscarColision(ModalidadJornada? modalidad, IReadOnlyList<JornadaDelCatalogo> catalogo) =>

@@ -2,7 +2,7 @@ using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 
-public sealed record JornadaDelCatalogo(Guid JornadaId, LimitesJornada Limites, ModalidadJornada? Modalidad = null)
+public sealed record JornadaDelCatalogo(Guid JornadaId, LimitesJornada Limites, ModalidadJornada? Modalidad = null, bool DescansoAcumulado = false)
 {
     // "Sin modalidad" cuenta como un valor de la identidad (CA-ADR-0046 decision 12).
     internal bool TieneIdentidad(LimitesJornada limites, ModalidadJornada? modalidad) =>

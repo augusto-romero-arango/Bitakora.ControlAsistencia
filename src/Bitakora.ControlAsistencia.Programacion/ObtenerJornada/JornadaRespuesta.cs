@@ -9,4 +9,5 @@ public sealed record JornadaRespuesta(
     string Descripcion,
     bool EsPredeterminada = false,
     bool Activa = true,
-    string? Modalidad = null);
+    string? Modalidad = null,
+    bool DescansoAcumulado = false);
