@@ -8,10 +8,10 @@ public class DesmarcarDescansoAcumuladoDeJornadaSmokeTests(McpFixture mcp)
 {
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task DesmarcarDescansoAcumuladoDeJornada_DevuelveLaJornadaConLaMarca_CuandoLaJornadaExiste()
+    public async Task DesmarcarDescansoAcumuladoDeJornada_DevuelveLaJornadaSinLaMarca_CuandoLaJornadaEstabaMarcada()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (creada, _) = await SembradoDeJornadas.CrearAsync(mcp, ct, "Ordinaria");
+        var (creada, _) = await SembradoDeJornadas.CrearAsync(mcp, ct, "Ordinaria", descansoAcumulado: true);
         var id = creada.GetProperty("jornada_id").GetString()!;
 
         var resultado = await mcp.Cliente.CallToolAsync(
@@ -22,6 +22,6 @@ public class DesmarcarDescansoAcumuladoDeJornadaSmokeTests(McpFixture mcp)
         resultado.IsError.Should().NotBeTrue();
         using var json = JsonDocument.Parse(SembradoDeJornadas.Texto(resultado));
         json.RootElement.GetProperty("jornada_id").GetString().Should().Be(id);
-        json.RootElement.GetProperty("descanso_acumulado").GetBoolean().Should().Be(false);
+        json.RootElement.GetProperty("descanso_acumulado").GetBoolean().Should().BeFalse();
     }
 }

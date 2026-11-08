@@ -47,7 +47,7 @@ public class MarcarDescansoAcumuladoDeJornadaToolTests
 
         var json = JsonNode.Parse(resultado)!;
         json["jornada_id"]!.GetValue<string>().Should().Be(JornadaId);
-        json["descanso_acumulado"]!.GetValue<bool>().Should().Be(true);
+        json["descanso_acumulado"]!.GetValue<bool>().Should().BeTrue();
     }
 
     [Fact]

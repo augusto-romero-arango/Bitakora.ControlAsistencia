@@ -22,6 +22,6 @@ public class MarcarDescansoAcumuladoDeJornadaSmokeTests(McpFixture mcp)
         resultado.IsError.Should().NotBeTrue();
         using var json = JsonDocument.Parse(SembradoDeJornadas.Texto(resultado));
         json.RootElement.GetProperty("jornada_id").GetString().Should().Be(id);
-        json.RootElement.GetProperty("descanso_acumulado").GetBoolean().Should().Be(true);
+        json.RootElement.GetProperty("descanso_acumulado").GetBoolean().Should().BeTrue();
     }
 }
