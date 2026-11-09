@@ -268,14 +268,25 @@ public class AsignarTurnosEnFechasSmokeTests(ServiceBusFixture serviceBus, Postg
             HorasSemanalesEnMinutos = 2520,
             TopeDiarioEnMinutos = 510,
             MinimoDiarioEnMinutos = 240,
-            DiasDescansoPorSemana = 1
+            DiasDescansoPorSemana = 1,
+            Modalidad = "Flexible",
+            DescansoAcumulado = true,
+            TopeDiarioDeLeyEnMinutos = 540,
+            MinimoDiarioDeLeyEnMinutos = 240,
+            HorasSemanalesDeLeyEnMinutos = 2520
         };
 
         var persistido = await PublicarYLeerAsync(codigoColaborador, solicitudId, fecha,
             EventoEnLote(solicitudId, codigoColaborador, "CC-555666777", fecha, detalleTurno, jornada));
 
         persistido.GetProperty("Jornada").Deserialize<JornadaProgramada>()
-            .Should().Be(new JornadaProgramada(jornadaId, 2520, 510, 240, 1));
+            .Should().Be(new JornadaProgramada(
+                jornadaId, 2520, 510, 240, 1,
+                Modalidad: "Flexible",
+                DescansoAcumulado: true,
+                TopeDiarioDeLeyEnMinutos: 540,
+                MinimoDiarioDeLeyEnMinutos: 240,
+                HorasSemanalesDeLeyEnMinutos: 2520));
 
         await AfirmarSinDeadLetterAsync(codigoColaborador);
     }

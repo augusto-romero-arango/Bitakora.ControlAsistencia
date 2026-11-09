@@ -51,6 +51,7 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites CrearJornadaDuplicada = Firma(30, 2);
     public static readonly FirmaDeLimites CrearJornadaIdGeneral = Firma(30, 37);
     public static readonly FirmaDeLimites ObtenerJornada = Firma(30, 3);
+    public static readonly FirmaDeLimites ObtenerJornadaConAdvertencia = Firma(42, 0, topeHoras: 9);
     public static readonly FirmaDeLimites ModificarOrigen = Firma(30, 4);
     public static readonly FirmaDeLimites ModificarDestino = Firma(31, 4);
     public static readonly FirmaDeLimites ModificarConflictoA = Firma(30, 5);

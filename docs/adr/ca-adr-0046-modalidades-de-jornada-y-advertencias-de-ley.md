@@ -55,13 +55,17 @@ Este ADR registra **decisiones de dominio y de arquitectura**, sin nombres de ti
 
 ### Arquitectura
 
-9. **Estampa.** Al programar, Programacion arma la ficha de ley vigente a la fecha del dia (p. ej. 42 h desde el
-   15-jul-2026) y la copia en `JornadaProgramada` con la modalidad y la marca; ControlHoras solo compara y no
-   duplica el catalogo (lo necesita tambien la plantilla, en Programacion). Con el borrador (CA-ADR-0045) la
-   estampa ocurre al agregar al borrador y viaja al publicar. Costo aceptado: corregir el catalogo no cambia los
-   dias ya estampados, igual que editar la Jornada hoy.
-10. **Un solo calculador.** Toda advertencia, pactada o de ley, vive en `CalculadorAdvertencias`. Las
-    advertencias sobre el borrador (#1411) lo reutilizan sobre dias propuestos.
+9. **Estampa.** Al programar, Programacion copia en `JornadaProgramada` la modalidad, la marca y la ficha de ley
+   **vigente** de la modalidad (tope diario, minimo diario y techo semanal; hoy 42 h), sin vigencias por fecha:
+   una solicitud lleva una sola `JornadaProgramada` para todas sus fechas. ControlHoras solo compara y no duplica
+   el catalogo (lo necesita tambien la plantilla, en Programacion). Con el borrador (CA-ADR-0045) la estampa
+   ocurre al agregar al borrador y viaja al publicar sin volver a estamparse. Los topes de horas extra (167A)
+   quedan fuera de la estampa hasta #1443. Costos aceptados: corregir el catalogo no cambia los dias ya
+   estampados, igual que editar la Jornada hoy; y reprogramar hoy un dia anterior al 15-jul-2026 lo juzga contra
+   42 h (advierte de mas; "advierte, no certifica"), aceptable porque solo existe el ambiente dev.
+10. **Un solo calculador para dias programados.** Toda advertencia, pactada o de ley, sobre dias programados
+    (programacion semanal y borrador, #1411) vive en `CalculadorAdvertencias`. La plantilla y la Jornada se
+    auditan a si mismas en Programacion: juzgan su propio diseno, no dias programados.
 
 ### Dominio (refinamiento 2026-11-07)
 
@@ -166,3 +170,7 @@ Este ADR registra **decisiones de dominio y de arquitectura**, sin nombres de ti
 
 - 2026-11-07: creado (sesion planner 2026-11-01 y refinamiento 2026-11-07; registro en #1435). Decisiones 11 y 12
   segun el refinamiento.
+- 2026-11-08: decision 10 precisada: `CalculadorAdvertencias` rige las advertencias sobre dias programados; la
+  plantilla y la Jornada se auditan a si mismas en Programacion (#1438).
+- 2026-11-08: decision 9 precisada: se estampa la ficha vigente, sin vigencias por fecha (con su costo aceptado),
+  sin volver a estampar al publicar; los topes de horas extra quedan fuera de la estampa hasta #1443 (#1439).
