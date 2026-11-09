@@ -4,7 +4,10 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1440 y desglose #1481: capa de ley en las
+# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1441 y desglose #1486: la plantilla copia la
+#   modalidad por LimitesDeJornadaActualizados (foto completa) y se audita contra la ley con la peor ventana
+#   circular de 7 dias. Tocada: Advertencias de plantilla.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1440 y desglose #1481: capa de ley en las
 #   Advertencias de la programacion semanal (sufijo DeLaModalidad); #1440 antes de #1411. Tocada:
 #   Advertencias de la programacion semanal.)
 # Actualizacion previa: 2026-11-08 (sesion planner, refinar #1439: la estampa copia modalidad, marca y
@@ -744,6 +747,12 @@ terms:
       plantilla y en el listado (sin conteo ni filtro por ahora). Se calculan sobre las COPIAS de turnos y
       Jornada que guarda la plantilla. Issues #868 (reglas puras), #889 (emision), #882 (vista),
       #883/#884 (sincronizacion de copias y re-auditoria).
+      REFINAMIENTO DE #1441 (2026-11-08): la plantilla copia la MODALIDAD de su Jornada (no la ficha ni la
+      marca) por LimitesDeJornadaActualizados, que pasa a ser foto completa (limites + modalidad) y se publica
+      tambien al asignar o quitar la modalidad; la version de la Jornada avanza con esos eventos. Tipos de ley:
+      SuperaTopeDiarioDeLaModalidad y PorDebajoDelMinimoDiarioDeLaModalidad (por dia) y una sola
+      SuperaHorasSemanalesDeLaModalidad con el dia de inicio de la peor ventana (empate: el menor). La ficha se
+      consulta al catalogo al auditarse. Nombrar la modalidad en el cuadro de turnos: #1486.
 
   - name: Cuadro semanal de turnos
     definition: >
