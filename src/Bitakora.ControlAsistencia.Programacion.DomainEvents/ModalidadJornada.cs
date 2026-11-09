@@ -32,6 +32,37 @@ public sealed partial class ModalidadJornada
         return modalidad is not null;
     }
 
+    private const int MinutosPorHora = 60;
+    private const int DiasLaborablesOrdinaria = 5;
+    private const int TechoSemanalVigente = 42 * MinutosPorHora;
+
+    private static readonly IReadOnlyDictionary<string, FichaDeLey> Fichas = new Dictionary<string, FichaDeLey>
+    {
+        [Ordinaria.Nombre] = new(TechoSemanalVigente / DiasLaborablesOrdinaria, null, TechoSemanalVigente),
+        [Flexible.Nombre] = new(9 * MinutosPorHora, 4 * MinutosPorHora, TechoSemanalVigente),
+        [TurnosSucesivos.Nombre] = new(6 * MinutosPorHora, null, 36 * MinutosPorHora),
+        [SinSolucionDeContinuidad.Nombre] = new(null, null, 56 * MinutosPorHora),
+        [ExcluidaDeJornadaMaxima.Nombre] = new(null, null, null),
+    };
+
+    public FichaDeLey FichaDeLey() => Fichas[Nombre];
+
+    public IReadOnlyList<AdvertenciaJornada> Advertir(LimitesJornada limites)
+    {
+        var ficha = FichaDeLey();
+        var tope = limites.TopeDiario.TotalMinutos();
+        var semanales = limites.HorasSemanales.TotalMinutos();
+        var minimo = limites.MinimoDiario.TotalMinutos();
+        var advertencias = new List<AdvertenciaJornada>();
+        if (ficha.TopeDiarioEnMinutos is { } topeLey && tope > topeLey)
+            advertencias.Add(new(TipoAdvertenciaJornada.SuperaTopeDiarioDeLaModalidad, tope - topeLey, topeLey));
+        if (ficha.HorasSemanalesEnMinutos is { } techo && semanales > techo)
+            advertencias.Add(new(TipoAdvertenciaJornada.SuperaHorasSemanalesDeLaModalidad, semanales - techo, techo));
+        if (ficha.MinimoDiarioEnMinutos is { } minimoLey && minimo < minimoLey)
+            advertencias.Add(new(TipoAdvertenciaJornada.PorDebajoDelMinimoDiarioDeLaModalidad, minimoLey - minimo, minimoLey));
+        return advertencias;
+    }
+
     public override bool Equals(object? obj) => obj is ModalidadJornada otra && otra.Nombre == Nombre;
 
     public override int GetHashCode() => Nombre.GetHashCode();

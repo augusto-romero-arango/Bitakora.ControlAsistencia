@@ -149,7 +149,8 @@ public partial class Jornada : AggregateRoot
         predeterminadaId == _jornadaId,
         _activa,
         _modalidad?.Nombre,
-        _descansoAcumulado);
+        _descansoAcumulado,
+        DescripcionesDeAdvertenciasDeJornada.Describir(_modalidad, _limites));
 
     private static HorasYMinutosRespuesta Convertir(HorasYMinutos valor) => new(valor.Horas, valor.Minutos);
 
@@ -172,7 +173,7 @@ public partial class Jornada : AggregateRoot
         _limites.MinimoDiario.TotalMinutos(),
         _limites.DiasDescansoPorSemana);
 
-    internal JornadaProgramada Estampar() => new(_jornadaId, _limites);
+    internal JornadaProgramada Estampar() => new(_jornadaId, _limites, _modalidad, _descansoAcumulado, _modalidad?.FichaDeLey());
 
     internal static Jornada Iniciar(JornadaCreada evento, ModalidadJornada? modalidad = null, bool descansoAcumulado = false)
     {

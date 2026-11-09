@@ -48,6 +48,33 @@ public class ObtenerJornadaSmokeTests(ApiFixture api) : IDisposable
         body.GetProperty("minimoDiario").GetProperty("minutos").GetInt32().Should().Be(firma.MinimoMinutos);
         body.GetProperty("diasDescansoPorSemana").GetInt32().Should().Be(firma.DiasDescansoPorSemana);
         body.GetProperty("descripcion").GetString().Should().NotBeNullOrWhiteSpace();
+        body.GetProperty("advertencias").GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task ObtenerJornada_DebeRetornarLaAdvertenciaDelTope_CuandoElTopeSuperaElDeLaModalidadOrdinaria()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jornadaId = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync("/api/programacion/jornadas",
+                LimitesDePrueba.ObtenerJornadaConAdvertencia.PayloadCrear(jornadaId), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        (await _client.PutAsJsonAsync($"/api/programacion/jornadas/{jornadaId}/modalidad",
+                new { modalidad = "Ordinaria" }, ct))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var response = await _client.GetAsync($"/api/programacion/jornadas/{jornadaId}", ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var advertencia = body.GetProperty("advertencias").EnumerateArray().Should().ContainSingle().Subject;
+        advertencia.GetProperty("tipo").GetString().Should().Be("SuperaTopeDiarioDeLaModalidad");
+        advertencia.GetProperty("magnitud").GetProperty("horas").GetInt32().Should().Be(0);
+        advertencia.GetProperty("magnitud").GetProperty("minutos").GetInt32().Should().Be(36);
+        advertencia.GetProperty("valorDeLey").GetProperty("horas").GetInt32().Should().Be(8);
+        advertencia.GetProperty("valorDeLey").GetProperty("minutos").GetInt32().Should().Be(24);
+        advertencia.GetProperty("descripcion").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]

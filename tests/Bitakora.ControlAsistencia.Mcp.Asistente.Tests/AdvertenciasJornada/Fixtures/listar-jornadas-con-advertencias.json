@@ -1,0 +1,42 @@
+{
+  "elementos": [
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000001",
+      "horasSemanales": { "horas": 44, "minutos": 0 },
+      "topeDiario": { "horas": 9, "minutos": 0 },
+      "minimoDiario": { "horas": 0, "minutos": 0 },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "44:00 semanales, tope diario 9:00, minimo diario 0:00, 1 dia de descanso por semana, Ordinaria",
+      "esPredeterminada": false,
+      "activa": true,
+      "modalidad": "Ordinaria",
+      "advertencias": [
+        { "tipo": "SuperaTopeDiarioDeLaModalidad", "magnitud": { "horas": 0, "minutos": 36 }, "valorDeLey": { "horas": 8, "minutos": 24 }, "descripcion": "El tope diario (9:00) supera en 0:36 el de la modalidad Ordinaria (8:24)" },
+        { "tipo": "SuperaHorasSemanalesDeLaModalidad", "magnitud": { "horas": 2, "minutos": 0 }, "valorDeLey": { "horas": 42, "minutos": 0 }, "descripcion": "Las horas semanales (44:00) superan en 2:00 el techo de la modalidad Ordinaria (42:00)" }
+      ]
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000002",
+      "horasSemanales": { "horas": 36, "minutos": 0 },
+      "topeDiario": { "horas": 8, "minutos": 0 },
+      "minimoDiario": { "horas": 0, "minutos": 0 },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "36:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana",
+      "esPredeterminada": false,
+      "activa": true,
+      "advertencias": []
+    },
+    {
+      "jornadaId": "01a08700-0000-7000-9000-000000000003",
+      "horasSemanales": { "horas": 36, "minutos": 0 },
+      "topeDiario": { "horas": 8, "minutos": 0 },
+      "minimoDiario": { "horas": 0, "minutos": 0 },
+      "diasDescansoPorSemana": 1,
+      "descripcion": "36:00 semanales, tope diario 8:00, minimo diario 0:00, 1 dia de descanso por semana, Flexible",
+      "esPredeterminada": false,
+      "activa": true,
+      "modalidad": "Flexible"
+    }
+  ],
+  "siguienteCursor": null
+}

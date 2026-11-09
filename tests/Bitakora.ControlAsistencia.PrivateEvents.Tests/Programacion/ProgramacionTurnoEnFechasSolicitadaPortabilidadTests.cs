@@ -61,4 +61,40 @@ public class ProgramacionTurnoEnFechasSolicitadaPortabilidadTests
         restaurado!.Sede.Should().BeNull();
         restaurado.Fechas.Should().Equal(Fecha1);
     }
+
+    [Fact]
+    public void RoundTrip_PreservaLaEstampaDeLaJornada_ConSerializadorPorDefectoDelBus()
+    {
+        var jornada = new DetalleJornada(JornadaId, 2520, 510, 240, 1, "Flexible", true, 540, 240, 2520);
+        var evento = new ProgramacionTurnoEnFechasSolicitada(SolicitudId, Colaborador, [Fecha1], Turno, jornada);
+        var opciones = CrearOpcionesBus();
+
+        var json = JsonSerializer.Serialize(evento, opciones);
+        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoEnFechasSolicitada>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.Jornada.Should().Be(jornada);
+        restaurado.Jornada!.Modalidad.Should().Be("Flexible");
+        restaurado.Jornada.TopeDiarioDeLeyEnMinutos.Should().Be(540);
+        restaurado.Jornada.MinimoDiarioDeLeyEnMinutos.Should().Be(240);
+        restaurado.Jornada.HorasSemanalesDeLeyEnMinutos.Should().Be(2520);
+    }
+
+    [Fact]
+    public void Deserializar_DejaModalidadNulaMarcaFalsaYLeyNula_CuandoElMensajeEnVueloNoTraeLosCamposNuevos()
+    {
+        var json = """
+            {"jornadaId":"019600f0-0000-7000-8000-000000001338","horasSemanalesEnMinutos":2520,
+             "topeDiarioEnMinutos":510,"minimoDiarioEnMinutos":240,"diasDescansoPorSemana":1}
+            """;
+
+        var restaurado = JsonSerializer.Deserialize<DetalleJornada>(json, CrearOpcionesBus());
+
+        restaurado.Should().Be(new DetalleJornada(JornadaId, 2520, 510, 240, 1));
+        restaurado!.Modalidad.Should().BeNull();
+        restaurado.DescansoAcumulado.Should().BeFalse();
+        restaurado.TopeDiarioDeLeyEnMinutos.Should().BeNull();
+        restaurado.MinimoDiarioDeLeyEnMinutos.Should().BeNull();
+        restaurado.HorasSemanalesDeLeyEnMinutos.Should().BeNull();
+    }
 }
