@@ -4,7 +4,10 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-07 (sesion planner, refinar #1435 -> CA-ADR-0046: la identidad de la
+# Ultima actualizacion: 2026-11-07 (sesion planner, refinar #1436 y desglose #1461-#1463: valores del
+#   catalogo de Modalidad de jornada (ExcluidaDeJornadaMaxima para el art. 162); se asigna, se quita o se
+#   declara al crear; la descripcion de la Jornada la incluye. Tocada: Modalidad de jornada.)
+# Actualizacion previa: 2026-11-07 (sesion planner, refinar #1435 -> CA-ADR-0046: la identidad de la
 #   Jornada pasa a limites + Modalidad de jornada + marca de Descanso acumulado (unicidad); la Ordinaria
 #   admite repartir la semana en 5 dias (tope diario de ley = techo semanal / 5, 8,4 h con 42 h); la
 #   plantilla juzga los techos semanales de ley sobre la peor ventana circular de 7 dias, sin promedio.
@@ -1400,6 +1403,13 @@ terms:
       dias es comun (administrativos) y el 161 autoriza distribuirla "en 5 o 6 dias". Lectura a validar
       con el abogado. Ninguna modalidad del primer catalogo promedia entre semanas (el promedio entre
       semanas es del art. 165, #1444).
+      VALORES (2026-11-07, refinamiento de #1436): Ordinaria, Flexible, TurnosSucesivos,
+      SinSolucionDeContinuidad y ExcluidaDeJornadaMaxima (art. 162; "Excluidos" nombra a los
+      trabajadores, no a la modalidad; descartados "Excluida", ambiguo, y "SinJornadaMaxima", que nombra
+      el efecto y no la figura). Catalogo cerrado ModalidadJornada, patron de MotivoAusencia. Se asigna
+      (PUT) o se quita (DELETE) sobre programacion/jornadas/{id}/modalidad, o se declara opcional al crear
+      la Jornada; la descripcion de la Jornada la incluye para distinguir Jornadas con los mismos limites.
+      Issues #1436, #1461 (crear), #1462 (catalogo de limites), #1463 (asistente).
 
   - name: Descanso acumulado
     definition: >
