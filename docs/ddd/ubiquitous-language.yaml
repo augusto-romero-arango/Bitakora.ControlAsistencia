@@ -4,7 +4,10 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-07 (sesion planner, refinar #1436 y desglose #1461-#1463: valores del
+# Ultima actualizacion: 2026-11-07 (sesion planner, refinar #1437 y desglose #1466-#1468: Descanso
+#   acumulado como atributo propio con PUT/DELETE programacion/jornadas/{id}/descanso-acumulado; se puede
+#   marcar sin modalidad, sin efecto. Tocada: Descanso acumulado.)
+# Actualizacion previa: 2026-11-07 (sesion planner, refinar #1436 y desglose #1461-#1463: valores del
 #   catalogo de Modalidad de jornada (ExcluidaDeJornadaMaxima para el art. 162); se asigna, se quita o se
 #   declara al crear; la descripcion de la Jornada la incluye. Tocada: Modalidad de jornada.)
 # Actualizacion previa: 2026-11-07 (sesion planner, refinar #1435 -> CA-ADR-0046: la identidad de la
@@ -1423,6 +1426,12 @@ terms:
       El art. 184 habla de labores que no pueden suspenderse "como los viajes fluviales o maritimos";
       su alcance fuera de esos ejemplos no esta verificado (validar con abogado). El experto prefirio la
       marca a advertir siempre. Issues #1437, #1442.
+      REFINAMIENTO DE #1437 (2026-11-07): atributo propio, no parte de la declaracion de modalidad (el
+      experto descarto unirlos para no enmendar la decision 7 de CA-ADR-0046). Se marca (PUT) o desmarca
+      (DELETE) sobre programacion/jornadas/{id}/descanso-acumulado; verbos marcar/desmarcar. Se puede
+      marcar sin modalidad, pero solo surte efecto con ella (sin modalidad no hay advertencias de ley).
+      Entra en la identidad de la Jornada y en su descripcion ("con descanso acumulado"). Issues #1466
+      (crear), #1467 (catalogo de limites), #1468 (asistente).
 
   - name: Jornada predeterminada
     definition: >
