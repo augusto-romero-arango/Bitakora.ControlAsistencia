@@ -4,7 +4,10 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1441 y desglose #1486: la plantilla copia la
+# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1442 y desglose #1488-#1489: semana sin dia de
+#   descanso (172) solo sin marca; deuda del Descanso acumulado medida por racha, aparte. Tocada: Descanso
+#   acumulado.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1441 y desglose #1486: la plantilla copia la
 #   modalidad por LimitesDeJornadaActualizados (foto completa) y se audita contra la ley con la peor ventana
 #   circular de 7 dias. Tocada: Advertencias de plantilla.)
 # Actualizacion previa: 2026-11-08 (sesion planner, refinar #1440 y desglose #1481: capa de ley en las
@@ -1455,6 +1458,12 @@ terms:
       marcar sin modalidad, pero solo surte efecto con ella (sin modalidad no hay advertencias de ley).
       Entra en la identidad de la Jornada y en su descripcion ("con descanso acumulado"). Issues #1466
       (crear), #1467 (catalogo de limites), #1468 (asistente).
+      REFINAMIENTO DE #1442 (2026-11-08): la semana de trabajo continuo NO advierte con la marca (el experto:
+      20x10 y similares no exigen descanso semanal). Sin marca, con modalidad, la semana con sus 7 dias de
+      trabajo advierte SemanaSinDiaDeDescanso (art. 172; ausencia y dia sin programar no disparan). La deuda
+      del 184 se mide por RACHA de dias de trabajo seguidos: un dia de descanso por cada 7 dias de racha, en
+      los 7 dias siguientes al fin de la racha (20x10 y 14x14 pagan; 21x1 no). Cruza semanas: #1488. Plantilla:
+      #1489 (copia la marca).
 
   - name: Advertencias de la Jornada
     definition: >
