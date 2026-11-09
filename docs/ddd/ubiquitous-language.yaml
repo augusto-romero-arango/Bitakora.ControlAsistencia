@@ -4,7 +4,9 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1438 y desglose #1477: se ACUNA Advertencias de
+# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1439: la estampa copia modalidad, marca y
+#   ficha de ley vigente, sin vigencias por fecha; extras a #1443. Tocada: Modalidad de jornada.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1438 y desglose #1477: se ACUNA Advertencias de
 #   la Jornada, capa de ley sobre los parametros de la Jornada contra su modalidad, derivadas al leer y
 #   sin regla de descansos. Tocada: Advertencias de la Jornada.)
 # Actualizacion previa: 2026-11-07 (sesion planner, refinar #1437 y desglose #1466-#1468: Descanso
@@ -1416,6 +1418,12 @@ terms:
       (PUT) o se quita (DELETE) sobre programacion/jornadas/{id}/modalidad, o se declara opcional al crear
       la Jornada; la descripcion de la Jornada la incluye para distinguir Jornadas con los mismos limites.
       Issues #1436, #1461 (crear), #1462 (catalogo de limites), #1463 (asistente).
+      ESTAMPA (refinamiento de #1439, 2026-11-08): al programar se copia en JornadaProgramada la
+      modalidad, la marca de Descanso acumulado y la FICHA DE LEY de la modalidad (tope diario, minimo
+      diario y techo semanal de ley; null = sin valor de ley), por valor: corregir el catalogo no cambia lo
+      estampado. Se estampa la ficha VIGENTE (42 h), sin vigencias por fecha: una solicitud lleva una sola
+      estampa y no hay dias reales anteriores al 15-jul-2026 (solo dev). Los topes de extras (167A) entran
+      con #1443.
 
   - name: Descanso acumulado
     definition: >
