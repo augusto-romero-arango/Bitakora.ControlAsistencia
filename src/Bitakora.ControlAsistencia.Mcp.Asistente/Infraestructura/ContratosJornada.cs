@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
@@ -17,18 +18,47 @@ public sealed record JornadaACrear(
     HorasYMinutosJornada HorasSemanales,
     HorasYMinutosJornada TopeDiario,
     HorasYMinutosJornada MinimoDiario,
-    int DiasDescansoPorSemana);
+    int DiasDescansoPorSemana,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? Modalidad = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    bool? DescansoAcumulado = null);
 
 public sealed record JornadaDelCatalogo(
-    string JornadaId, string Descripcion, bool EsPredeterminada, bool Activa = true)
+    string JornadaId, string Descripcion, bool EsPredeterminada, bool Activa = true, string? Modalidad = null,
+    bool DescansoAcumulado = false, IReadOnlyList<AdvertenciaDelCatalogo>? Advertencias = null)
 {
-    public JornadaDescrita Describir() => new(JornadaId, Descripcion, EsPredeterminada);
+    public JornadaDescrita Describir() => new(
+        JornadaId, Descripcion, EsPredeterminada, Modalidad, DescansoAcumulado,
+        Advertencias is { Count: > 0 } ? Advertencias.Select(a => a.Descripcion).ToList() : null);
+}
+
+public sealed record AdvertenciaDelCatalogo(string Descripcion);
+
+public static class ModalidadesDeJornada
+{
+    public const string Enumeradas =
+        "Ordinaria, Flexible, TurnosSucesivos, SinSolucionDeContinuidad o ExcluidaDeJornadaMaxima";
+
+    private static readonly string[] Reconocidas =
+        ["Ordinaria", "Flexible", "TurnosSucesivos", "SinSolucionDeContinuidad", "ExcluidaDeJornadaMaxima"];
+
+    public static bool TryNormalizar(string? texto, [NotNullWhen(true)] out string? modalidad)
+    {
+        modalidad = Reconocidas.FirstOrDefault(
+            m => string.Equals(m, texto?.Trim(), StringComparison.OrdinalIgnoreCase));
+        return modalidad is not null;
+    }
 }
 
 public sealed record JornadaDescrita(
     [property: JsonPropertyName("jornada_id")] string JornadaId,
     string Descripcion,
-    [property: JsonPropertyName("es_predeterminada")] bool EsPredeterminada)
+    [property: JsonPropertyName("es_predeterminada")] bool EsPredeterminada,
+    string? Modalidad = null,
+    [property: JsonPropertyName("descanso_acumulado")] bool DescansoAcumulado = false,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyList<string>? Advertencias = null)
 {
     public JornadaDescritaResumen Resumir() => new(JornadaId, Descripcion);
 }

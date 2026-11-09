@@ -126,7 +126,10 @@ public sealed class PostgresFixture : IAsyncLifetime
 
         var conexiones = new Dictionary<string, long>
         {
-            ["pg total"] = 0, ["pg activas"] = 0, ["pg inactivas"] = 0, ["pg en transaccion"] = 0
+            ["pg total"] = 0,
+            ["pg activas"] = 0,
+            ["pg inactivas"] = 0,
+            ["pg en transaccion"] = 0
         };
         while (await lector.ReadAsync(ct))
         {

@@ -131,6 +131,155 @@ public class CrearJornadaSmokeTests(ApiFixture api, PostgresFixture postgres) : 
             .Should().ContainSingle();
     }
 
+    private static object PayloadConModalidad(FirmaDeLimites firma, Guid id, string? modalidad) => new
+    {
+        jornadaId = id,
+        horasSemanales = new { horas = firma.SemanalesHoras, minutos = firma.SemanalesMinutos },
+        topeDiario = new { horas = firma.TopeHoras, minutos = firma.TopeMinutos },
+        minimoDiario = new { horas = firma.MinimoHoras, minutos = firma.MinimoMinutos },
+        diasDescansoPorSemana = firma.DiasDescansoPorSemana,
+        modalidad
+    };
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeRetornar201YExponerLaModalidad_CuandoLaModalidadEsValida()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var ct = TestContext.Current.CancellationToken;
+        var id = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync(Ruta,
+            PayloadConModalidad(LimitesDePrueba.CrearConModalidadPersiste, id, "Ordinaria"), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location!.ToString().Should().EndWith($"/programacion/jornadas/{id}");
+        (await postgres.ContarEventosDeStreamAsync(
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, id.ToString())).Should().Be(2);
+        var lectura = await _client.GetAsync($"{Ruta}/{id}", ct);
+        lectura.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var json = JsonDocument.Parse(await lectura.Content.ReadAsStringAsync(ct));
+        json.RootElement.GetProperty("modalidad").GetString().Should().Be("Ordinaria");
+        json.RootElement.GetProperty("descripcion").GetString().Should().Contain("Ordinaria");
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeRetornar400_CuandoLaModalidadNoEsReconocida()
+    {
+        var response = await _client.PostAsJsonAsync(Ruta,
+            PayloadConModalidad(LimitesDePrueba.CrearConModalidadNoReconocida, Guid.CreateVersion7(),
+                "[TEST] Inexistente"),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeJuzgarLaIdentidadCompleta_CuandoLosLimitesCoincidenConOtraJornada()
+    {
+        var firma = LimitesDePrueba.CrearConModalidadIdentidadCompleta;
+        var ct = TestContext.Current.CancellationToken;
+        var idOrdinaria = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync(Ruta, PayloadConModalidad(firma, idOrdinaria, "Ordinaria"), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        var idFlexible = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync(Ruta, PayloadConModalidad(firma, idFlexible, "Flexible"), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        (await Polling.WaitUntilTrueAsync(async () =>
+        {
+            var ids = (await ListarAsync(ct)).Select(e => e.GetProperty("jornadaId").GetGuid()).ToArray();
+            return ids.Contains(idOrdinaria) && ids.Contains(idFlexible);
+        }, Timeout)).Should().BeTrue("las Jornadas del arrange deben estar en la lectura");
+
+        var repetida = await _client.PostAsJsonAsync(Ruta,
+            PayloadConModalidad(firma, Guid.CreateVersion7(), "Ordinaria"), ct);
+        var sinModalidad = await _client.PostAsJsonAsync(Ruta,
+            PayloadConModalidad(firma, Guid.CreateVersion7(), null), ct);
+
+        repetida.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await repetida.Content.ReadAsStringAsync(ct)).Should().Contain(idOrdinaria.ToString());
+        sinModalidad.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    private static object PayloadConMarca(FirmaDeLimites firma, Guid id, bool? descansoAcumulado) => new
+    {
+        jornadaId = id,
+        horasSemanales = new { horas = firma.SemanalesHoras, minutos = firma.SemanalesMinutos },
+        topeDiario = new { horas = firma.TopeHoras, minutos = firma.TopeMinutos },
+        minimoDiario = new { horas = firma.MinimoHoras, minutos = firma.MinimoMinutos },
+        diasDescansoPorSemana = firma.DiasDescansoPorSemana,
+        descansoAcumulado
+    };
+
+    private async Task<bool> LeerDescansoAcumuladoAsync(Guid id, CancellationToken ct)
+    {
+        var lectura = await _client.GetAsync($"{Ruta}/{id}", ct);
+        lectura.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var json = JsonDocument.Parse(await lectura.Content.ReadAsStringAsync(ct));
+        return json.RootElement.GetProperty("descansoAcumulado").GetBoolean();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeRetornar201YMostrarLaJornadaMarcada_CuandoDeclaraDescansoAcumulado()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var ct = TestContext.Current.CancellationToken;
+        var id = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync(Ruta,
+            PayloadConMarca(LimitesDePrueba.CrearMarcadaPersiste, id, true), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location!.ToString().Should().EndWith($"/programacion/jornadas/{id}");
+        (await postgres.ContarEventosDeStreamAsync(
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, id.ToString())).Should().Be(2);
+        (await LeerDescansoAcumuladoAsync(id, ct)).Should().BeTrue();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeRetornar201SinEventoDeMarca_CuandoDescansoAcumuladoEsFalso()
+    {
+        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
+        var ct = TestContext.Current.CancellationToken;
+        var id = Guid.CreateVersion7();
+
+        var response = await _client.PostAsJsonAsync(Ruta,
+            PayloadConMarca(LimitesDePrueba.CrearSinMarcaNoEmiteEvento, id, false), ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        (await postgres.ContarEventosDeStreamAsync(
+            PostgresFixture.SchemaProgramacion, _tenant.TenantId, id.ToString())).Should().Be(1);
+        (await LeerDescansoAcumuladoAsync(id, ct)).Should().BeFalse();
+    }
+
+    [Fact]
+    [Trait("Category", "Smoke")]
+    public async Task CrearJornada_DebeJuzgarLaMarcaEnLaIdentidad_CuandoLosLimitesCoincidenConOtraJornada()
+    {
+        var firma = LimitesDePrueba.CrearMarcadaIdentidad;
+        var ct = TestContext.Current.CancellationToken;
+        var idSinMarca = Guid.CreateVersion7();
+        (await _client.PostAsJsonAsync(Ruta, PayloadConMarca(firma, idSinMarca, null), ct))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        var idMarcada = Guid.CreateVersion7();
+        var marcada = await _client.PostAsJsonAsync(Ruta, PayloadConMarca(firma, idMarcada, true), ct);
+        marcada.StatusCode.Should().Be(HttpStatusCode.Created);
+        (await Polling.WaitUntilTrueAsync(async () =>
+        {
+            var ids = (await ListarAsync(ct)).Select(e => e.GetProperty("jornadaId").GetGuid()).ToArray();
+            return ids.Contains(idSinMarca) && ids.Contains(idMarcada);
+        }, Timeout)).Should().BeTrue("las Jornadas del arrange deben estar en la lectura");
+
+        var repetida = await _client.PostAsJsonAsync(Ruta, PayloadConMarca(firma, Guid.CreateVersion7(), true), ct);
+
+        repetida.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await repetida.Content.ReadAsStringAsync(ct)).Should().Contain(idMarcada.ToString());
+    }
+
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearJornada_DebeRetornar400_CuandoMinutosDelTopeSonInvalidos()

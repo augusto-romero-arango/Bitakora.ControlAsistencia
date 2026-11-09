@@ -5,4 +5,9 @@ public record JornadaProgramada(
     int HorasSemanalesEnMinutos,
     int TopeDiarioEnMinutos,
     int MinimoDiarioEnMinutos,
-    int DiasDescansoPorSemana);
+    int DiasDescansoPorSemana,
+    string? Modalidad = null,
+    bool DescansoAcumulado = false,
+    int? TopeDiarioDeLeyEnMinutos = null,
+    int? MinimoDiarioDeLeyEnMinutos = null,
+    int? HorasSemanalesDeLeyEnMinutos = null);

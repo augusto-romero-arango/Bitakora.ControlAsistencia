@@ -15,7 +15,7 @@ public sealed partial class LimitesDeJornadaProjection : SingleStreamProjection<
         Proyectar(e.StreamKey!, e.Data.Limites);
 
     public static LimitesDeJornada Apply(LimitesJornadaModificados e, LimitesDeJornada vista) =>
-        Proyectar(vista.Id, e.Limites) with { Activa = vista.Activa };
+        Proyectar(vista.Id, e.Limites, ModalidadDe(vista), vista.DescansoAcumulado) with { Activa = vista.Activa };
 
     public static LimitesDeJornada Apply(JornadaDesactivada e, LimitesDeJornada vista) =>
         vista with { Activa = false };
@@ -23,13 +23,45 @@ public sealed partial class LimitesDeJornadaProjection : SingleStreamProjection<
     public static LimitesDeJornada Apply(JornadaActivada e, LimitesDeJornada vista) =>
         vista with { Activa = true };
 
-    private static LimitesDeJornada Proyectar(string id, LimitesJornada limites) =>
-        new(id,
-            MinutosTotales(limites.HorasSemanales),
-            MinutosTotales(limites.TopeDiario),
-            MinutosTotales(limites.MinimoDiario),
-            limites.DiasDescansoPorSemana,
-            limites.ToString());
+    public static LimitesDeJornada Apply(ModalidadDeJornadaAsignada e, LimitesDeJornada vista) =>
+        Recomponer(vista, e.Modalidad, vista.DescansoAcumulado);
 
-    private static int MinutosTotales(HorasYMinutos tiempo) => tiempo.Horas * 60 + tiempo.Minutos;
+    public static LimitesDeJornada Apply(ModalidadDeJornadaQuitada e, LimitesDeJornada vista) =>
+        Recomponer(vista, null, vista.DescansoAcumulado);
+
+    public static LimitesDeJornada Apply(DescansoAcumuladoDeJornadaMarcado e, LimitesDeJornada vista) =>
+        Recomponer(vista, ModalidadDe(vista), true);
+
+    public static LimitesDeJornada Apply(DescansoAcumuladoDeJornadaDesmarcado e, LimitesDeJornada vista) =>
+        Recomponer(vista, ModalidadDe(vista), false);
+
+    private static LimitesDeJornada Recomponer(LimitesDeJornada vista, ModalidadJornada? modalidad, bool descansoAcumulado) =>
+        vista with
+        {
+            Modalidad = modalidad?.Nombre,
+            DescansoAcumulado = descansoAcumulado,
+            Descripcion = DescripcionJornada.Componer(LimitesDe(vista), modalidad, descansoAcumulado),
+        };
+
+    private static ModalidadJornada? ModalidadDe(LimitesDeJornada vista) =>
+        vista.Modalidad is null ? null : ModalidadJornada.Desde(vista.Modalidad);
+
+    private static LimitesJornada LimitesDe(LimitesDeJornada vista) =>
+        LimitesJornada.Crear(
+            DeMinutos(vista.HorasSemanalesEnMinutos),
+            DeMinutos(vista.TopeDiarioEnMinutos),
+            DeMinutos(vista.MinimoDiarioEnMinutos),
+            vista.DiasDescansoPorSemana);
+
+    private static HorasYMinutos DeMinutos(int minutos) => HorasYMinutos.Crear(minutos / 60, minutos % 60);
+
+    private static LimitesDeJornada Proyectar(string id, LimitesJornada limites, ModalidadJornada? modalidad = null, bool descansoAcumulado = false) =>
+        new(id,
+            limites.HorasSemanales.TotalMinutos(),
+            limites.TopeDiario.TotalMinutos(),
+            limites.MinimoDiario.TotalMinutos(),
+            limites.DiasDescansoPorSemana,
+            DescripcionJornada.Componer(limites, modalidad, descansoAcumulado),
+            Modalidad: modalidad?.Nombre,
+            DescansoAcumulado: descansoAcumulado);
 }
