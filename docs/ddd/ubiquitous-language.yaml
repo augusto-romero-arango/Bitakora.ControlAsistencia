@@ -4,7 +4,10 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1439: la estampa copia modalidad, marca y
+# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1440 y desglose #1481: capa de ley en las
+#   Advertencias de la programacion semanal (sufijo DeLaModalidad); #1440 antes de #1411. Tocada:
+#   Advertencias de la programacion semanal.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1439: la estampa copia modalidad, marca y
 #   ficha de ley vigente, sin vigencias por fecha; extras a #1443. Tocada: Modalidad de jornada.)
 # Actualizacion previa: 2026-11-08 (sesion planner, refinar #1438 y desglose #1477: se ACUNA Advertencias de
 #   la Jornada, capa de ley sobre los parametros de la Jornada contra su modalidad, derivadas al leer y
@@ -1550,6 +1553,11 @@ terms:
       Refinamiento 2026-10-21 (#1128): advertencia diaria PorDebajoDelDescansoEntreTurnos (ver
       "Descanso entre turnos"). Es la primera que NO se mide contra la Jornada: sale tambien en
       una semana sin Jornada y no cambia si la semana es juzgable.
+      CAPA DE LEY (refinamiento de #1440, 2026-11-08): con Jornada estampada con modalidad (#1439) nacen
+      SuperaHorasSemanalesDeLaModalidad (toda semana, juzgable o no; solo techo), SuperaTopeDiarioDeLaModalidad
+      y PorDebajoDelMinimoDiarioDeLaModalidad (dias de trabajo), en el mismo CalculadorAdvertencias y en las
+      mismas listas, distinguidas por tipo y texto de las pactadas (conviven en el mismo dia). Sin modalidad o
+      con ExcluidaDeJornadaMaxima, ninguna. Va antes de #1411 (borrador). Asistente: #1481.
 
   - name: Descanso entre turnos
     definition: >
