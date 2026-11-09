@@ -106,7 +106,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
             // (CA-ADR-0029 decision #5, payload por rol).
             var eventoPrivado = new ProgramacionTurnoEnFechasSolicitada(
                 command.Id, colaborador, enFirme.AsReadOnly(), MapearTurno(turnoProgramado),
-                MapearJornada(jornadaProgramada), MapearSede(sedeSolicitada));
+                DetalleJornadaMapeo.Mapear(jornadaProgramada), MapearSede(sedeSolicitada));
 
             await _privateEventSender.PublishAsync(new PublishOptions { GroupId = colaborador.CodigoColaborador }, eventoPrivado);
         }
@@ -145,10 +145,4 @@ public partial class SolicitarProgramacionTurnoCommandHandler
     private static DetalleSede? MapearSede(SedeProgramada? sede) =>
         sede is null ? null : new DetalleSede(sede.Id, sede.Nombre, sede.CentroDeCostos);
 
-    private static DetalleJornada MapearJornada(JornadaProgramada jornada) =>
-        new(jornada.JornadaId,
-            jornada.Limites.HorasSemanales.TotalMinutos(),
-            jornada.Limites.TopeDiario.TotalMinutos(),
-            jornada.Limites.MinimoDiario.TotalMinutos(),
-            jornada.Limites.DiasDescansoPorSemana);
 }

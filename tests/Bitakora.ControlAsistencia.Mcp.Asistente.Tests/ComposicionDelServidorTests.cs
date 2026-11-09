@@ -55,7 +55,9 @@ public class ComposicionDelServidorTests
                 "quitar_jornada_de_plantilla", "retirar_plantilla",
                 "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
                 "modificar_ventana_de_entrada", "crear_turno_de_horario_abierto",
-                "asignar_etiqueta", "retirar_etiqueta"
+                "asignar_etiqueta", "retirar_etiqueta",
+                "asignar_modalidad_a_jornada", "quitar_modalidad_de_jornada",
+                "marcar_descanso_acumulado_de_jornada", "desmarcar_descanso_acumulado_de_jornada"
             ]);
     }
 
@@ -94,13 +96,93 @@ public class ComposicionDelServidorTests
     public void CrearJornada_DeclaraLosCuatroLimitesComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("crear_jornada").Should().BeEquivalentTo(
             [("horas_semanales", true), ("tope_diario", true), ("minimo_diario", true),
-             ("dias_descanso_por_semana", true)]);
+             ("dias_descanso_por_semana", true), ("modalidad", false), ("descanso_acumulado", false)]);
 
     [Fact]
     public void ModificarLimitesJornada_DeclaraElIdYLosCuatroLimitesComoObligatorios_CuandoSeInspeccionaLaTool() =>
         PropiedadesDe("modificar_limites_jornada").Should().BeEquivalentTo(
             [("jornada_id", true), ("horas_semanales", true), ("tope_diario", true), ("minimo_diario", true),
              ("dias_descanso_por_semana", true)]);
+
+    [Fact]
+    public void AsignarModalidadAJornada_DeclaraElIdYLaModalidadComoObligatorios_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("asignar_modalidad_a_jornada").Should().BeEquivalentTo([("jornada_id", true), ("modalidad", true)]);
+
+    [Fact]
+    public void QuitarModalidadDeJornada_DeclaraElIdComoObligatorio_CuandoSeInspeccionaLaTool() =>
+        PropiedadesDe("quitar_modalidad_de_jornada").Should().BeEquivalentTo([("jornada_id", true)]);
+
+    [Fact]
+    public void CrearJornada_DeclaraLaModalidadComoOpcionalDeTipoString_CuandoSeInspeccionaLaTool()
+    {
+        PropiedadesDe("crear_jornada").Should().Contain(("modalidad", false));
+        ParametrosDeTool("crear_jornada")
+            .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "modalidad")
+            .ParameterType.Should().Be(typeof(string));
+    }
+
+    [Fact]
+    public void ToolsDeDescansoAcumulado_DeclaranElIdComoObligatorio_CuandoSeInspeccionanLasTools()
+    {
+        PropiedadesDe("marcar_descanso_acumulado_de_jornada").Should().BeEquivalentTo([("jornada_id", true)]);
+        PropiedadesDe("desmarcar_descanso_acumulado_de_jornada").Should().BeEquivalentTo([("jornada_id", true)]);
+    }
+
+    [Fact]
+    public void CrearJornada_DeclaraElDescansoAcumuladoComoOpcionalDeTipoBool_CuandoSeInspeccionaLaTool()
+    {
+        PropiedadesDe("crear_jornada").Should().Contain(("descanso_acumulado", false));
+        ParametrosDeTool("crear_jornada")
+            .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "descanso_acumulado")
+            .ParameterType.Should().Be(typeof(bool?));
+    }
+
+    [Fact]
+    public void ToolsDeDescansoAcumulado_PublicanHintsIdempotentes_CuandoSeInspeccionanLasTools()
+    {
+        foreach (var nombre in new[] { "marcar_descanso_acumulado_de_jornada", "desmarcar_descanso_acumulado_de_jornada" })
+        {
+            var hints = ParametroTrigger(MetodoDe(nombre))!.GetCustomAttribute<McpMetadataAttribute>()!.Json;
+            hints.Should().Contain("\"readOnlyHint\": false, \"destructiveHint\": false");
+            hints.Should().Contain("\"idempotentHint\": true");
+        }
+    }
+
+    [Fact]
+    public void HostJson_MencionaLasToolsDeDescansoAcumulado_CuandoSeLeenLasInstrucciones()
+    {
+        LeerHostJson().Should().Contain("marcar_descanso_acumulado_de_jornada");
+        LeerHostJson().Should().Contain("desmarcar_descanso_acumulado_de_jornada");
+    }
+
+    [Fact]
+    public void ToolsDeModalidad_PublicanHintsIdempotentes_CuandoSeInspeccionanLasTools()
+    {
+        foreach (var nombre in new[] { "asignar_modalidad_a_jornada", "quitar_modalidad_de_jornada" })
+        {
+            var hints = ParametroTrigger(MetodoDe(nombre))!.GetCustomAttribute<McpMetadataAttribute>()!.Json;
+            hints.Should().Contain("\"readOnlyHint\": false, \"destructiveHint\": false");
+            hints.Should().Contain("\"idempotentHint\": true");
+        }
+    }
+
+    [Fact]
+    public void HostJson_MencionaLasToolsDeModalidad_CuandoSeLeenLasInstrucciones()
+    {
+        LeerHostJson().Should().Contain("asignar_modalidad_a_jornada");
+        LeerHostJson().Should().Contain("quitar_modalidad_de_jornada");
+    }
+
+    [Fact]
+    public void ListarJornadas_DescribeQueSinAdvertenciasNoEsConformeALaLey_CuandoSeInspeccionaLaTool() =>
+        ParametroTrigger(MetodoDe("listar_jornadas"))!.GetCustomAttribute<McpToolTriggerAttribute>()!.Description
+            .Should().Contain("advertencias").And.Contain("sin advertencias contra la modalidad")
+            .And.Contain("nunca 'conforme a la ley'");
+
+    [Fact]
+    public void HostJson_DiceQueSinAdvertenciasNoEsConformeALaLey_CuandoSeLeenLasInstrucciones() =>
+        LeerHostJson().Should().Contain("sin advertencias contra la modalidad")
+            .And.Contain("nunca 'conforme a la ley'");
 
     [Fact]
     public void ModificarVentanaDeEntrada_DeclaraTurnoIdYAmplitudComoObligatorios_CuandoSeInspeccionaLaTool() =>

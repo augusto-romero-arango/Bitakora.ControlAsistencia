@@ -26,7 +26,7 @@ public class CrearJornadaToolTests
     {
         var (tool, handler) = CrearTool();
 
-        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", 1, TestContext.Current.CancellationToken);
+        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", 1, null, null, TestContext.Current.CancellationToken);
 
         var post = handler.Requests.First(r => r.Metodo == HttpMethod.Post);
         post.Ruta.Should().Be(RutaJornadas);
@@ -49,11 +49,47 @@ public class CrearJornadaToolTests
     }
 
     [Fact]
+    public async Task CrearJornada_EnviaLaModalidadEnElPost_CuandoSeDeclara()
+    {
+        var (tool, handler) = CrearTool();
+
+        await tool.Run(null!, "42:00", "8:00", "0:00", 1, "Flexible", null, TestContext.Current.CancellationToken);
+
+        var post = handler.Requests.First(r => r.Metodo == HttpMethod.Post);
+        JsonNode.Parse(post.Cuerpo!)!["modalidad"]!.GetValue<string>().Should().Be("Flexible");
+    }
+
+    [Fact]
+    public async Task CrearJornada_RespondeFraseSinLlamarAlServidor_CuandoLaModalidadNoSeReconoce()
+    {
+        var (tool, handler) = CrearTool();
+
+        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", 1, "Rara", null, TestContext.Current.CancellationToken);
+
+        resultado.Should().Be(string.Format(CrearJornadaTool.Mensajes.ModalidadInvalida, "Rara"));
+        handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CrearJornada_DevuelveLaModalidad_CuandoElGetLaTrae()
+    {
+        var (cliente, handler) = ClienteFalso.ConRutas();
+        handler.Responde(HttpMethod.Post, RutaJornadas, HttpStatusCode.Created);
+        handler.RespondeConPrefijo(
+            HttpMethod.Get, RutaJornadas + "/", HttpStatusCode.OK, Fixtures.Leer("CrearJornada", "jornada-con-modalidad.json"));
+        var tool = new CrearJornadaTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", 1, "Ordinaria", null, TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!["modalidad"]!.GetValue<string>().Should().Be("Ordinaria");
+    }
+
+    [Fact]
     public async Task CrearJornada_RespondeFraseSinLlamarAlServidor_CuandoUnaDuracionEsInvalida()
     {
         var (tool, handler) = CrearTool();
 
-        var resultado = await tool.Run(null!, "42:00", "8h", "0:00", 1, TestContext.Current.CancellationToken);
+        var resultado = await tool.Run(null!, "42:00", "8h", "0:00", 1, null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearJornadaTool.Mensajes.DuracionInvalida, "tope_diario", "8h"));
         handler.Requests.Should().BeEmpty();
@@ -64,7 +100,7 @@ public class CrearJornadaToolTests
     {
         var (tool, handler) = CrearTool();
 
-        var resultado = await tool.Run(null!, "42:00", "8:00", "8:75", 1, TestContext.Current.CancellationToken);
+        var resultado = await tool.Run(null!, "42:00", "8:00", "8:75", 1, null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearJornadaTool.Mensajes.DuracionInvalida, "minimo_diario", "8:75"));
         handler.Requests.Should().BeEmpty();
@@ -75,7 +111,7 @@ public class CrearJornadaToolTests
     {
         var (tool, handler) = CrearTool();
 
-        var resultado = await tool.Run(null!, "abc", "8:00", "0:00", 1, TestContext.Current.CancellationToken);
+        var resultado = await tool.Run(null!, "abc", "8:00", "0:00", 1, null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearJornadaTool.Mensajes.DuracionInvalida, "horas_semanales", "abc"));
         handler.Requests.Should().BeEmpty();
@@ -86,7 +122,7 @@ public class CrearJornadaToolTests
     {
         var (tool, handler) = CrearTool();
 
-        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", 7, TestContext.Current.CancellationToken);
+        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", 7, null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearJornadaTool.Mensajes.DiasDescansoInvalido, 7));
         handler.Requests.Should().BeEmpty();
@@ -97,7 +133,7 @@ public class CrearJornadaToolTests
     {
         var (tool, handler) = CrearTool();
 
-        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", -1, TestContext.Current.CancellationToken);
+        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", -1, null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearJornadaTool.Mensajes.DiasDescansoInvalido, -1));
         handler.Requests.Should().BeEmpty();
@@ -109,9 +145,56 @@ public class CrearJornadaToolTests
         const string cuerpo = "Ya existe la Jornada 01a08700-0000-7000-9000-000000000009 con esos limites";
         var (tool, handler) = CrearTool(HttpStatusCode.Conflict, cuerpo);
 
-        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", 1, TestContext.Current.CancellationToken);
+        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", 1, null, null, TestContext.Current.CancellationToken);
 
         resultado.Should().Be(string.Format(CrearJornadaTool.Mensajes.RechazoDelDominio, cuerpo));
         handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Get);
+    }
+
+    [Fact]
+    public async Task CrearJornada_EnviaElDescansoAcumuladoEnElPost_CuandoSeDeclara()
+    {
+        var (tool, handler) = CrearTool();
+
+        await tool.Run(null!, "42:00", "8:00", "0:00", 1, "Ordinaria", true, TestContext.Current.CancellationToken);
+
+        var post = handler.Requests.First(r => r.Metodo == HttpMethod.Post);
+        JsonNode.Parse(post.Cuerpo!)!["descansoAcumulado"]!.GetValue<bool>().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CrearJornada_OmiteElDescansoAcumuladoDelPost_CuandoNoSeDeclara()
+    {
+        var (tool, handler) = CrearTool();
+
+        await tool.Run(null!, "42:00", "8:00", "0:00", 1, null, null, TestContext.Current.CancellationToken);
+
+        var post = handler.Requests.First(r => r.Metodo == HttpMethod.Post);
+        JsonNode.Parse(post.Cuerpo!)!.AsObject().ContainsKey("descansoAcumulado").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CrearJornada_DevuelveElDescansoAcumulado_CuandoElGetLoTraeMarcado()
+    {
+        var (cliente, handler) = ClienteFalso.ConRutas();
+        handler.Responde(HttpMethod.Post, RutaJornadas, HttpStatusCode.Created);
+        handler.RespondeConPrefijo(
+            HttpMethod.Get, RutaJornadas + "/", HttpStatusCode.OK,
+            Fixtures.Leer("CrearJornada", "jornada-con-descanso-acumulado.json"));
+        var tool = new CrearJornadaTool(new ProgramacionApi(cliente));
+
+        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", 1, "Ordinaria", true, TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!["descanso_acumulado"]!.GetValue<bool>().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CrearJornada_DevuelveElDescansoAcumuladoEnFalse_CuandoElGetNoLoTraeMarcado()
+    {
+        var (tool, _) = CrearTool();
+
+        var resultado = await tool.Run(null!, "42:00", "8:00", "0:00", 1, null, null, TestContext.Current.CancellationToken);
+
+        JsonNode.Parse(resultado)!["descanso_acumulado"]!.GetValue<bool>().Should().BeFalse();
     }
 }

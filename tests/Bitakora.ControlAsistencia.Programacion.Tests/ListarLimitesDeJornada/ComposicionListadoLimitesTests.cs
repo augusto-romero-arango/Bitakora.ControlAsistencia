@@ -141,4 +141,56 @@ public class ComposicionListadoLimitesTests
 
         respuesta.Elementos.Select(e => e.Activa).Should().Equal(false, true);
     }
+
+    [Fact]
+    public void Componer_DevuelveModalidad_CuandoLaVistaLaTiene()
+    {
+        var conModalidad = A with { Modalidad = "Flexible" };
+
+        var respuesta = ComposicionListadoLimites.Componer([conModalidad, B], null, null, null);
+
+        respuesta.Elementos.Select(e => e.Modalidad).Should().Equal("Flexible", null);
+    }
+
+    [Fact]
+    public void Componer_DevuelveModalidadNula_CuandoLaPredeterminadaCompuestaNoLaTiene()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A], P, null, null);
+
+        respuesta.Elementos.Single(e => e.JornadaId == IdP).Modalidad.Should().BeNull();
+    }
+
+    [Fact]
+    public void Componer_DevuelveModalidad_CuandoLaPredeterminadaCompuestaLaTiene()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A], P with { Modalidad = "Ordinaria" }, null, null);
+
+        respuesta.Elementos.Single(e => e.JornadaId == IdP).Modalidad.Should().Be("Ordinaria");
+    }
+
+    [Fact]
+    public void Componer_DevuelveDescansoAcumulado_CuandoLaVistaLoTiene()
+    {
+        var marcada = A with { DescansoAcumulado = true };
+
+        var respuesta = ComposicionListadoLimites.Componer([marcada, B], null, null, null);
+
+        respuesta.Elementos.Select(e => e.DescansoAcumulado).Should().Equal(true, false);
+    }
+
+    [Fact]
+    public void Componer_DevuelveDescansoAcumuladoFalse_CuandoLaPredeterminadaCompuestaNoLaTiene()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A], P, null, null);
+
+        respuesta.Elementos.Single(e => e.JornadaId == IdP).DescansoAcumulado.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Componer_DevuelveDescansoAcumuladoTrue_CuandoLaPredeterminadaCompuestaLaTiene()
+    {
+        var respuesta = ComposicionListadoLimites.Componer([A], P with { DescansoAcumulado = true }, null, null);
+
+        respuesta.Elementos.Single(e => e.JornadaId == IdP).DescansoAcumulado.Should().BeTrue();
+    }
 }

@@ -45,4 +45,28 @@ public class CrearJornadaValidatorTests
         var resultado = await _validator.ValidateAsync(comando, TestContext.Current.CancellationToken);
         resultado.IsValid.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task CrearJornada_RechazaModalidadNoReconocida()
+    {
+        var resultado = await _validator.ValidateAsync(Comando() with { Modalidad = "Inventada" }, TestContext.Current.CancellationToken);
+        resultado.Errors.Should().Contain(e => e.PropertyName == nameof(CrearJornada.Modalidad));
+    }
+
+    [Fact]
+    public async Task CrearJornada_AceptaModalidadReconocida()
+    {
+        var resultado = await _validator.ValidateAsync(Comando() with { Modalidad = "Ordinaria" }, TestContext.Current.CancellationToken);
+        resultado.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CrearJornada_AceptaModalidadAusenteOVacia()
+    {
+        foreach (var modalidad in new string?[] { null, "" })
+        {
+            var resultado = await _validator.ValidateAsync(Comando() with { Modalidad = modalidad }, TestContext.Current.CancellationToken);
+            resultado.IsValid.Should().BeTrue();
+        }
+    }
 }

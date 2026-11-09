@@ -51,6 +51,7 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites CrearJornadaDuplicada = Firma(30, 2);
     public static readonly FirmaDeLimites CrearJornadaIdGeneral = Firma(30, 37);
     public static readonly FirmaDeLimites ObtenerJornada = Firma(30, 3);
+    public static readonly FirmaDeLimites ObtenerJornadaConAdvertencia = Firma(42, 0, topeHoras: 9);
     public static readonly FirmaDeLimites ModificarOrigen = Firma(30, 4);
     public static readonly FirmaDeLimites ModificarDestino = Firma(31, 4);
     public static readonly FirmaDeLimites ModificarConflictoA = Firma(30, 5);
@@ -77,6 +78,8 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites ListarPaginaSegunda = Firma(47, 3);
     public static readonly FirmaDeLimites ListarMarcaPredeterminada = Firma(47, 4);
     public static readonly FirmaDeLimites ListarFiltraPorActiva = Firma(47, 5);
+    public static readonly FirmaDeLimites ListarMuestraModalidad = Firma(47, 6);
+    public static readonly FirmaDeLimites ListarMuestraDescansoAcumulado = Firma(47, 7);
     public static readonly FirmaDeLimites AsignarPredeterminada = Firma(30, 20);
     public static readonly FirmaDeLimites DesactivarJornadaPersiste = Firma(30, 21);
     public static readonly FirmaDeLimites DesactivarJornadaPredeterminada = Firma(30, 22);
@@ -92,6 +95,22 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites CrearPlantillaTurnosJornadaDesactivada = Firma(34, 7);
     public static readonly FirmaDeLimites DesactivarJornadaEnPlantillaTurnos = Firma(34, 8);
     public static readonly FirmaDeLimites ActivarJornadaPersiste = Firma(30, 27);
+    public static readonly FirmaDeLimites AsignarModalidadPersiste = Firma(35, 1);
+    public static readonly FirmaDeLimites AsignarModalidadRepite = Firma(35, 2);
+    public static readonly FirmaDeLimites AsignarModalidadReemplaza = Firma(35, 3);
+    public static readonly FirmaDeLimites AsignarModalidadNoReconocida = Firma(35, 4);
+    public static readonly FirmaDeLimites QuitarModalidadPersiste = Firma(35, 5);
+    public static readonly FirmaDeLimites QuitarModalidadSinModalidad = Firma(35, 6);
+    public static readonly FirmaDeLimites CrearConModalidadPersiste = Firma(36, 1);
+    public static readonly FirmaDeLimites CrearConModalidadNoReconocida = Firma(36, 2);
+    public static readonly FirmaDeLimites CrearConModalidadIdentidadCompleta = Firma(36, 3);
+    public static readonly FirmaDeLimites MarcarDescansoAcumuladoPersiste = Firma(37, 1);
+    public static readonly FirmaDeLimites MarcarDescansoAcumuladoYaMarcada = Firma(37, 2);
+    public static readonly FirmaDeLimites DesmarcarDescansoAcumuladoPersiste = Firma(37, 3);
+    public static readonly FirmaDeLimites DesmarcarDescansoAcumuladoSinMarca = Firma(37, 4);
+    public static readonly FirmaDeLimites CrearMarcadaPersiste = Firma(38, 1);
+    public static readonly FirmaDeLimites CrearMarcadaIdentidad = Firma(38, 2);
+    public static readonly FirmaDeLimites CrearSinMarcaNoEmiteEvento = Firma(38, 3);
     public static readonly FirmaDeLimites SolicitarProgramacion = Firma(42, 1, topeHoras: 8, topeMinutos: 30,
         minimoHoras: 4);
     public static readonly FirmaDeLimites SolicitarProgramacionEnFechas = Firma(42, 2, topeHoras: 8, topeMinutos: 30,
