@@ -1,0 +1,3 @@
+namespace Bitakora.ControlAsistencia.Programacion.AsignarModalidadAJornadaFunction;
+
+public record AsignarModalidadAJornadaBody(string Modalidad);

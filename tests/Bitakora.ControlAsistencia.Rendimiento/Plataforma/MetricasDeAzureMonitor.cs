@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
 
 namespace Bitakora.ControlAsistencia.Rendimiento.Plataforma;
 

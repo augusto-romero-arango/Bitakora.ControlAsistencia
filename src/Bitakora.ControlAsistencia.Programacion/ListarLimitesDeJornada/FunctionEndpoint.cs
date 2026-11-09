@@ -1,3 +1,4 @@
+using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using System.Buffers.Text;
 using System.Text;
 using System.Text.Json;
@@ -113,7 +114,16 @@ internal static class LimitesDeJornadaRespuesta
         vista.DiasDescansoPorSemana,
         vista.Descripcion,
         predeterminadaId is { } p && vista.Id == p.ToString(),
-        vista.Activa);
+        vista.Activa,
+        vista.Modalidad,
+        vista.DescansoAcumulado,
+        DescripcionesDeAdvertenciasDeJornada.Describir(
+            ModalidadJornada.TryDesde(vista.Modalidad, out var m) ? m : null,
+            LimitesJornada.Crear(
+                Horas(vista.HorasSemanalesEnMinutos), Horas(vista.TopeDiarioEnMinutos),
+                Horas(vista.MinimoDiarioEnMinutos), vista.DiasDescansoPorSemana)));
+
+    private static HorasYMinutos Horas(int minutos) => HorasYMinutos.Crear(minutos / 60, minutos % 60);
 
     private static HorasYMinutosRespuesta Convertir(int minutos) => new(minutos / 60, minutos % 60);
 }

@@ -53,10 +53,25 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
             .ToListAsync(ct);
     }
 
-    async Task<IReadOnlyList<JornadaDelCatalogo>> ILectorLimitesJornada.ObtenerLimitesAsync(
-        Guid predeterminadaId, CancellationToken ct)
+    async Task<IReadOnlyList<JornadaDelCatalogo>> ILectorLimitesJornada.ObtenerConLimitesAsync(
+        Guid predeterminadaId, LimitesJornada limites, CancellationToken ct)
     {
         await using var session = store.QuerySession(tenantContext.TenantId);
+        var catalogo = await LeerCatalogoAsync(session, predeterminadaId, ct);
+
+        var conModalidad = new List<JornadaDelCatalogo>();
+        foreach (var jornada in catalogo.Where(j => j.Limites.Equals(limites)))
+        {
+            var stream = await session.Events.AggregateStreamAsync<Jornada>(jornada.JornadaId.ToString(), token: ct);
+            conModalidad.Add(jornada with { Modalidad = stream?.Modalidad, DescansoAcumulado = stream?.DescansoAcumulado ?? false });
+        }
+
+        return conModalidad;
+    }
+
+    private static async Task<IReadOnlyList<JornadaDelCatalogo>> LeerCatalogoAsync(
+        IQuerySession session, Guid predeterminadaId, CancellationToken ct)
+    {
         var vista = await session.Query<LimitesDeJornada>().ToListAsync(ct);
 
         // Proyeccion Async atrasada: la predeterminada recien materializada se lee de su stream.
