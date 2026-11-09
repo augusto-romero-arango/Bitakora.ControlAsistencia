@@ -46,4 +46,42 @@ public class TurnoDiarioAsignadoJornadaSerializacionTests
         restaurado!.Jornada.Should().BeNull();
         restaurado.SolicitudId.Should().Be(SolicitudId);
     }
+
+    [Fact]
+    public void RoundTrip_PreservaLaEstampaDeLey_ConDatosCompletos()
+    {
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        var jornada = new JornadaProgramada(JornadaId, 2520, 510, 240, 1, "Flexible", true, 540, 240, 2520);
+
+        var json = JsonSerializer.Serialize(Crear(jornada), opciones);
+        var restaurado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.Jornada.Should().Be(jornada);
+        restaurado.Jornada!.Modalidad.Should().Be("Flexible");
+        restaurado.Jornada.DescansoAcumulado.Should().BeTrue();
+        restaurado.Jornada.TopeDiarioDeLeyEnMinutos.Should().Be(540);
+        restaurado.Jornada.MinimoDiarioDeLeyEnMinutos.Should().Be(240);
+        restaurado.Jornada.HorasSemanalesDeLeyEnMinutos.Should().Be(2520);
+    }
+
+    [Fact]
+    public void Deserializar_DejaModalidadNulaMarcaFalsaYLeyNula_CuandoLaJornadaPersistidaNoTraeLosCamposNuevos()
+    {
+        var opciones = ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
+        var nodo = JsonNode.Parse(JsonSerializer.Serialize(
+            Crear(new JornadaProgramada(JornadaId, 2520, 510, 240, 1, "Flexible", true, 540, 240, 2520)), opciones))!.AsObject();
+        var jornadaNodo = nodo["Jornada"]!.AsObject();
+        foreach (var clave in new[]
+                 { "Modalidad", "DescansoAcumulado", "TopeDiarioDeLeyEnMinutos", "MinimoDiarioDeLeyEnMinutos", "HorasSemanalesDeLeyEnMinutos" })
+            jornadaNodo.Remove(clave);
+
+        var restaurado = JsonSerializer.Deserialize<TurnoDiarioAsignado>(nodo.ToJsonString(), opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.Jornada.Should().Be(new JornadaProgramada(JornadaId, 2520, 510, 240, 1));
+        restaurado.Jornada!.Modalidad.Should().BeNull();
+        restaurado.Jornada.DescansoAcumulado.Should().BeFalse();
+        restaurado.Jornada.TopeDiarioDeLeyEnMinutos.Should().BeNull();
+    }
 }

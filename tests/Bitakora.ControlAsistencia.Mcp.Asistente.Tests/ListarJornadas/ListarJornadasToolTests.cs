@@ -32,7 +32,7 @@ public class ListarJornadasToolTests
         primera["descripcion"]!.GetValue<string>().Should().StartWith("42:00 semanales");
         primera["es_predeterminada"]!.GetValue<bool>().Should().BeTrue();
         json["jornadas"]![1]!["es_predeterminada"]!.GetValue<bool>().Should().BeFalse();
-        primera.Count.Should().Be(3, "el elemento solo lleva id, descripcion y es_predeterminada");
+        primera.Count.Should().Be(4, "el elemento lleva id, descripcion, es_predeterminada y descanso_acumulado");
     }
 
     [Fact]
@@ -42,6 +42,15 @@ public class ListarJornadasToolTests
 
         json["jornadas"]![0]!["modalidad"]!.GetValue<string>().Should().Be("Flexible");
         json["jornadas"]![1]!.AsObject().ContainsKey("modalidad").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ListarJornadas_IncluyeElDescansoAcumulado_CuandoLaJornadaEstaMarcada()
+    {
+        var (json, _) = await Ejecutar("listar-jornadas-con-descanso-acumulado.json");
+
+        json["jornadas"]![0]!["descanso_acumulado"]!.GetValue<bool>().Should().BeTrue();
+        json["jornadas"]![1]!["descanso_acumulado"]!.GetValue<bool>().Should().BeFalse();
     }
 
     [Fact]

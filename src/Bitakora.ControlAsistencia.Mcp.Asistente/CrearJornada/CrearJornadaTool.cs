@@ -30,6 +30,10 @@ public partial class CrearJornadaTool(ProgramacionApi api)
         int diasDescansoPorSemana,
         [McpToolProperty("modalidad", "Modalidad legal de la Jornada (opcional): " + ModalidadesDeJornada.Enumeradas + ".")]
         string? modalidad,
+        [McpToolProperty(
+            "descanso_acumulado",
+            "Marca de descanso acumulado de la Jornada (opcional, art. 184): true para crearla marcada.")]
+        bool? descansoAcumulado,
         CancellationToken ct)
     {
         if (!ValidadorDuracion.TryParsear(horasSemanales, out var semanales))
@@ -47,7 +51,7 @@ public partial class CrearJornadaTool(ProgramacionApi api)
 
         var jornadaId = Guid.CreateVersion7();
         var creada = await api.CrearJornada(
-            new JornadaACrear(jornadaId, semanales, tope, minimo, diasDescansoPorSemana, reconocida), ct);
+            new JornadaACrear(jornadaId, semanales, tope, minimo, diasDescansoPorSemana, reconocida, descansoAcumulado), ct);
         if (await creada.LeerFalloAsync(ct) is { } fallo)
             return string.Format(Mensajes.RechazoDelDominio, fallo);
 

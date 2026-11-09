@@ -74,6 +74,12 @@ public sealed class ProgramacionApi(HttpClient http)
     public Task<HttpResponseMessage> QuitarModalidadDeJornada(Guid id, CancellationToken ct) =>
         http.DeleteAsync($"api/programacion/jornadas/{id}/modalidad", ct);
 
+    public Task<HttpResponseMessage> MarcarDescansoAcumuladoDeJornada(Guid id, CancellationToken ct) =>
+        http.PutAsync($"api/programacion/jornadas/{id}/descanso-acumulado", null, ct);
+
+    public Task<HttpResponseMessage> DesmarcarDescansoAcumuladoDeJornada(Guid id, CancellationToken ct) =>
+        http.DeleteAsync($"api/programacion/jornadas/{id}/descanso-acumulado", ct);
+
     public Task<HttpResponseMessage> ModificarVentanaDeEntrada(
         string id, HorasYMinutosJornada amplitud, CancellationToken ct) =>
         http.PutAsJsonAsync($"api/programacion/turnos/{id}/ventana-entrada", new { amplitud }, ct);
