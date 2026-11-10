@@ -1,6 +1,5 @@
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 2): exito -> 204 No Content siempre -- el slot de sede existe por construccion, vacio o lleno, asi
-// que PUT lo reemplaza y nunca lo crea (nunca 201).
+// Exito -> 204 siempre: el slot de sede existe por construccion, vacio o lleno, asi que PUT lo
+// reemplaza y nunca lo crea (nunca 201).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarSedeFunction;

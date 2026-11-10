@@ -1,9 +1,5 @@
-// Issue #336: Tests de contrato IEquatable para SedeProgramada (record propio de
-// ControlHoras.DomainEvents). Todos los campos son string: la igualdad por valor del record por
-// defecto ya es correcta, sin Equals/GetHashCode custom -- mismo criterio que SedeProgramada
-// (Programacion.DomainEvents, issue #331) y Colaborador (issue #319).
-// CrearInstancia/Copia pueblan TODOS los campos, incluidos los opcionales: con null en ambos
-// lados de la comparacion, un bug de igualdad sobre ese campo pasaria inadvertido.
+// CrearInstancia/Copia pueblan todos los campos, incluidos los opcionales: con null en ambos lados un
+// bug de igualdad sobre ese campo pasaria inadvertido.
 
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;

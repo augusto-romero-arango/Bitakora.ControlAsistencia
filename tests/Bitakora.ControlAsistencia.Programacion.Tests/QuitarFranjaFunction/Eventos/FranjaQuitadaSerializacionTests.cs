@@ -1,5 +1,4 @@
-// FranjaQuitada sobrevive un roundtrip de serializacion STJ -- requerido por Marten --
-// transportando la FranjaOrdinaria completa que se quito (con descanso y sede).
+// FranjaQuitada transporta la FranjaOrdinaria completa que se quito (con descanso y sede).
 
 using System.Text.Json;
 using AwesomeAssertions;

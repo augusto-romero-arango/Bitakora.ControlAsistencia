@@ -2,8 +2,6 @@ using System.Resources;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AgregarFranja;
 
-// MEF-ADR-0009: mensajes runtime de la tool en .resx separado. La descripcion MCP de la tool y de
-// sus parametros NO vive aqui: es un atributo y exige una constante de compilacion.
 public partial class AgregarFranjaTool
 {
     private static readonly ResourceManager ResourceManager = new(

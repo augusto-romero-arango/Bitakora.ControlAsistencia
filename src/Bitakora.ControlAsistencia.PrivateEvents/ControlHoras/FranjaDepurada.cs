@@ -1,15 +1,12 @@
 namespace Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
-// Payload plano de una franja ordinaria depurada, espejo de ControlFranja (ControlHoras.Entities):
-// plan + realidad. Deliberadamente sin descripcion y sin descansos/extras internos: esos ultimos ya
-// vienen digeridos en HorasDiscriminadas y duplicarlos aqui daria dos fuentes de verdad.
+// Espejo plano de ControlFranja (plan + realidad). Sin descansos/extras: ya vienen digeridos en
+// HorasDiscriminadas y duplicarlos daria dos fuentes de verdad.
 //
-// La sede que viaja aqui es la PROGRAMADA (el plan), plana y null cuando la franja no trae sede.
-// ControlDiario solo la transporta: confrontarla contra la sede marcada de cada MarcacionDelDia es
-// un juicio que pertenece al expediente (#482), nunca a este payload.
+// La sede es la PROGRAMADA, null si la franja no trae sede. Confrontarla con la sede marcada de cada
+// MarcacionDelDia es un juicio del expediente, nunca de este payload.
 //
-// Solo primitivos: sumar un campo con coleccion obligaria a escribir Equals/GetHashCode a mano
-// (MEF-ADR-0012, nota sobre equality).
+// Solo primitivos: un campo con coleccion obligaria a escribir Equals/GetHashCode a mano.
 public record FranjaDepurada(
     TimeOnly HoraInicioProgramada,
     TimeOnly HoraFinProgramada,

@@ -1,17 +1,6 @@
-// Issue #461: primera proyeccion concreta del dominio Sedes. Invocacion DIRECTA de los metodos
-// estaticos de FichaSedeProjection (N1, MEF-ADR-0035) -- no el DSL Given/When/Then de
-// CommandHandlerTestBase (MEF-ADR-0002, testea command handlers contra el event store): aqui se
-// testean funciones puras evento -> vista, sin abrir ningun stream.
-//
-// Cada assert compara contra un oraculo armado a mano (MEF-ADR-0002, no-tautologia): nunca se reusa
-// la logica de Create/Apply bajo prueba para construir el valor esperado.
-//
-// CA-1..CA-4 son variaciones del mismo eje (materializacion Create/Apply); CA-5/CA-6 (los
-// endpoints) no se prueban aqui -- ver el test de composicion en Sedes.Tests.
-//
-// Dato de vistaPrevia en los tests de Apply: se construye a mano, simulando el documento que Marten
-// ya habria materializado -- nunca se obtiene invocando Create/Apply, para no encadenar el oraculo
-// de un test con la logica bajo prueba de otro.
+// Invocacion directa de los metodos estaticos de FichaSedeProjection, sin el DSL de
+// CommandHandlerTestBase. Oraculos armados a mano (MEF-ADR-0002): la vistaPrevia de los tests de
+// Apply se construye a mano, nunca invocando Create/Apply.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Projections.Sedes;
@@ -27,11 +16,8 @@ public class FichaSedeProjectionTests
         string centroDeCostos = null!, bool activa = true, string[]? dispositivos = null) =>
         new("s:001", "001", "Sede Centro", "Bogota", "Calle 1", centroDeCostos, activa, dispositivos ?? []);
 
-    // --- CA-1: Create nace la ficha Activa=true, sin CC ni dispositivos ---
-
-    // Create toma IEvent<SedeRegistrada>, no el evento a secas: la identidad del documento es el
-    // StreamKey del stream de SedeAggregateRoot ("s:001"), nunca recomputada a mano desde el
-    // payload (skills/projections/modelos-marten.md).
+    // La identidad del documento es el StreamKey del stream ("s:001"), nunca recomputada desde el
+    // payload.
     [Fact]
     public void Create_ProyectaSedeActivaSinCentroDeCostosNiDispositivos_DesdeSedeRegistrada()
     {
@@ -47,8 +33,6 @@ public class FichaSedeProjectionTests
         vista.Should().Be(new FichaSede("s:001", "001", "Sede Centro", "Bogota", "Calle 1", null, true, []));
     }
 
-    // --- CA-2 (primera mitad): NombreSedeModificado reemplaza Nombre ---
-
     [Fact]
     public void Apply_ReemplazaElNombre_CuandoNombreSedeModificado()
     {
@@ -60,9 +44,7 @@ public class FichaSedeProjectionTests
         vista.Should().Be(vistaPrevia with { Nombre = "Sede Centro Renovada" });
     }
 
-    // --- CA-2 (segunda mitad): UbicacionActualizada reemplaza Ciudad+Direccion ATOMICAMENTE, aun
-    // hacia null (el evento reemplaza ambas, nunca hace merge parcial) ---
-
+    // UbicacionActualizada reemplaza ambas, aun hacia null: nunca hace merge parcial.
     [Fact]
     public void Apply_ReemplazaCiudadYDireccionAunHaciaNull_CuandoUbicacionActualizada()
     {
@@ -85,8 +67,6 @@ public class FichaSedeProjectionTests
         vista.Should().Be(vistaPrevia with { Ciudad = "Medellin", Direccion = "Carrera 50" });
     }
 
-    // --- CA-3 (primera mitad): CentroDeCostosAsignado refleja el CC vigente ---
-
     [Fact]
     public void Apply_AsignaElCentroDeCostosVigente_CuandoCentroDeCostosAsignado()
     {
@@ -98,8 +78,6 @@ public class FichaSedeProjectionTests
         vista.Should().Be(vistaPrevia with { CentroDeCostos = "CC-100" });
     }
 
-    // --- CA-3 (segunda mitad): CentroDeCostosRetirado deja el CC en null ---
-
     [Fact]
     public void Apply_RetiraElCentroDeCostosVigente_CuandoCentroDeCostosRetirado()
     {
@@ -110,8 +88,6 @@ public class FichaSedeProjectionTests
 
         vista.Should().Be(vistaPrevia with { CentroDeCostos = null });
     }
-
-    // --- CA-4 (primera mitad): SedeActivada/SedeDesactivada conmutan Activa ---
 
     [Fact]
     public void Apply_ActivaLaSede_CuandoSedeActivada()
@@ -135,10 +111,7 @@ public class FichaSedeProjectionTests
         vista.Should().Be(vistaPrevia with { Activa = false });
     }
 
-    // --- CA-4 (segunda mitad): DispositivoInstalado/DispositivoRetirado mantienen la lista vigente
-    // -- oraculo mas fuerte que "agregar/quitar sobre lista vacia": descarta una implementacion que
-    // sobrescriba todo el listado en vez de agregar/quitar ---
-
+    // Listas previas no vacias: descarta una implementacion que sobrescriba todo el listado.
     [Fact]
     public void Apply_AgregaElDispositivoInstalado_ManteniendoLosExistentes()
     {

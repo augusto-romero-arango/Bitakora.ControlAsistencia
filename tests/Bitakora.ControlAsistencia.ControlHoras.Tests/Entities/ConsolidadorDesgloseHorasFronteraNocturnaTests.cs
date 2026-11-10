@@ -1,10 +1,6 @@
-// HU-116: Consolidar DesgloseFranjas del dia con compensacion cronologica inversa.
-// Familia 2 - Compensacion cruzando la frontera nocturna (21:00 segun #135).
-// Franja 1 (programada): 8:00-12:00. Franja 2 (programada): 14:00-18:00, salida prolongada
-// hasta 19:30 cruzando la banda nocturna (excedente repartido en ExtraDiurna + ExtraNocturna).
-//
-// Datos sinteticos: los conceptos diurno/nocturno se fijan a mano para focalizar el test en
-// la compensacion cronologica inversa (la clasificacion por banda ya esta cubierta en #135).
+// Familia 2 - Compensacion cruzando la frontera nocturna (19:00).
+// F1 08:00-12:00 y F2 14:00-18:00 con salida prolongada hasta 19:30: el excedente se reparte en
+// ExtraDiurna + ExtraNocturna.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
@@ -18,10 +14,7 @@ public class ConsolidadorDesgloseHorasFronteraNocturnaTests
     [Fact]
     public void Consolidar_ConsumeLaExtraNocturnaCompleta_CuandoElRetardoIgualaElTramoNocturno()
     {
-        // CA-6: F1 retardo 30min, F2 excedente 90min repartido en [ExtraDiurna 18:00-19:00 (60min)
-        // + ExtraNocturna 19:00-19:30 (30min)]. La compensacion cronologico inverso come 30min =
-        // los 30min ExtraNocturna completos. Resultado: 60min ExtraDiurna + 0min ExtraNocturna.
-        // RetardoNeto = 0; la ExtraNocturna desaparece porque solo existia por el retardo.
+        // Los 30 min compensados son la ExtraNocturna completa: desaparece porque solo existia por el retardo.
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(8, 30), M(12), Concepto.OrdinariaDiurna)],
@@ -56,11 +49,8 @@ public class ConsolidadorDesgloseHorasFronteraNocturnaTests
     [Fact]
     public void Consolidar_ConsumeLaNocturnaYParteLaDiurna_CuandoElRetardoSuperaElTramoNocturno()
     {
-        // CA-7: F1 retardo 80min (entrada 9:20), F2 excedente 90min como en CA-6. La compensacion
-        // cronologico inverso come 30min ExtraNocturna completos + 50min ExtraDiurna desde el final
-        // (18:10-19:00). Resultado: 10min ExtraDiurna (18:00-18:10). RetardoNeto = 0.
-        // Ejerce IntervaloTemporal.Partir sobre la ExtraDiurna 18:00-19:00. El TiempoCompensado
-        // cross-franja queda en orden cronologico ascendente [18:10-19:00, 19:00-19:30].
+        // Compensa 80 min: la ExtraNocturna completa + 50 min de la ExtraDiurna desde el final (la parte en
+        // 18:10). El TiempoCompensado queda en orden ascendente.
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(9, 20), M(12), Concepto.OrdinariaDiurna)],

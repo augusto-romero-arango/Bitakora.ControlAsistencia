@@ -1,7 +1,6 @@
 namespace Bitakora.ControlAsistencia.Programacion.Entities;
 
-// SinCambios es exito silencioso (204 sin evento nuevo), no un rechazo -- mismo mecanismo que
-// ResultadoAsignacionSede (Colaboradores).
+// SinCambios es exito silencioso (204 sin evento nuevo), no un rechazo.
 internal enum ResultadoAsignarDia
 {
     Asignado,

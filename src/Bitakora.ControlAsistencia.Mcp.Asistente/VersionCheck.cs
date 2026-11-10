@@ -16,9 +16,8 @@ public class VersionCheck
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
             .InformationalVersion;
 
-        // SourceRevisionId se hornea en InformationalVersion como "{Version}+{SourceRevisionId}"
-        // (SDK de .NET desde la 8.0, Source Link -- MEF-ADR-0031). Sin el separador '+' (build
-        // local sin SourceRevisionId) no hay SHA que extraer.
+        // El SDK de .NET (8.0+) hornea InformationalVersion como "{Version}+{SourceRevisionId}"; sin el
+        // '+' (build local sin SourceRevisionId) no hay SHA que extraer.
         var indiceSeparador = informationalVersion?.IndexOf('+') ?? -1;
         var sha = indiceSeparador >= 0 ? informationalVersion![(indiceSeparador + 1)..] : null;
 

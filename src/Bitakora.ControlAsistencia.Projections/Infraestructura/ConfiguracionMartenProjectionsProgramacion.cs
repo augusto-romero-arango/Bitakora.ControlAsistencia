@@ -16,19 +16,13 @@ namespace Bitakora.ControlAsistencia.Projections.Infraestructura;
 public interface IProgramacionProjectionStore : IDocumentStore;
 
 /// <summary>
-/// Seam de composicion de proyecciones del dominio Programacion (MEF-ADR-0006/MEF-ADR-0034
-/// secciones 2 y 6) -- hermano read-side de ComposicionServicios (write-side, MEF-ADR-0029):
-/// fuente unica que comparten Program.cs del worker y el config-test.
+/// Seam de proyecciones de Programacion: fuente unica que comparten Program.cs del worker y el
+/// config-test. Usa la misma conexion y schema que el write-side y re-declara del lado lectura lo
+/// que el write-side ya configura (MEF-ADR-0034 seccion 6). Los seams hermanos (ControlHoras,
+/// Colaboradores, Sedes) repiten estas lineas; su porque se documenta aqui.
 ///
-/// Registra el named store sobre la misma conexion y el mismo schema "programacion" que ya usa
-/// el write-side (ComposicionServicios.AgregarServiciosProgramacion) -- el read-side no crea
-/// base ni schema nuevos, solo re-declara del lado lectura lo que el dominio ya posee del lado
-/// escritura. Sin ninguna proyeccion concreta todavia: las agrega projection-implementer sobre
-/// este mismo seam, siempre con lifecycle Async (MEF-ADR-0034 seccion 3).
-///
-/// El seam se declara con modificadores de acceso y sin partial: un metodo partial sin
-/// modificadores desaparece en silencio al compilar si nadie lo implementa, y ademas seria
-/// implicitamente privado e inalcanzable desde el ensamblado de tests.
+/// Sin partial: un metodo partial sin modificadores desaparece en silencio si nadie lo implementa y
+/// seria privado, inalcanzable desde los tests.
 /// </summary>
 public static class ConfiguracionMartenProjectionsProgramacion
 {
@@ -42,66 +36,40 @@ public static class ConfiguracionMartenProjectionsProgramacion
                 opts.Connection(martenConnectionString);
                 opts.DatabaseSchemaName = SchemaDelDominio; // mismo schema que el write-side (MEF-ADR-0003)
 
-                // Replica de la identidad de stream que el write-side ya declara
-                // (Cosmos.EventSourcing.CritterStack 2.1.0, AgregarConfiguracionMartenComandos:
-                // Events.StreamIdentity = AsString): los stream keys de este dominio son siempre
-                // strings -- e.Id.ToString() en la raiz de solicitud, evento.TurnoId.ToString() en
-                // el catalogo de turnos. Sin esta linea Marten aplica su default AsGuid ("Event
-                // Store Configuration" -> "Stream Identity" en
-                // https://martendb.io/events/configuration.html#stream-identity) y el daemon leeria
-                // el event store (stream_id varchar) como uuid, sin encontrar ningun stream (#253).
+                // Los stream keys son strings. Con el default AsGuid de Marten
+                // (https://martendb.io/events/configuration.html#stream-identity) el daemon leeria
+                // stream_id varchar como uuid y no encontraria ningun stream.
                 opts.Events.StreamIdentity = StreamIdentity.AsString;
 
-                // Issue #268 CA-1 (MEF-ADR-0034 seccion 6 enmendada por #447 del marco, "par 1"):
-                // el event store se escribio con tenancy conjoined
-                // (AgregarConfiguracionMartenComandos, Cosmos.EventSourcing.CritterStack 2.3.1) y
-                // Marten documenta TenancyStyle.Conjoined como un modelo opt-in ("Event Store
-                // Multi-Tenancy": https://martendb.io/events/multitenancy.html) que el lado que lee
-                // debe declarar igual que el que escribio. Sin esta linea el daemon queda con el
-                // default Single, desalineado del write-side.
+                // Conjoined es opt-in y el lado que lee debe declararlo igual que el que escribio
+                // (https://martendb.io/events/multitenancy.html); sin esta linea el daemon queda en
+                // Single, desalineado del write-side.
                 opts.Events.TenancyStyle = TenancyStyle.Conjoined;
 
-                // Issue #268 CA-1: replica de Events.EventNamingStyle = SmarterTypeName. Hoy inocua
-                // (los eventos persistidos son tipos top-level; SmarterTypeName solo desambigua
-                // tipos anidados, doc XML de JasperFx.Events), pero sin esta linea un futuro evento
-                // anidado calcularia un alias distinto entre write-side y worker, sin ninguna senal
-                // en el build.
+                // Hoy inocua (eventos top-level), pero sin ella un evento anidado calcularia un alias
+                // distinto entre write-side y worker, sin ninguna senal en el build.
                 opts.Events.EventNamingStyle = EventNamingStyle.SmarterTypeName;
 
-                // Issue #268 CA-1 ("par 2"): Policies.AllDocumentsAreMultiTenanted() gobierna la
-                // forma de la tabla de cualquier read model que este worker llegue a materializar
-                // -- no el event store, sino el query-side del Function App (session.LoadAsync).
+                // Gobierna la forma de la tabla de los read models que consulta el Function App, no
+                // el event store.
                 opts.Policies.AllDocumentsAreMultiTenanted();
 
                 opts.TolerarHuecosEstancados();
 
-                // Replica de la configuracion de metadata del write-side (MEF-ADR-0034 seccion 6
-                // punto 3, seccion 7): el config-test verifica exactamente estas tres. La
-                // habilitacion real de las columnas es responsabilidad del write-side de este
-                // dominio (issue #232).
+                // El config-test verifica estas tres; las columnas las habilita el write-side.
                 opts.Events.MetadataConfig.CorrelationIdEnabled = true;
                 opts.Events.MetadataConfig.CausationIdEnabled = true;
                 opts.Events.MetadataConfig.HeadersEnabled = true;
 
-                // Issue #277: defensa en profundidad read-side. Registra los tipos de evento
-                // persistidos de Programacion en el EventGraph de este named store, para que el
-                // daemon no dependa del fallback por mt_dotnet_type al leer streams preexistentes
-                // (issue #237 seccion "Consecuencia asumida").
+                // Para que el daemon no dependa del fallback por mt_dotnet_type al leer streams
+                // preexistentes.
                 opts.Events.AddEventTypes(IdentidadEventosProgramacion.TiposPersistidos);
 
-                // Issue #268 CA-2: serializador y resolver en una sola llamada. A diferencia del
-                // write-side (ComposicionServicios.cs), que engancha el resolver despues via
-                // `if (opts.Serializer() is SystemTextJsonSerializer stj) stj.Configure(...)`
-                // porque el paquete ya construyo el serializador, aqui se controla todo el lambda
-                // de una vez -- UseSystemTextJsonForSerialization construye un serializador NUEVO
-                // y lo reemplaza, asi que si se invocara despues de un stj.Configure(...) previo
-                // ("la trampa del orden") el TypeInfoResolver se perderia en runtime, sin error de
-                // compilacion. EnumStorage.AsInteger/Casing.Default son los defaults del propio
-                // metodo -- se declaran igual, no porque hoy diverjan (ningun enum persistido
-                // cruza este ensamblado, CA-ADR-0029), sino para no depender de un default de
-                // Marten que un upgrade futuro podria mover.
-                // Fuente unica con el write-side (MEF-ADR-0029): se invoca la misma clase
-                // ConfiguracionSerializacionProgramacion, nunca una copia.
+                // Serializador y resolver en una sola llamada: UseSystemTextJsonForSerialization
+                // reemplaza el serializador, asi que despues de un stj.Configure(...) el
+                // TypeInfoResolver se perderia en runtime, sin error de compilacion. EnumStorage y
+                // Casing van explicitos para no depender de un default que un upgrade de Marten podria
+                // mover. Misma clase de serializacion que el write-side, nunca una copia.
                 opts.UseSystemTextJsonForSerialization(EnumStorage.AsInteger, Casing.Default, jsonOptions =>
                 {
                     var resolver = new DefaultJsonTypeInfoResolver();
@@ -109,22 +77,16 @@ public static class ConfiguracionMartenProjectionsProgramacion
                     jsonOptions.TypeInfoResolver = resolver;
                 });
 
-                // Async es el lifecycle canonico del worker (MEF-ADR-0034 seccion 3). Registrarlas
-                // aqui es tambien lo que hace que Marten fije mt_version bigint sobre su documento
-                // target, forma que el write-side debe replicar con Schema.For<T>()
-                // .UseNumericRevisions(true): el documento destino debe llevar
-                // [MaterializadoPorProyeccion] y las guardas de DocumentosMarcadosPorProyeccionTests (worker)
-                // y de ComposicionServiciosTests (Function App) verifican esa declaracion.
+                // Async es el lifecycle canonico del worker (MEF-ADR-0034 seccion 3). Cada documento
+                // destino debe llevar [MaterializadoPorProyeccion] (ver su porque alli).
                 opts.Projections.Add<FichaTurnoProjection>(ProjectionLifecycle.Async);
                 opts.Projections.Add<CuadroDeTurnosProjection>(ProjectionLifecycle.Async);
                 opts.Projections.Add<AusenciaVigenteProjection>(ProjectionLifecycle.Async);
                 opts.Projections.Add<LimitesDeJornadaProjection>(ProjectionLifecycle.Async);
                 opts.Projections.Add<BorradorDeProgramacionProjection>(ProjectionLifecycle.Async);
             })
-            // Registrar el store no basta: sin esta llamada el daemon queda apagado y ninguna
-            // proyeccion se materializa. HotCold elige lider sobre advisory locks de PostgreSQL,
-            // lo correcto para un Container App que Azure puede correr momentaneamente con mas
-            // de una replica (MEF-ADR-0034 seccion 2).
+            // Sin esta llamada el daemon queda apagado. HotCold elige lider con advisory locks: Azure
+            // puede correr el Container App momentaneamente con mas de una replica.
             .AddAsyncDaemon(DaemonMode.HotCold);
 
         return services;

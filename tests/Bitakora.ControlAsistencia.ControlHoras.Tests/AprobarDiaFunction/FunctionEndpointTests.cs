@@ -124,7 +124,7 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
+// Fakes manuales, sin NSubstitute.
 
 internal class FakeAprobarDiaBodyRequestValidator : IRequestValidator
 {

@@ -1,18 +1,4 @@
-// Issue #379 (MEF-ADR-0043 paso 4): tests del endpoint HTTP POST
-// colaboradores/{id}/vinculaciones/{codigo}:terminar (terminar la vinculacion vigente de un
-// colaborador, ahora direccionada por su codigo). {id} se parsea via Identificacion.Parsear (unico
-// punto de conversion, MEF-ADR-0037); {codigo} viaja intacto al comando -- la comparacion contra el
-// codigo vigente vive en el aggregate. El body se reduce a FechaEfectiva
-// (TerminarVinculacionBody). El comando interno TerminarVinculacion conserva sus 4 campos (mismo
-// criterio que CorregirNombres/IniciarVinculacion post-#377/#378): el endpoint lo compone desde
-// ruta + body.
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 4): CA-2: 204 No Content, con composicion exacta del comando interno desde {id} + {codigo} +
-// body; CA-3/CA-4/CA-5: reglas de estado y de codigo conservadas -> 409; CA-6: colaborador
-// inexistente -> 404, {id} de ruta invalido -> 400 (precedente
-// CorregirNombresFunction.FunctionEndpoint post-#377), body invalido -> 400.
-// Reemplaza el POST Colaboradores/Terminaciones (issue #349): la ruta vieja deja de existir (CA-7,
-// verificado por la ausencia de esa ruta en este archivo).
+// {codigo} viaja intacto al comando: la comparacion contra el codigo vigente vive en el aggregate.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
@@ -38,7 +24,6 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-2: POST exitoso retorna 204 No Content, sin cuerpo.
     [Fact]
     public async Task TerminarVinculacion_Retorna204SinCuerpo_CuandoIdDeRutaCodigoYBodySonValidos()
     {
@@ -53,9 +38,6 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-2: el endpoint compone el comando interno TerminarVinculacion desde {id} + {codigo} + el
-    // campo del body -- el router debe recibir exactamente esos 4 campos primitivos (MEF-ADR-0039
-    // decision 6), tipo y numero derivados de Identificacion.Parsear.
     [Fact]
     public async Task TerminarVinculacion_ComponeElComando_DesdeIdDeRutaCodigoYBody()
     {
@@ -72,8 +54,6 @@ public class FunctionEndpointTests
             FechaEfectiva: new DateOnly(2026, 6, 1)));
     }
 
-    // CA-6: id de ruta sin guion -> 400, sin llegar a invocar el router (el parseo tipado es el
-    // unico punto de traduccion, precedente CorregirNombresFunction.FunctionEndpoint post-#377).
     [Fact]
     public async Task TerminarVinculacion_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
@@ -87,7 +67,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-6: tipo de identificacion fuera de la lista cerrada PILA -> 400.
     [Fact]
     public async Task TerminarVinculacion_Retorna400_CuandoElTipoDeLaIdentificacionNoEstaEnLaListaCerrada()
     {
@@ -101,7 +80,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-6: numero vacio tras el guion del {id} de ruta -> 400.
     [Fact]
     public async Task TerminarVinculacion_Retorna400_CuandoElNumeroDeLaIdentificacionQuedaVacio()
     {
@@ -115,7 +93,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-6: body invalido (sin FechaEfectiva) retorna 400 Bad Request
     [Fact]
     public async Task TerminarVinculacion_Retorna400_CuandoElBodyEsInvalido()
     {
@@ -129,8 +106,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // CA-3/CA-4/CA-5: violacion de una regla de negocio (ya terminada / fecha anterior al inicio /
-    // codigo no corresponde) retorna 409 Conflict.
     [Fact]
     public async Task TerminarVinculacion_Retorna409_CuandoLaVinculacionYaTieneTerminacionRegistrada()
     {
@@ -145,7 +120,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<ConflictObjectResult>();
     }
 
-    // CA-6: colaborador inexistente retorna 404 Not Found
     [Fact]
     public async Task TerminarVinculacion_Retorna404_CuandoColaboradorNoExiste()
     {
@@ -173,12 +147,6 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-
-/// <summary>
-/// Fake configurable de IRequestValidator para el body reducido (TerminarVinculacionBody). Retorna
-/// un body pre-configurado o un error segun lo que se le pase en el constructor.
-/// </summary>
 internal class FakeTerminarVinculacionBodyRequestValidator : IRequestValidator
 {
     private readonly TerminarVinculacionBody? _body;
@@ -205,11 +173,6 @@ internal class FakeTerminarVinculacionBodyRequestValidator : IRequestValidator
     }
 }
 
-/// <summary>
-/// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
-/// verificar la composicion ruta+body, y puede completar exitosamente o lanzar la excepcion
-/// configurada.
-/// </summary>
 internal class FakeTerminarVinculacionCommandRouter : ICommandRouter
 {
     private readonly Exception? _excepcion;

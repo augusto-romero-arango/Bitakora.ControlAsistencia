@@ -1,6 +1,3 @@
-// Issue #606 CA-1: SedeDeFranjaRetirada sobrevive un roundtrip de serializacion STJ -- requerido
-// por Marten -- transportando FranjaOrdinaria (VO sin sede, o con sede) como payload rico.
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -17,7 +14,7 @@ public class SedeDeFranjaRetiradaSerializacionTests
         ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
 
     // Caso principal: la franja resultante de un retiro nunca trae sede -- la clave "sede" se
-    // omite del JSON (CA-4 de #335).
+    // omite del JSON.
     [Fact]
     public void Deserializar_ReconstruyeEvento_CuandoFranjaNoTraeSede()
     {

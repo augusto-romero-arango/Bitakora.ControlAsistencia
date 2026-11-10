@@ -1,20 +1,8 @@
-// Smoke tests de ListarResumenesAsistencia -- QUERY control-horas/resumenes-asistencia.
-//
-// Quedan ROJOS hasta que el deploy publique la Function en dev: mientras tanto la ruta no existe y
-// el host responde 404 a todo. El CI de PR no los ejecuta (solo corre *.Tests).
-//
-// Arrange via el bus interno, nunca sembrando el event store por fuera de el: cada dia real se
-// publica como DiaDepurado al topic "dia-depurado". La proyeccion AsistenciaDiaria tiene lifecycle
-// Async (MEF-ADR-0034 seccion 3), asi que los casos que dependen del arrange envuelven la consulta
-// en Polling.WaitUntilAsync -- agotar el timeout es un fallo real, nunca un skip.
-//
-// Casi todos los casos con datos reales fijan CodigosColaborador explicito: ese modo pagina sobre la
-// lista pedida sin descubrir el universo, asi que el resultado no se mezcla con colaboradores de
-// otras corridas que compartan el mismo rango de fechas fijo. El caso dedicado a la rama "sin
-// filtro" corre ese riesgo a proposito -- es lo unico que la ejercita sin sembrar por fuera del API.
-//
-// Formas locales DESACOPLADAS del read model y del DTO de respuesta de produccion (isla,
-// MEF-ADR-0034 seccion 5): el smoke test no referencia ReadModels ni el Function App.
+// Arrange via el bus interno (DiaDepurado a "dia-depurado"), nunca sembrando el event store por fuera.
+// La proyeccion AsistenciaDiaria es Async: la consulta va en Polling y agotar el timeout es un fallo real.
+// Los casos con datos fijan CodigosColaborador para no mezclarse con otras corridas del mismo rango de
+// fechas; el caso "sin filtro" corre ese riesgo a proposito.
+// Las formas locales no referencian ReadModels ni el Function App (MEF-ADR-0034 seccion 5).
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -380,10 +368,8 @@ public class ListarResumenesAsistenciaSmokeTests(ApiFixture api, ServiceBusFixtu
 
         var ct = TestContext.Current.CancellationToken;
 
-        // El endpoint devuelve la pagina ordenada ascendente, no en el orden pedido: el codigo con
-        // datos tiene que ser el menor para que las aserciones posicionales de abajo (y el
-        // predicado de polling sobre First()) sean deterministas. Guid.CreateVersion7() no lo
-        // garantiza por si solo entre dos llamadas del mismo milisegundo.
+        // La pagina viene ordenada ascendente, no en el orden pedido: el codigo con datos tiene que ser
+        // el menor para que las aserciones posicionales sean deterministas.
         var codigos = new[] { Guid.CreateVersion7().ToString(), Guid.CreateVersion7().ToString() }
             .OrderBy(codigo => codigo, StringComparer.Ordinal)
             .ToArray();

@@ -1,26 +1,11 @@
-// Smoke tests de ListarAsistenciasDiarias -- QUERY control-horas/asistencias-diarias: el calendario
-// completo de UN colaborador en un rango, con los dias sin documento sintetizados.
-//
-// Quedan ROJOS hasta que el deploy publique la Function en dev: mientras tanto la ruta no existe y
-// el host responde 404 a todo. El CI de PR no los ejecuta (solo corre *.Tests); su veredicto real
-// se lee despues del deploy. Ese mismo 404 es ademas el gate NO VERIFICADO de MEF-ADR-0042 seccion
-// 6 -- si persiste tras un deploy exitoso, el sospechoso es el borde filtrando un verbo no
-// estandar, no el endpoint.
-//
-// Arrange via el bus interno, nunca sembrando el event store por fuera de el: cada dia real se
-// publica como DiaDepurado al topic "dia-depurado" (mismo mecanismo que
-// RecibirDepuracionViaSbSmokeTests). La proyeccion tiene lifecycle Async (MEF-ADR-0034 seccion 3),
-// asi que los casos que dependen del arrange envuelven la consulta en Polling.WaitUntilAsync --
-// agotar el timeout es un fallo real (worker no desplegado, proyeccion sin materializar), nunca un
-// skip.
-//
-// Formas locales DESACOPLADAS del read model y del DTO de respuesta de produccion: el smoke test no
-// referencia ReadModels ni el Function App (isla, MEF-ADR-0034 seccion 5). Los enums locales
-// replican el ORDEN de valores de produccion porque STJ los serializa como el entero subyacente --
-// si produccion reordenara alguno, la comparacion falla y delata el cambio de contrato.
-//
-// CA-6 (tenant scoping de la QuerySession) no tiene superficie observable via HTTP negro-caja en un
-// entorno de un solo tenant (CA-ADR-0027): lo cubre el test de composicion de la Function.
+// Arrange via el bus interno (DiaDepurado a "dia-depurado"), nunca sembrando el event store por fuera.
+// La proyeccion es Async: la consulta va en Polling y agotar el timeout es un fallo real, no un skip.
+// Las formas locales no referencian ReadModels ni el Function App (MEF-ADR-0034 seccion 5); los enums
+// replican el ORDEN de produccion porque STJ los serializa como entero: si produccion los reordena,
+// la comparacion falla.
+// Un 404 persistente tras un deploy exitoso apunta al borde filtrando el verbo QUERY, no al endpoint
+// (MEF-ADR-0042 seccion 6, sin verificar).
+// El scoping por tenant no es observable con un solo tenant: lo cubre el test de composicion.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;

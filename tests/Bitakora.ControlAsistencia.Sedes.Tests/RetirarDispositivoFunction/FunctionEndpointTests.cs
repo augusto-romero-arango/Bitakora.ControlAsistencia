@@ -16,7 +16,6 @@ public class FunctionEndpointTests
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
-    // CA-3
     [Fact]
     public async Task RetirarDispositivo_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
@@ -30,8 +29,8 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // Sede inexistente -> 404 (precondicion de orquestacion). Dispositivo no instalado NO tiene test
-    // de endpoint propio: es un no-op exitoso que sale por el mismo 204 del camino de cambio (#664).
+    // Dispositivo no instalado NO tiene test de endpoint propio: es un no-op exitoso que sale por el
+    // mismo 204 del camino de cambio.
     [Fact]
     public async Task RetirarDispositivo_Retorna404_CuandoSedeNoExiste()
     {

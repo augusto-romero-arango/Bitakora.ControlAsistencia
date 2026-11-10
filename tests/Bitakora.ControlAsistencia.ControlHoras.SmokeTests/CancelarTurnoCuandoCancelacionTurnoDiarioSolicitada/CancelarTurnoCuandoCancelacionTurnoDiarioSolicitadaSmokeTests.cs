@@ -5,18 +5,13 @@ using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
-// Alias de tipo: ResumenColaborador existe homonimo en ControlHoras.DomainEvents (payload por
-// rol, MEF-ADR-0039 decision #6); este archivo publica/consume por el bus, asi que usa el de
-// PrivateEvents.
+// ResumenColaborador tiene homonimo en ControlHoras.DomainEvents; por el bus va el de PrivateEvents.
 using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada;
 
-// Consumidor puro (ServiceBusTrigger, sin comando espejo): el arrange siembra el ControlDiario
-// publicando programacion-turno-en-fechas-solicitada -- el mismo camino que recorre el productor real
-// -- y, cuando el escenario lo pide, registra una marcacion via POST. El Act publica
-// cancelacion-turno-diario-solicitada y se verifican los dos efectos del handler (persistencia de
-// TurnoDiarioCancelado + republicacion de DiaDepurado) o su ausencia en los ramales de no-op.
+// Consumidor puro, sin comando espejo: el arrange siembra el ControlDiario publicando
+// programacion-turno-en-fechas-solicitada, el mismo camino del productor real.
 public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
     ApiFixture api, ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
@@ -34,11 +29,8 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
     private const string TipoEventoMarcacionAdicionada = "marcacion_adicionada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Ausencia de evento tras un no-op (CA-3/CA-4): a diferencia de una idempotencia HTTP sincrona
-    // (donde el handler ya corrio dentro del mismo request), aqui el Act es un publish a Service
-    // Bus -- el trigger necesita tiempo de entrega antes de que el handler decida no hacer nada.
-    // 15s da margen a esa latencia sin esperar el timeout completo de 30s reservado para los
-    // asserts positivos.
+    // El Act es un publish a Service Bus: afirmar la ausencia de evento tras un no-op necesita margen
+    // de entrega, sin llegar a los 30 s de los asserts positivos.
     private static readonly TimeSpan TimeoutAusencia = TimeSpan.FromSeconds(15);
 
     private static string ComputarStreamId(string codigoColaborador, DateOnly fecha) =>
@@ -62,8 +54,6 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
             dispositivoId
         }, TestContext.Current.CancellationToken);
 
-    // Arrange compartido: siembra TurnoDiarioAsignado publicando al topic de Programacion, tal
-    // como lo hace el productor real en produccion.
     private async Task AsignarTurnoAsync(
         ResumenColaborador colaborador, DateOnly fecha, string nombreTurno)
     {
@@ -103,8 +93,6 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
             $"el evento {TipoEventoTurnoDiarioAsignado} deberia existir antes de intentar cancelar el turno");
     }
 
-    // CA-1: dia con turno asignado y con marcaciones -> se persiste TurnoDiarioCancelado,
-    // DetalleTurno queda null y se publica DiaDepurado con las marcaciones crudas sin desglose.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CancelacionTurnoDiarioSolicitada_CancelaElTurnoYRepublicaConMarcacionesCrudas_CuandoElDiaTieneTurnoYMarcaciones()
@@ -134,8 +122,7 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         marcacionPersistida.Should().BeTrue(
             $"el evento {TipoEventoMarcacionAdicionada} deberia existir antes de cancelar el turno");
 
-        // Purge-before-act: el unico DiaDepurado que quede en la suscripcion tras el Act es el de
-        // la cancelacion (descarta los que ya publicaron el turno y la marcacion).
+        // Purga antes del Act: solo queda el DiaDepurado de la cancelacion.
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
         var solicitudCancelacionId = Guid.CreateVersion7();
@@ -190,8 +177,6 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
             codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 
-    // CA-2: dia con turno asignado y SIN marcaciones -> cancelado efectivo, DiaDepurado sin
-    // franjas, sin marcaciones ni horas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CancelacionTurnoDiarioSolicitada_CancelaElTurno_CuandoElDiaTieneTurnoYNoTieneMarcaciones()
@@ -237,8 +222,6 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
         diaDepurado.HorasDiscriminadas.HorasPorConcepto.Should().BeEmpty();
     }
 
-    // CA-3: no-op silencioso -- el stream nunca existio (ni turno ni marcaciones para este
-    // colaborador+fecha), asi que no debe quedar evento de constancia.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CancelacionTurnoDiarioSolicitada_NoHaceNada_CuandoElStreamNoExiste()
@@ -282,8 +265,6 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
             codigoColaborador, ServiceBusFixture.QueueFanIn);
     }
 
-    // CA-4: no-op identico a CA-3, pero el stream SI existe (nacio solo por marcaciones, sin turno
-    // asignado nunca): las marcaciones existentes quedan intactas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CancelacionTurnoDiarioSolicitada_NoHaceNada_CuandoElDiaExisteSinTurnoAsignado()

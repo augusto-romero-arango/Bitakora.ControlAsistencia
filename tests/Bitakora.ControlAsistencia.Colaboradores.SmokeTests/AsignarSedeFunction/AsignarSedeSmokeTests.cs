@@ -2,9 +2,6 @@
 // verificacion black-box de sus efectos es leer mt_events via PostgresFixture.
 // El arrange registra el colaborador (y termina o reinicia su vinculacion cuando aplica) via los
 // mismos comandos HTTP que originan esos hechos, nunca sembrando el event store por fuera del API.
-//
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): AsignarSede es un PUT que
-// confirma el evento (o declina en silencio, SinCambios) antes de responder -- 204, nunca 202.
 
 using System.Net;
 using System.Net.Http.Json;
@@ -280,7 +277,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
     public async Task AsignarSede_Retorna404_CuandoColaboradorNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var numeroIdentificacion = NuevoNumeroIdentificacion(); // nunca registrado
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
         var id = ComputarStreamId(numeroIdentificacion);
 
         var response = await AsignarSedeAsync(id, "BOG", ct);
@@ -307,7 +304,7 @@ public class AsignarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
     public async Task AsignarSede_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
         var ct = TestContext.Current.CancellationToken;
-        var idSinGuion = NuevoNumeroIdentificacion(); // p.ej. "3F2A0C..." sin "CC-" adelante
+        var idSinGuion = NuevoNumeroIdentificacion();
 
         var response = await AsignarSedeAsync(idSinGuion, "BOG", ct);
 

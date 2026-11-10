@@ -1,6 +1,4 @@
-// Issue #288 CA-3: coherencia entre FranjaOrdinaria.ToDetalle().Descripcion y FranjaOrdinaria.ToString().
-// El formato tecnico ya existente (CA-20/CA-21 de FranjaOrdinariaTests, que NO se modifica -- CA-6
-// del issue) se persiste tal cual en el DTO plano.
+// ToDetalle().Descripcion persiste tal cual el formato de FranjaOrdinaria.ToString().
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
@@ -32,8 +30,7 @@ public class FranjaOrdinariaToDetalleTests
         detalle.Descripcion.Should().Be(franja.ToString());
     }
 
-    // CA-3: cada sub-franja hija tambien lleva su propia Descripcion coherente con su propio
-    // ToString(), no solo el nivel padre (el issue pide Descripcion en los tres niveles).
+    // Cada sub-franja hija lleva su propia Descripcion coherente con su ToString(), no solo el padre.
     [Fact]
     public void ToDetalle_PropagaDescripcionCoherenteEnHijos_CuandoFranjaConDescanso()
     {
@@ -47,8 +44,6 @@ public class FranjaOrdinariaToDetalleTests
         detalle.Descansos[0].Descripcion.Should().Be(descanso.ToString());
     }
 
-    // ---------- Issue #335 CA-1/CA-2: la sede prearmada fluye (o no) al DTO plano ----------
-
     [Fact]
     public void ToDetalle_CopiaLaSede_CuandoFranjaTieneSedeAsignada()
     {
@@ -60,7 +55,6 @@ public class FranjaOrdinariaToDetalleTests
         detalle.Sede.Should().Be(sede);
     }
 
-    // CA-2: regresion -- una franja sin sede prearmada conserva el comportamiento actual.
     [Fact]
     public void ToDetalle_DejaSedeNull_CuandoFranjaNoTieneSedeAsignada()
     {

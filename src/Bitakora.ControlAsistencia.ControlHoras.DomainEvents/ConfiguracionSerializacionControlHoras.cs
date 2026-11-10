@@ -16,11 +16,8 @@ public static class ConfiguracionSerializacionControlHoras
         };
     }
 
-    // Issue #237: solo los tipos que se persisten en el event store de control_horas. Los VOs de
-    // calculo (IntervaloTemporal, Retardo) salieron de esta lista: no son payload de ningun evento
-    // -- el unico que los contiene, DesgloseHoras, es estado del aggregate que se recalcula en cada
-    // Apply y nunca se persiste. Su registro vive ahora en
-    // ControlHoras.Infraestructura.ConfiguracionSerializacionCalculoHoras.
+    // Solo los tipos que se persisten en el event store de control_horas. Los VOs de calculo, que
+    // nunca se persisten, se registran en ControlHoras.Infraestructura.ConfiguracionSerializacionCalculoHoras.
     public static void ConfigurarResolver(DefaultJsonTypeInfoResolver resolver)
     {
         TurnoDiarioAsignado.ConfigurarSerializacion(resolver);

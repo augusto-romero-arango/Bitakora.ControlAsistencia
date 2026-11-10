@@ -1,8 +1,5 @@
-// Issue #288: Tests de contrato IEquatable para DetalleSubFranja.
-// DetalleSubFranja suma Descripcion (dato derivado, texto del formato tecnico de SubFranja.ToString())
-// persistido en el DTO plano. Equals/GetHashCode propios EXCLUYEN Descripcion explicitamente: dos
-// instancias que solo difieren en el texto formateado siguen siendo la misma sub-franja (mismo patron
-// que el override de DetalleFranjaOrdinaria, issue #129).
+// Descripcion es un dato derivado (el formato de SubFranja.ToString()): Equals/GetHashCode propios la
+// EXCLUYEN, dos instancias que solo difieren en el texto formateado son la misma sub-franja.
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
@@ -27,8 +24,6 @@ public class DetalleSubFranjaIgualdadTests : IgualdadTestBase<DetalleSubFranja>
         yield return ("DiaOffsetFin",
             new DetalleSubFranja(new TimeOnly(23, 50), new TimeOnly(0, 10), 0, 1, "(23:50-00:10+1)"));
     }
-
-    // CA-4: dos instancias que difieren SOLO en Descripcion son iguales (dato derivado, no identidad).
 
     [Fact]
     public void Equals_RetornaTrue_CuandoSoloDescripcionEsDiferente()

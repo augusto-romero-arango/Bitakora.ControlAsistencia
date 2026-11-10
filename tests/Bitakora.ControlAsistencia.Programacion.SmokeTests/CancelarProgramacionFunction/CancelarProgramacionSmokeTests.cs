@@ -54,7 +54,7 @@ public class CancelarProgramacionSmokeTests(
         var response = await _client.PostAsJsonAsync("/api/programacion/cancelaciones", payload, ct);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        // Assert: fan-out, un CancelacionTurnoDiarioSolicitada por fecha (CA-1)
+        // Fan-out: un CancelacionTurnoDiarioSolicitada por fecha.
         var evento1 = await serviceBus.WaitForMessageAsync<CancelacionTurnoDiarioSolicitada>(
             TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
         var evento2 = await serviceBus.WaitForMessageAsync<CancelacionTurnoDiarioSolicitada>(
@@ -67,7 +67,6 @@ public class CancelarProgramacionSmokeTests(
         evento1.Colaborador.Should().Be(colaboradorEsperado);
         evento2.Colaborador.Should().Be(colaboradorEsperado);
 
-        // Assert: la solicitud de cancelacion queda persistida en su propio stream (CA-1)
         var streamId = solicitudId.ToString();
         var json = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaProgramacion, streamId, TipoEventoCancelacionSolicitada,

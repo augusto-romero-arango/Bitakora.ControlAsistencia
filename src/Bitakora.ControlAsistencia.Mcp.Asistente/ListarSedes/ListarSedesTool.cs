@@ -5,10 +5,8 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarSedes;
 
-// Catalogo (CA-ADR-0039): pagina con el cursor del backend y nunca descarta un elemento recibido.
-// Se podan el Id tecnico (stream key "s:{codigo}", CA-ADR-0031 -- el codigo puro es el
-// vocabulario del consumidor), los dispositivos, el centro de costos y la bandera Activa (siempre
-// true tras el filtro upstream: seria ruido de tokens).
+// Se podan el Id tecnico (stream key "s:{codigo}"; el codigo es el vocabulario del consumidor), los
+// dispositivos, el centro de costos y Activa (siempre true tras el filtro upstream).
 public partial class ListarSedesTool(SedesApi api)
 {
     internal const string NombreTool = "listar_sedes";

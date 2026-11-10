@@ -1,7 +1,5 @@
-// Issue #114: Tests de contrato IEquatable para Retardo.
-// Retardo es sealed class con IEquatable<Retardo> manual y SequenceEqual en las listas.
-// CrearInstanciaCopia construye intervalos equivalentes en instancias nuevas para verificar
-// que la comparacion es por valor, no por referencia.
+// Retardo implementa IEquatable a mano (SequenceEqual en las listas): CrearInstanciaCopia arma
+// intervalos en instancias nuevas para probar que compara por valor, no por referencia.
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;

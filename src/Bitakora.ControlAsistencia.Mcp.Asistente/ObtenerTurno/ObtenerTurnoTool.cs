@@ -6,10 +6,6 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ObtenerTurno;
 
-// Tool de solo lectura sobre GET programacion/turnos/{id}. Remodela cada franja como una linea
-// compacta ("06:00-10:00, descanso 12:00-13:00, sede: Norte") en vez del arbol
-// franjas/descansos/extras del endpoint. El 404 upstream se traduce a un mensaje en español: para
-// el asistente "no existe" es una respuesta util, no un error.
 public partial class ObtenerTurnoTool(ProgramacionApi api)
 {
     internal const string NombreTool = "obtener_turno";
@@ -65,7 +61,6 @@ public partial class ObtenerTurnoTool(ProgramacionApi api)
     private static string? Sede(FranjaFicha franja) => franja.NombreSede ?? franja.SedeId;
 }
 
-/// <summary>Contrato de respuesta de obtener_turno hacia el asistente (remodelado, issue #502).</summary>
 public sealed record TurnoDetallado(
     string Id,
     string Nombre,

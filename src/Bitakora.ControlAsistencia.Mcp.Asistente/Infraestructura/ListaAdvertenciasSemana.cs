@@ -1,9 +1,6 @@
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-/// <summary>
-/// Contrato upstream de QUERY control-horas/advertencias-programacion-semanal, redeclarado como
-/// isla (MEF-ADR-0047 decision 3): solo los campos que la tool consume.
-/// </summary>
+/// <summary>Contrato upstream de QUERY control-horas/advertencias-programacion-semanal, redeclarado aqui (MEF-ADR-0047 decision 3).</summary>
 public sealed record ListaAdvertenciasSemana(
     DateOnly Desde,
     DateOnly Hasta,

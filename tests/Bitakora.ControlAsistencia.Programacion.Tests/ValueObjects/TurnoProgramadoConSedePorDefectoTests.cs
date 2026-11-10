@@ -1,7 +1,5 @@
-// Issue #341: cascada de sede al copiar el turno del catalogo en la solicitud de programacion.
-// Tests unitarios PUROS (sin harness) sobre TurnoProgramado.ConSedePorDefecto -- funcion pura
-// sobre records, tal como el precedente TurnoDiario.Segmentar (#327). Cubre la tabla de verdad
-// decidida en la sesion del planner (CA-1/CA-2/CA-3):
+// Cascada de sede al copiar el turno del catalogo en la solicitud de programacion
+// (TurnoProgramado.ConSedePorDefecto, funcion pura, sin harness):
 //   franja con sede + solicitud con sede -> gana la franja
 //   franja con sede + solicitud sin sede -> franja
 //   franja sin sede + solicitud con sede -> solicitud
@@ -47,7 +45,6 @@ public class TurnoProgramadoConSedePorDefectoTests
         resultado.FranjasOrdinarias[0].Sede.Should().Be(SedeSolicitud);
     }
 
-    // Tabla de verdad, fila 1: franja con sede + solicitud con sede -> gana la franja.
     [Fact]
     public void ConSedePorDefecto_ConservaLaSedeDeLaFranja_CuandoLaFranjaYaTraeSedeDelCatalogo()
     {
@@ -58,7 +55,6 @@ public class TurnoProgramadoConSedePorDefectoTests
         resultado.FranjasOrdinarias[0].Sede.Should().Be(SedeCatalogo);
     }
 
-    // Tabla de verdad, fila 2: franja con sede + solicitud sin sede -> franja (identidad).
     [Fact]
     public void ConSedePorDefecto_ConservaLaSedeDeLaFranja_CuandoLaSedePorDefectoEsNull()
     {
@@ -70,7 +66,6 @@ public class TurnoProgramadoConSedePorDefectoTests
         resultado.FranjasOrdinarias[0].Sede.Should().Be(SedeCatalogo);
     }
 
-    // Tabla de verdad, fila 3: franja sin sede + solicitud con sede -> solicitud.
     [Fact]
     public void ConSedePorDefecto_AplicaLaSedePorDefecto_CuandoLaFranjaNoTraeSede()
     {
@@ -81,7 +76,6 @@ public class TurnoProgramadoConSedePorDefectoTests
         resultado.FranjasOrdinarias[0].Sede.Should().Be(SedeSolicitud);
     }
 
-    // Tabla de verdad, fila 4: ambas sin sede -> null (sin sede asignada, estado valido).
     [Fact]
     public void ConSedePorDefecto_DejaLaFranjaSinSede_CuandoNingunoTraeSede()
     {
@@ -92,7 +86,7 @@ public class TurnoProgramadoConSedePorDefectoTests
         resultado.FranjasOrdinarias[0].Sede.Should().BeNull();
     }
 
-    // CA-1: cada franja del turno resuelve su cascada de forma INDEPENDIENTE -- una implementacion
+    // Cada franja del turno resuelve su cascada de forma INDEPENDIENTE -- una implementacion
     // que aplicara la sede por defecto a todo el turno de una sola vez (en lugar de franja por
     // franja) pasaria las cuatro filas de la tabla de verdad de arriba (turnos de una sola franja)
     // pero fallaria aqui.

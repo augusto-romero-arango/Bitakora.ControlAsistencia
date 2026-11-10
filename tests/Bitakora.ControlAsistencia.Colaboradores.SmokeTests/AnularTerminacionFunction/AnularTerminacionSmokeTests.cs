@@ -1,56 +1,3 @@
-// Issue #379 (MEF-ADR-0043 paso 4, gate empirico de la seccion 8 verificado POSITIVO -- ver
-// comentario en FunctionEndpoint.cs y harness#621): smoke tests de POST
-// colaboradores/{id}/vinculaciones/{codigo}:anular-terminacion (anular la terminacion registrada
-// de la ULTIMA vinculacion de un colaborador, ahora direccionada por su codigo). Reemplaza el POST
-// Colaboradores/Terminaciones/Anulaciones (issue #354, identificacion en el body): {id} es
-// Identificacion.ToString() ("CC-79543210"), parseado UNA sola vez con Identificacion.Parsear
-// (mismo mecanismo que TerminarVinculacion/IniciarVinculacion post-#378/#379). SIN body en
-// absoluto: los tres campos del comando interno (TipoIdentificacion, NumeroIdentificacion, Codigo)
-// viajan completos en la ruta. Molde: TerminarVinculacionSmokeTests/IniciarVinculacionSmokeTests
-// (#378/#379) -- mismo comando event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin
-// ServiceBusFixture, la unica verificacion black-box de los efectos del handler es leer mt_events
-// via PostgresFixture.
-//
-// Arrange: AnularTerminacion exige un ColaboradorAggregateRoot existente -- el arrange de cada
-// test registra el colaborador y, cuando aplica, termina su vinculacion o inicia una vinculacion
-// nueva (escenario de reingreso, issue #378) via los mismos comandos que los originan (#330, #349,
-// #378, #379), nunca sembrando datos por fuera del API. El codigo vigente de la vinculacion
-// inicial es exactamente el CodigoColaborador que RegistrarColaborador recibio
-// (ColaboradorAggregateRoot.Registrar reusa VinculacionIniciada(codigo, fechaInicio) -- verificado
-// en el aggregate), asi que RegistrarColaboradorAsync devuelve ese codigo para que cada test lo
-// use como {codigo} de ruta.
-//
-// Evento sin payload (TerminacionAnulada, tipo persistido "terminacion_anulada"): no hay campo de
-// contenido que comparar por valor -- cada smoke test usa una identificacion nueva, asi que su
-// stream contiene un solo evento de ese tipo y basta con ExisteEventoAsync sin filtro de contenido
-// (mismo precedente que CorregirNombresSmokeTests.ElStreamRecibioElNombreAsync).
-//
-// Estos tests dependen de que el deploy publique la ruta nueva en dev: mientras la revision
-// anterior siga corriendo, la ruta vieja (POST Colaboradores/Terminaciones/Anulaciones) es la unica
-// que existe y este archivo -- que solo referencia la ruta nueva -- fallaria por completo (404 del
-// host, no el 409/404 de dominio). Mismo precedente que IniciarVinculacionSmokeTests post-#378.
-//
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): AnularTerminacion confirma
-// el evento en el event store antes de responder -- 204, no 202.
-//
-// CA-1 (ruta de exito): 204 + el stream recibe terminacion_anulada. Que la vinculacion reabra con
-// su codigo y fecha de inicio ORIGINALES intactos se verifica black-box via composicion (CA-2): sin
-// un endpoint de consulta, la unica ventana observable a "quedo abierta otra vez" es que
-// TerminarVinculacion (que exige una vinculacion abierta y el mismo codigo) vuelva a tener exito.
-// CA-2: composicion de la correccion -- anular la terminacion errada y volver a terminar con la
-// fecha correcta -> 204 + una SEGUNDA VinculacionTerminada persistida con la fecha corregida (las
-// reglas de #349/#379 se re-aplican; el flujo completo "corregir fecha de terminacion" funciona en
-// dos comandos).
-// CA-3 (rutas de rechazo, "vinculacion abierta"): nunca fue terminada, o ya fue anulada antes (dos
-// anulaciones seguidas -- no hay idempotencia silenciosa porque no hay valor que comparar, decision
-// #4 del issue #354) -> 409, sin evento nuevo en el stream.
-// CA-4: tras un reingreso, la terminacion de la vinculacion ANTERIOR queda CONGELADA -- la ULTIMA
-// vinculacion (la del reingreso) es la que cuenta y esta abierta -> 409.
-// CA-5: {codigo} de ruta distinto al vigente -> 409 (CodigoNoCorresponde, evaluada PRIMERA por el
-// aggregate) -- salvaguarda tipo concurrencia optimista, nunca 404.
-// CA-6: colaborador inexistente -> 404; {id} de ruta malformado -> 400 via parseo tipado.
-// CA-7: la ruta vieja Colaboradores/Terminaciones/Anulaciones deja de existir -> 404 del host
-// (verificacion AFIRMATIVA, mismo criterio que IniciarVinculacionSmokeTests CA-6).
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -72,23 +19,16 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
-    // identidad del stream es Identificacion.ToString() ("CC-<numero>"), no un Guid nuevo por
-    // llamada, asi que reusar un numero fijo haria que el arrange (RegistrarColaborador) choque con
-    // 409 en la segunda corrida. El formato "N" en MAYUSCULAS ya es alfanumerico ASCII, asi que
-    // sobrevive intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con
-    // la que arma el backend.
+    // Unico por test: el stream se llama por la identificacion, asi que repetir un numero choca con 409
+    // en la segunda corrida. "N" en mayusculas sobrevive a la limpieza del numero y la llave coincide.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
-    // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
-    // Separador "-" desde el issue #381.
+    // Oraculo independiente (MEF-ADR-0002): se recompone a mano, no se deriva de Identificacion.ToString(),
+    // para que un cambio de formato en el VO no se auto-valide.
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
-    // El {id} que un cliente real pone en la URL. Deliberadamente separado de ComputarStreamId: uno
-    // es la ENTRADA de la request, el otro el ORACULO contra el que se verifica mt_events (mismo
-    // criterio que IniciarVinculacionSmokeTests/TerminarVinculacionSmokeTests).
+    // Separado de ComputarStreamId a proposito: este es la entrada de la request, aquel el oraculo.
     private static string IdDeRuta(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
@@ -107,18 +47,14 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         fechaInicio
     };
 
-    // Body reducido a los 2 campos que no se derivan de la ruta (issue #378): CodigoColaborador +
-    // FechaInicio.
     private static object PayloadIniciarVinculacion(string codigoColaborador, DateOnly fechaInicio) => new
     {
         codigoColaborador,
         fechaInicio
     };
 
-    // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API. Devuelve el codigo de la
-    // vinculacion inicial (== CodigoColaborador del comando, verificado en
-    // ColaboradorAggregateRoot.Registrar) para que el test lo use como {codigo} de ruta.
+    // Devuelve el codigo de la vinculacion inicial (== CodigoColaborador, ver
+    // ColaboradorAggregateRoot.Registrar), que cada test usa como {codigo} de ruta.
     private async Task<string> RegistrarColaboradorAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
@@ -133,10 +69,8 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         return codigo;
     }
 
-    // La terminacion aparece en este archivo con DOS roles distintos, de ahi el par de metodos: como
-    // arrange (cerrar la vinculacion antes de anularla) y como ACT del CA-2 (volver a terminar tras
-    // anular, que es la claim de negocio bajo prueba). Solo el primero lleva la guardia de arrange:
-    // el segundo tiene su propio assert semantico, que se perderia si el helper cortara antes.
+    // Terminar es arrange (TerminarVinculacionAsync, con guardia) y tambien el ACT de la correccion de
+    // fecha (PostTerminarAsync, sin guardia: cortar antes taparia su assert semantico).
     private static string RutaTerminar(string id, string codigo) =>
         $"/api/colaboradores/{id}/vinculaciones/{codigo}:terminar";
 
@@ -144,8 +78,6 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct) =>
         _client.PostAsJsonAsync(RutaTerminar(id, codigo), new { fechaEfectiva }, ct);
 
-    // Arrange comun: cierra la vinculacion vigente -- via el comando que la origina (#349/#379),
-    // nunca sembrando el event store por fuera del API.
     private async Task TerminarVinculacionAsync(
         string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
@@ -155,9 +87,6 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Arrange comun (CA-4): inicia una vinculacion nueva sobre el colaborador tras una terminacion
-    // -- escenario de negocio de reingreso -- via el comando que lo origina (issue #378), nunca
-    // sembrando el event store por fuera del API. Devuelve el codigo de la vinculacion nueva.
     private async Task<string> IniciarVinculacionAsync(
         string id, DateOnly fechaInicio, CancellationToken ct)
     {
@@ -187,10 +116,6 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: camino feliz -- la ultima vinculacion tiene terminacion registrada + {codigo} correcto
-    // -> 204 y el stream recibe terminacion_anulada. Sin Service Bus (event-sourcing puro):
-    // mt_events es la unica ventana black-box a lo que quedo grabado. El evento no tiene payload --
-    // no hay contenido que comparar por valor, solo su existencia en el stream.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_Retorna204YPersisteTerminacionAnulada_CuandoUltimaVinculacionTieneTerminacionRegistrada()
@@ -218,9 +143,6 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
             $"el evento {TipoEventoTerminacionAnulada} deberia existir en el stream {streamId}");
     }
 
-    // CA-1: la anulacion tambien procede sobre un preaviso cuya fecha aun no llego -- sin reloj, el
-    // dato estaba mal y el sistema registra cuando se entero, sin importar si la fecha del preaviso
-    // ya paso o no.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_Retorna204YPersisteTerminacionAnulada_CuandoTerminacionEsUnPreavisoFuturo()
@@ -230,8 +152,7 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion();
         var id = IdDeRuta(numeroIdentificacion);
-        // Preaviso muy en el futuro -- el punto de esta CA es que la anulacion no consulta el reloj
-        // del servidor en ninguna direccion.
+        // Muy en el futuro: la anulacion no consulta el reloj del servidor en ninguna direccion.
         var fechaEfectivaPreaviso = new DateOnly(2030, 12, 31);
 
         var codigo = await RegistrarColaboradorAsync(numeroIdentificacion, new DateOnly(2026, 1, 1), ct);
@@ -248,12 +169,8 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
             "un preaviso cuya fecha no ha llegado deberia poder anularse igual que una terminacion pasada");
     }
 
-    // CA-2: composicion de la correccion de una fecha de terminacion errada -- anular la
-    // terminacion errada y volver a terminar con la fecha correcta -> 204 y una SEGUNDA
-    // VinculacionTerminada persistida con la fecha corregida. La reapertura de la vinculacion (que
-    // TerminarVinculacion exige junto con el mismo codigo) es la unica ventana black-box observable
-    // a que la anulacion tuvo el efecto esperado -- sin un endpoint de consulta, no hay otra forma
-    // de verificarlo desde afuera.
+    // Sin endpoint de consulta, que TerminarVinculacion vuelva a aceptar el mismo codigo es la unica
+    // prueba black-box de que la anulacion reabrio la vinculacion.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_ComponeConTerminarVinculacion_ParaCorregirLaFechaDeTerminacion()
@@ -288,8 +205,6 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
             $"el stream {streamId} deberia recibir una segunda vinculacion_terminada con la FechaEfectiva corregida ({FormatearFecha(fechaEfectivaCorregida)})");
     }
 
-    // CA-3: la vinculacion vigente nunca fue terminada -> 409. No requiere Postgres: el status code
-    // ya prueba que el aggregate declino con resultado y el handler lo tradujo (CA-ADR-0030).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_Retorna409_CuandoVinculacionNuncaFueTerminada()
@@ -305,9 +220,8 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-3 (decision #4 del issue #354): anular dos veces -- la segunda anulacion encuentra la
-    // vinculacion ya abierta (no hay idempotencia silenciosa porque no hay valor que comparar) ->
-    // 409, sin escribir un segundo terminacion_anulada.
+    // Sin idempotencia silenciosa (decision #4 del issue #354): no hay valor que comparar, asi que la
+    // segunda anulacion es 409 y no escribe otro terminacion_anulada.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_Retorna409_CuandoLaTerminacionYaFueAnuladaAntes()
@@ -344,11 +258,8 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
             "la segunda anulacion se rechazo con 409: no debe haber escrito un segundo terminacion_anulada");
     }
 
-    // CA-4 (decision #3 del issue #354, aprobada explicitamente): tras un reingreso, la terminacion
-    // de la vinculacion ANTERIOR queda CONGELADA -- la ULTIMA vinculacion (la del reingreso) es la
-    // que cuenta y esta abierta -> 409. Anularla reabriria una vinculacion teniendo otra abierta, lo
-    // que la invariante de no-solape prohibe. Se usa el codigo NUEVO del reingreso -- el {codigo}
-    // sigue apuntando a la vinculacion vigente, la unica direccionable.
+    // Tras un reingreso, la terminacion ANTERIOR queda congelada: anularla reabriria una vinculacion
+    // teniendo otra abierta (no-solape). Solo la vigente es direccionable, de ahi el codigo del reingreso.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_Retorna409_CuandoLaUltimaVinculacionNacioDeUnReingresoSinTerminar()
@@ -368,9 +279,8 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-5: {codigo} de ruta distinto al vigente -> 409 (CodigoNoCorresponde), no 404 -- es
-    // conflicto con el estado vigente (ej. tras un reingreso no visto por el cliente), no un
-    // recurso inexistente.
+    // 409 y no 404: es conflicto con el estado vigente (p. ej. un reingreso que el cliente no vio), no
+    // un recurso inexistente.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_Retorna409_CuandoCodigoDeRutaNoCorrespondeAlVigente()
@@ -387,15 +297,12 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-6: colaborador inexistente -> 404, sin escribir nada al event store (no hay stream para
-    // consultar: la ausencia de escritura la garantiza el propio 404 -- el handler lanza antes de
-    // llegar al aggregate).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_Retorna404_CuandoColaboradorNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var numeroIdentificacion = NuevoNumeroIdentificacion(); // nunca registrado
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
 
         var response = await AnularTerminacionAsync(
             IdDeRuta(numeroIdentificacion), NuevoCodigoColaborador(), ct);
@@ -403,8 +310,6 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-6: {id} de ruta sin guion -> 400, sin invocar el comando (parseo tipado unico,
-    // Identificacion.Parsear).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_Retorna400_CuandoIdDeRutaNoTraeGuion()
@@ -417,8 +322,6 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-6: tipo de identificacion del {id} de ruta fuera de la lista cerrada (PILA: CC, CE, TI,
-    // PA, PT) -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_Retorna400_CuandoTipoDeLaIdentificacionDeRutaNoEsReconocido()
@@ -431,23 +334,16 @@ public class AnularTerminacionSmokeTests(ApiFixture api, PostgresFixture postgre
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-7 (ruta vieja eliminada): verificado AFIRMATIVAMENTE contra el entorno real -- la ruta
-    // vieja (POST Colaboradores/Terminaciones/Anulaciones) debe responder 404 del host. El resto de
-    // la suite lo cubre solo por ausencia de referencias, que no distingue "la ruta se elimino" de
-    // "sigue viva y nadie la llama". Mismo criterio que IniciarVinculacionSmokeTests CA-6.
+    // Afirmativo contra el entorno: la ausencia de referencias en la suite no distingue "la ruta se
+    // elimino" de "sigue viva y nadie la llama".
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AnularTerminacion_Retorna404DelHost_CuandoSeLlamaLaRutaViejaPost()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // NumeroIdentificacion va DELIBERADAMENTE vacio: es lo que vuelve discriminante al oraculo.
-        // Con un body valido sobre una identificacion nunca registrada, el endpoint viejo -- si
-        // siguiera vivo -- responderia 404 de DOMINIO ("colaborador no encontrado"), indistinguible
-        // del 404 del host que este test quiere afirmar. Con NumeroIdentificacion vacio el endpoint
-        // viejo corta antes en su IRequestValidator y responde 400 (AnularTerminacionValidator
-        // pre-#379 exigia NumeroIdentificacion no vacio), asi que un 404 aqui solo puede significar
-        // que la ruta ya no existe.
+        // NumeroIdentificacion vacio a proposito: la ruta vieja, si siguiera viva, responderia 400 de su
+        // validador y no un 404 de dominio indistinguible del 404 del host.
         var response = await _client.PostAsJsonAsync(
             RutaAnulacionesVieja,
             new { tipoIdentificacion = TipoIdentificacionCc, numeroIdentificacion = "" },

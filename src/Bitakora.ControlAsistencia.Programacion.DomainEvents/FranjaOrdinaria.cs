@@ -3,21 +3,14 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Segmento continuo de trabajo dentro de un turno.
-// Contiene sub-franjas de descanso y extras.
-// ADR-0015: sealed class con factory static, constructor privado, campos readonly.
 public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaOrdinaria>
 {
     private readonly List<SubFranja> _descansos;
     private readonly List<SubFranja> _extras;
 
-    // Issue #335: sede prearmada para esta franja del catalogo (null = sin sede asignada). Campo
-    // interno, sin propiedad publica (MEF-ADR-0012, Tell-don't-Ask) -- se expone SOLO via
-    // ToDetalle().
+    // Sede prearmada del catalogo (null = sin sede). Sin propiedad publica (MEF-ADR-0012).
     private readonly SedeProgramada? _sede;
 
-    // Constructor real: usado por el factory
-    // diaOffsetInicio siempre es 0 — la ordinaria empieza en el dia base
     private FranjaOrdinaria(TimeOnly horaInicio, TimeOnly horaFin, int diaOffsetFin,
         List<SubFranja> descansos, List<SubFranja> extras, SedeProgramada? sede)
         : base(horaInicio, horaFin, diaOffsetInicio: 0, diaOffsetFin)
@@ -34,14 +27,8 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         _extras = [];
     }
 
-    // CA-8: factory estatico
-    // Issue #598 CA-4 a CA-6: rechaza duracion no positiva (generaliza inicio == fin) y duracion
-    // mayor a 24 horas (jornada maxima; 24 h exactas se acepta para esquemas 24x24)
-    // CA-13: infiere offset +1 cuando fin < inicio
-    // CA-14 a CA-16: valida que descansos y extras esten contenidos
-    // CA-17 a CA-19: valida que descansos y extras no se solapen entre si
-    // Issue #335 CA-3: la sede prearmada, si viene, debe tener Id y Nombre no vacios/en blanco --
-    // se valida junto a las demas invariantes de la franja (no en el RequestValidator del comando).
+    // Duracion en (0, 24 h]: 24 h exactas se acepta para esquemas 24x24. La sede se valida aqui, junto
+    // a las demas invariantes de la franja, y no en el RequestValidator del comando.
     public static FranjaOrdinaria Crear(
         TimeOnly horaInicio,
         TimeOnly horaFin,
@@ -50,11 +37,9 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         IEnumerable<SubFranja>? extras = null,
         SedeProgramada? sede = null)
     {
-        // CA-13: inferir offset cuando fin < inicio y no se especifico
         if (diaOffsetFin == 0 && horaFin < horaInicio)
             diaOffsetFin = 1;
 
-        // CA-3: rechazar sede incompleta -- la regla de completitud la responde la propia sede
         if (sede is not null && !sede.EstaCompleta())
             throw new ArgumentException(Mensajes.SedeIncompleta);
 
@@ -64,20 +49,16 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         var ordinaria = new FranjaOrdinaria(horaInicio, horaFin, diaOffsetFin,
             listaDescansos, listaExtras, sede);
 
-        // Issue #598: la propia franja responde su duracion (Tell-don't-Ask, MEF-ADR-0012)
         var duracionEnMinutos = ordinaria.DuracionEnMinutos();
         if (duracionEnMinutos <= 0)
             throw new ArgumentException(FranjaTemporal.Mensajes.DuracionNoPositiva);
         if (duracionEnMinutos > MinutosPorDia)
             throw new ArgumentException(Mensajes.DuracionExcedeUnDia);
 
-        // Proyectar todas las hijas como FranjaTemporal para validaciones unificadas
         var hijas = listaDescansos.Cast<FranjaTemporal>().Concat(listaExtras).ToList();
 
-        // CA-14 a CA-16: validar contencion de todas las hijas
         ValidarContencion(ordinaria, hijas);
 
-        // CA-17 a CA-19: validar que no haya solapamiento entre hijas
         ValidarSolapamiento(hijas);
 
         return ordinaria;
@@ -118,8 +99,7 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
     public FranjaOrdinaria ConSede(SedeProgramada? sede) =>
         Crear(_horaInicio, _horaFin, _diaOffsetFin, _descansos, _extras, sede);
 
-    // Contraparte de _sede sin abrir el campo (MEF-ADR-0012, Tell-don't-Ask): el aggregate
-    // pregunta esto para decidir el rechazo "nada que retirar" (FranjaSinSede) sin leer el VO.
+    // El aggregate lo pregunta para decidir el rechazo "nada que retirar" (FranjaSinSede) sin leer el VO.
     public bool TieneSedePrearmada() => _sede is not null;
 
     // Pregunta de la ventana de entrada del Turno: la ordinaria empieza siempre en offset 0.
@@ -139,12 +119,8 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         return SubFranja.Crear(inicio, fin, offsetInicio, offsetFin);
     }
 
-    // Conversion al DTO plano propio del dominio (Programacion.DomainEvents.FranjaProgramada).
-    // Issue #319 (tres islas): ya no retorna el DTO de bus (DetalleFranjaOrdinaria, PrivateEvents)
-    // -- el FA mapea FranjaProgramada -> DetalleFranjaOrdinaria solo para los eventos que cruzan
-    // el bus (CA-5). Tell-don't-Ask preservado: la conversion sigue viviendo en este VO, sin abrir
-    // _descansos/_extras (MEF-ADR-0012).
-    // Issue #335 CA-1/CA-2: copia la sede prearmada al DTO plano (o null si no hay).
+    // DTO plano propio de esta isla; el FA lo mapea a DetalleFranjaOrdinaria solo para los eventos que
+    // cruzan el bus.
     public FranjaProgramada ToDetalle() => new(
         _horaInicio, _horaFin, _diaOffsetFin,
         _descansos.Select(d => d.ToDetalle()).ToList().AsReadOnly(),
@@ -152,8 +128,8 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         ToString(),
         _sede);
 
-    // Notacion unica de las tools (#612): "22:00-06:00+1, descanso 02:00+1-02:30+1, extra ...".
-    // La sede no entra: la malla muestra la efectiva, que resuelve la cascada al programar.
+    // Notacion unica de las tools: "22:00-06:00+1, descanso 02:00+1-02:30+1, extra ...". La sede no
+    // entra: la malla muestra la efectiva, que resuelve la cascada al programar.
     public override string ToString() => string.Join(", ",
     [
         $"{FormatearHora(_horaInicio, 0)}-{FormatearHora(_horaFin, _diaOffsetFin)}",
@@ -161,9 +137,8 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         .. _extras.Select(e => $"{FranjaTemporal.Mensajes.LabelExtra} {e}")
     ]);
 
-    // Igualdad por valor
-    // Issue #335 CA-5: _sede entra en Equals/GetHashCode -- es dato de identidad del diseno de la
-    // franja (que sede prearmo el catalogo), a diferencia de Descripcion (derivado, en FranjaProgramada).
+    // _sede entra en la igualdad: es identidad del diseno de la franja, a diferencia de Descripcion
+    // (derivado, en FranjaProgramada).
     public bool Equals(FranjaOrdinaria? other)
     {
         if (other is null) return false;
@@ -184,15 +159,13 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
         return HashCode.Combine(hash, _sede);
     }
 
-    // Verifica que cada franja hija este contenida dentro de la ordinaria
     private static void ValidarContencion(FranjaOrdinaria contenedor, List<FranjaTemporal> hijas)
     {
         if (hijas.Any(h => !h.EstaContenidaEn(contenedor)))
             throw new ArgumentException(FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor);
     }
 
-    // Verifica que ningun par de franjas hijas se solapen
-    // CA-18: fin exclusivo, contiguas no se solapan
+    // Fin exclusivo: contiguas no se solapan.
     private static void ValidarSolapamiento(List<FranjaTemporal> hijas)
     {
         for (var i = 0; i < hijas.Count; i++)
@@ -201,10 +174,6 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
                     throw new ArgumentException(FranjaTemporal.Mensajes.FranjasHijasSeSuperponen);
     }
 
-    // Mapping de serializacion - vive aqui porque cambia con la clase
-    // Issue #335 CA-4/CA-5: _sede se registra como campo opcional -- STJ omite la clave "sede"
-    // del JSON cuando el valor es null (retrocompatibilidad, CA-4), y la restaura en el round-trip
-    // cuando esta presente (CA-5).
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(FranjaOrdinaria)
@@ -222,7 +191,6 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
             RegistrarCampo(typeInfo, "_diaOffsetInicio", "diaOffsetInicio", typeof(int), typeof(FranjaTemporal));
             RegistrarCampo(typeInfo, "_diaOffsetFin", "diaOffsetFin", typeof(int), typeof(FranjaTemporal));
 
-            // Colecciones de hijas
             var fDescansos = typeof(FranjaOrdinaria)
                 .GetField("_descansos", BindingFlags.NonPublic | BindingFlags.Instance)!;
             var pDescansos = typeInfo.CreateJsonPropertyInfo(typeof(List<SubFranja>), "descansos");
@@ -237,7 +205,7 @@ public sealed partial class FranjaOrdinaria : FranjaTemporal, IEquatable<FranjaO
             pExtras.Set = (obj, val) => fExtras.SetValue(obj, val);
             typeInfo.Properties.Add(pExtras);
 
-            // Sede prearmada: campo opcional -- se omite del JSON cuando es null (CA-4).
+            // Se omite del JSON cuando es null: retrocompatibilidad con eventos sin sede.
             var fSede = typeof(FranjaOrdinaria)
                 .GetField("_sede", BindingFlags.NonPublic | BindingFlags.Instance)!;
             var pSede = typeInfo.CreateJsonPropertyInfo(typeof(SedeProgramada), "sede");

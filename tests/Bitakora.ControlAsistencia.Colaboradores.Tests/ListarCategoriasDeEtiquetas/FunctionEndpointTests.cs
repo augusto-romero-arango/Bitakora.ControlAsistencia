@@ -8,6 +8,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ListarCategoriasDeEtiqu
 
 public class FunctionEndpointTests
 {
+    // Store y tenantContext nulos: la entrada invalida se rechaza antes de abrir la QuerySession.
     private static FunctionEndpoint Endpoint() => new(store: null!, tenantContext: null!);
 
     private static HttpRequest Request(string query)
@@ -18,8 +19,6 @@ public class FunctionEndpointTests
     }
 
     private static CategoriaDeEtiquetas Categoria(string id) => new(id, id, []);
-
-    // --- CA-4: entrada invalida -> 400 (GET) antes de abrir la QuerySession ---
 
     [Fact]
     public async Task ListarCategoriasDeEtiquetas_Retorna400_CuandoTakeEsCero()
@@ -53,8 +52,6 @@ public class FunctionEndpointTests
         resultado.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // --- Cursor opaco ---
-
     [Fact]
     public void CursorCategoria_RecuperaLaClaveKeyset_CuandoSeDecodificaLoCodificado()
     {
@@ -68,8 +65,6 @@ public class FunctionEndpointTests
     [Fact]
     public void CursorCategoria_NoDecodifica_CuandoElTextoEsIndescifrable() =>
         CursorCategoria.TryDecodificar("esto no es base64url!", out _).Should().BeFalse();
-
-    // --- Sobre { elementos, siguienteCursor } (CA-1) ---
 
     [Fact]
     public void Componer_DevuelveTodoSinCursor_CuandoNoHayTake()

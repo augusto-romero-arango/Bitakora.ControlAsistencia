@@ -1,11 +1,4 @@
-// CA-6/CA-7: el payload completo de DiaDepurado, con datos realistas del dominio (incluyendo Franjas
-// y Marcaciones, issue #424), round-trip serializa/deserializa con el serializador POR DEFECTO del
-// publisher (sin el resolver custom de Marten) y sin perdida. Complementa el guardrail minimo de
-// portabilidad de PrivateEvents.Tests/ControlHoras/DiaDepuradoTests, que compila contra la isla sola.
-//
-// La asercion es deliberadamente la OPUESTA a la del test legado, que afirmaba que la
-// deserializacion FALLABA sin resolver custom (Retardo tenia ctor privado): si alguien reintroduce
-// un tipo rico al payload, este test se pone rojo.
+// El payload viaja por Service Bus con el serializador por defecto, sin el resolver custom de Marten.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -30,8 +23,7 @@ public class DiaDepuradoSerializacionTests
     private static readonly MarcacionDelDia Marcacion =
         new(new DateTime(2026, 3, 15, 7, 0, 0), "ENTRADA", "001", "Sede Principal", "CC-100");
 
-    // Payload con datos reales: varias claves de concepto y la clave literal "Retardo", ya en horas
-    // liquidables (issue #424).
+    // Valores ya en horas liquidables, con la clave literal "Retardo".
     private static HorasDiscriminadas HorasConDatos() => new(
         new Dictionary<string, decimal>
         {
@@ -41,13 +33,8 @@ public class DiaDepuradoSerializacionTests
         },
         []);
 
-    // El serializador POR DEFECTO del publisher: sin TypeInfoResolver custom, como en el canal de
-    // publicacion a Service Bus (no se aplica ConfigurarSerializacion de Marten). Mismo objeto de
-    // opciones para serializar y deserializar -> round-trip sin perdida si el payload es primitivo.
     private static JsonSerializerOptions OpcionesPorDefectoDelPublisher() => new();
 
-    // CA-6/CA-7: round-trip preserva todos los campos con el serializador por defecto (sin resolver
-    // custom), incluidas Franjas y Marcaciones.
     [Fact]
     public void RoundTrip_PreservaTodosLosCampos_ConSerializadorPorDefectoDelPublisher()
     {
@@ -70,9 +57,6 @@ public class DiaDepuradoSerializacionTests
         restaurado.HorasDiscriminadas.Trazabilidad.Should().BeEmpty();
     }
 
-    // CA-4/CA-5/CA-6: roundtrip con Colaborador y NombreTurno null (dia sin jornada valida, caso
-    // "marcacion sin turno previo"), Franjas vacia pero CodigoColaborador top-level SIEMPRE presente
-    // -- el defecto latente que #421 corrigio -- y la marcacion cruda preservada.
     [Fact]
     public void RoundTrip_PreservaCampos_CuandoNoHayJornadaValida()
     {
@@ -94,10 +78,8 @@ public class DiaDepuradoSerializacionTests
         restaurado.HorasDiscriminadas.HorasPorConcepto.Should().BeEmpty();
     }
 
-    // CA-6 (barrera anti-regresion invertida): con el resolver POR DEFECTO sin ningun
-    // ConfigurarSerializacion registrado, la deserializacion DEBE tener exito -- el payload es 100%
-    // primitivo. Si alguien reintroduce un tipo de dominio rico (ctor/campos privados), volveria a
-    // necesitar el resolver custom y este test fallaria con NotSupportedException.
+    // Si alguien reintroduce un tipo de dominio rico (ctor o campos privados), volveria a necesitar el
+    // resolver custom y este test fallaria.
     [Fact]
     public void Deserializar_TieneExito_ConResolverPorDefectoSinRegistros()
     {

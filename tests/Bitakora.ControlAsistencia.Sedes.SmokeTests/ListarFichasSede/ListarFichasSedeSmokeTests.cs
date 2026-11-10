@@ -1,19 +1,12 @@
-// Issue #461: smoke tests de ListarFichasSede, GET sedes/fichas -- mismo recurso que
-// ObtenerFichaSede, sin QUERY: el filtro Activa es un unico par campo=valor en igualdad
-// (MEF-ADR-0042 seccion 1) y SIN paginacion (decision de sesion 2026-08-27, Rule of Three,
-// MEF-ADR-0018).
+// Arrange via API, nunca sembrando el event store por fuera de ella: los mismos comandos que la
+// proyeccion consume.
 //
-// Arrange via API, nunca sembrando el event store por fuera de ella: cada sede se crea con POST
-// sedes (#456) y se desactiva con POST sedes/{codigo}:desactivar (#459) -- los mismos comandos que
-// la proyeccion consume.
+// FichaSede se materializa de forma asincrona (MEF-ADR-0034 seccion 3): los casos de exito envuelven
+// la consulta en Polling.WaitUntilAsync, unica excepcion documentada al "no usar Polling directo en
+// tests".
 //
-// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa/actualiza FichaSede DESPUES de
-// que Sedes persiste sus eventos. Los casos de exito envuelven la consulta en Polling.WaitUntilAsync
-// (timeout estandar 30s) -- unica excepcion documentada al "no usar Polling directo en tests".
-//
-// Aislamiento de datos SIN cleanup, en un entorno SIN paginacion que ACUMULA fichas de corridas
-// anteriores: cada test filtra su propia fila por Codigo unico (Guid), nunca por conteo total ni
-// posicion/indice.
+// Sin cleanup y en un entorno que acumula fichas de corridas anteriores: cada test filtra su propia
+// fila por Codigo unico, nunca por conteo total ni posicion.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -37,9 +30,8 @@ public class ListarFichasSedeSmokeTests(ApiFixture api)
         PropertyNameCaseInsensitive = true
     };
 
-    // Forma local DESACOPLADA del read model de produccion (ReadModels.Sedes.FichaSede): replica
-    // solo el shape JSON de la respuesta HTTP de este endpoint. El smoke test no referencia
-    // ReadModels ni el Function App (isla, MEF-ADR-0034 seccion 5).
+    // Forma local desacoplada de ReadModels.Sedes.FichaSede: el smoke test no referencia ReadModels
+    // ni el Function App (MEF-ADR-0034 seccion 5).
     private sealed record FichaSedeRespuestaSmoke(
         string Id,
         string Codigo,
@@ -54,8 +46,7 @@ public class ListarFichasSedeSmokeTests(ApiFixture api)
         List<FichaSedeRespuestaSmoke> Elementos,
         string? SiguienteCursor);
 
-    // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta/query y esta sujeto al charset
-    // URL-safe, del que "[", "]" y el espacio quedan fuera.
+    // "TEST-" y no "[TEST] ": el Codigo viaja en la ruta/query y "[", "]" y el espacio no son URL-safe.
     private static string NuevoCodigo() => $"TEST-{Guid.CreateVersion7()}";
 
     private static string RutaFicha(string codigo) => $"/api/sedes/fichas/{codigo}";
@@ -84,9 +75,8 @@ public class ListarFichasSedeSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que DesactivarSede funcione");
     }
 
-    // Reintenta la ficha puntual hasta que la proyeccion asincrona la materialice y cumpla la
-    // condicion pedida -- garantiza, de forma deterministica, que el listado que se pruebe despues
-    // ya esta al dia (mismo criterio que ObtenerFichaColaboradorSmokeTests).
+    // Reintenta la ficha puntual hasta que la proyeccion la materialice y cumpla la condicion: asi el
+    // listado que se pruebe despues ya esta al dia.
     private Task<FichaSedeRespuestaSmoke> EsperarFichaAsync(
         string codigo, CancellationToken ct, Func<FichaSedeRespuestaSmoke, bool> hasta) =>
         Polling.WaitUntilAsync(async () =>
@@ -126,9 +116,6 @@ public class ListarFichasSedeSmokeTests(ApiFixture api)
         return sobre!;
     }
 
-    // Reintenta el listado hasta que la proyeccion asincrona satisfaga la condicion -- unica
-    // excepcion documentada al "no usar Polling directo en tests" (lifecycle Async, MEF-ADR-0034
-    // seccion 3).
     private Task<List<FichaSedeRespuestaSmoke>> ListarHastaQueAsync(
         Func<List<FichaSedeRespuestaSmoke>, bool> condicion, CancellationToken ct, bool? activa = null) =>
         Polling.WaitUntilAsync(async () =>
@@ -147,9 +134,6 @@ public class ListarFichasSedeSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // Listado (sin filtro): la sede recien registrada aparece en la coleccion completa, filtrando
-    // por su Codigo unico -- nunca por posicion/indice, en un entorno que acumula fichas de
-    // corridas anteriores.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasSede_IncluyeLaFichaCreada_CuandoNoSeAplicaFiltro()
@@ -166,10 +150,8 @@ public class ListarFichasSedeSmokeTests(ApiFixture api)
         ficha.Dispositivos.Should().BeEmpty();
     }
 
-    // CA-6: filtrar por activa=true devuelve la sede activa y excluye la inactiva; activa=false es
-    // lo contrario. Se espera primero puntualmente la sede desactivada (confirma que la proyeccion
-    // YA aplico SedeDesactivada) antes de probar el filtro de forma deterministica -- de lo
-    // contrario un filtro fallido podria confundirse con una proyeccion desactualizada.
+    // Se espera primero la ficha puntual desactivada: confirma que la proyeccion ya aplico
+    // SedeDesactivada, y un filtro fallido no se confunde con una proyeccion desactualizada.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasSede_FiltraPorActiva_CuandoElParametroLlegaEnLaQueryString()
@@ -194,8 +176,7 @@ public class ListarFichasSedeSmokeTests(ApiFixture api)
         listaInactivas.Should().NotContain(f => f.Codigo == codigoActiva);
     }
 
-    // Filtro sintacticamente invalido ("activa" no parsea a bool) -> 400, verificado explicitamente
-    // por el endpoint antes de tocar Marten.
+    // "activa" que no parsea a bool -> 400, verificado por el endpoint antes de tocar Marten.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasSede_Retorna400_CuandoElFiltroActivaNoEsBooleano()

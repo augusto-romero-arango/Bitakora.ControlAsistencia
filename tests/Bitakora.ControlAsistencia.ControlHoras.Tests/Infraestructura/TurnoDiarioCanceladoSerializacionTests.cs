@@ -40,9 +40,7 @@ public class TurnoDiarioCanceladoSerializacionTests
         deserializado.SolicitudCancelacionId.Should().Be(SolicitudCancelacionId);
     }
 
-    // Si alguien borra la linea de registro de TurnoDiarioCancelado en ConfigurarResolver, este
-    // test detecta la perdida: el tipo tiene constructores privados y propiedades con private set,
-    // asi que el resolver por defecto no puede reconstruirlo.
+    // El tipo tiene ctors privados y private set: el resolver por defecto no puede reconstruirlo.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeTurnoDiarioCancelado()
     {

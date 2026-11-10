@@ -15,9 +15,6 @@ builder.Services.ConfigurarServiciosMcp(builder.Configuration);
 builder.Services.ConfigurarObservabilidadMcp();
 builder.UseMiddleware<AutorizacionMcpMiddleware>();
 
-// Deriva la identidad del usuario autenticado (org_id/sub/organization_membership_id) para cada
-// tool call y la puebla en el ambiente (TenantExecutionContext); PropagadorIdentidadTenantHandler
-// la prefiere sobre el tenant fijo (MEF-ADR-0047 decision 6, CA-ADR-0032).
 builder.UseMiddleware<IdentidadTenantMcpMiddleware>();
 
 await builder.Build().RunAsync();

@@ -2,7 +2,6 @@ using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 
-// ADR-0015: record = DTO sin invariantes, constructor primario publico
 public record CrearTurno(
     Guid TurnoId,
     string Nombre,
@@ -15,7 +14,6 @@ public record CrearTurno(
 
     // Descansos/Extras NO pueden volver a ser tuplas: STJ no serializa campos de ValueTuple por
     // defecto, asi que un body con hijas no vacias deserializa en silencio a 00:00-00:00.
-    // Sede prearma la sede de esta franja en el catalogo.
     // DiaOffsetFin ausente/0 = inferir (+1 si Fin < Inicio); 1 explicito habilita las 24 h exactas.
     public record Franja(
         TimeOnly Inicio,
@@ -25,8 +23,7 @@ public record CrearTurno(
         SedeProgramada? Sede = null,
         int? DiaOffsetFin = null);
 
-    // El contrato HTTP se queda aqui y se traduce a la entrada del factory de TurnoCreado. Un solo
-    // lugar con el mapeo: lo reusan el handler y sus tests.
+    // Unico lugar del mapeo del contrato HTTP a la entrada del factory de TurnoCreado.
     public List<DatosFranja> ToDatosFranjas() => (Ordinarias ?? []).Select(o => new DatosFranja(
         o.Inicio, o.Fin,
         (o.Descansos ?? []).Select(r => (r.Inicio, r.Fin)).ToList(),

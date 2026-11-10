@@ -2,9 +2,8 @@ using System.Net.Http.Json;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.Fixtures;
 
-// Arrange directo al Function App de Programacion: las tools de crear plantilla de turnos nacen
-// despues que las de consulta, asi que el smoke siembra la plantilla por la misma via que
-// ProgramacionApiFixture usa para los turnos (MEF-ADR-0048 seccion 6).
+// Arrange directo al Function App de Programacion, por la misma via que ProgramacionApiFixture
+// usa para los turnos (MEF-ADR-0048 seccion 6).
 public static class PlantillasDeTurnos
 {
     public static async Task<Guid> CrearPlantillaAsync(

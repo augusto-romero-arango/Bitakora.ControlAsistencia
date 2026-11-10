@@ -50,7 +50,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         var sedeSolicitada = command.Sede?.ConCentroDeCostosNormalizado();
 
         // La cascada va antes de construir los eventos: ambos payloads derivan del mismo turno
-        // resuelto. Con sede null es identidad, sin ramificar (MEF-ADR-0012).
+        // resuelto. Con sede null es identidad.
         var turnoProgramado = catalogo.ObtenerDetalle().ConSedePorDefecto(sedeSolicitada);
 
         var jornadaId = command.JornadaId ?? await _asegurador.AsegurarAsync(ct);
@@ -102,8 +102,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         if (enFirme.Count > 0)
         {
             var colaborador = MapearResumenColaborador(command.Colaborador);
-            // Los mapeos viven aqui: esta Function App es el unico proyecto que ve ambos ensamblados
-            // (CA-ADR-0029 decision #5, payload por rol).
+            // Los mapeos viven aqui: esta Function App es el unico proyecto que ve ambos ensamblados.
             var eventoPrivado = new ProgramacionTurnoEnFechasSolicitada(
                 command.Id, colaborador, enFirme.AsReadOnly(), MapearTurno(turnoProgramado),
                 DetalleJornadaMapeo.Mapear(jornadaProgramada), MapearSede(sedeSolicitada));
@@ -116,8 +115,6 @@ public partial class SolicitarProgramacionTurnoCommandHandler
             enBorrador);
     }
 
-    // La terna fluye tal cual del body: componer "{Tipo}-{Numero}" o concatenar nombres es del
-    // cliente contra el maestro Colaboradores, no del servidor.
     private static ResumenColaborador MapearResumenColaborador(ColaboradorSolicitado colaborador) =>
         new(colaborador.Identificacion, colaborador.CodigoColaborador, colaborador.NombreCompleto);
 

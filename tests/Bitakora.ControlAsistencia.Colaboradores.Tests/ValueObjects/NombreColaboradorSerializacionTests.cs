@@ -1,7 +1,3 @@
-// HU-348 CA-6: round-trip de serializacion (patron Marten) para NombreColaborador.
-// ConfiguracionSerializacionColaboradores todavia no existe (mismo razonamiento que
-// IdentificacionSerializacionTests.cs): el resolver se arma localmente con
-// NombreColaborador.ConfigurarSerializacion.
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -43,8 +39,8 @@ public class NombreColaboradorSerializacionTests
         restaurado!.NombreCompleto.Should().Be("Luis Barreto");
     }
 
-    // Barrera anti-regresion: sin el resolver custom, STJ no puede reconstruir NombreColaborador --
-    // su unico constructor es privado y no hay [JsonConstructor] (proscrito por MEF-ADR-0012).
+    // Sin el resolver custom STJ no reconstruye NombreColaborador: su constructor es privado y
+    // [JsonConstructor] esta proscrito (MEF-ADR-0012).
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeNombreColaborador()
     {

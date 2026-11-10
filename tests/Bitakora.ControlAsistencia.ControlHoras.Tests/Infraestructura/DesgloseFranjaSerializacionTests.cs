@@ -1,7 +1,3 @@
-// HU-129: Crear estructuras agregadas DesgloseFranja y DesgloseHoras
-// CA-5: DesgloseFranja sobrevive round-trip JSON con ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten()
-//       preservando Programada, Intervalos, Retardo y recalculando MinutosPorConcepto con los mismos valores.
-// Barrera anti-regresion: sin el registro de Retardo en el resolver, la deserializacion falla.
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -19,7 +15,7 @@ public class DesgloseFranjaSerializacionTests
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
-    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
+    // Descripcion es un dato derivado, irrelevante aqui: placeholder "".
     private static FranjaProgramada CrearFranjaProgramadaConDescanso() =>
         new FranjaProgramada(
             new TimeOnly(8, 0), new TimeOnly(17, 0), 0,
@@ -123,9 +119,7 @@ public class DesgloseFranjaSerializacionTests
         restaurado!.MinutosPorConcepto[Concepto.OrdinariaDiurna].Should().Be(480);
     }
 
-    // Barrera anti-regresion: DesgloseFranja.Retardo (Retardo) no sobrevive sin
-    // ConfigurarSerializacion registrado. Si alguien borra Retardo.ConfigurarSerializacion(resolver)
-    // de ConfigurarResolver, este test falla.
+    // Si alguien borra Retardo.ConfigurarSerializacion(resolver) de ConfigurarResolver, este test falla.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeRetardo()
     {

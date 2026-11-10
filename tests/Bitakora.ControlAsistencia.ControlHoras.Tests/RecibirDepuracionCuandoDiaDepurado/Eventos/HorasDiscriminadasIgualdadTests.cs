@@ -1,7 +1,6 @@
-// Tests de contrato IEquatable para la HorasDiscriminadas de ControlHoras.DomainEvents (la copia
-// persistida del payload, hermana de la de PrivateEvents). El record override manualmente
+// La HorasDiscriminadas de ControlHoras.DomainEvents (hermana de la de PrivateEvents) sobrescribe
 // Equals/GetHashCode para comparar HorasPorConcepto y Trazabilidad por valor: sin estos tests, un
-// edit de esos overrides solo se veria al comparar dos DepuracionDiaRecibida.
+// cambio en esos overrides solo se veria al comparar dos DepuracionDiaRecibida.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;

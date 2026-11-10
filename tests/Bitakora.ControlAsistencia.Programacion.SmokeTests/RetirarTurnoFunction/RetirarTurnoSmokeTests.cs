@@ -14,7 +14,7 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
     private const string TipoEventoTurnoRetirado = "turno_retirado";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // El nombre es unico en el catalogo (#497): sufijarlo con el turnoId mantiene estos smoke
+    // El nombre es unico en el catalogo: sufijarlo con el turnoId mantiene estos smoke
     // tests re-ejecutables contra el mismo entorno dev.
     private static object PayloadTurnoConFranja(Guid turnoId, string nombreBase) => new
     {
@@ -59,9 +59,8 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: DELETE de un turno existente persiste TurnoRetirado en su stream. turno_retirado no
-    // cruza ningun bus (issue #500): la persistencia en mt_events es el unico efecto secundario
-    // verificable de este handler, mismo criterio que CrearTurnoSmokeTests para turno_creado.
+    // turno_retirado no cruza ningun bus: la persistencia en mt_events es el unico efecto secundario
+    // verificable de este handler.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarTurno_DebeRetornar204YPersistirTurnoRetirado_CuandoElTurnoExiste()
@@ -85,8 +84,8 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
             $"el evento {TipoEventoTurnoRetirado} deberia existir en el stream {streamId} tras retirar el turno");
     }
 
-    // CA-5: retirar tambien aplica a turnos de descanso -- son turnos de pleno derecho del
-    // catalogo (#423), sin discriminador propio en el aggregate mas alla de la lista vacia de
+    // Retirar tambien aplica a turnos de descanso -- son turnos de pleno derecho del
+    // catalogo, sin discriminador propio en el aggregate mas alla de la lista vacia de
     // franjas.
     [Fact]
     [Trait("Category", "Smoke")]
@@ -111,7 +110,6 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
             $"el evento {TipoEventoTurnoRetirado} deberia existir en el stream {streamId} tras retirar el descanso");
     }
 
-    // CA-2: DELETE de un turno inexistente -> 404 con mensaje .resx.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarTurno_DebeRetornar404_CuandoElTurnoNoExiste()
@@ -123,8 +121,7 @@ public class RetirarTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-3 (#665): DELETE de un turno ya retirado es un no-op exitoso (MEF-ADR-0004 "Estado ya
-    // alcanzado") -- 204 sin evento nuevo, la ficha sigue retirada.
+    // Estado ya alcanzado: no-op exitoso, la ficha sigue retirada.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarTurno_DebeRetornar204SinEvento_CuandoElTurnoYaEstaRetirado()

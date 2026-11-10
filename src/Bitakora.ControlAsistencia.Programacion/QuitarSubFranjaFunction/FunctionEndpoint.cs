@@ -7,9 +7,8 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction;
 
-// Accion de negocio con verbo propio (MEF-ADR-0043 paso 4): la clave natural HH:mm de la hija
-// contiene ":", fuera del charset URL-safe -- POST "{recurso}:{verbo}". El {id} de ruta se valida
-// a mano (MEF-ADR-0037 seccion 2); el body lo valida IRequestValidator.
+// POST "{recurso}:{verbo}" (MEF-ADR-0043 paso 4): la clave natural HH:mm de la hija contiene ":",
+// fuera del charset URL-safe.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("QuitarSubFranja")]
@@ -26,9 +25,7 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         if (error is not null)
             return error;
 
-        // El 400 canonico de un tipo no parseable lo produce QuitarSubFranjaBodyValidator; esta
-        // guarda reemite su mismo mensaje .resx para que el borde nunca dependa de que el
-        // validator este registrado (MEF-ADR-0037 seccion 2: parseo tipado con 400 explicito).
+        // Reemite el 400 del validator para que el borde no dependa de que el validator este registrado.
         if (!Enum.TryParse<TipoSubFranja>(body!.Tipo, ignoreCase: true, out var tipo))
             return new BadRequestObjectResult(AgregarSubFranjaBodyValidator.Mensajes.TipoDesconocido);
 

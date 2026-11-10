@@ -1,5 +1,4 @@
-// Issue #606: cambiar (o retirar) la sede prearmada de una franja ya creada -- cuarto paso del
-// diseno de turno por pasos (CA-ADR-0033).
+// Cambia (o retira, con Sede = null) la sede prearmada de una franja ya creada.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
@@ -32,7 +31,6 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
     private static TurnoCreado CrearEventoTurnoDeDescanso() =>
         TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
 
-    // CA-4: camino feliz -- la franja sin sede recibe la sede prearmada indicada.
     [Fact]
     public async Task AsignarSedeAFranja_EmiteSedeDeFranjaAsignada_CuandoLaFranjaNoTeniaSede()
     {
@@ -47,7 +45,6 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Sede, Chapinero);
     }
 
-    // CA-4: retirar -- Sede=null sobre una franja con sede emite SedeDeFranjaRetirada.
     [Fact]
     public async Task AsignarSedeAFranja_EmiteSedeDeFranjaRetirada_CuandoLaSedeEsNullYLaFranjaTeniaSede()
     {
@@ -61,9 +58,8 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Sede, null);
     }
 
-    // CA-4: turno inexistente -> 404. Sin And<>: el aggregate no existe (ningun Given), y
-    // reconstruirlo lanzaria ArgumentNullException -- mismo criterio que
-    // AgregarFranjaCommandHandlerTests para el mismo escenario.
+    // Sin And<>: el aggregate no existe (ningun Given) y reconstruirlo lanzaria
+    // ArgumentNullException.
     [Fact]
     public async Task AsignarSedeAFranja_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExisteEnElCatalogo()
     {
@@ -121,8 +117,8 @@ public class AsignarSedeAFranjaCommandHandlerTests : CommandHandlerAsyncTest<Asi
             c => c.ObtenerDetalle().FranjasOrdinarias.Count, 0);
     }
 
-    // CA-3: retirar dos veces la sede -- el aggregate declina sin evento, pero el handler lo
-    // traduce a 409, a diferencia del no-op exitoso de RetirarTurno (MEF-ADR-0004, #665).
+    // Retirar dos veces la sede: el aggregate declina sin evento, pero el handler lo traduce a 409,
+    // a diferencia del no-op exitoso de RetirarTurno.
     [Fact]
     public async Task AsignarSedeAFranja_LanzaReglaDeNegocioDeclinadaException_CuandoLaFranjaYaNoTieneSede()
     {

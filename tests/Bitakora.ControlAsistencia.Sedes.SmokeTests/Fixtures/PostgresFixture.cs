@@ -76,21 +76,17 @@ public class PostgresFixture : IAsyncLifetime
     /// Cuenta los eventos del tipo indicado ya presentes en el stream, sin esperar.
     /// </summary>
     /// <remarks>
-    /// Issue #354: <see cref="ExisteEventoAsync"/> solo responde "hay al menos uno", asi que no
-    /// distingue "quedo el evento de la primera request" de "la segunda request escribio otro".
-    /// Un test que afirme que un rechazo NO agrego un evento necesita el conteo exacto. Sin
-    /// polling a proposito: se usa despues de una respuesta sincrona de rechazo (409), cuando el
-    /// escenario ya espero con <see cref="ExisteEventoAsync"/> a que apareciera el evento legitimo.
+    /// Para afirmar que un rechazo NO agrego un evento: <see cref="ExisteEventoAsync"/> solo dice "hay
+    /// al menos uno". Sin polling a proposito: se usa tras un rechazo sincrono (409), cuando el
+    /// escenario ya espero el evento legitimo.
     /// </remarks>
     public async Task<int> ContarEventosAsync(string schema, string streamId, string tipoEvento) =>
         (await ObtenerEventosInternoAsync(schema, streamId, tipoEvento)).Count;
 
     /// <summary>
-    /// Espera a que el daemon de proyecciones (MEF-ADR-0034 seccion 3) materialice un documento
-    /// Marten -- lifecycle Async, efecto del worker, no del write-side inline. Filtra por tenant_id
-    /// porque el named store del worker declara <c>Policies.AllDocumentsAreMultiTenanted()</c>
-    /// (tenancy conjoined, CA-ADR-0027): sin ese filtro un documento de otro tenant con el mismo id
-    /// daria un falso positivo.
+    /// Espera a que el daemon de proyecciones materialice un documento Marten. Filtra por tenant_id
+    /// porque el named store del worker es multi-tenant (conjoined, CA-ADR-0027): sin ese filtro un
+    /// documento de otro tenant con el mismo id daria un falso positivo.
     /// </summary>
     public Task<bool> ExisteDocumentoAsync(
         string schema, string tabla, string documentoId, TimeSpan timeout,
@@ -114,15 +110,11 @@ public class PostgresFixture : IAsyncLifetime
     /// Obtiene el primer evento del tipo indicado en el stream, sin filtrar por contenido.
     /// </summary>
     /// <remarks>
-    /// Issue #351: el filtro por (campoJson, valorJson) del overload de abajo compara
-    /// <c>JsonElement.ToString()</c> contra un texto -- solo sirve para campos ESCALARES. Para un
-    /// campo objeto (un VO serializado) esa comparacion nunca
-    /// coincide: mt_events.data es jsonb, y PostgreSQL no preserva ni el whitespace ni el orden de
-    /// las claves (docs 8.14.1), mientras que <c>ToString()</c> sobre un objeto devuelve el texto
-    /// crudo tal como llego. El test que necesita verificar contenido de un campo objeto usa este
-    /// overload y compara por VALOR, deserializando con las opciones reales de Marten.
-    /// Es seguro no filtrar porque cada smoke test usa una identificacion nueva: su stream contiene
-    /// un solo evento de cada tipo.
+    /// El filtro por (campoJson, valorJson) del overload de abajo compara <c>JsonElement.ToString()</c>
+    /// contra un texto y solo sirve para campos escalares: en un campo objeto nunca coincide, porque
+    /// mt_events.data es jsonb y PostgreSQL no preserva whitespace ni orden de claves. Para un campo
+    /// objeto, usa este overload y compara por valor. No filtrar es seguro: cada smoke test usa una
+    /// identificacion nueva y su stream tiene un solo evento de cada tipo.
     /// </remarks>
     public Task<T> ObtenerEventoAsync<T>(
         string schema, string streamId, string tipoEvento, TimeSpan timeout) =>
@@ -212,7 +204,6 @@ public class PostgresFixture : IAsyncLifetime
 
     private static string EscaparIdentificador(string identificador)
     {
-        // Solo permitir caracteres alfanumericos y guion bajo para prevenir SQL injection
         if (!System.Text.RegularExpressions.Regex.IsMatch(identificador, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
             throw new ArgumentException($"Identificador SQL invalido: {identificador}");
         return identificador;

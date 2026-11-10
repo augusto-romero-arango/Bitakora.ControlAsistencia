@@ -14,8 +14,8 @@ builder.Services.AgregarServiciosSedes(
     serviceBusConnectionString,
     builder.Environment.IsDevelopment());
 
-// Middleware del worker: no es IServiceCollection, asi que no puede vivir en el seam.
-// UsarTenantContextMiddleware puebla la identidad que el ITenantContext del seam luego lee.
+// Fuera del seam: es middleware del worker, no IServiceCollection. Puebla la identidad que lee el
+// ITenantContext del seam.
 builder.UsarTenantContextMiddleware();
 
 await builder.Build().RunAsync();

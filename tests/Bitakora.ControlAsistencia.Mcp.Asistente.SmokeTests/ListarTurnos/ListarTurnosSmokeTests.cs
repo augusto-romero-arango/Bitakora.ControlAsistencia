@@ -66,8 +66,7 @@ public class ListarTurnosSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
             ["codigo_sede"] = codigoSede
         };
 
-        // La sede recien registrada y la franja recien agregada se materializan de forma asincrona;
-        // Polling reintenta la asignacion hasta que responde el eco JSON.
+        // La sede y la franja recien creadas se materializan de forma asincrona.
         using var asignada = await Polling.WaitUntilAsync(
             async () =>
             {

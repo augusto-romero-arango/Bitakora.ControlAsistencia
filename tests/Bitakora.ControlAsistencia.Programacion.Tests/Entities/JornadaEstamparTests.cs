@@ -8,7 +8,6 @@ public class JornadaEstamparTests
 {
     private static readonly Guid JornadaId = Guid.Parse("019600a0-0000-7000-8000-000000000862");
 
-    // Issue #861 CA-1: la copia la entrega el aggregate (Tell-don't-Ask).
     [Fact]
     public void Estampar_DevuelveLaCopiaConIdYLimites_CuandoLaJornadaFueCreada()
     {

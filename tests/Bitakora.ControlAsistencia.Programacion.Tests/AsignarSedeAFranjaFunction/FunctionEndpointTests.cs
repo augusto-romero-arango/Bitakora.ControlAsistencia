@@ -1,5 +1,3 @@
-// Issue #606: tests del endpoint HTTP POST /programacion/turnos/{id}:asignar-sede-franja
-
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction;
@@ -31,7 +29,7 @@ public class FunctionEndpointTests
             .Select(parametro => parametro.GetCustomAttribute<HttpTriggerAttribute>())
             .Single(trigger => trigger is not null)!;
 
-    // CA-5: ruta y verbo pactados en el issue, congelados por reflexion -- ningun otro test local
+    // Ruta y verbo congelados por reflexion: ningun otro test local
     // ejercita el HttpTriggerAttribute (Run() se llama directo, sin pasar por el enrutador del host).
     [Fact]
     public void AsignarSedeAFranja_ExponeElVerboYLaRutaPactadosEnElIssue()
@@ -139,7 +137,7 @@ public class FunctionEndpointTests
         (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 
-    // CA-5: el body sin la clave "sede" (retirar) se acepta y compone Sede = null -- el record no
+    // El body sin la clave "sede" (retirar) se acepta y compone Sede = null -- el record no
     // exige la clave, Sede tiene default null.
     [Fact]
     public async Task AsignarSedeAFranja_ComponeSedeNull_CuandoElBodyNoTraeLaClaveSede()
@@ -156,7 +154,7 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
+// Fakes manuales - NO NSubstitute.
 
 internal class FakeRequestValidator<TComando> : IRequestValidator
 {
@@ -183,8 +181,8 @@ internal class FakeRequestValidator<TComando> : IRequestValidator
 }
 
 // ComandoRecibido: a diferencia del FakeCommandRouter de otros comandos de este dominio, este
-// captura el comando despachado -- CA-5 exige verificar que el body sin la clave "sede" compone
-// Sede = null, y ningun otro assert de este archivo puede verlo sin esa captura.
+// captura el comando despachado: es la unica forma de verificar que el body sin la clave "sede"
+// compone Sede = null.
 internal sealed class FakeCommandRouter(Exception? excepcion = null) : ICommandRouter
 {
     public object? ComandoRecibido { get; private set; }

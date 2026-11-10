@@ -1,10 +1,8 @@
-// Funcion pura, invocada directamente: sin QuerySession/Marten y sin el DSL Given/When/Then, que
-// MEF-ADR-0002 reserva a command handlers contra el event store. Cada oraculo se arma a mano, campo
-// por campo -- nunca reusando el mapeo bajo prueba para construir el esperado.
+// Funcion pura: sin Marten ni DSL Given/When/Then (MEF-ADR-0002 lo reserva a command handlers).
+// Cada oraculo se arma a mano, nunca reusando el mapeo bajo prueba.
 //
-// TotalHorasPorConcepto se verifica con BeEquivalentTo y nunca comparando la fila entera con
-// Should().Be(...): IReadOnlyDictionary<string, decimal> no recibe equality estructural del
-// compilador de records, asi que esa comparacion pasaria a ser por referencia.
+// TotalHorasPorConcepto se verifica con BeEquivalentTo, nunca comparando la fila con Should().Be(...):
+// IReadOnlyDictionary no recibe equality estructural del record y compararia por referencia.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;

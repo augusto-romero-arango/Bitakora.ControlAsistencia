@@ -168,7 +168,6 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         entorno.Sedes.Requests.Should().BeEmpty();
     }
 
-    // CA-2
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_RechazaSinEscribir_CuandoNoLlegaSedeNiEtiquetas()
     {
@@ -357,7 +356,6 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         AsegurarSinEscrituras(entorno);
     }
 
-    // CA-3
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_ProgramaATodosConUnaSolaLlamadaAFichas_Cuando203Fichas()
     {
@@ -386,7 +384,6 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         entorno.Posts.Should().HaveCount(5);
     }
 
-    // CA-4
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_EnviaSedeCanonicaYEtiquetasJuntas_CuandoVienenAmbas()
     {
@@ -435,7 +432,6 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         (consulta["etiquetas"]?.AsArray() ?? []).Should().BeEmpty();
     }
 
-    // CA-5
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_RecortaPorVinculacionYOmiteSinDias_CuandoLaVigenciaNoCubreLaVentana()
     {
@@ -461,7 +457,6 @@ public class SolicitarProgramacionTurnoPorGrupoToolTests
         json["programados"]!.AsArray().Should().HaveCount(2);
     }
 
-    // CA-6
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_ReportaTurnoSedeVentanaYSelector_CuandoProgramaElGrupo()
     {

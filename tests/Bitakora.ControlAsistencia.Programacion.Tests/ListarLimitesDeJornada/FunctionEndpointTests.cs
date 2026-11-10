@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ListarLimitesDeJornada;
 
-// CA-2: los guards de take y cursor retornan ANTES de abrir la QuerySession -- el IDocumentStore es
-// null! a proposito, cualquier lectura del store lanzaria.
+// Los guards de take y cursor retornan ANTES de abrir la QuerySession -- el IDocumentStore es null!
+// a proposito, cualquier lectura del store lanzaria.
 public class FunctionEndpointTests
 {
     private static async Task<int?> EjecutarAsync(string queryString)

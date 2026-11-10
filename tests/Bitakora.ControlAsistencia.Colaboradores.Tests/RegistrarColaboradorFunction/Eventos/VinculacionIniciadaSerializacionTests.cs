@@ -1,6 +1,3 @@
-// Issue #330. Requerido por regla 16: todo evento persistido en Marten debe sobrevivir
-// Serialize -> Deserialize con las opciones REALES de Marten del dominio (regla 6d). CA-5/CA-6.
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
@@ -8,19 +5,14 @@ using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RegistrarColaboradorFunction.Eventos;
 
 /// <summary>
-/// Verifica que VinculacionIniciada (payload plano: string + DateOnly, sin VOs anidados)
-/// sobrevive un roundtrip de serializacion STJ con las opciones reales de Marten del dominio.
-/// A diferencia de ColaboradorRegistrado, este evento NO necesita ConfigurarSerializacion propio
-/// (ctor publico, tipos primitivos) -- mismo criterio que ProgramacionTurnoSolicitada -- asi que
-/// no hay un test "sin registro falla": no hay ningun registro que proteger.
+/// Sin test "sin registro falla": el payload es plano (string + DateOnly) y no depende de ningun
+/// resolver que proteger.
 /// </summary>
 public class VinculacionIniciadaSerializacionTests
 {
     private static JsonSerializerOptions CrearOpcionesMarten() =>
         ConfiguracionSerializacionColaboradores.CrearOpcionesMarten();
 
-    // CA-5: VinculacionIniciada persiste Codigo/FechaInicio tal como llegaron (sin default del
-    // servidor) y sobrevive el roundtrip completo.
     [Fact]
     public void RoundTrip_ReconstruyeEvento_ConDatosCompletos()
     {
@@ -36,8 +28,6 @@ public class VinculacionIniciadaSerializacionTests
         deserializado.CodigoSede.Should().BeNull();
     }
 
-    // Issue #520 (CA-1/CA-3): VinculacionIniciada con CodigoSede presente sobrevive el roundtrip
-    // completo.
     [Fact]
     public void RoundTrip_ReconstruyeEvento_ConCodigoSedePresente()
     {
@@ -53,9 +43,8 @@ public class VinculacionIniciadaSerializacionTests
         deserializado.CodigoSede.Should().Be("BOG");
     }
 
-    // CA-5: evolucion ADITIVA (MEF-ADR-0005) -- un JSON persistido ANTES de este issue, sin el campo
-    // CodigoSede, deserializa con sede null. No es mover/renombrar un tipo (MEF-ADR-0036 no aplica):
-    // el mismo alias sigue resolviendo al mismo tipo, solo con un campo nuevo opcional.
+    // Evolucion aditiva (MEF-ADR-0005): un JSON persistido antes de existir CodigoSede deserializa con
+    // sede null.
     [Fact]
     public void Deserializar_AsumeCodigoSedeNull_CuandoElJsonHistoricoNoTraeElCampo()
     {

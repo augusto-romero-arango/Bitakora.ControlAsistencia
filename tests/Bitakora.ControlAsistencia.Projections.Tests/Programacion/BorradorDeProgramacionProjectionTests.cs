@@ -48,7 +48,6 @@ public class BorradorDeProgramacionProjectionTests
     private static BorradorDeProgramacion Vista(params DiaDeBorrador[] dias) =>
         new("EMP-001", "EMP-001", "CC-1098765432", "Ana Ramirez", dias);
 
-    // CA-1
     [Fact]
     public void Create_ProyectaElBorradorConUnaCasillaPorFecha_DesdeProgramacionTurnoAgregadaAlBorrador()
     {
@@ -58,7 +57,6 @@ public class BorradorDeProgramacionProjectionTests
             o => o.WithStrictOrdering());
     }
 
-    // CA-1: la franja que trae sede la conserva en el bloque.
     [Fact]
     public void Create_ConservaLaSedeDeLaFranja_CuandoLaFranjaLaTrae()
     {
@@ -71,7 +69,6 @@ public class BorradorDeProgramacionProjectionTests
                 Oct(13).ToDateTime(new TimeOnly(14, 0)), "sede-1", "Sede Norte"));
     }
 
-    // CA-1: la sede de programacion rellena la franja sin sede (ConSedePorDefecto).
     [Fact]
     public void Create_UsaLaSedeDeProgramacion_CuandoLaFranjaNoTraeSede()
     {
@@ -84,7 +81,6 @@ public class BorradorDeProgramacionProjectionTests
                 Oct(13).ToDateTime(new TimeOnly(14, 0)), "sede-2", "Sede Sur"));
     }
 
-    // CA-1: la franja que cruza medianoche termina al dia siguiente.
     [Fact]
     public void Create_TerminaElBloqueAlDiaSiguiente_CuandoLaFranjaCruzaMedianoche()
     {
@@ -95,7 +91,6 @@ public class BorradorDeProgramacionProjectionTests
                 Oct(14).ToDateTime(new TimeOnly(6, 0))));
     }
 
-    // CA-1: el descanso parte la franja en bloques ordinarios alrededor suyo, con la misma sede.
     [Fact]
     public void Create_ParteLaFranjaEnBloques_CuandoLaFranjaTraeUnDescanso()
     {
@@ -128,7 +123,6 @@ public class BorradorDeProgramacionProjectionTests
             new DiaDeBorrador(Oct(13), "Turno Abierto", "Turno Abierto: 8 h", [], true));
     }
 
-    // CA-1: el ultimo gana -- una fecha reprogramada reemplaza su casilla y conserva las demas.
     [Fact]
     public void Apply_ReemplazaLaCasillaDeLaFecha_CuandoSeVuelveAProgramar()
     {
@@ -150,7 +144,6 @@ public class BorradorDeProgramacionProjectionTests
         vista.Dias.Select(d => d.Fecha).Should().Equal(Oct(13), Oct(15));
     }
 
-    // CA-2
     [Fact]
     public void Apply_QuitaSoloLasFechasPublicadas_CuandoProgramacionPublicada()
     {
@@ -204,8 +197,7 @@ public class BorradorDeProgramacionProjectionTests
         vista!.Dias.Select(d => d.Fecha).Should().Equal(Oct(13));
     }
 
-    // CA-3: octubre y noviembre (dos streams bm:) alimentan un solo documento; publicar octubre
-    // deja solo noviembre.
+    // Octubre y noviembre son dos streams bm: que alimentan un solo documento.
     [Fact]
     public void Apply_UneLosDosMeses_YPublicarOctubreDejaSoloNoviembre()
     {

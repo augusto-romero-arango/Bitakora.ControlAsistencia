@@ -10,21 +10,14 @@ namespace Bitakora.ControlAsistencia.Projections.Programacion;
 /// turnos CatalogoTurnos; MEF-ADR-0035).
 /// </summary>
 /// <remarks>
-/// partial es obligatorio: el source generator descubre Create/Apply por convencion y emite el
-/// dispatcher [GeneratedEvolver]. Sin partial el build queda limpio pero falla en RUNTIME al
-/// registrar la proyeccion (InvalidProjectionException).
+/// partial es obligatorio: sin el, el source generator no emite el evolver y la proyeccion falla en
+/// RUNTIME al registrarse (InvalidProjectionException), con el build limpio.
 ///
-/// Registrarla en ConfiguracionMartenProjectionsProgramacion es lo que hace que Marten aplique
-/// ProjectionDocumentPolicy sobre FichaTurno (mt_version bigint): el Function App que la consulta
-/// debe declarar la misma forma con Schema.For&lt;FichaTurno&gt;().UseNumericRevisions(true).
-///
-/// Create toma IEvent&lt;TurnoCreado&gt;, no TurnoCreado a secas: la identidad del documento es
-/// exactamente el StreamKey del stream de CatalogoTurnos (StreamIdentity = AsString), nunca
-/// recomputada a mano desde el payload.
+/// Create toma IEvent&lt;TurnoCreado&gt; porque el Id es el StreamKey, nunca recomputado desde el
+/// payload.
 ///
 /// El retiro BORRA la ficha, no la marca: la auditoria vive en el event store y el nombre debe
-/// quedar libre para el patron "modificar = retirar + crear" y para la invariante de nombre unico
-/// del catalogo.
+/// quedar libre para "modificar = retirar + crear" y para la invariante de nombre unico del catalogo.
 /// </remarks>
 public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaTurno, string>
 {
@@ -32,15 +25,13 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
     {
         var turnoCreado = e.Data;
 
-        // TurnoCreado.EsDescanso es la UNICA frontera entre descanso y turno: un turno recien
-        // nacido tambien tiene cero franjas (diseno por pasos, CA-ADR-0033), asi que derivar el
-        // descanso del conteo lo confundiria con uno incompleto.
+        // EsDescanso es la UNICA frontera entre descanso y turno: un turno recien nacido tambien tiene
+        // cero franjas (CA-ADR-0033), asi que el conteo lo confundiria con uno incompleto.
         if (turnoCreado.EsDescanso)
             return new FichaTurno(e.StreamKey!, turnoCreado.Nombre, true, "Descanso", [], "Descanso", Completo: true);
 
-        // ToDetalle() es el DTO plano que el VO rico ya expone (Tell-don't-Ask, MEF-ADR-0012): sus
-        // campos son privados, no se reabren aqui. FranjaProgramada.Descripcion ya es el texto que
-        // FranjaOrdinaria.ToString() produce, asi que se reusa en vez de recomponerlo.
+        // FranjaProgramada.Descripcion ya es el texto de FranjaOrdinaria.ToString(): se reusa en vez
+        // de recomponerlo.
         var franjas = turnoCreado.FranjasOrdinarias.Select(f => MapearFranja(f.ToDetalle()));
 
         var horarioAbierto = turnoCreado.EsHorarioAbierto
@@ -50,8 +41,8 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
         return Reconstruir(e.StreamKey!, turnoCreado.Nombre, esDescanso: false, franjas, horarioAbierto: horarioAbierto);
     }
 
-    // Los eventos de diseno por pasos (CA-ADR-0033) traen la franja contenedora RESULTANTE, no el
-    // delta: por eso todos reemplazan por HoraInicio en vez de mutar la franja ya materializada.
+    // Los eventos de diseno (CA-ADR-0033) traen la franja contenedora RESULTANTE, no el delta: por eso
+    // todos reemplazan por HoraInicio en vez de mutar la franja materializada.
 
     public static FichaTurno Apply(FranjaAgregada e, FichaTurno ficha) =>
         ReemplazarOAgregar(ficha, e.Franja.ToDetalle());
@@ -99,9 +90,8 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
     private static FichaTurno Reconstruir(FichaTurno ficha, IEnumerable<FranjaFicha> franjas) =>
         Reconstruir(ficha.Id, ficha.Nombre, ficha.EsDescanso, franjas, ficha.VentanaDeEntrada, ficha.HorarioAbierto);
 
-    // Unico punto de recomputo de los derivados: evita que HorarioResumido, Descripcion y Completo
-    // diverjan entre Create y los Apply. Las franjas se presentan ordenadas por HoraInicio (vista
-    // para leer el dia, no el orden en que se diseno -- MEF-ADR-0041).
+    // Unico punto de recomputo de HorarioResumido, Descripcion y Completo, para que no diverjan entre
+    // Create y los Apply. Franjas ordenadas por HoraInicio, no por orden de diseno.
     private static FichaTurno Reconstruir(
         string id, string nombre, bool esDescanso, IEnumerable<FranjaFicha> franjas,
         VentanaDeEntradaFicha? ventana = null, HorarioAbiertoFicha? horarioAbierto = null)
@@ -136,7 +126,6 @@ public sealed partial class FichaTurnoProjection : SingleStreamProjection<FichaT
         return new VentanaDeEntradaFicha(apertura, apertura.Add(amplitud), textoAmplitud);
     }
 
-    // El texto lo da el VO HorasYMinutos (MEF-ADR-0012), no un formateo propio.
     private static string FormatearDuracion(int minutos) =>
         HorasYMinutos.Crear(minutos / 60, minutos % 60).ToString();
 

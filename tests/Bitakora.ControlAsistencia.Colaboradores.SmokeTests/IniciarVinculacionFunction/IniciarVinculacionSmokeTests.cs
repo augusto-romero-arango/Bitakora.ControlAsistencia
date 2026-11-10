@@ -1,61 +1,3 @@
-// Issue #378 (MEF-ADR-0043 paso 1): smoke tests de POST colaboradores/{id}/vinculaciones (iniciar
-// una vinculacion nueva sobre un colaborador EXISTENTE -- create disfrazado, el mismo evento que
-// abre la vinculacion en RegistrarColaborador). Reemplaza el POST Colaboradores/Reingresos (issue
-// #350, identificacion en el body): {id} es Identificacion.ToString() ("CC-79543210"), parseado UNA
-// sola vez con Identificacion.Parsear (mismo mecanismo que CorregirNombres/AsignarEtiqueta
-// post-#376/#377). El body se reduce a CodigoColaborador + FechaInicio -- TipoIdentificacion/
-// NumeroIdentificacion ya no viajan alli. Molde: CorregirNombresSmokeTests /
-// ReingresarColaboradorSmokeTests (este archivo la reemplaza y se elimina, issue #378) -- mismo
-// comando event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin ServiceBusFixture, la
-// unica verificacion black-box de los efectos del handler es leer mt_events via PostgresFixture.
-//
-// Arrange: IniciarVinculacion exige un ColaboradorAggregateRoot existente con la ultima vinculacion
-// terminada -- el arrange de cada test registra el colaborador (via /api/colaboradores, kebab-case
-// desde este mismo issue, CA-5) y, cuando aplica, termina su vinculacion via el comando que la
-// origina (#349/#379), nunca sembrando datos por fuera del API. Issue #379: la terminacion ahora
-// exige el {codigo} de la vinculacion en la ruta -- RegistrarColaboradorAsync devuelve el codigo
-// (== CodigoColaborador del comando, verificado en ColaboradorAggregateRoot.Registrar) para que el
-// arrange lo use como {codigo} al terminar.
-//
-// Evento reutilizado (CA-ADR-0029/MEF-ADR-0039: un evento no conoce su comando): el exito NO crea
-// un tipo nuevo -- persiste otra VinculacionIniciada (tipo persistido "vinculacion_iniciada") en el
-// stream existente "{Tipo}-{Numero}", con el codigo transaccional nuevo de la vinculacion.
-//
-// Estos tests dependen de que el deploy publique la ruta POST colaboradores/{id}/vinculaciones en
-// dev: mientras la revision anterior siga corriendo, la ruta vieja (POST Colaboradores/Reingresos)
-// es la unica que existe y este archivo -- que solo referencia la ruta nueva -- fallaria por
-// completo (404 del host, no el 404 de dominio de CA-3). Mismo precedente que
-// CorregirNombresSmokeTests post-#377.
-//
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): IniciarVinculacion es un
-// create disfrazado (paso 1) -- confirma el evento antes de responder -- 201, nunca 202.
-//
-// CA-1 (rutas de exito): 201 + una segunda VinculacionIniciada persistida con el Codigo y la
-// FechaInicio exactos del request -- ya sea sobre una terminacion pasada o sobre un preaviso
-// registrado a futuro, sin ninguna validacion contra el reloj del servidor.
-// CA-2 (rutas de rechazo, reglas conservadas identicas del comando absorbido): el aggregate declina
-// con resultado (nunca lanza, nunca emite un evento de fallo persistido) y el handler traduce a
-// 409 -- "vinculacion abierta" (nunca terminada, o ya iniciada sin volver a terminar) y "fecha
-// solapa la vinculacion anterior" (FechaInicio igual o anterior a la FechaEfectiva de la ultima
-// terminacion, incluido un preaviso no vencido).
-// CA-3: colaborador inexistente -> 404; {id} de ruta malformado -> 400 via parseo tipado (patron
-// #376/#377).
-// CA-4 (comando/Function/folder/handler/validator/enum/metodo renombrados a "iniciar vinculacion"):
-// no es observable black-box -- lo cubre la lectura del codigo fuente, no un smoke test.
-// CA-6: la ruta vieja Colaboradores/Reingresos deja de existir -> 404 del host (verificacion
-// AFIRMATIVA, mismo criterio que CorregirNombresSmokeTests CA-5: el resto de la suite solo prueba
-// ausencia de referencias, que no distingue "se elimino" de "sigue viva y nadie la llama").
-//
-// Issue #387 (CodigoColaborador URL-safe, invariante heredada sin cambios): CA-1 con caracteres
-// unreserved no alfanumericos (. _ ~) -> 201; CA-2/CA-3 con ":" (separador de accion reservado,
-// MEF-ADR-0043) y espacio (fuera del set unreserved RFC 3986) -> 400.
-//
-// Issue #520 (CodigoSede opcional en el reingreso): la vinculacion nueva nace con su sede -- viaja
-// DENTRO de VinculacionIniciada, nunca como un SedeAsignada adicional en el commit. CA-3 (con
-// CodigoSede): 201 y VinculacionIniciada.CodigoSede queda asentado con la sede nueva, aunque la
-// vinculacion anterior tuviera otra. CA-4 (sin el campo): 201 y CodigoSede null -- "reingreso nace
-// limpio" sigue siendo el default. CA-6: CodigoSede presente pero vacio/blanco -> 400. CA-7: los
-// rechazos existentes (VinculacionAbierta) se conservan intactos aunque el body traiga sede.
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -77,24 +19,17 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
-    // identidad del stream es Identificacion.ToString() ("CC-<numero>"), no un Guid nuevo por
-    // llamada, asi que reusar un numero fijo haria que el arrange (RegistrarColaborador) choque con
-    // 409 en la segunda corrida. El formato "N" en MAYUSCULAS ya es alfanumerico ASCII, asi que
-    // sobrevive intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con
-    // la que arma el backend.
+    // Unico por test: el stream se llama por la identificacion, asi que repetir un numero choca con 409
+    // en la segunda corrida. "N" en mayusculas sobrevive a la limpieza del numero y la llave coincide.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
-    // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
-    // Separador "-" desde el issue #381.
+    // Oraculo independiente (MEF-ADR-0002): se recompone a mano, no se deriva de Identificacion.ToString(),
+    // para que un cambio de formato en el VO no se auto-valide.
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
-    // El {id} que un cliente real pone en la URL. Deliberadamente separado de ComputarStreamId: uno
-    // es la ENTRADA de la request, el otro el ORACULO contra el que se verifica mt_events -- que
-    // hoy coincidan textualmente es justamente lo que estos tests prueban (mismo criterio que
-    // CorregirNombresSmokeTests).
+    // Separado de ComputarStreamId a proposito: que la entrada de la request y el oraculo coincidan es
+    // lo que se prueba.
     private static string IdDeRuta(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
@@ -113,16 +48,14 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         fechaInicio
     };
 
-    // Body reducido a los 2 campos que no se derivan de la ruta (issue #378): CodigoColaborador +
-    // FechaInicio -- TipoIdentificacion/NumeroIdentificacion ya no viajan aqui, se derivan de {id}.
     private static object PayloadIniciarVinculacion(string codigoColaborador, DateOnly fechaInicio) => new
     {
         codigoColaborador,
         fechaInicio
     };
 
-    // Tipo anonimo separado de PayloadIniciarVinculacion a proposito: CA-4 exige un body donde el
-    // campo codigoSede este AUSENTE, no presente en null.
+    // Separado de PayloadIniciarVinculacion a proposito: sin sede, el campo codigoSede debe ir AUSENTE,
+    // no presente en null.
     private static object PayloadIniciarVinculacionConSede(
         string codigoColaborador, DateOnly fechaInicio, string? codigoSede) => new
         {
@@ -131,11 +64,8 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
             codigoSede
         };
 
-    // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API. Devuelve el codigo de la
-    // vinculacion inicial (== CodigoColaborador del comando, verificado en
-    // ColaboradorAggregateRoot.Registrar) para que el arrange lo use como {codigo} de ruta al
-    // terminar (issue #379).
+    // Devuelve el codigo de la vinculacion inicial (== CodigoColaborador, ver
+    // ColaboradorAggregateRoot.Registrar), que el arrange usa como {codigo} al terminar.
     private async Task<string> RegistrarColaboradorAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
@@ -150,9 +80,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         return codigo;
     }
 
-    // Arrange comun: cierra la vinculacion vigente -- via el comando que la origina (#349/#379),
-    // nunca sembrando el event store por fuera del API. Issue #379: la ruta gano el {codigo} -- ya
-    // no es "/api/Colaboradores/Terminaciones" con identificacion en el body.
     private async Task TerminarVinculacionAsync(
         string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
@@ -189,10 +116,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: camino feliz -- ultima vinculacion terminada + FechaInicio estrictamente posterior a la
-    // FechaEfectiva -> 201 y el stream recibe otra VinculacionIniciada con el codigo nuevo. Sin
-    // Service Bus (event-sourcing puro): mt_events es la unica ventana black-box a lo que quedo
-    // grabado.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna201YPersisteVinculacionIniciada_CuandoFechaInicioEsPosteriorATerminacion()
@@ -233,9 +156,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         eventoPersistido.GetProperty("FechaInicio").GetString().Should().Be(FormatearFecha(fechaNuevaVinculacion));
     }
 
-    // CA-1: la ultima terminacion fue un preaviso registrado a futuro y la FechaInicio de la nueva
-    // vinculacion es posterior a ese preaviso -> 201, sin ninguna consulta al reloj del servidor
-    // (doctrina bitemporal del BC, en cualquier direccion).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna201YPersisteVinculacionIniciada_CuandoTerminacionFuePreavisoFuturo()
@@ -245,8 +165,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         var ct = TestContext.Current.CancellationToken;
         var numeroIdentificacion = NuevoNumeroIdentificacion();
         var fechaInicioOriginal = new DateOnly(2025, 1, 1);
-        // Preaviso muy en el futuro -- el punto de esta CA es que NINGUNA fecha, sin importar que
-        // tan lejana, se valida contra el reloj del servidor.
+        // Muy en el futuro: ninguna fecha se valida contra el reloj del servidor.
         var fechaEfectivaPreaviso = new DateOnly(2030, 12, 31);
         var fechaNuevaVinculacion = new DateOnly(2031, 1, 1);
         var codigoNuevo = NuevoCodigoColaborador();
@@ -270,9 +189,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
             "la nueva vinculacion posterior a un preaviso futuro deberia aceptarse sin validar contra el reloj del servidor");
     }
 
-    // CA-2: vinculacion abierta -- nunca hubo una terminacion registrada -> 409. No requiere
-    // Postgres: el status code ya prueba que el aggregate declino con resultado y el handler lo
-    // tradujo (CA-ADR-0030).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna409_CuandoVinculacionNuncaFueTerminada()
@@ -288,10 +204,8 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-2: vinculacion abierta -- una vinculacion nueva ya fue iniciada con exito y todavia no se
-    // termino -> el segundo intento tambien se rechaza (regresion directa del ajuste a
-    // Apply(VinculacionIniciada) que reabre la vinculacion: si no reabriera, este segundo intento
-    // heredaria en falso la terminacion de la vinculacion original y se aceptaria).
+    // Regresion de Apply(VinculacionIniciada): si no reabriera la vinculacion, el segundo intento
+    // heredaria en falso la terminacion original y se aceptaria.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna409_CuandoYaFueIniciadaSinTerminarDeNuevo()
@@ -317,8 +231,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         segundaVinculacionNueva.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-2: FechaInicio == FechaEfectiva de la ultima terminacion -> 409 -- el mismo dia se rechaza
-    // (el dia de la fecha efectiva pertenece a la vinculacion que termina).
+    // El dia de la FechaEfectiva pertenece a la vinculacion que termina.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna409_CuandoFechaInicioEsIgualAFechaEfectivaDeTerminacion()
@@ -337,7 +250,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-2: FechaInicio anterior a la FechaEfectiva de la ultima terminacion -> 409 por no-solape.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna409_CuandoFechaInicioEsAnteriorAFechaEfectivaDeTerminacion()
@@ -357,9 +269,8 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-2: preaviso no vencido -- la ultima terminacion es un preaviso a futuro y la FechaInicio de
-    // la nueva vinculacion no supera esa fecha futura -> 409 (el preaviso deja "no abierta" la
-    // vinculacion, pero la fecha sigue exigiendo ser estrictamente posterior a la FechaEfectiva).
+    // El preaviso deja la vinculacion "no abierta", pero la FechaInicio sigue teniendo que ser
+    // estrictamente posterior a la FechaEfectiva.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna409_CuandoFechaInicioNoSuperaElPreavisoNoVencido()
@@ -379,15 +290,12 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-3: colaborador inexistente -> 404, sin escribir nada al event store (no hay stream para
-    // consultar: la ausencia de escritura la garantiza el propio 404 -- el handler lanza antes de
-    // llegar al aggregate).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna404_CuandoColaboradorNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var numeroIdentificacion = NuevoNumeroIdentificacion(); // nunca registrado
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
 
         var response = await IniciarVinculacionAsync(
             IdDeRuta(numeroIdentificacion), NuevoCodigoColaborador(), new DateOnly(2025, 3, 1), ct);
@@ -395,8 +303,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-3: {id} de ruta sin guion -> 400, sin invocar el comando (parseo tipado unico,
-    // Identificacion.Parsear).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna400_CuandoIdDeRutaNoTraeGuion()
@@ -410,8 +316,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-3: tipo de identificacion del {id} de ruta fuera de la lista cerrada (PILA: CC, CE, TI,
-    // PA, PT) -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna400_CuandoTipoDeLaIdentificacionDeRutaNoEsReconocido()
@@ -424,7 +328,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-3: numero vacio tras el guion del {id} de ruta -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna400_CuandoElNumeroDelIdDeRutaQuedaVacio()
@@ -437,7 +340,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-6 (body reducido): CodigoColaborador vacio -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna400_CuandoCodigoColaboradorEsVacio()
@@ -450,8 +352,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-6: FechaInicio vacia (default de DateOnly, "no llego" segun la doctrina bitemporal del BC)
-    // -> 400.
+    // default(DateOnly) es "no llego" segun la doctrina bitemporal del BC.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna400_CuandoFechaInicioEsVacia()
@@ -464,27 +365,17 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-6 (ruta vieja eliminada): verificado AFIRMATIVAMENTE contra el entorno real -- la ruta
-    // vieja (POST Colaboradores/Reingresos) debe responder 404 del host. El resto de la suite lo
-    // cubre solo por ausencia de referencias, que no distingue "la ruta se elimino" de "sigue viva y
-    // nadie la llama". Toma la forma de CorregirNombresSmokeTests CA-5, pero corrige su oraculo:
-    // ver el comentario del body de abajo (ese precedente afirma el 404 con un body VALIDO, que el
-    // endpoint viejo tambien responderia como 404 de dominio -- defecto propio de #377, no replicado
-    // aqui).
+    // Afirmativo contra el entorno: la ausencia de referencias en la suite no distingue "la ruta se
+    // elimino" de "sigue viva y nadie la llama".
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna404DelHost_CuandoSeLlamaLaRutaViejaPost()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // El body va DELIBERADAMENTE invalido (codigoColaborador vacio): es lo que vuelve
-        // discriminante al oraculo. Con un body valido sobre una identificacion nunca registrada,
-        // el endpoint viejo -- si siguiera vivo -- responderia 404 de DOMINIO ("colaborador no
-        // encontrado"), indistinguible del 404 del host que este test quiere afirmar: el test
-        // pasaria en verde con la ruta vieja intacta, justo el falso positivo que dice prevenir.
-        // Con el body invalido el endpoint viejo corta antes en su IRequestValidator y responde 400
-        // (comprobado contra dev con la revision anterior desplegada), asi que un 404 aqui solo
-        // puede significar que la ruta ya no existe.
+        // codigoColaborador vacio a proposito: con un body valido la ruta vieja, si siguiera viva,
+        // responderia un 404 de dominio indistinguible del 404 del host; con este responde 400 de su
+        // validador (comprobado contra dev con la revision anterior).
         var response = await _client.PostAsJsonAsync(
             RutaReingresosVieja,
             new
@@ -500,11 +391,8 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
             "POST Colaboradores/Reingresos se reemplazo por POST colaboradores/{id}/vinculaciones (issue #378): un 400 aqui delataria que la ruta vieja sigue viva");
     }
 
-    // CA-1 (#387, invariante heredada): codigo con caracteres unreserved no alfanumericos (. _ ~)
-    // tambien produce 201 -- el set permitido no se limita a alfanumerico+guion, que es lo unico
-    // que ejercita el helper compartido NuevoCodigoColaborador ("TEST-<guid>"). Verificacion
-    // end-to-end de que el regex desplegado en dev no es mas restrictivo que el unreserved de RFC
-    // 3986 seccion 2.3.
+    // NuevoCodigoColaborador solo ejercita alfanumerico + guion: esto confirma que el regex desplegado no
+    // es mas restrictivo que el unreserved de RFC 3986 seccion 2.3.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna201_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
@@ -536,9 +424,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
             $"el codigo con caracteres unreserved no alfanumericos deberia haberse aceptado y persistido en {streamId}");
     }
 
-    // CA-2 (#387, invariante heredada): ":" esta explicitamente fuera del set permitido --
-    // MEF-ADR-0043 seccion 1 lo reserva como separador de accion (vinculaciones/{codigo}:terminar,
-    // #379). Un codigo con ":" haria inparseable esa ruta -- caso destacado del issue.
+    // ":" es el separador de accion de la ruta (vinculaciones/{codigo}:terminar, MEF-ADR-0043 seccion 1).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna400_CuandoCodigoColaboradorContieneDosPuntos()
@@ -552,9 +438,8 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-3 (#387, invariante heredada): cualquier otro caracter fuera del set (espacio, aqui) ->
-    // 400. La exhaustividad del regex (acento, "/") ya la cubre IniciarVinculacionBodyValidatorTests;
-    // este smoke test solo confirma que la regla llega desplegada end-to-end en dev.
+    // La exhaustividad del regex la cubre IniciarVinculacionBodyValidatorTests; aqui solo que la regla
+    // llega desplegada.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna400_CuandoCodigoColaboradorContieneEspacio()
@@ -568,9 +453,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-3 (#520): reingreso CON CodigoSede -> 201 y VinculacionIniciada.CodigoSede queda asentado
-    // con la sede nueva, aunque la vinculacion anterior tuviera otra (no se verifica aqui la sede
-    // anterior: el dominio no expone una vista de la sede vigente, ver AsignarSedeSmokeTests).
+    // No se verifica la sede anterior: el dominio no expone una vista de la sede vigente.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna201YPersisteVinculacionIniciadaConCodigoSede_CuandoBodyTraeCodigoSede()
@@ -601,8 +484,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         eventoPersistido.GetProperty("CodigoSede").GetString().Should().Be("MED");
     }
 
-    // CA-4 (#520): reingreso SIN CodigoSede (body actual, sin cambios) -> 201 y CodigoSede null --
-    // "reingreso nace limpio" sigue siendo el default.
+    // Sin sede, el reingreso nace limpio.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna201YPersisteVinculacionIniciadaConCodigoSedeNulo_CuandoBodyNoTraeCodigoSede()
@@ -633,7 +515,6 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         eventoPersistido.GetProperty("CodigoSede").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
-    // CA-6: CodigoSede presente pero vacio -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna400_CuandoCodigoSedeEsVacio()
@@ -647,8 +528,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-6: CodigoSede presente pero blanco (solo espacios) -> 400 -- NotEmpty tambien rechaza
-    // whitespace-only en FluentValidation.
+    // FluentValidation NotEmpty tambien rechaza solo espacios.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna400_CuandoCodigoSedeEsBlanco()
@@ -662,9 +542,7 @@ public class IniciarVinculacionSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-7: los rechazos existentes se conservan intactos aunque el body traiga sede -- regresion
-    // directa de que la sede opcional no agrega ni quita razones de rechazo (mismo escenario que
-    // IniciarVinculacion_Retorna409_CuandoVinculacionNuncaFueTerminada, con CodigoSede en el body).
+    // La sede opcional no agrega ni quita razones de rechazo.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task IniciarVinculacion_Retorna409_CuandoVinculacionNuncaFueTerminadaYBodyTraeCodigoSede()

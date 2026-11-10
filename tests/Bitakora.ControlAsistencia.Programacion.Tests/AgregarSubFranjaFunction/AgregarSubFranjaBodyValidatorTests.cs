@@ -1,5 +1,4 @@
-// Issue #603 CA-6: Tipo viaja como string case-insensitive; el validator lo restringe a
-// {descanso, extra}.
+// Tipo viaja como string case-insensitive; el validator lo restringe a {descanso, extra}.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;

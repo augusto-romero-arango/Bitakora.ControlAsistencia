@@ -8,14 +8,9 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarColaboradores;
 
-// Tool consolidada de solo lectura (CA-ADR-0039 decision 2): con identificacion es Detalle
-// (GET colaboradores/fichas/{id}); por sede o etiquetas es Catalogo (QUERY colaboradores/fichas).
 // El catalogo pide take = tope, no tope + 1: el backend ya hace Take + 1 y arma el cursor con el
 // ultimo elemento devuelto, asi que pedir uno de mas y descartarlo lo perderia en cada pagina.
-//
-// Sin enriquecimiento del nombre de sede (MEF-ADR-0018): codigoSede viaja tal cual. TimeProvider
-// resuelve fecha_referencia a "hoy" en America/Bogota cuando el parametro llega ausente -- el back
-// jamas resuelve "hoy" (decision #373), la tool MCP es el cliente que lo hace por el agente.
+// El back jamas resuelve "hoy": la tool lo resuelve en America/Bogota cuando fecha_referencia falta.
 public partial class ListarColaboradoresTool(ColaboradoresApi api, ProgramacionApi programacion, TimeProvider reloj)
 {
     internal const string NombreTool = "listar_colaboradores";
@@ -133,9 +128,8 @@ public partial class ListarColaboradoresTool(ColaboradoresApi api, ProgramacionA
         return sobre?.Elementos ?? [];
     }
 
-    // Lo que el dominio rechaza por la forma del dato (una identificacion sin el prefijo de tipo,
-    // un filtro en blanco) es una respuesta util para el asistente, no una excepcion: viaja como
-    // mensaje con la razon del dominio -- mismo criterio que ConsultarProgramacionTool.
+    // Un 400/422 por la forma del dato es una respuesta util para el asistente, no una excepcion: viaja
+    // como mensaje con la razon del dominio.
     private static async Task<string?> TraducirRechazo(HttpResponseMessage respuesta, CancellationToken ct) =>
         respuesta.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity
             ? string.Format(Mensajes.RechazoDelDominio, await respuesta.Content.ReadAsStringAsync(ct))
@@ -199,11 +193,9 @@ public sealed record CatalogoDeColaboradores(
     string? Nota);
 
 /// <summary>
-/// Colaborador remodelado token-eficiente: etiquetas en su forma original de presentacion (nunca
-/// la normalizada, que es estructura interna de filtrado), sin centinela de vigencia abierta
-/// (VigenteHasta ausente = vinculacion abierta) y codigoSede tal cual, sin nombre resuelto.
-/// CodigoColaborador viaja porque es la llave con que consultar_programacion filtra: sin el, el
-/// asistente encuentra al colaborador pero no puede encadenar la consulta siguiente.
+/// Etiquetas en su forma original (nunca la normalizada), VigenteHasta ausente = vinculacion abierta y
+/// codigoSede sin nombre resuelto. CodigoColaborador viaja porque es la llave con que
+/// consultar_programacion filtra.
 /// </summary>
 public sealed record ColaboradorFicha(
     string Identificacion,

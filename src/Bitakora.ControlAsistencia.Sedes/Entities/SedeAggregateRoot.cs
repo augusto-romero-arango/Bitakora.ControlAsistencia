@@ -3,15 +3,14 @@ using Cosmos.EventSourcing.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Sedes.Entities;
 
-// Identidad natural: el CodigoSede que trae el cliente (debe casar con los ids opacos que ya
-// circulan en SedeProgramada.Id).
+// Identidad natural: el CodigoSede que trae el cliente; debe casar con los ids opacos que ya
+// circulan en SedeProgramada.Id.
 //
-// Anatomia CA-ADR-0031: "s:{codigo}" -- prefijo "s" (iniciales del aggregate), separador ":" (fuera
-// del charset URL-safe que el borde garantiza para el codigo). Un solo componente de dominio: el
+// Anatomia CA-ADR-0031: "s:{codigo}". El ":" queda fuera del charset URL-safe del codigo, asi que el
 // split siempre devuelve exactamente 2 partes.
 //
-// Estado observable internal (Tell-don't-Ask, MEF-ADR-0012): existe para que el DSL de tests lo
-// verifique, no para consumo externo al ensamblado.
+// El estado internal existe para que el DSL de tests lo verifique, no para consumo externo
+// (Tell-don't-Ask, MEF-ADR-0012).
 public partial class SedeAggregateRoot : AggregateRoot
 {
     private const string PrefijoStreamId = "s";
@@ -29,13 +28,11 @@ public partial class SedeAggregateRoot : AggregateRoot
     internal string? CentroDeCostos => _centroDeCostos;
     internal bool Activa => _activa;
 
-    // Punto unico de conversion de la clave del stream (MEF-ADR-0037): ningun handler/endpoint la
-    // concatena por su cuenta.
+    // Punto unico de construccion de la clave del stream (MEF-ADR-0037): nadie la concatena por su cuenta.
     public static string ComputarStreamId(string codigo) =>
         $"{PrefijoStreamId}{SeparadorStreamId}{codigo}";
 
-    // Apply: publico -- requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
-    // Nunca lanza (MEF-ADR-0004 capa 4).
+    // Apply publico: TestStore.ApplyEvent lo busca via GetMethods(). Nunca lanza (MEF-ADR-0004 capa 4).
     public void Apply(SedeRegistrada e)
     {
         Id = ComputarStreamId(e.Codigo);
@@ -46,9 +43,7 @@ public partial class SedeAggregateRoot : AggregateRoot
         _activa = true;
     }
 
-    // Los metodos de mutacion no interrogan el estado propio: el handler ya resolvio que el stream
-    // existe (CA-ADR-0030), y una sede desactivada sigue siendo editable -- la bandera Activa no
-    // gobierna estas operaciones.
+    // Los metodos de mutacion no consultan Activa: una sede desactivada sigue siendo editable.
     internal static SedeAggregateRoot Registrar(
         string codigo, string nombre, string? ciudad, string? direccion)
     {
@@ -70,8 +65,6 @@ public partial class SedeAggregateRoot : AggregateRoot
         Apply(evento);
     }
 
-    // Reemplazo completo de Ciudad+Direccion: los nulos que trae el evento se escriben, no se
-    // ignoran.
     public void Apply(UbicacionActualizada e)
     {
         _ciudad = e.Ciudad;
@@ -136,8 +129,7 @@ public partial class SedeAggregateRoot : AggregateRoot
         return ResultadoDesactivacionSede.Exitosa;
     }
 
-    // El dispositivo es ajeno al sistema (DispositivoId opaco) y no existe sin sede: es entidad
-    // interna de este aggregate, nunca un aggregate root propio.
+    // El dispositivo no existe sin sede: es entidad interna de este aggregate, no aggregate root propio.
     private readonly List<string> _dispositivosInstalados = [];
 
     internal IReadOnlyCollection<string> DispositivosInstalados => _dispositivosInstalados;

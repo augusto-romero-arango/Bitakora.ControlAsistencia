@@ -30,7 +30,6 @@ public class AsignarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
 
     private static SedeRegistrada CrearSedeRegistrada() => new(Codigo, Nombre, null, null);
 
-    // CA-1
     [Fact]
     public async Task AsignarCentroDeCostos_EmiteCentroDeCostosAsignado_CuandoSedeExiste()
     {
@@ -42,7 +41,6 @@ public class AsignarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.CentroDeCostos, CentroDeCostosNuevo);
     }
 
-    // CA-2
     [Fact]
     public async Task AsignarCentroDeCostos_EmiteCentroDeCostosAsignado_CuandoLaSedeYaTieneUnCentroVigente()
     {
@@ -64,8 +62,7 @@ public class AsignarCentroDeCostosCommandHandlerTests : CommandHandlerAsyncTest<
         Then(StreamIdEsperado);
     }
 
-    // CA-1: el CC es opaco -- se estampa byte a byte, sin trim, sin casing, sin validacion contra
-    // catalogo alguno.
+    // El CC es opaco: se estampa byte a byte, sin trim, sin casing, sin validar contra un catalogo.
     [Fact]
     public async Task AsignarCentroDeCostos_EstampaElCentroDeCostosSinNormalizar_CuandoTraeEspaciosYMinusculas()
     {

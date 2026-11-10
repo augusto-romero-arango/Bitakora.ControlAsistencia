@@ -1,18 +1,5 @@
-// Issue #356 CA-6: la regla mas distintiva del contrato HTTP de ObtenerFichaColaborador -- "el
-// centinela jamas aparece en la API" -- vive en la traduccion vista -> respuesta
-// (FichaColaboradorRespuesta.DesdeVista), una funcion pura. Sin estas guardas su unica verificacion
-// seria el smoke test contra dev, que solo emite veredicto DESPUES del deploy: una regresion aqui
-// (quitar la traduccion, comparar contra otra fecha) compilaria, pasaria el resto de la suite y
-// filtraria 9999-12-31 a los clientes.
-//
-// El test de composicion hermano (ComposicionServiciosTests
-// .AgregarServiciosColaboradores_ResuelveElEndpointDeObtenerFichaColaborador_...) cubre el wiring
-// del endpoint; FunctionEndpointTests.cs cubre el parseo del {id} de ruta con 400 (issue #386,
-// CA-3); LoadAsync y el 200/404 (CA-1/CA-2/CA-4) siguen siendo black-box del smoke test.
-//
-// Oraculo independiente (MEF-ADR-0002, no-tautologia): el centinela se escribe como literal aqui,
-// nunca se importa de FichaColaborador.CentinelaVigenciaAbierta -- si alguien cambiara esa
-// constante en produccion, estos tests deben ponerse rojos, no seguirla en silencio.
+// "El centinela jamas aparece en la API" vive en DesdeVista, una funcion pura: sin estas guardas solo
+// el smoke test, despues del deploy, detectaria que 9999-12-31 se filtra a los clientes.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador;
@@ -22,6 +9,8 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ObtenerFichaColaborador
 
 public class FichaColaboradorRespuestaTests
 {
+    // Oraculo independiente: literal, nunca importado de FichaColaborador.CentinelaVigenciaAbierta --
+    // si esa constante cambiara, estos tests deben ponerse rojos, no seguirla en silencio.
     private static readonly DateOnly CentinelaVigenciaAbierta = new(9999, 12, 31);
 
     private static FichaColaborador FichaConVigenteHasta(DateOnly vigenteHasta) =>
@@ -45,8 +34,7 @@ public class FichaColaboradorRespuestaTests
         respuesta.VigenteHasta.Should().BeNull();
     }
 
-    // Contracara del anterior: la traduccion no puede degenerar en "VigenteHasta siempre vacio" --
-    // CA-6 exige que la consulta puntual INCLUYA no-vigentes mostrando su fecha real de terminacion.
+    // Contracara: la consulta puntual incluye no-vigentes con su fecha real de terminacion.
     [Fact]
     public void DesdeVista_ConservaLaFechaDeTerminacion_CuandoLaVinculacionEstaTerminada()
     {
@@ -57,8 +45,7 @@ public class FichaColaboradorRespuestaTests
         respuesta.VigenteHasta.Should().Be(fechaEfectiva);
     }
 
-    // El resto de la vista viaja sin transformacion: el DTO existe UNICAMENTE para ocultar el
-    // centinela (MEF-ADR-0041 decision 4, excepcion bajo Rule of Three), no para remodelar la ficha.
+    // El DTO existe solo para ocultar el centinela, no para remodelar la ficha.
     [Fact]
     public void DesdeVista_CopiaElRestoDeLaVistaSinTransformar_CuandoTraduceLaFicha()
     {
@@ -75,9 +62,6 @@ public class FichaColaboradorRespuestaTests
             new Dictionary<string, string> { ["area"] = "tecnologia" });
     }
 
-    // --- Issue #519 CA-3: la respuesta expone CodigoSede tal cual viene de la vista -- sin
-    // traduccion (a diferencia de VigenteHasta, aqui no hay centinela que ocultar). ---
-
     [Fact]
     public void DesdeVista_CopiaElCodigoSede_CuandoLaFichaTieneSede()
     {
@@ -85,8 +69,6 @@ public class FichaColaboradorRespuestaTests
 
         respuesta.CodigoSede.Should().Be("SEDE-BOG-01");
     }
-
-    // --- Issue #860 CA-3: la respuesta expone JornadaId tal cual viene de la vista (sin centinela). ---
 
     [Fact]
     public void DesdeVista_CopiaJornadaId_CuandoLaFichaTieneJornadaAsignada()

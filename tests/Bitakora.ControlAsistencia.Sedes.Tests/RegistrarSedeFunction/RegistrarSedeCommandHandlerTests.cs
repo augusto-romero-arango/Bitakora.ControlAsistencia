@@ -9,8 +9,8 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Sedes.Tests.RegistrarSedeFunction;
 
-// El aggregate usa un stream ID compuesto (SedeAggregateRoot.ComputarStreamId, "s:{codigo}"), no
-// el GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 test-writer).
+// El aggregate usa stream ID compuesto, no el GuidAggregateId del harness: Given/Then/And exigen
+// los overloads que reciben el streamId explicito.
 public class RegistrarSedeCommandHandlerTests : CommandHandlerAsyncTest<RegistrarSede>
 {
     private const string Codigo = "SEDE-001";
@@ -18,9 +18,7 @@ public class RegistrarSedeCommandHandlerTests : CommandHandlerAsyncTest<Registra
     private const string Ciudad = "Bogota";
     private const string Direccion = "Calle 100 # 10-20";
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
-    // derivado de SedeAggregateRoot.ComputarStreamId -- derivarlo del propio codigo bajo prueba
-    // haria tautologica la clave con la que Given/Then/And direccionan el stream.
+    // Oraculo independiente de la clave de stream: literal, nunca derivado de ComputarStreamId.
     private const string StreamIdEsperado = "s:SEDE-001";
 
     protected override ICommandHandlerAsync<RegistrarSede> Handler =>
@@ -28,7 +26,6 @@ public class RegistrarSedeCommandHandlerTests : CommandHandlerAsyncTest<Registra
 
     private static RegistrarSede ComandoValido() => new(Codigo, Nombre, Ciudad, Direccion);
 
-    // CA-1: nace el stream con Codigo, Nombre, Ciudad y Direccion tal como llegaron del request.
     [Fact]
     public async Task RegistrarSede_EmiteSedeRegistrada_CuandoCodigoNoExiste()
     {
@@ -42,7 +39,6 @@ public class RegistrarSedeCommandHandlerTests : CommandHandlerAsyncTest<Registra
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.Direccion, Direccion);
     }
 
-    // CA-2: Ciudad y Direccion son opcionales -- ausentes en el comando, persisten como null.
     [Fact]
     public async Task RegistrarSede_EmiteSedeRegistradaConCiudadYDireccionNulas_CuandoNoLlegan()
     {

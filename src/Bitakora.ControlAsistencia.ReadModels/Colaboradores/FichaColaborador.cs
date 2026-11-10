@@ -4,60 +4,28 @@ namespace Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 /// Etiqueta dinamica (categoria:valor) tal como se muestra en la ficha -- forma ORIGINAL para
 /// display, sin normalizar.
 /// </summary>
-/// <remarks>
-/// Issue #356: tipo propio de ReadModels, SIN relacion de tipo con el VO Etiqueta de
-/// Colaboradores.DomainEvents (islas, CA-ADR-0029; precedente Bloque/TipoBloque de #328). Record
-/// plano, sin comportamiento: la normalizacion y el upsert por categoria viven en
-/// FichaColaboradorProjection (worker), nunca aqui.
-/// </remarks>
 public sealed record EtiquetaFicha(string Categoria, string Valor);
 
 /// <summary>
-/// Read model de la ficha de un colaborador (issue #356) -- consulta puntual por identificacion,
-/// base del flujo de reingreso (los adaptadores la consultan antes de decidir registrar-vs-
-/// reingresar, por eso INCLUYE colaboradores no-vigentes). Primera vista materializada del dominio
-/// Colaboradores.
+/// Ficha de un colaborador por identificacion. Incluye colaboradores no vigentes porque es la base
+/// del flujo de reingreso: se consulta antes de decidir registrar o reingresar.
 /// </summary>
 /// <remarks>
-/// Record plano SIN partial (MEF-ADR-0035, skills/projections/modelos-marten.md): el comportamiento
-/// de proyeccion vive en la clase companion FichaColaboradorProjection, en el worker
-/// (Bitakora.ControlAsistencia.Projections). Este tipo vive en ReadModels (MEF-ADR-0034 seccion 5),
-/// la cuarta isla del repo: cero referencias de proyecto (ver el .csproj) -- EtiquetaFicha es
-/// propio, sin relacion de tipo con Colaboradores.DomainEvents.
+/// Id es el stream key "{Tipo}-{Numero}" (ej. "CC-123456"), contrato de Identificacion.ToString().
 ///
-/// Sin sufijo "View" (MEF-ADR-0041 decision 3, extension del issue #317 CA-2 al read-side,
-/// precedente TurnoVigente #328).
+/// CodigoColaborador, VigenteDesde, VigenteHasta y CodigoSede reflejan la ULTIMA vinculacion, sin
+/// historial. Un reingreso los sobrescribe y VACIA ambas estructuras de etiquetas ("reingreso nace
+/// limpio").
 ///
-/// Id es el stream key que compone ColaboradorAggregateRoot.ComputarStreamId(Identificacion):
-/// "{Tipo}-{Numero}" (ej. "CC-123456") -- contrato de Identificacion.ToString(), nunca aplanado en
-/// Tipo/Numero separados (decision de refinamiento 2026-08-12: redundantes con el Id).
+/// VigenteHasta usa <see cref="CentinelaVigenciaAbierta"/> con la vinculacion abierta, para filtrar
+/// por rango; jamas sale por la API (ObtenerFichaColaborador lo traduce a vacio). Sin booleano de
+/// vigencia: el preaviso la voltea sin evento de reloj, asi que se evalua en la consulta.
 ///
-/// CodigoColaborador, VigenteDesde y VigenteHasta reflejan siempre la ULTIMA vinculacion -- la
-/// ficha NO acumula historial de vinculaciones (el historial completo vive en el stream). Un
-/// reingreso (VinculacionIniciada tras terminacion) sobrescribe estos tres campos y VACIA ambas
-/// estructuras de etiquetas ("reingreso nace limpio", espejo de la regla que #355 fijo en el
-/// aggregate para Apply(VinculacionIniciada)).
+/// EtiquetasNormalizadas sirve al filtrado por containment JSONB; Etiquetas guarda las formas
+/// originales para presentacion. Un valor por categoria normalizada.
 ///
-/// VigenteHasta usa el CENTINELA <see cref="CentinelaVigenciaAbierta"/> cuando la vinculacion esta
-/// abierta -- estructura INTERNA de filtrado/indexacion (el issue hermano de listado filtra
-/// "VigenteHasta >= fecha" como una sola operacion de rango): jamas sale por la API
-/// (ObtenerFichaColaborador lo traduce a vacio, CA-6). Sin booleano de estado materializado: el
-/// preaviso voltea de vigente a no-vigente sin evento de reloj, la vigencia se evalua en la
-/// consulta, no aqui.
-///
-/// EtiquetasNormalizadas es la estructura de filtrado por containment JSONB que consumira el issue
-/// hermano de listado; Etiquetas son las formas ORIGINALES para presentacion. Ambas se mantienen en
-/// paralelo (upsert/retiro por categoria normalizada, un valor por categoria -- espejo de la
-/// invariante que #355 fijo en el aggregate).
-///
-/// CodigoSede (issue #519) refleja la sede de la VINCULACION vigente -- solo el codigo, referencia
-/// pura al maestro de Sedes (decision de refinamiento, opcion a): el nombre lo resuelve el
-/// consumidor contra FichaSede, un rename de sede no toca esta ficha. null = la vinculacion vigente
-/// no tiene sede asignada. Se asienta desde SedeAsignada (reemplazo completo, primera asignacion y
-/// reasignacion) y desde VinculacionIniciada.CodigoSede (un reingreso sin sede LIMPIA el valor
-/// anterior -- "reingreso nace limpio", espejo de ColaboradorAggregateRoot.Apply(VinculacionIniciada),
-/// #520). Parametro opcional al final del record para no romper la posicion de los constructores
-/// posicionales existentes (mismo criterio que VinculacionIniciada.CodigoSede).
+/// CodigoSede es solo el codigo (null = la vinculacion vigente no tiene sede): el nombre lo resuelve
+/// el consumidor contra FichaSede, asi un rename de sede no toca esta ficha.
 /// </remarks>
 [MaterializadoPorProyeccion]
 public sealed record FichaColaborador(
@@ -76,18 +44,9 @@ public sealed record FichaColaborador(
     /// registrada).
     /// </summary>
     /// <remarks>
-    /// Vive aqui, con la vista, porque es la codificacion de uno de SUS campos y la comparten dos
-    /// procesos que no se referencian entre si: el worker que materializa la ficha
-    /// (FichaColaboradorProjection) y el Function App que la consulta y lo traduce a vacio antes de
-    /// responder (ObtenerFichaColaborador, CA-6). ReadModels es el unico ensamblado que ambos ven
-    /// (cuarta isla, MEF-ADR-0041 decision 2), asi que declararlo dos veces -- uno por proceso --
-    /// dejaria la coherencia del contrato a la disciplina: una divergencia compila, pasa todos los
-    /// tests unitarios (cada lado con su propio literal) y solo aflora en dev como un 9999-12-31
-    /// filtrado por la API. Un solo literal la vuelve imposible por construccion.
-    ///
-    /// No es comportamiento (MEF-ADR-0035: el read model no tiene logica de proyeccion, que sigue
-    /// viviendo integra en la clase companion del worker): es una constante del propio contrato de
-    /// dato de la vista.
+    /// Vive con la vista porque la comparten el worker que la escribe y el Function App que la
+    /// traduce a vacio: declarada por lado, una divergencia compilaria, pasaria los tests unitarios y
+    /// solo afloraria en dev.
     /// </remarks>
     public static readonly DateOnly CentinelaVigenciaAbierta = new(9999, 12, 31);
 }

@@ -1,24 +1,16 @@
-// HU-114: Crear enum Concepto y value objects primitivos del desglose
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
 /// <summary>
-/// Tests de Retardo - detalle del retardo de una franja.
-/// Interfaz publica: Crear(), Vacio, RetardoNeto, ToString(), Equals/GetHashCode.
-/// Los minutos crudos y los intervalos son privados por diseño — nadie externo opera sobre ellos,
-/// solo se leen via ToString() para trazabilidad.
-/// CA-3: Crear produce un detalle con totales coherentes con las listas (verificado via ToString).
-/// CA-4/CA-5: RetardoNeto saturado en 0 cuando compensacion >= retardo.
-/// CA-6: Vacio tiene ToString "Sin retardo" y RetardoNeto = 0.
+/// Los minutos crudos y los intervalos son privados por diseno: solo se leen via ToString() para
+/// trazabilidad, asi que los tests los verifican por ese texto.
 /// </summary>
 public class RetardoTests
 {
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
-
-    // ---------- RetardoNeto: unico observable numerico ----------
 
     [Fact]
     public void Crear_CalculaRetardoNeto_ComoDiferenciaCuandoCompensacionParcial()
@@ -111,8 +103,6 @@ public class RetardoTests
         detalle.RetardoNeto.Should().Be(0);
     }
 
-    // ---------- ToString: unica ventana a los datos internos ----------
-
     [Fact]
     public void ToString_MuestraIntervalosYTotales_CuandoCompensacionParcial()
     {
@@ -179,8 +169,6 @@ public class RetardoTests
         texto.Should().Contain("(30min)");  // compensado crudo (preserva trazabilidad)
         texto.Should().Contain("0min");     // neto saturado
     }
-
-    // ---------- Vacio ----------
 
     [Fact]
     public void Vacio_TieneRetardoNetoEnCero()

@@ -1,22 +1,18 @@
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Marten.Events.Aggregation; // SingleStreamProjection<,> vive aqui, NO en Marten.Events.Projections
-// Alias, no nombre corto: ReadModels.ControlHoras declara homonimos FranjaDepurada/MarcacionDelDia
-// (espejo por rol del mismo termino, MEF-ADR-0039 decision 6) que colisionan (CS0104) con los de
-// DomainEvents que evento.Franjas/evento.Marcaciones tipan aqui.
+// Alias: ReadModels.ControlHoras declara homonimos FranjaDepurada/MarcacionDelDia que colisionan
+// (CS0104) con los de DomainEvents que evento.Franjas/evento.Marcaciones tipan aqui.
 using EventoFranjaDepurada = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.FranjaDepurada;
 using EventoMarcacionDelDia = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.MarcacionDelDia;
 
 namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 
 /// <summary>
-/// Clase de proyeccion companion de AsistenciaDiaria (N1: un solo stream
-/// "dc:{CodigoColaborador}:{yyyyMMdd}" por fila).
+/// Proyeccion N1: un solo stream "dc:{CodigoColaborador}:{yyyyMMdd}" por fila.
 ///
-/// partial es OBLIGATORIO: el source generator descubre Create/Apply por convencion y emite el
-/// dispatcher [GeneratedEvolver]. Sin partial el build queda limpio y la proyeccion falla en
-/// RUNTIME al registrarse (InvalidProjectionException); lo caza el config-test
-/// ConfigurarControlHoras_RegistraAsistenciaDiariaProjectionComoAsync.
+/// partial es OBLIGATORIO: el source generator emite el dispatcher [GeneratedEvolver]; sin partial el
+/// build queda limpio y la proyeccion falla en RUNTIME al registrarse (InvalidProjectionException).
 ///
 /// Sin ShouldDelete: la fila nunca se borra.
 /// </summary>

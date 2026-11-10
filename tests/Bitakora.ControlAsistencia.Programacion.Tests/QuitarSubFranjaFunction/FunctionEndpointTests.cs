@@ -138,7 +138,7 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
+// Fakes manuales - NO NSubstitute.
 
 internal class FakeRequestValidator<TComando> : IRequestValidator
 {

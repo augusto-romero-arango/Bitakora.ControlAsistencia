@@ -6,13 +6,9 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.RegistrarColaborador;
 
-// Cliente HTTP puro del comando RegistrarColaborador (POST /api/colaboradores): esta tool no
-// decide ninguna regla de negocio -- traduce el contrato HTTP vigente (MEF-ADR-0043) al remodelado
-// token-eficiente de MEF-ADR-0047 decision 4, y devuelve el rechazo del dominio como texto en vez
-// de excepcion (CA-ADR-0030). fecha_inicio es obligatoria y nunca se sustituye por "hoy" (doctrina
-// bitemporal del BC, issue #574): a diferencia de fecha_referencia en lectura, es la fecha de un
-// hecho persistido. La identificacion viaja en el eco tal como la envio el asistente, sin la
-// normalizacion canonica que computa el dominio en su borde (MEF-ADR-0037).
+// fecha_inicio nunca se sustituye por "hoy" (doctrina bitemporal del BC): a diferencia de
+// fecha_referencia en lectura, es la fecha de un hecho persistido. La identificacion viaja en el eco
+// tal como la envio el asistente, sin la normalizacion canonica que computa el dominio (MEF-ADR-0037).
 public partial class RegistrarColaboradorTool(ColaboradoresApi api)
 {
     internal const string NombreTool = "registrar_colaborador";
@@ -119,9 +115,8 @@ public partial class RegistrarColaboradorTool(ColaboradoresApi api)
 }
 
 /// <summary>
-/// Eco compacto de registrar_colaborador hacia el asistente: el 202 del dominio no trae body y la
-/// ficha se materializa asincronicamente, asi que el hecho registrado se reconstruye con lo que
-/// entro a la tool.
+/// El 201 del dominio no trae body y la ficha se materializa asincronicamente: el eco se reconstruye
+/// con lo que entro a la tool.
 /// </summary>
 public sealed record ColaboradorRegistradoResumen(
     string Resultado,

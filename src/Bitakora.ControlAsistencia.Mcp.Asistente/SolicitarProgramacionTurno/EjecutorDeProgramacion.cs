@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 
-/// <summary>Colaborador a programar, venga del directorio o de una ficha.</summary>
 public sealed record CandidatoProgramacion(
     string Identificacion,
     string CodigoColaborador,
@@ -30,7 +29,6 @@ internal sealed class ContadoresDeEjecucion
     public int Fallidos;
 }
 
-/// <summary>Lo que cada tool aporta al indicador por ejecucion.</summary>
 internal sealed record DatosDeIndicador(
     string Modalidad,
     int TamanoResuelto,
@@ -87,8 +85,8 @@ internal static class IndicadorDeEjecucion
     }
 }
 
-// Parte comun de solicitar_programacion_turno y solicitar_programacion_turno_por_grupo (MEF-ADR-0018):
-// ambas difieren solo en como obtienen los candidatos.
+// Parte comun de solicitar_programacion_turno y su variante por grupo: difieren solo en como obtienen
+// los candidatos.
 internal static partial class EjecutorDeProgramacion
 {
     internal const int PostsSimultaneos = 8;
@@ -125,8 +123,8 @@ internal static partial class EjecutorDeProgramacion
             .ToList();
 
         var resultados = new ConcurrentBag<ResultadoEnvio>();
-        // Los contadores avanzan durante los POST para que el indicador conserve los conteos
-        // parciales si la ejecucion termina por excepcion o cancelacion; cuentan colaboradores.
+        // Los contadores avanzan durante los POST para conservar conteos parciales ante excepcion o
+        // cancelacion; cuentan colaboradores.
         var conPostExitoso = new ConcurrentDictionary<string, byte>();
         var conPostRechazado = new ConcurrentDictionary<string, byte>();
 

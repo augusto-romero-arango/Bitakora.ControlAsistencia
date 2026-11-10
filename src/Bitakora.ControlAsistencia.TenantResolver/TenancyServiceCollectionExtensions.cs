@@ -7,16 +7,13 @@ namespace Bitakora.ControlAsistencia.TenantResolver;
 public static class TenancyServiceCollectionExtensions
 {
     /// <summary>
-    /// Registra <see cref="TenantExecutionContext"/> como <see cref="ITenantContext"/> (MEF-ADR-0032,
-    /// patron de la implementacion de referencia Cosmos.ControlPlane). Singleton concreto: la
-    /// identidad vive en un AsyncLocal ambiente, no en la instancia, asi que un lector sin estado
-    /// basta.
+    /// Registra <see cref="TenantExecutionContext"/> como <see cref="ITenantContext"/> singleton: la
+    /// identidad vive en un AsyncLocal ambiente, no en la instancia.
     /// </summary>
     /// <remarks>
-    /// Va dentro del seam <c>ComposicionServicios</c> de cada dominio (MEF-ADR-0029) porque los
-    /// routers y senders de Wolverine dependen de <see cref="ITenantContext"/>: sin este registro el
-    /// grafo de DI no se puede validar. Quien lo llame debe ademas registrar el middleware que puebla
-    /// el ambiente, via <see cref="TenancyBuilderExtensions.UsarTenantContextMiddleware"/>.
+    /// Va dentro del seam <c>ComposicionServicios</c> de cada dominio porque los routers y senders de
+    /// Wolverine dependen de <see cref="ITenantContext"/>. Quien lo llame debe registrar ademas
+    /// <see cref="TenancyBuilderExtensions.UsarTenantContextMiddleware"/>, que puebla el ambiente.
     /// </remarks>
     public static IServiceCollection AgregarTenantResolverControlAsistencia(this IServiceCollection services)
     {

@@ -7,15 +7,8 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.RegistrarColaboradorFunction;
 
-// Issue #330: endpoint HTTP POST para registrar un colaborador bajo control de asistencia.
-// MEF-ADR-0006: [Function("RegistrarColaborador")] como convencion de nombrado; carpeta CON sufijo
-// "Function" porque es un comando HTTP y el record del comando es homonimo del feature folder --
-// las carpetas sin sufijo (ObtenerTurnoVigente/ListarTurnosVigentes) son queries GET, que no tienen
-// record de comando con el que colisionar. Sin el sufijo, este archivo no podria nombrar su propio
-// comando sin un alias de using.
-// Route = "colaboradores" (kebab-case minusculo, MEF-ADR-0043 seccion 3 / issue #378 CA-5): antes
-// "Colaboradores" (PascalCase) -- dominio y recurso son homonimos, un segundo segmento seria
-// redundante; unico cambio, sin tocar el resto del endpoint.
+// Carpeta CON sufijo "Function": sin el, el namespace colisiona con el record homonimo del comando
+// y este archivo no podria nombrarlo sin un alias de using.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("RegistrarColaborador")]

@@ -1,4 +1,3 @@
-// Issue #134: Clasificar segmentos horarios por banda y tipo de dia
 // Referencia legal: CST art. 160 (inicio jornada diurna 6AM) + Ley 2466/2025 art. 10
 // (inicio jornada nocturna 7PM). Los umbrales concretos viven en FronterasHorariasLegales.
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;

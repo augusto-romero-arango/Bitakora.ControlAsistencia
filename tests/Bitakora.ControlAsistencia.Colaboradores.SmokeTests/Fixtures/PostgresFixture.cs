@@ -67,11 +67,9 @@ public class PostgresFixture : IAsyncLifetime
     /// Cuenta los eventos del tipo indicado ya presentes en el stream, sin esperar.
     /// </summary>
     /// <remarks>
-    /// Issue #354: <see cref="ExisteEventoAsync"/> solo responde "hay al menos uno", asi que no
-    /// distingue "quedo el evento de la primera request" de "la segunda request escribio otro".
-    /// Un test que afirme que un rechazo NO agrego un evento necesita el conteo exacto. Sin
-    /// polling a proposito: se usa despues de una respuesta sincrona de rechazo (409), cuando el
-    /// escenario ya espero con <see cref="ExisteEventoAsync"/> a que apareciera el evento legitimo.
+    /// Para afirmar que un rechazo NO agrego un evento (<see cref="ExisteEventoAsync"/> solo dice "hay
+    /// al menos uno"). Sin polling a proposito: va despues del rechazo sincrono (409), cuando el
+    /// escenario ya espero con <see cref="ExisteEventoAsync"/> el evento legitimo.
     /// </remarks>
     public async Task<int> ContarEventosAsync(string schema, string streamId, string tipoEvento) =>
         (await ObtenerEventosInternoAsync(schema, streamId, tipoEvento)).Count;
@@ -91,15 +89,10 @@ public class PostgresFixture : IAsyncLifetime
     /// Obtiene el primer evento del tipo indicado en el stream, sin filtrar por contenido.
     /// </summary>
     /// <remarks>
-    /// Issue #351: el filtro por (campoJson, valorJson) del overload de abajo compara
-    /// <c>JsonElement.ToString()</c> contra un texto -- solo sirve para campos ESCALARES. Para un
-    /// campo objeto (un VO serializado, como el Nombre de nombres_corregidos) esa comparacion nunca
-    /// coincide: mt_events.data es jsonb, y PostgreSQL no preserva ni el whitespace ni el orden de
-    /// las claves (docs 8.14.1), mientras que <c>ToString()</c> sobre un objeto devuelve el texto
-    /// crudo tal como llego. El test que necesita verificar contenido de un campo objeto usa este
-    /// overload y compara por VALOR, deserializando con las opciones reales de Marten.
-    /// Es seguro no filtrar porque cada smoke test usa una identificacion nueva: su stream contiene
-    /// un solo evento de cada tipo.
+    /// El filtro (campoJson, valorJson) del overload de abajo compara <c>JsonElement.ToString()</c> y solo
+    /// sirve para campos escalares: jsonb no preserva whitespace ni orden de claves (PostgreSQL docs 8.14.1),
+    /// asi que un campo objeto (un VO) nunca coincide. Para esos se usa este overload y se compara por valor.
+    /// No filtrar es seguro: cada smoke usa una identificacion nueva y su stream tiene un evento de cada tipo.
     /// </remarks>
     public Task<T> ObtenerEventoAsync<T>(
         string schema, string streamId, string tipoEvento, TimeSpan timeout) =>
@@ -166,7 +159,7 @@ public class PostgresFixture : IAsyncLifetime
 
     private static string EscaparSchema(string schema)
     {
-        // Solo permitir caracteres alfanumericos y guion bajo para prevenir SQL injection
+        // Previene SQL injection: el schema va interpolado en el SQL, no parametrizado.
         if (!System.Text.RegularExpressions.Regex.IsMatch(schema, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
             throw new ArgumentException($"Nombre de schema invalido: {schema}");
         return schema;

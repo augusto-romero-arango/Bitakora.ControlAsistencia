@@ -1,27 +1,10 @@
-// Issue #328: fase roja de la segunda proyeccion concreta del BC. Invocacion DIRECTA de los
-// metodos estaticos de TurnoVigenteProjection (N1, MEF-ADR-0035) -- no el DSL Given/When/Then de
-// CommandHandlerTestBase (MEF-ADR-0002, testea command handlers contra el event store): aqui se
-// testean funciones puras evento -> vista, sin abrir ningun stream.
+// Invocacion directa de los metodos estaticos de TurnoVigenteProjection, sin el DSL de
+// CommandHandlerTestBase. Oraculos armados a mano (MEF-ADR-0002): los Bloques esperados se calculan
+// aplicando a mano el algoritmo de TurnoDiario.Segmentar (cubierto por sus propios tests); aqui se
+// verifica que Create/Apply lo invocan y mapean cada BloqueTurno al Bloque de la vista.
 //
-// Cada assert compara contra un oraculo armado a mano (MEF-ADR-0002, no-tautologia): nunca se
-// reusa la logica de Create/Apply bajo prueba para construir el valor esperado. Los Bloques
-// esperados SI se calculan aplicando a mano el algoritmo documentado de TurnoDiario.Segmentar
-// (issue #327, ya cubierto por sus propios tests) -- Segmentar no es la logica bajo prueba en este
-// archivo; lo que se verifica aqui es que Create/Apply lo invocan sobre el payload del evento
-// (Tell-don't-Ask, MEF-ADR-0012) y mapean cada BloqueTurno resultante al record Bloque propio de
-// la vista (ReadModels, sin relacion de tipo con DomainEvents).
-//
-// using TipoBloqueVigente: alias obligatorio -- DomainEvents.TipoBloque (necesario para construir
-// el evento fundacional) y ReadModels.ControlHoras.TipoBloque (necesario para el oraculo de la
-// vista) comparten nombre a proposito, mismo criterio de "tres islas" que ya aplican Colaborador/
-// TurnoDiario/FranjaProgramada entre los ensamblados de eventos. Con ambos "using" activos el
-// simbolo corto "TipoBloque" queda ambiguo (CS0104); el alias resuelve solo el lado ReadModels.
-//
-// Issue #337 (fase roja): extension de este archivo -- CA-1, mapeo de SedeId/NombreSede en cada
-// Bloque desde la SedeProgramada que #336 ya estampa en cada BloqueTurno. MapearBloque (produccion
-// actual) ignora bloque.Sede por completo, asi que estos tests quedan en rojo hasta que
-// projection-implementer lo propague; ninguno reusa el algoritmo de Segmentar como oraculo, se
-// arma a mano igual que los tests de arriba (MEF-ADR-0002).
+// Alias TipoBloqueVigente: DomainEvents.TipoBloque y ReadModels.ControlHoras.TipoBloque comparten
+// nombre a proposito (tres islas); con ambos using el nombre corto es ambiguo (CS0104).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -36,10 +19,7 @@ public class TurnoVigenteProjectionTests
     private static ColaboradorProgramado ColaboradorDePrueba() =>
         new("CC-1098765432", "EMP-001", "Ana Ramirez");
 
-    // CA-1: Create mapea stream key, CodigoColaborador, NombreCompleto (llega ya concatenado en la
-    // terna de identidad -- el worker no lo compone), NombreTurno,
-    // HorarioResumido (la Descripcion textual que el evento ya trae) y los Bloques que produce
-    // Segmentar, con los tres tipos posibles (Ordinaria/Descanso/Extra) representados.
+    // NombreCompleto llega ya concatenado en la terna de identidad: el worker no lo compone.
     [Fact]
     public void Create_ProyectaElTurnoVigenteCompleto_DesdeTurnoDiarioAsignado()
     {
@@ -47,9 +27,8 @@ public class TurnoVigenteProjectionTests
         var fecha = new DateOnly(2026, 8, 3);
         var streamKey = "cd:EMP-001:20260803";
 
-        // Franja 06:00-14:00 con un descanso (10:00-10:15) y un extra ANTES del inicio nominal
-        // (05:00-06:00): cubre los tres TipoBloque sin que ningun tramo cruce medianoche, para
-        // poder calcular el oraculo a mano sin ambiguedad (Tramo.RomperEnMedianoche no interviene).
+        // El descanso y el extra previo cubren los tres TipoBloque sin cruzar medianoche, para
+        // calcular el oraculo a mano sin ambiguedad.
         var franja = new FranjaProgramada(
             new TimeOnly(6, 0),
             new TimeOnly(14, 0),
@@ -85,10 +64,6 @@ public class TurnoVigenteProjectionTests
         vista.Bloques.Should().Equal(bloquesEsperados);
     }
 
-    // CA-2: la reasignacion sobrescribe -- dos TurnoDiarioAsignado consecutivos sobre el mismo
-    // (colaborador, fecha) dejan la vista con el NombreTurno, HorarioResumido y Bloques del SEGUNDO
-    // evento ("el ultimo gana"). Id, CodigoColaborador y Fecha no cambian (mismo stream key). Sin
-    // ShouldDelete (el turno vigente nunca se borra, solo se reasigna) -- no hay metodo que probar.
     [Fact]
     public void Apply_SobrescribeTurnoHorarioYBloques_CuandoLlegaOtroTurnoDiarioAsignado()
     {
@@ -106,7 +81,6 @@ public class TurnoVigenteProjectionTests
             "Turno Manana: (06:00-14:00)",
             [new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14))]);
 
-        // Segundo turno, sin descansos ni extras: un solo bloque Ordinaria 14:00-22:00.
         var franjaTarde = new FranjaProgramada(
             new TimeOnly(14, 0), new TimeOnly(22, 0), DiaOffsetFin: 0,
             Descansos: [], Extras: [], Descripcion: "(14:00-22:00)");
@@ -126,12 +100,8 @@ public class TurnoVigenteProjectionTests
             new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(14), medianoche.AddHours(22)));
     }
 
-    // Borde que el test de arriba no discrimina, porque ahi los dos eventos traen el MISMO
-    // colaborador: cada TurnoDiarioAsignado carga la terna de identidad, asi que una correccion
-    // del nombre aguas arriba llega con la reasignacion y el "ultimo gana" tambien le aplica --
-    // congelar el nombre de la primera asignacion dejaria la vista mostrando un dato viejo para
-    // siempre. Id, CodigoColaborador y Fecha si son invariantes (identidad del stream), y se verifican aqui
-    // junto al refresco para que el test no pueda pasar por sobrescribir la vista entera.
+    // Id, CodigoColaborador y Fecha se verifican junto al refresco para que el test no pase
+    // sobrescribiendo la vista entera.
     [Fact]
     public void Apply_RefrescaElNombreCompleto_CuandoLaReasignacionTraeElNombreCorregido()
     {
@@ -148,7 +118,6 @@ public class TurnoVigenteProjectionTests
             "Turno Manana: (06:00-14:00)",
             [new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14))]);
 
-        // Mismo CodigoColaborador, nombre corregido aguas arriba (dos nombres y dos apellidos).
         var colaboradorCorregido = new ColaboradorProgramado("CC-1098765432", "EMP-001", "Ana Maria Ramirez Solano");
         var turnoTarde = new TurnoDiario(
             "Turno Tarde",
@@ -167,12 +136,6 @@ public class TurnoVigenteProjectionTests
         vista.Fecha.Should().Be(fecha);
     }
 
-    // --- Issue #337: mapeo de sede por bloque (CA-1) ---
-
-    // CA-1: una franja sin descansos ni extras con Sede asignada produce un unico Bloque Ordinaria
-    // con SedeId/NombreSede tomados de esa SedeProgramada. Hoy MapearBloque ignora bloque.Sede por
-    // completo (produccion actual: "new(MapearTipo(bloque.Tipo), bloque.Inicio, bloque.Fin)"), asi
-    // que este test queda en rojo hasta que projection-implementer propague el dato.
     [Fact]
     public void Create_MapeaSedeIdYNombreSede_DesdeLaSedeDeLaFranja()
     {
@@ -196,10 +159,6 @@ public class TurnoVigenteProjectionTests
                 SedeId: "SD-SUBA", NombreSede: "Suba"));
     }
 
-    // CA-1 (issue #336, "Los bloques de descanso y extra heredan la sede de la franja madre que
-    // los contiene"): los CUATRO bloques que produce Segmentar sobre una franja con descanso y
-    // extra (mismo turno del test CA-1 de #328, arriba) heredan la MISMA sede de la franja madre --
-    // ninguno tiene sede propia.
     [Fact]
     public void Create_HeredaLaSedeDeLaFranjaEnBloquesDeDescansoYExtra()
     {
@@ -235,10 +194,7 @@ public class TurnoVigenteProjectionTests
         vista.Bloques.Should().Equal(bloquesEsperados);
     }
 
-    // CA-1, segunda mitad: "los bloques de franjas sin sede quedan con ambos campos null" -- una
-    // franja sin Sede (default, turno prearmado multi-sede sin resolver o evento anterior a #336)
-    // no inventa sede en ninguno de sus bloques. Oraculo explicito para que una implementacion
-    // futura no pueda "adivinar" un valor no-null y seguir pasando por casualidad.
+    // Franja sin Sede: turno prearmado multi-sede sin resolver o evento anterior a la sede por franja.
     [Fact]
     public void Create_DejaSedeIdYNombreSedeNulos_CuandoLaFranjaNoTraeSede()
     {
@@ -259,10 +215,6 @@ public class TurnoVigenteProjectionTests
             new Bloque(TipoBloqueVigente.Ordinaria, medianoche.AddHours(6), medianoche.AddHours(14)));
     }
 
-    // CA-2 (semantica del filtro fijada por el escenario de la conversacion del issue): un turno
-    // partido con dos franjas contiguas en sedes DISTINTAS (Suba en la manana, Chapinero en la
-    // tarde) produce bloques con la sede de SU PROPIA franja, no la del turno completo -- la razon
-    // de ser de "sede por bloque, nunca por dia" (issue #337, "Contexto").
     [Fact]
     public void Create_MapeaSedesDistintasPorBloque_CuandoElTurnoTieneFranjasEnSedesDistintas()
     {
@@ -293,11 +245,6 @@ public class TurnoVigenteProjectionTests
         vista.Bloques.Should().Equal(bloquesEsperados);
     }
 
-    // CA-2/CA-1: "el ultimo gana" (semantica ya fijada por #328) aplica igual a la sede -- una
-    // reasignacion que cambia de sede no deja bloques con la sede VIEJA mezclada con datos nuevos.
-    // vistaPrevia simula un documento materializado antes de esta reasignacion, ya con sede (no el
-    // caso null de CA-5 -- ese es un dato persistido sin este issue desplegado, no ejercitable
-    // desde Apply).
     [Fact]
     public void Apply_SobrescribeLaSedeDeLosBloques_CuandoLaReasignacionCambiaDeSede()
     {

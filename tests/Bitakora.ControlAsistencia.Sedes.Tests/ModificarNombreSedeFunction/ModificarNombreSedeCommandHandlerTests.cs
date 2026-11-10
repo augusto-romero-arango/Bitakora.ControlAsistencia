@@ -28,7 +28,6 @@ public class ModificarNombreSedeCommandHandlerTests : CommandHandlerAsyncTest<Mo
     private static SedeRegistrada CrearSedeRegistrada() =>
         new(Codigo, NombreOriginal, Ciudad, Direccion);
 
-    // CA-1
     [Fact]
     public async Task ModificarNombreSede_EmiteNombreSedeModificado_CuandoSedeExiste()
     {
@@ -40,7 +39,7 @@ public class ModificarNombreSedeCommandHandlerTests : CommandHandlerAsyncTest<Mo
         And<SedeAggregateRoot, string>(StreamIdEsperado, s => s.Nombre, NombreNuevo);
     }
 
-    // CA-4: sin Given -- el stream no existe. El Then sin eventos esperados es la asercion de que
+    // Sin Given: el stream no existe. El Then sin eventos esperados es la asercion de que
     // nada se escribio al event store.
     [Fact]
     public async Task ModificarNombreSede_LanzaRecursoNoEncontradoException_CuandoSedeNoExiste()

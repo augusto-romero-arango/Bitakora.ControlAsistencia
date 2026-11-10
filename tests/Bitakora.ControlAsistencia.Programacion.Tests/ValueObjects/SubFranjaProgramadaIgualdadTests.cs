@@ -1,6 +1,4 @@
-// Issue #319: Tests de contrato IEquatable para SubFranjaProgramada (record propio de
-// Programacion.DomainEvents, tres islas). Equals/GetHashCode propios EXCLUYEN Descripcion (dato
-// derivado, no identidad de la sub-franja) -- mismo criterio que DetalleSubFranja (issue #288).
+// Equals/GetHashCode propios EXCLUYEN Descripcion: dato derivado, no identidad de la sub-franja.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -26,8 +24,6 @@ public class SubFranjaProgramadaIgualdadTests : IgualdadTestBase<SubFranjaProgra
         yield return ("DiaOffsetFin",
             new SubFranjaProgramada(new TimeOnly(23, 50), new TimeOnly(0, 10), 0, 1, "(23:50-00:10+1)"));
     }
-
-    // CA-1: dos instancias que difieren SOLO en Descripcion son iguales (dato derivado, no identidad).
 
     [Fact]
     public void Equals_RetornaTrue_CuandoSoloDescripcionEsDiferente()

@@ -5,18 +5,17 @@ using Microsoft.Azure.Functions.Worker.Middleware;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-// Puebla la identidad ambiente (TenantExecutionContext) para invocaciones de tool MCP. Lee el
-// Authorization del ToolInvocationContext y no de FunctionContext.GetHttpContext(): una
-// invocacion por McpToolTrigger no llega al worker con HttpContext -- el endpoint del protocolo lo
-// sirve el paquete del host (ver AutorizacionMcpMiddleware, "LIMITE ESTRUCTURAL").
+// Lee el Authorization del ToolInvocationContext y no de FunctionContext.GetHttpContext(): una
+// invocacion por McpToolTrigger no llega al worker con HttpContext (ver AutorizacionMcpMiddleware,
+// "LIMITE ESTRUCTURAL").
 public sealed partial class IdentidadTenantMcpMiddleware(
     IValidadorTokenAuthKit validador, IDerivadorIdentidadTenantMcp derivador) : IFunctionsWorkerMiddleware
 {
     internal const string EncabezadoAutorizacion = "Authorization";
     internal const string EsquemaBearer = "Bearer ";
 
-    // Valor de Microsoft.Azure.Functions.Worker.Extensions.Mcp.Constants.McpToolTriggerBindingType,
-    // internal a ese ensamblado: se replica el literal porque no hay forma de referenciarlo.
+// Literal de Microsoft.Azure.Functions.Worker.Extensions.Mcp.Constants.McpToolTriggerBindingType,
+// que es internal a ese ensamblado.
     private const string McpToolTriggerBindingType = "mcpToolTrigger";
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
@@ -27,19 +26,17 @@ public sealed partial class IdentidadTenantMcpMiddleware(
         if (sesion is not null)
             context.Items[SesionUsuario.ClaveItems] = sesion;
 
-        // La mutacion del AsyncLocal va aqui y no dentro de un metodo async propio: el CLR restaura
-        // el contexto de ejecucion al retornar de un metodo async, asi que una mutacion hecha
-        // adentro no la ve el llamador -- ni siquiera cuando el await interno resuelve sincronico.
+// El AsyncLocal se muta aqui y no en un metodo async propio: el CLR restaura el contexto de ejecucion
+// al retornar de un metodo async y el llamador no veria la mutacion, aunque el await resuelva sincronico.
         if (identidad is not null)
             TenantExecutionContext.SetDerivedIdentity(identidad.TenantId, identidad.UserId, identidad.OrganizationMembershipId);
 
         await next(context);
     }
 
-    // Nucleo testable (mismo patron que AutorizacionMcpMiddleware.Invoke): opera sobre el
-    // encabezado ya extraido, nunca sobre FunctionContext/ToolInvocationContext -- inalcanzables en
-    // un unit test de nivel 1 (MEF-ADR-0048 seccion 1). Sin Bearer no hay identidad que derivar:
-    // el propagador cae al tenant fijo de ConfiguracionIdentidadTenant.
+// Nucleo testable: opera sobre el encabezado ya extraido porque FunctionContext/ToolInvocationContext
+// son inalcanzables en un unit test (MEF-ADR-0048 seccion 1). Sin Bearer no hay identidad: el
+// propagador cae al tenant fijo de ConfiguracionIdentidadTenant.
     internal async Task<IdentidadTenant?> DerivarIdentidadAsync(
         string? encabezadoAutorizacion, CancellationToken cancellationToken = default) =>
         (await DerivarAsync(encabezadoAutorizacion, cancellationToken)).Identidad;
@@ -52,11 +49,8 @@ public sealed partial class IdentidadTenantMcpMiddleware(
             return (null, null);
 
         var token = encabezadoAutorizacion[EsquemaBearer.Length..];
-        // Bearer presente pero no validable (firma invalida, expirado, discovery doc inalcanzable,
-        // authorization server sin configurar) NO es el caso de "sin Bearer" de arriba: hay un
-        // usuario detras y no sabemos cual. Caer al tenant fijo aqui escribiria sus hechos de
-        // negocio en la empresa equivocada, en silencio -- mismo criterio que el rechazo de
-        // DerivadorIdentidadTenantMcp cuando falta org_id.
+        // Bearer presente pero no validable no es "sin Bearer": hay un usuario y no sabemos cual. Caer al
+        // tenant fijo escribiria sus hechos de negocio en la empresa equivocada, en silencio.
         var principal = await validador.ValidarAsync(token, cancellationToken)
                         ?? throw new InvalidOperationException(Mensajes.TokenNoValidado);
 

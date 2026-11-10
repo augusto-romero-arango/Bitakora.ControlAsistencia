@@ -1,11 +1,4 @@
-// Issue #349: terminar la vinculacion de un colaborador -- segundo comando del ciclo de vida de
-// ColaboradorAggregateRoot (desglose #348-#357). CA-ADR-0030: el aggregate declina con resultado
-// (nunca lanza, nunca emite evento de fallo); el handler traduce la razon a ReglaDeNegocioDeclinadaException
-// (409) o RecursoNoEncontradoException (404).
-// Issue #379 (MEF-ADR-0043 paso 4, CA-5): el comando gana el campo Codigo -- el {codigo} de la ruta
-// HTTP, comparado por el aggregate contra la vinculacion vigente ANTES que las demas reglas de
-// estado. CodigoNoCorresponde -> 409 (no 404: es conflicto con el estado vigente, no un recurso
-// inexistente).
+// CodigoNoCorresponde es 409, no 404: es conflicto con la vinculacion vigente, no un recurso inexistente.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
@@ -17,15 +10,12 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.TerminarVinculacionFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
-// GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del test-writer,
-// mismo criterio que RegistrarColaboradorCommandHandlerTests).
 public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<TerminarVinculacion>
 {
     private const string NumeroValido = "79543210";
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
-    // derivado de ColaboradorAggregateRoot.ComputarStreamId (mismo criterio que #330).
+    // Oraculo independiente: literal, nunca derivado de ComputarStreamId -- si se derivara, un cambio
+    // de formato de la clave se auto-validaria.
     private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionVigente = "COL-001";
@@ -53,14 +43,9 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
     private static VinculacionIniciada VinculacionIniciadaVigente() =>
         new(CodigoVinculacionVigente, FechaInicioVinculacionVigente);
 
-    // Precondicion compartida: colaborador registrado con una vinculacion abierta (sin terminacion).
     private void DadoUnColaboradorConVinculacionAbierta() =>
         Given(StreamIdEsperado, ColaboradorRegistradoValido(), VinculacionIniciadaVigente());
 
-    // CA-2: colaborador con vinculacion abierta + comando valido -> el stream recibe
-    // VinculacionTerminada con la FechaEfectiva del request; el aggregate rehidratado refleja la
-    // terminacion. (El registro en IdentidadEventosColaboradores.TiposPersistidos lo cubren
-    // AliasEventosColaboradoresTests/ComposicionServiciosTests, no este handler.)
     [Fact]
     public async Task TerminarVinculacion_EmiteVinculacionTerminada_CuandoLaVinculacionEstaAbierta()
     {
@@ -73,8 +58,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, FechaEfectivaValida);
     }
 
-    // CA-2 (segunda direccion): FechaEfectiva futura (preaviso) -> aceptada igual que una pasada --
-    // ninguna validacion contra el reloj del servidor en ninguna direccion.
+    // Sin validacion contra el reloj del servidor en ninguna direccion.
     [Fact]
     public async Task TerminarVinculacion_EmiteVinculacionTerminada_CuandoFechaEfectivaEsFutura()
     {
@@ -88,8 +72,6 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, fechaFutura);
     }
 
-    // CA-2 (tercera direccion): FechaEfectiva pasada (registro tardio, posterior al inicio de la
-    // vinculacion pero anterior a "hoy") -> tambien aceptada, sin validacion contra el reloj.
     [Fact]
     public async Task TerminarVinculacion_EmiteVinculacionTerminada_CuandoFechaEfectivaEsPasada()
     {
@@ -103,8 +85,6 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, fechaPasada);
     }
 
-    // CA-5 (GATE, evaluada PRIMERO): el codigo del comando no corresponde al de la vinculacion
-    // vigente -> 409 con la razon CodigoNoCorresponde, ningun evento nuevo, el estado no cambia.
     [Fact]
     public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoNoCorrespondeALaVinculacionVigente()
     {
@@ -119,9 +99,8 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-5 (orden de evaluacion): el codigo equivocado se rechaza AUNQUE la vinculacion ya tenga
-    // una terminacion registrada -- el direccionamiento precede a las reglas de estado; un comando
-    // dirigido a la vinculacion equivocada no debe filtrar que la vigente ya esta terminada.
+    // El direccionamiento precede a las reglas de estado: un comando dirigido a la vinculacion
+    // equivocada no debe filtrar que la vigente ya esta terminada.
     [Fact]
     public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaExceptionPorCodigo_CuandoElCodigoNoCorrespondeYLaVinculacionYaEstaTerminada()
     {
@@ -140,8 +119,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, fechaTerminacionPrevia);
     }
 
-    // CA-5 (borde de caso, case-sensitive): el codigo vigente en minusculas no es igual al mismo
-    // codigo en mayusculas -- #387 preserva el case del codigo, la comparacion es exacta.
+    // La comparacion del codigo es exacta: se preserva su case.
     [Fact]
     public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoDifiereSoloEnMayusculas()
     {
@@ -156,8 +134,6 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-3: la ultima vinculacion ya tiene terminacion registrada -> 409, ningun evento nuevo en
-    // el stream, y el estado conserva la terminacion previa (no la del comando rechazado).
     [Fact]
     public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaVinculacionYaTieneTerminacionRegistrada()
     {
@@ -176,8 +152,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, fechaTerminacionPrevia);
     }
 
-    // CA-3 (preaviso no vencido): un preaviso con fecha futura ya registrado bloquea igual una
-    // segunda terminacion -- "ya terminada" se evalua solo con la historia del stream, sin reloj.
+    // "Ya terminada" se evalua solo con la historia del stream, sin reloj.
     [Fact]
     public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoYaExisteUnPreavisoConFechaFutura()
     {
@@ -196,8 +171,6 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, fechaPreavisoFutura);
     }
 
-    // CA-4: FechaEfectiva anterior a FechaInicio -> 409 (duracion negativa); el estado no cambia
-    // (la vinculacion sigue abierta, sin terminacion).
     [Fact]
     public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaEfectivaEsAnteriorAFechaInicio()
     {
@@ -213,7 +186,6 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-4 (limite): FechaEfectiva == FechaInicio -> exito (vinculacion de un solo dia).
     [Fact]
     public async Task TerminarVinculacion_EmiteVinculacionTerminada_CuandoFechaEfectivaEsIgualAFechaInicio()
     {
@@ -226,11 +198,8 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, FechaInicioVinculacionVigente);
     }
 
-    // Cierre del ciclo completo (issue #350): la vinculacion vigente nacio de un reingreso, no del
-    // registro. Terminarla vuelve a ser posible porque Apply(VinculacionIniciada) reabre la
-    // vinculacion al re-aplicarse -- sin ese reset, este comando chocaria contra la terminacion
-    // heredada de la vinculacion anterior y responderia 409. El codigo correcto ahora es el del
-    // REINGRESO, no el original -- CA-5 exige direccionar la ULTIMA vinculacion.
+    // Terminar un reingreso funciona porque Apply(VinculacionIniciada) reabre la vinculacion: sin ese
+    // reset, chocaria con la terminacion heredada y responderia 409.
     [Fact]
     public async Task TerminarVinculacion_EmiteVinculacionTerminada_CuandoLaVinculacionVigenteNacioDeUnReingreso()
     {
@@ -250,9 +219,8 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, FechaEfectivaValida);
     }
 
-    // Cierre del ciclo completo (issue #350), segunda direccion: la ventana de fechas validas se
-    // mueve con el reingreso. Una FechaEfectiva posterior al inicio ORIGINAL pero anterior al inicio
-    // del REINGRESO produce duracion negativa sobre la vinculacion vigente -> 409.
+    // La ventana de fechas validas se mueve con el reingreso: posterior al inicio original pero anterior
+    // al del reingreso es duracion negativa (409).
     [Fact]
     public async Task TerminarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaEfectivaEsAnteriorAlInicioDelReingreso()
     {
@@ -275,10 +243,7 @@ public class TerminarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Te
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-6: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
-    // store. Sin Given: el stream no existe. Sin And<>: el aggregate no existe en el TestStore
-    // (GetAggregateRoot retorna null), invocarlo lanzaria ArgumentNullException -- Then sin
-    // eventos esperados ya demuestra "sin escribir nada al event store".
+    // Sin And<>: el aggregate no existe en el TestStore.
     [Fact]
     public async Task TerminarVinculacion_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {

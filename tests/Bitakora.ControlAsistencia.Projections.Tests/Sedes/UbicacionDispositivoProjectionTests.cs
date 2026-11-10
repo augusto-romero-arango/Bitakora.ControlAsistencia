@@ -1,18 +1,11 @@
-// Invocacion DIRECTA de los metodos estaticos de UbicacionDispositivoProjection -- funciones puras
-// evento -> vista, sin abrir ningun stream (no aplica el DSL Given/When/Then de
-// CommandHandlerTestBase, que testea command handlers contra el event store).
+// Funciones puras evento -> vista, sin el DSL de CommandHandlerTestBase. Oraculos armados a mano,
+// incluida la vistaPrevia (MEF-ADR-0002).
 //
-// Create/Apply/ShouldDelete toman IEvent<T>, no el evento a secas: la sede que correlaciona la
-// vigencia NO viaja en el payload de ninguno de los dos eventos -- sale del StreamKey de la
-// envolvente. La identidad de correlacion N2 (DispositivoId) si sale del payload: son dos datos
-// distintos y por eso la firma no puede simplificarse al evento pelado.
+// Create/Apply/ShouldDelete toman IEvent<T>: la sede sale del StreamKey de la envolvente y el
+// DispositivoId del payload, asi que la firma no puede simplificarse al evento pelado.
 //
-// Cada oraculo se arma a mano, incluido el de vistaPrevia (el documento que Marten ya habria
-// materializado): nunca se construye invocando la logica bajo prueba (MEF-ADR-0002, no-tautologia).
-//
-// Sin test para "retiro sin documento existente": esa garantia es estructural -- la clase no declara
-// ningun Create(DispositivoRetirado), y el dispatcher generado ni siquiera invoca ShouldDelete con
-// snapshot nulo. Un test que solo reflexionara sobre esa ausencia seria tautologico.
+// Sin test para "retiro sin documento existente": la clase no declara Create(DispositivoRetirado) y
+// el dispatcher generado no invoca ShouldDelete con snapshot nulo.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Projections.Sedes;
@@ -39,10 +32,8 @@ public class UbicacionDispositivoProjectionTests
         vista.Should().Be(new UbicacionDispositivo("disp-01", "s:001"));
     }
 
-    // Correlacion N2 (test obligatorio para MultiStreamProjection): Create con el primer evento y
-    // Apply con el segundo sobre la vista que dejo el primero es exactamente como el daemon encadena
-    // eventos de streams distintos sobre un mismo documento correlacionado.
-
+    // Correlacion N2 (obligatorio en MultiStreamProjection): asi encadena el daemon eventos de streams
+    // distintos sobre un mismo documento.
     [Fact]
     public void Create_y_Apply_CorrelacionanPorDispositivoId_DesdeDosStreamsDeSedeDistintos()
     {

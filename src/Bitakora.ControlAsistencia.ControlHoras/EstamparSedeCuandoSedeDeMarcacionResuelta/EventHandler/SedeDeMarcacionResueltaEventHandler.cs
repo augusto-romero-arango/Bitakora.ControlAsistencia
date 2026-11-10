@@ -6,10 +6,7 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.EstamparSedeCuandoSedeDeMarcacionResuelta.EventHandler;
 
-// Paso 4 del enriquecimiento coreografiado (MEF-ADR-0046): ControlHoras -- dueno de la marcacion --
-// graba como hecho propio la sede que Sedes resolvio. El evento del bus es espejo directo del hecho
-// a registrar, asi que se consume sin comando intermedio (MEF-ADR-0024 decision #8).
-// partial: la clase Mensajes vive en archivo separado (MEF-ADR-0009).
+// ControlHoras, dueno de la marcacion, graba como hecho propio la sede que Sedes resolvio (MEF-ADR-0046).
 public partial class SedeDeMarcacionResueltaEventHandler
     : IPrivateEventHandlerAsync<SedeDeMarcacionResuelta>
 {
@@ -30,11 +27,8 @@ public partial class SedeDeMarcacionResueltaEventHandler
         await EstamparSedeEnControlDiarioAsync(@event, fechaCalendario, ct);
     }
 
-    // Problema de orden: este handler solo ACTUALIZA, nunca crea un ControlDiario
-    // (a diferencia de RegistroDeMarcacionCreadoEventHandler). Si el stream o la marcacion aun no
-    // existen, lanza para que el retry del Service Bus lo resuelva segundos despues -- sin crear
-    // stream vacio ni evento. La segunda precondicion la declina el aggregate (CA-ADR-0030): el
-    // handler traduce el resultado, no inspecciona Marcaciones.
+    // Solo actualiza, nunca crea un ControlDiario: si el stream o la marcacion aun no existen, lanza
+    // para que el retry del Service Bus lo resuelva segundos despues, sin crear stream vacio ni evento.
     private async Task EstamparSedeEnControlDiarioAsync(
         SedeDeMarcacionResuelta @event, DateOnly fecha, CancellationToken ct)
     {

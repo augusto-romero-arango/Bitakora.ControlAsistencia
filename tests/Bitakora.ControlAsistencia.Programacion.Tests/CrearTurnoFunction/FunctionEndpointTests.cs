@@ -9,12 +9,6 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
 
-/// <summary>
-/// Tests del endpoint HTTP POST /programacion/turnos.
-/// Verifica que el endpoint mapea correctamente los resultados del handler a respuestas HTTP.
-/// AggregateException -> 400.
-/// CA-ADR-0035: exito -> 201 Created con Location a la ficha del turno.
-/// </summary>
 public class FunctionEndpointTests
 {
     private static CrearTurno.Franja FranjaDiurnaSimple() =>
@@ -83,7 +77,6 @@ public class FunctionEndpointTests
         (await act.Should().ThrowExactlyAsync<InvalidOperationException>()).Which.Should().BeSameAs(fallo);
     }
 
-    // CA-9: POST con JSON invalido o campos faltantes retorna 400 Bad Request
     [Fact]
     public async Task DebeRetornar400_CuandoRequestEsInvalido()
     {
@@ -97,7 +90,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // CA-10: POST con franjas invalidas (AggregateException del factory) retorna 400 con mensajes
     [Fact]
     public async Task DebeRetornar400ConMensajes_CuandoFranjasDelComandoSonInvalidas()
     {
@@ -112,12 +104,7 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-
-/// <summary>
-/// Fake configurable de IRequestValidator. Retorna un comando pre-configurado
-/// o un error segun lo que se le pase en el constructor.
-/// </summary>
+// Fakes manuales - NO NSubstitute.
 internal class FakeRequestValidator<TComando> : IRequestValidator
 {
     private readonly TComando? _comando;
@@ -142,9 +129,6 @@ internal class FakeRequestValidator<TComando> : IRequestValidator
     }
 }
 
-/// <summary>
-/// Fake configurable de ICommandRouter.
-/// </summary>
 internal class FakeCommandRouter : ICommandRouter
 {
     private readonly Exception? _excepcion;

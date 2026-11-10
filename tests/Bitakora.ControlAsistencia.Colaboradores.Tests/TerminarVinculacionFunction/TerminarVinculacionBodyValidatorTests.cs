@@ -1,10 +1,3 @@
-// Issue #379 (MEF-ADR-0043 paso 4, CA-2): validacion de forma del body reducido (FechaEfectiva) en
-// el borde. Reemplaza a TerminarVinculacionValidatorTests (eliminado junto con
-// TerminarVinculacionValidator, que vivia en CommandHandler/ y validaba el comando completo):
-// TipoIdentificacion/NumeroIdentificacion ya no llegan en el body -- se validan en el
-// FunctionEndpoint via Identificacion.Parsear (ver FunctionEndpointTests). Patron de referencia:
-// CorregirNombresBodyValidatorTests (issue #377) / IniciarVinculacionBodyValidatorTests (issue #378).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.TerminarVinculacionFunction;
 using FluentValidation.Results;
@@ -20,7 +13,6 @@ public class TerminarVinculacionBodyValidatorTests
     private Task<ValidationResult> Validar(TerminarVinculacionBody body) =>
         _validator.ValidateAsync(body, TestContext.Current.CancellationToken);
 
-    // Camino feliz -- el unico campo del body es correcto
     [Fact]
     public async Task Validar_Aprueba_CuandoFechaEfectivaEsValida()
     {
@@ -29,8 +21,7 @@ public class TerminarVinculacionBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-2: FechaEfectiva con el valor default de DateOnly produce 400 -- REQUERIDA, sin default
-    // del servidor (doctrina bitemporal del BC: el tiempo de los hechos viene del cliente).
+    // Requerida, sin default del servidor: el tiempo de los hechos viene del cliente (doctrina bitemporal).
     [Fact]
     public async Task Validar_RechazaFechaEfectiva_CuandoEsDefault()
     {
@@ -41,8 +32,7 @@ public class TerminarVinculacionBodyValidatorTests
             e.PropertyName == nameof(TerminarVinculacionBody.FechaEfectiva));
     }
 
-    // FechaEfectiva futura DEBE seguir siendo valida en la capa de forma -- las reglas de
-    // coherencia interna y de codigo son del aggregate, nunca del validator.
+    // Las reglas de coherencia interna y de codigo son del aggregate, nunca del validator.
     [Fact]
     public async Task Validar_Aprueba_CuandoFechaEfectivaEsFutura()
     {

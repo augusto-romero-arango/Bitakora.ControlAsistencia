@@ -3,33 +3,16 @@ using Cosmos.MultiTenancy;
 namespace Bitakora.ControlAsistencia.TenantResolver;
 
 /// <summary>
-/// Identidad (tenant + usuario + membership de organizacion) de la invocacion en curso. La puebla <see cref="TenantContextMiddleware"/>
-/// al inicio de cada invocacion desde el contexto de ejecucion del trigger (headers HTTP o
-/// ApplicationProperties del mensaje de Service Bus); los routers/senders de Wolverine la consumen via
-/// <see cref="ITenantContext"/>.
+/// Identidad (tenant + usuario + membership de organizacion) de la invocacion en curso, poblada por
+/// <see cref="TenantContextMiddleware"/>.
 ///
-/// El estado vive en <see cref="AsyncLocal{T}"/> (ambiente por invocacion), no en campos de instancia,
-/// a proposito (MEF-ADR-0032, patron de la implementacion de referencia Cosmos.ControlPlane): Wolverine
-/// genera el codigo de sus handlers creando su PROPIO <c>IServiceScope</c> hijo del contenedor raiz
-/// (<c>IServiceScopeFactory.CreateAsyncScope()</c>; ver JasperFx.CodeGeneration
-/// <c>LazyServiceLocationFrame</c>), distinto del scope de la invocacion de Functions que puebla el
-/// middleware. Un holder con estado por instancia NO le llegaria al handler: seria otra instancia,
-/// vacia. El AsyncLocal fluye por la cadena async (middleware -&gt; <c>InvokeInlineAsync</c> -&gt;
-/// handler) sin depender del scope de DI, asi que la identidad cruza ese limite. Mismo patron que
-/// <c>IHttpContextAccessor</c>.
+/// El estado vive en <see cref="AsyncLocal{T}"/> y no en la instancia a proposito (CA-ADR-0032):
+/// Wolverine resuelve sus handlers en su PROPIO <c>IServiceScope</c> hijo del contenedor raiz, distinto
+/// del scope de la invocacion que puebla el middleware, asi que un holder con estado por instancia
+/// llegaria vacio al handler. El AsyncLocal fluye por la cadena async sin depender del scope de DI.
 ///
-/// Este mismo limite de scope es el que rompio a <c>ProxyTenantContext</c> (2.x: <c>ProxyTenantResolver</c>) de
-/// Cosmos.MultiTenancy.CritterStack en el worker aislado: decide la rama (headers vs IMessageContext)
-/// en su CONSTRUCTOR segun <c>IHttpContextAccessor.HttpContext</c>, que es null en el momento en que
-/// el grafo de DI lo construye, asi que toda request HTTP caia en la rama de Wolverine y fallaba.
-///
-/// Como el estado es ambiente, la instancia es un lector sin estado: se registra <b>singleton</b> (una
-/// basta) y da igual que Wolverine inyecte esa u otra instancia. Los unicos escritores son
-/// <see cref="Set"/> (el middleware, caso normal) y <see cref="SetDerivedIdentity"/> (triggers sin
-/// identidad del gateway).
-///
-/// Los getters de <see cref="ITenantContext"/> fallan ruidosamente si la identidad no se resolvio,
-/// para que un fallo del gateway o un mensaje sin identidad no pase desapercibido.
+/// Los getters de <see cref="ITenantContext"/> lanzan si la identidad no se resolvio, para que un fallo
+/// del gateway o un mensaje sin identidad no pase desapercibido.
 /// </summary>
 public sealed class TenantExecutionContext : ITenantContext
 {
@@ -37,10 +20,6 @@ public sealed class TenantExecutionContext : ITenantContext
     private static readonly AsyncLocal<string?> _userId = new();
     private static readonly AsyncLocal<string?> _organizationMembershipId = new();
 
-    /// <summary>
-    /// Puebla la identidad de la invocacion en curso desde el contexto del trigger. Unico escritor:
-    /// <see cref="TenantContextMiddleware"/>.
-    /// </summary>
     internal static void Set(string? tenantId, string? userId, string? organizationMembershipId = null)
     {
         _tenantId.Value = tenantId;
@@ -49,19 +28,13 @@ public sealed class TenantExecutionContext : ITenantContext
     }
 
     /// <summary>
-    /// Puebla la identidad cuando el trigger no la recibe del gateway porque el llamador no puede
-    /// presentar un JWT (webhooks de un proveedor externo, timers). El <paramref name="tenantId"/> es
-    /// el tenant de EJECUCION -- el mismo que el gateway estampa desde el claim <c>tenant_id</c> en el
-    /// resto de las Functions, y que decide la particion de Marten. El <paramref name="actor"/> nombra
-    /// al proceso que escribe, porque no hay usuario detras.
+    /// Puebla la identidad cuando el llamador no puede presentar un JWT (webhooks de un proveedor
+    /// externo, timers). <paramref name="tenantId"/> es el tenant de EJECUCION, el que decide la
+    /// particion de Marten; <paramref name="actor"/> nombra al proceso que escribe, porque no hay usuario.
+    /// Ambos son obligatorios porque el sender lee TenantId y UserId en cada publish.
     ///
-    /// Hace falta porque el sender del harness lee <c>ITenantContext.TenantId</c> y <c>.UserId</c> en
-    /// cada publish (<c>Cosmos.EventDriven.CritterStack.TenancyDelivery</c>): sin identidad ambiente
-    /// no se puede publicar. De ahi que ambos parametros sean obligatorios -- un actor nulo haria
-    /// fallar el publish, no el caller.
-    ///
-    /// No usar desde Functions HTTP detras del gateway: ahi la identidad ya la puebla el middleware a
-    /// partir de los headers, y sobreescribirla solo la enmascara.
+    /// No usar desde Functions HTTP detras del gateway: sobreescribiria la identidad que puebla el
+    /// middleware.
     /// </summary>
     public static void SetDerivedIdentity(string tenantId, string actor, string? organizationMembershipId = null)
     {
@@ -80,10 +53,8 @@ public sealed class TenantExecutionContext : ITenantContext
         "X-Organization-Membership-Id", "organization_membership_id");
 
     /// <summary>
-    /// Version sin lanzar de los getters, para un consumidor que decide entre la identidad ambiente
-    /// y un fallback propio sin usar <see cref="InvalidOperationException"/> como control de flujo.
-    /// Retorna <c>false</c> si cualquiera de los dos valores no esta poblado; en ese caso ambos out
-    /// quedan en <c>null</c>, nunca uno poblado y el otro no.
+    /// Version sin lanzar de los getters. Retorna <c>false</c> si cualquiera de los dos valores no esta
+    /// poblado, y entonces ambos out quedan en <c>null</c>, nunca uno solo.
     /// </summary>
     public static bool TryObtener(out string? tenantId, out string? userId)
     {

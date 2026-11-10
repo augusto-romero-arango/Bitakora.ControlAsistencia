@@ -10,13 +10,9 @@ using Marten;
 
 namespace Bitakora.ControlAsistencia.Programacion.Infraestructura;
 
-// Adaptador unico de los lookups de solo lectura sobre el read-side propio de Programacion. Espejo
-// de LectorReadSideSedes (#477): la QuerySession se abre siempre acotada al tenant que resuelve
-// ITenantContext (MEF-ADR-0028/CA-ADR-0027).
-//
-// Los puertos de nombres declaran ObtenerNombresAsync con la misma firma, asi que todos se
-// implementan de forma explicita: la clase no expone superficie publica propia y ninguna vista
-// queda arbitrariamente privilegiada como "la" del tipo concreto. Solo se resuelve por interfaz (DI).
+// La QuerySession se abre siempre acotada al tenant de ITenantContext. Los puertos de nombres comparten
+// la firma ObtenerNombresAsync, asi que todos se implementan de forma explicita: la clase no expone
+// superficie publica propia y solo se resuelve por interfaz (DI).
 public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext tenantContext)
     : ILectorNombresTurno, ILectorNombresPlantillaTurnos, ILectorLimitesJornada, ILectorPlantillasTurnosPorJornada, ILectorPlantillasTurnosPorTurno
 {

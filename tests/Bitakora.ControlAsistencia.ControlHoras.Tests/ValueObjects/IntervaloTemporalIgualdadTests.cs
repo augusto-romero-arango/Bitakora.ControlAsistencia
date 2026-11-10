@@ -1,12 +1,7 @@
-// Issue #112: Tests de igualdad por valor para IntervaloTemporal
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
-/// <summary>
-/// Igualdad por valor de IntervaloTemporal (Inicio + Fin).
-/// Hereda los 8 tests de IgualdadTestBase que verifican el contrato IEquatable completo.
-/// </summary>
 public class IntervaloTemporalIgualdadTests : IgualdadTestBase<IntervaloTemporal>
 {
     private static readonly MomentoDelDia Las8 = new(new TimeOnly(8, 0));

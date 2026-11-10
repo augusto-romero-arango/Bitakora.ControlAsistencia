@@ -1,10 +1,3 @@
-// Issue #376 (MEF-ADR-0043 paso 2): validacion de forma del body reducido { "valor": "..." } en el
-// borde (CA-1). Reemplaza a AsignarEtiquetaValidatorTests (eliminado junto con
-// AsignarEtiquetaValidator): TipoIdentificacion/NumeroIdentificacion/Categoria ya no llegan en el
-// body -- se validan en el FunctionEndpoint via Identificacion.Parsear (ver FunctionEndpointTests).
-// Patron de referencia: AnularTerminacionValidatorTests (ValidateAsync + verificacion de
-// PropertyName en resultado.Errors).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction;
 using FluentValidation.Results;
@@ -20,7 +13,6 @@ public class AsignarEtiquetaBodyValidatorTests
     private Task<ValidationResult> Validar(AsignarEtiquetaBody body) =>
         _validator.ValidateAsync(body, TestContext.Current.CancellationToken);
 
-    // Camino feliz -- Valor no vacio
     [Fact]
     public async Task Validar_Aprueba_CuandoValorNoEsVacio()
     {
@@ -29,7 +21,6 @@ public class AsignarEtiquetaBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-1: Valor vacio produce 400
     [Fact]
     public async Task Validar_RechazaValor_CuandoEstaVacio()
     {
@@ -40,11 +31,8 @@ public class AsignarEtiquetaBodyValidatorTests
             e.PropertyName == nameof(AsignarEtiquetaBody.Valor));
     }
 
-    // NotEmpty de FluentValidation rechaza tambien whitespace, no solo la cadena vacia. Se fija con
-    // un test en vez de asumirse porque tras #376 este validator es la UNICA guarda de forma que le
-    // queda a Valor (el AsignarEtiquetaValidator que lo cubria se elimino): si NotEmpty dejara pasar
-    // "   ", el whitespace llegaria hasta Etiqueta.Crear, cuyo ArgumentException nadie traduce (500
-    // en vez de 400, MEF-ADR-0004 capa 1).
+    // NotEmpty tambien rechaza whitespace. Este validator es la unica guarda de forma de Valor: si
+    // "   " pasara, el ArgumentException de Etiqueta.Crear no se traduce y saldria 500 en vez de 400.
     [Fact]
     public async Task Validar_RechazaValor_CuandoEsSoloEspacios()
     {

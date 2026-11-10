@@ -8,7 +8,6 @@ public partial class AsignarSedeAFranjaCommandHandler
         "Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction.CommandHandler.AsignarSedeAFranjaCommandHandlerMensajes",
         typeof(AsignarSedeAFranjaCommandHandler).Assembly);
 
-    // internal, no private: los tests lo afirman via InternalsVisibleTo.
     internal static class Mensajes
     {
         public static string TurnoNoEncontrado =>

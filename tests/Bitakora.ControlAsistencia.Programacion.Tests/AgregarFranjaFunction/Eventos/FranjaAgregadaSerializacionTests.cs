@@ -1,6 +1,3 @@
-// Issue #602 CA-1: FranjaAgregada sobrevive un roundtrip de serializacion STJ -- requerido por
-// Marten -- transportando FranjaOrdinaria (VO con descansos y sede prearmada) como payload rico.
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -23,7 +20,7 @@ public class FranjaAgregadaSerializacionTests
         var franja = FranjaOrdinaria.Crear(
             new TimeOnly(22, 0), new TimeOnly(6, 0),
             // El descanso cae en el tramo posterior a medianoche de la ordinaria nocturna: su
-            // offset +1 es explicito, como en FranjaOrdinariaTests (convencion de #598/#600).
+            // offset +1 es explicito.
             descansos: [SubFranja.Crear(new TimeOnly(2, 0), new TimeOnly(2, 30),
                 diaOffsetInicio: 1, diaOffsetFin: 1)],
             sede: sede);

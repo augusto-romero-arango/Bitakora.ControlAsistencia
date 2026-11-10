@@ -1,9 +1,7 @@
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 
-// Puerto del lookup best-effort contra FichaTurno (CA-ADR-0030, precedente ILectorUbicacionDispositivo
-// #477): el handler normaliza y decide, la consulta solo trae los nombres vigentes del catalogo.
-// No inyectar IDocumentStore/ITenantContext directo en el CommandHandler: el harness de comando no
-// fakea Marten y esta rama necesita cobertura unitaria con un fake manual.
+// Lookup best-effort de los nombres vigentes del catalogo; el handler normaliza y decide. Es puerto, y
+// no IDocumentStore directo en el handler, porque el harness de comando no fakea Marten.
 public interface ILectorNombresTurno
 {
     Task<IReadOnlyList<string>> ObtenerNombresAsync(CancellationToken ct = default);

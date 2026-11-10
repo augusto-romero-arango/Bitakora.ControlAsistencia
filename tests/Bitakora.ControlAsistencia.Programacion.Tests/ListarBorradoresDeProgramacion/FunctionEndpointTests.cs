@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ListarBorradoresDeProgramacion;
 
-// CA-5/CA-6: los guards del borde HTTP retornan ANTES de abrir la QuerySession -- el IDocumentStore
-// es null! a proposito, cualquier lectura del store lanzaria.
+// Los guards del borde HTTP retornan ANTES de abrir la QuerySession -- el IDocumentStore es null!
+// a proposito, cualquier lectura del store lanzaria.
 public class FunctionEndpointTests
 {
     private static HttpRequest Request(string? contentType, string body)

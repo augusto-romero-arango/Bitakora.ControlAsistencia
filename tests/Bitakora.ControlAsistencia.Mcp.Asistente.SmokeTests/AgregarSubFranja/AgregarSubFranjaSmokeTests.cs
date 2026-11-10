@@ -6,10 +6,8 @@ using ModelContextProtocol.Protocol;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.AgregarSubFranja;
 
-// CA-5: recorre la cadena completa de diseno de turno -- crear_turno -> agregar_franja ->
-// agregar_subfranja -> quitar_subfranja -> retirar_turno. La invocacion real de quitar_subfranja
-// (MEF-ADR-0048 seccion 6, pieza 3) vive aqui, no en un archivo separado -- mismo criterio que
-// agregar_franja/quitar_franja (#609).
+// Recorre crear_turno -> agregar_franja -> agregar_subfranja -> quitar_subfranja -> retirar_turno:
+// la invocacion real de quitar_subfranja (MEF-ADR-0048 seccion 6, pieza 3) vive aqui.
 public class AgregarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
     private async Task<object?> EfectoVisibleEnFichaAsync(

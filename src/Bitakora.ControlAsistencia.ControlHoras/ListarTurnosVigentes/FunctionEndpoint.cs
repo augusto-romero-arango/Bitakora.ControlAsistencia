@@ -8,10 +8,8 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 
-// Function QUERY (RFC 10008, MEF-ADR-0042) sobre la vista materializada TurnoVigente, via (a') de
-// MEF-ADR-0035: el rango de fechas obligatorio es un filtro estructurado. El nombre de la Function
-// y su Route son los mismos que tenia sobre GET -- cruzar la frontera de verbo no los cambia
-// (MEF-ADR-0042 seccion 5).
+// El nombre de la Function y su Route son los mismos que tenia sobre GET: cruzar la frontera de
+// verbo no los cambia (MEF-ADR-0042 seccion 5).
 //
 // A diferencia del filtro homonimo de ListarAsistenciasDiarias, CodigosColaborador (lista, OR
 // dentro del campo) y SedeId son OPCIONALES: su ausencia, null o lista vacia es el panorama de
@@ -31,8 +29,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         HttpRequest req,
         CancellationToken ct)
     {
-        // El 415 va ANTES de leer el body: ante un Content-Type no-JSON, ReadFromJsonAsync lanza
-        // una excepcion que NO es JsonException y escaparia como 500 pese al catch de abajo.
+        // El 415 va antes de leer el body: ReadFromJsonAsync lanza una excepcion que no es JsonException.
         if (!req.HasJsonContentType())
             return new ObjectResult("La query exige Content-Type: application/json")
             { StatusCode = StatusCodes.Status415UnsupportedMediaType };
@@ -71,8 +68,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         var sedeId = filtro.SedeId;
         var rangoAplicado = RangoConsulta.Recortar(desde, filtro.HastaFecha.Value);
 
-        // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request
-        // (mitigacion estructural contra BOLA/IDOR, MEF-ADR-0028).
+        // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request (MEF-ADR-0028).
         await using var session = store.QuerySession(tenantContext.TenantId);
 
         IQueryable<TurnoVigente> query = session.Query<TurnoVigente>()

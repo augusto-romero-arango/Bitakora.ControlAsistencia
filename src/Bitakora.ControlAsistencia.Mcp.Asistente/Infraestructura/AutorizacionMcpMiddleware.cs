@@ -5,14 +5,12 @@ using Microsoft.Extensions.Logging;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 /// <summary>
-/// Defensa en profundidad, NUNCA el gate primario (MEF-ADR-0047 decision 7): las tool calls de un
-/// cliente MCP contra /runtime/webhooks/mcp llegan a este worker SIN header Authorization -- lo
-/// sirve el paquete del host de la extension MCP, que no lo reenvia. Intentar exigirlo aqui
-/// produce, en el mejor caso, un gate que nunca se activa, y en el peor, un rechazo universal
-/// porque el header buscado no existe nunca en ese punto. El gate real vive en la politica
-/// dedicada de APIM (MEF-ADR-0032 seccion 9). Este middleware solo registra, con Warning, un
-/// Authorization presente pero invalido en las superficies HTTP que si lo reciben (p. ej. un
-/// endpoint propio fuera del protocolo MCP) -- nunca bloquea el pipeline.
+/// Defensa en profundidad, NUNCA el gate primario (MEF-ADR-0047 decision 7): las tool calls contra
+/// /runtime/webhooks/mcp llegan a este worker SIN header Authorization, porque el host de la
+/// extension MCP no lo reenvia; exigirlo aqui daria un gate que nunca se activa o un rechazo
+/// universal. El gate real vive en la politica de APIM (MEF-ADR-0032 seccion 9). Solo registra con
+/// Warning un Authorization presente pero invalido en las superficies HTTP que si lo reciben;
+/// nunca bloquea el pipeline.
 /// </summary>
 public sealed class AutorizacionMcpMiddleware(
     IValidadorTokenAuthKit validador,

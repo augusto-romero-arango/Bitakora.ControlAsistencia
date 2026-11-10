@@ -1,9 +1,6 @@
-// Issue #183: Tests de contrato IEquatable para HorasDiscriminadas.
-// HorasDiscriminadas es record con override manual de Equals/GetHashCode que compara
-// HorasPorConcepto y Trazabilidad por valor (en lugar de la igualdad por referencia que el record
-// genera por defecto - precedente DetalleFranjaOrdinaria, #129; ADR-0015 advierte sobre records con
-// colecciones que prometen igualdad por valor que no cumplen).
-// Issue #424: HorasPorConcepto (ex MinutosPorConcepto) habla horas liquidables (decimal).
+// HorasDiscriminadas sobreescribe Equals/GetHashCode para comparar HorasPorConcepto y Trazabilidad
+// por valor: el record por defecto compararia sus colecciones por referencia.
+// HorasPorConcepto habla horas liquidables (decimal).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
@@ -39,8 +36,6 @@ public class HorasDiscriminadasIgualdadTests : IgualdadTestBase<HorasDiscriminad
         yield return ("Trazabilidad",
             new HorasDiscriminadas(Horas(), ["otra nota"]));
     }
-
-    // Cobertura especifica del override: las colecciones se comparan por valor, no por referencia.
 
     [Fact]
     public void Equals_RetornaTrue_CuandoColeccionesSonInstanciasDiferentesConMismoContenido()

@@ -1,5 +1,3 @@
-// HU-4: Implementar comando CrearTurno con aggregate, handler y endpoint HTTP
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
@@ -16,7 +14,6 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
 {
     private const string NombreTurno = "Turno Manana";
 
-    // Factory method compartido entre las clases anidadas
     private static CrearTurno.Franja FranjaDiurnaSimple() =>
         new(new TimeOnly(8, 0), new TimeOnly(16, 0), [], []);
 
@@ -41,9 +38,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
     protected override ICommandHandlerAsync<CrearTurno> Handler =>
         new CrearTurnoCommandHandler(EventStore, _lector);
 
-    // CA-3: handler persiste evento cuando turno no existe
-    // CA-1: aggregate aplica TurnoCreado y establece Id (AggregateRoot.Id = turnoId.ToString())
-    // CA-2: ToString produce las franjas (sin el nombre) usando el ToString() de cada FranjaOrdinaria
+    // ToString produce las franjas (sin el nombre) con el ToString() de cada FranjaOrdinaria.
     [Fact]
     public async Task DebeEmitirTurnoCreadoYEstablecerEstado_CuandoTurnoNoExiste()
     {
@@ -71,7 +66,6 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
     }
 
-    // CA-4: handler lanza excepcion cuando turno ya existe (idempotencia -> 409 Conflict)
     [Fact]
     public async Task CrearTurno_LanzaRecursoYaExisteException_CuandoTurnoYaExiste()
     {
@@ -85,7 +79,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
             .WithMessage($"*{CrearTurnoCommandHandler.Mensajes.TurnoYaExiste}*");
     }
 
-    // Issue #335 CA-1: la sede prearmada de cada franja del catalogo llega hasta el detalle del
+    // La sede prearmada de cada franja del catalogo llega hasta el detalle del
     // aggregate cuando el comando la trae en algunas franjas (turno partido multi-sede).
     [Fact]
     public async Task CrearTurno_PersisteSedePorFranja_CuandoComandoTraeSedeEnAlgunasFranjas()
@@ -108,7 +102,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
             c => c.ObtenerDetalle().FranjasOrdinarias[1].Sede, null);
     }
 
-    // CA-6: un body sin franjas ni marca de descanso ya no es 400 -- el turno nace incompleto.
+    // Un body sin franjas ni marca de descanso no es 400: el turno nace incompleto.
     [Fact]
     public async Task CrearTurno_EmiteTurnoCreadoConFranjasVaciasYEsDescansoFalso_CuandoNoTraeFranjasNiMarca()
     {
@@ -140,7 +134,6 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         And<CatalogoTurnos, string>(c => c.ObtenerDetalle().Descripcion, descripcionEsperada);
     }
 
-    // CA-1: nombre coincide EXACTAMENTE con uno existente en el catalogo -> 409, sin escribir nada.
     [Fact]
     public async Task CrearTurno_LanzaReglaDeNegocioDeclinadaException_CuandoNombreCoincideExactamenteConUnoDelCatalogo()
     {
@@ -157,8 +150,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
             turnoExistenteId.ToString(), c => c.ToString(), "08:00-16:00");
     }
 
-    // CA-2: nombre difiere solo en mayusculas/espacios (trim + colapso + case-insensitive) de uno
-    // existente -> 409, sin escribir nada.
+    // Normalizacion del nombre: trim + colapso de espacios + case-insensitive.
     [Fact]
     public async Task CrearTurno_LanzaReglaDeNegocioDeclinadaException_CuandoNombreDifiereSoloEnMayusculasYEspaciosDeUnoDelCatalogo()
     {
@@ -176,8 +168,7 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
             turnoExistenteId.ToString(), c => c.ToString(), "08:00-16:00");
     }
 
-    // CA-3: nombre difiere solo en acentos de uno existente -> se crea normalmente (decision del
-    // experto: normalizar acentos abre falsos positivos, los acentos SON significativos).
+    // Decision del experto: normalizar acentos abre falsos positivos, los acentos SON significativos.
     [Fact]
     public async Task CrearTurno_EmiteTurnoCreado_CuandoNombreDifiereSoloEnAcentosDeUnoDelCatalogo()
     {
@@ -195,8 +186,6 @@ public class CrearTurnoCommandHandlerTests : CommandHandlerAsyncTest<CrearTurno>
         And<CatalogoTurnos, string>(c => c.Id, GuidAggregateId.ToString());
     }
 
-    // CA-4: nombre libre, sin coincidencia (exacta ni normalizada) en el catalogo -> se crea
-    // normalmente (comportamiento actual intacto).
     [Fact]
     public async Task CrearTurno_EmiteTurnoCreado_CuandoNombreNoCoincideConNingunoDelCatalogo()
     {

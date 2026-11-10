@@ -6,14 +6,12 @@ using ModelContextProtocol.Protocol;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.AgregarFranja;
 
-// El ciclo agregar -> quitar va junto: quitar_franja deshace en el mismo turno lo que
-// agregar_franja acaba de agregar, y retirar_turno es la limpieza. La invocacion real de
-// quitar_franja (MEF-ADR-0048 seccion 6, pieza 3) vive aqui, no en QuitarFranja/QuitarFranjaSmokeTests.cs
-// -- mismo criterio que CrearTurno/RetirarTurno.
+// El ciclo agregar -> quitar va junto: quitar_franja deshace en el mismo turno lo que agregar_franja
+// agrego y retirar_turno limpia. La invocacion real de quitar_franja (MEF-ADR-0048 seccion 6, pieza 3)
+// vive aqui.
 public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
-    // Sentinela sin estado (igual patron que el poll de borrado de CrearTurnoSmokeTests): la
-    // condicion ya evaluo el efecto, no hace falta propagar la ficha completa al llamador.
+    // Sentinela sin estado: la condicion ya evaluo el efecto, no hace falta devolver la ficha.
     private async Task<object?> EfectoVisibleEnFichaAsync(
         string turnoId, Func<JsonElement, bool> condicion, CancellationToken ct)
     {
@@ -43,9 +41,8 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
     private static string TextoDe(CallToolResult resultado) =>
         resultado.Content.OfType<TextContentBlock>().Single().Text;
 
-    // Recorre la cadena completa: host MCP -> worker -> HttpClients tipados (Programacion + Sedes)
-    // -> event stores -> proyecciones. De paso cubre la sede prearmada, el 409 por solape y el eco
-    // de quitar_franja compuesto desde la ficha vigente.
+    // De paso cubre la sede prearmada, el 409 por solape y el eco de quitar_franja desde la ficha
+    // vigente.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_QuitarFranja_RecorrenElCicloCompletoDeDisenoDeTurno()
@@ -189,7 +186,6 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
         TextoDe(resultado).Should().StartWith("turno_id debe ser el id del turno");
     }
 
-    // Hora no parseable corta antes de resolver el turno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_RespondeHoraInvalida_CuandoInicioNoTieneFormatoHHmm()
@@ -204,7 +200,7 @@ public class AgregarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture prog
         TextoDe(resultado).Should().Be("'inicio' no es una hora valida en formato HH:mm: '8pm'.");
     }
 
-    // turno_id inexistente -> TurnoNoExiste (404 del detalle real de Programacion), remite a buscar_turnos.
+    // 404 del detalle real de Programacion.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()

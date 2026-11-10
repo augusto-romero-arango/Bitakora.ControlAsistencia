@@ -2,9 +2,7 @@ namespace Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 
 /// <summary>
 /// Vista por colaborador y semana ISO (lunes a domingo) que compara lo programado contra la
-/// Jornada estampada. Record plano sin partial (MEF-ADR-0035/0041); el comportamiento vive en
-/// AdvertenciasProgramacionSemanalProjection, en el worker.
-/// Id = "{CodigoColaborador}:{AnioIso}-W{NumeroSemana:00}".
+/// Jornada estampada. Id = "{CodigoColaborador}:{AnioIso}-W{NumeroSemana:00}".
 /// </summary>
 [MaterializadoPorProyeccion]
 public sealed record AdvertenciasProgramacionSemanal(

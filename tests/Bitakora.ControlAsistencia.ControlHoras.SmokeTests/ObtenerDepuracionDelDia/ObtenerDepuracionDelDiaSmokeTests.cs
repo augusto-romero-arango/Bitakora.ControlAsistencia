@@ -1,35 +1,9 @@
-// Smoke tests de ObtenerDepuracionDelDia -- GET control-horas/depuraciones/{codigoColaborador}/{fecha}.
-// Superficie de INVESTIGACION del Aprobador (issue #429): via (b1), SIN proyeccion materializada --
-// la vista la produce DiaCalculadoAggregateRoot.GenerarDepuracionDelDia() al vuelo, sobre el
-// aggregate hidratado en vivo (session.Events.AggregateStreamAsync, MEF-ADR-0015/0035). El arrange
-// usa el mismo mecanismo que RecibirDepuracionViaSbSmokeTests y ListarAsistenciasDiariasSmokeTests:
-// se publica DiaDepurado al bus interno; el consumidor de ControlHoras persiste depuracion_dia_recibida
-// en el stream dc:{codigo}:{yyyyMMdd}. Esa persistencia es asincrona (el consumidor de Service Bus
-// procesa el mensaje despues de publicarlo), asi que un GET inmediato puede devolver 404
-// legitimamente -- el caso de exito envuelve la consulta en Polling.WaitUntilAsync (timeout estandar
-// 30s); agotar el timeout es un fallo real (consumidor no desplegado o suscripcion sin registrar),
-// nunca un skip.
-//
-// Quedan ROJOS hasta que el deploy publique la Function en dev: mientras tanto la ruta no existe y
-// el host responde 404 a todo. El CI de PR no los ejecuta (solo corre *.Tests); su veredicto real se
-// lee despues del deploy.
-//
-// Formas locales DESACOPLADAS de ReadModels y del Function App (isla, MEF-ADR-0039 decision 6): los
-// enums locales replican el ORDEN de valores de produccion porque STJ los serializa como el entero
-// subyacente -- si produccion reordenara alguno, la comparacion falla y delata el cambio de
-// contrato.
-//
-// No se repiten aqui las derivaciones de negocio que ya cubre el unit test del generador
-// (projection-test-writer, CA-1..CA-4 del issue): Plan=Descanso, Plan=SinProgramar y el dia nacido
-// solo por marcacion (colaborador null). Este smoke test es black-box: un solo camino feliz con
-// mezcla de Usada true/false alcanza para verificar que el endpoint desplegado devuelve la vista
-// real que produce el aggregate, no solo el status code.
-//
-// CA-6 de #748 (dia de ausencia) si tiene smoke propio: Plan=Ausencia y el motivo solo existen si
-// la cadena desplegada ControlDiario -> DiaDepurado -> DiaCalculado transporta el motivo completo.
-//
-// CA-7 (tenant scoping de la QuerySession) no tiene superficie observable via HTTP negro-caja en un
-// entorno de un solo tenant (CA-ADR-0027): lo cubre el test de composicion de la Function.
+// Sin proyeccion materializada: DiaCalculadoAggregateRoot genera la vista al vuelo sobre el aggregate
+// hidratado. El arrange publica DiaDepurado y la persistencia es asincrona: un GET inmediato puede dar 404
+// legitimo, asi que el caso de exito va en Polling y agotar el timeout es un fallo real, no un skip.
+// Los enums locales replican el ORDEN de produccion porque STJ los serializa como entero.
+// Las derivaciones del generador las cubre su unit test; aqui basta un camino feliz black-box.
+// El scoping por tenant no es observable con un solo tenant: lo cubre el test de composicion.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -46,8 +20,7 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
     private const string TopicAusenciaDiariaProgramada = "ausencia-diaria-programada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // La respuesta viaja en camelCase (ComposicionServicios fija JsonNamingPolicy.CamelCase) y las
-    // formas locales de este archivo son PascalCase.
+    // La respuesta viaja en camelCase y las formas locales son PascalCase.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -112,10 +85,8 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
 
         var ct = TestContext.Current.CancellationToken;
 
-        // Arrange: identificador unico por ejecucion y fecha fija (nunca DateTime.UtcNow). Tres
-        // marcaciones: dos coinciden EXACTO con Entrada/Salida de la franja (Usada=true) y una no
-        // coincide con ninguna (Usada=false) -- alcanza para demostrar que el endpoint devuelve la
-        // derivacion real del generador, sin re-probar todas sus ramas (eso ya lo hace el unit test).
+        // Dos marcaciones coinciden exacto con Entrada/Salida de la franja (Usada=true) y una con ninguna
+        // (Usada=false): alcanza para ver la derivacion real sin re-probar sus ramas.
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 6, 8);
 
@@ -155,11 +126,8 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
             }
         };
 
-        // Act: publicar al bus interno -- el consumidor de ControlHoras persiste
-        // depuracion_dia_recibida en el stream dc:{codigo}:{yyyyMMdd} de forma asincrona.
         await serviceBus.PublishAsync(codigoColaborador, TopicDiaDepurado, evento, Guid.CreateVersion7().ToString());
 
-        // Act + Assert: reintentar el GET hasta que el consumidor persista la depuracion.
         var ruta = Ruta(codigoColaborador, fecha);
         var respuesta = await Polling.WaitUntilAsync(async () =>
         {
@@ -171,9 +139,6 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
             return await response.Content.ReadFromJsonAsync<DepuracionDelDiaSmoke>(
                 JsonOptions, cancellationToken: ct);
         }, Timeout);
-
-        // Sin assert de NotBeNull: WaitUntilAsync devuelve un valor no nulo o lanza TimeoutException
-        // ("el consumidor no persistio la depuracion dentro del timeout"), nunca null.
 
         respuesta.CodigoColaborador.Should().Be(codigoColaborador);
         respuesta.Fecha.Should().Be(fecha);
@@ -188,8 +153,7 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
             fecha.ToDateTime(new TimeOnly(8, 0)), fecha.ToDateTime(new TimeOnly(16, 0)), false);
         respuesta.Franjas.Should().Equal(franjaEsperada);
 
-        // Orden cronologico (contrato del evento) y Usada derivada por igualdad exacta contra
-        // Entrada/Salida de la franja: la del almuerzo no coincide con ninguna, queda Usada=false.
+        // Orden cronologico y Usada por igualdad exacta contra Entrada/Salida: la del almuerzo queda false.
         MarcacionDelDiaSmoke[] marcacionesEsperadas =
         [
             new(fecha.ToDateTime(new TimeOnly(8, 0)), "ENTRADA", true),
@@ -203,10 +167,8 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
         respuesta.MotivoAusencia.Should().BeNull();
     }
 
-    // CA-6 (#748): ausencia de un dia registrada -> la cadena desplegada (ControlDiario publica
-    // DiaDepurado con el motivo, DiaCalculado lo persiste) termina en Plan = Ausencia con el motivo.
-    // El Act publica el mismo payload plano que emite Programacion al registrar la ausencia (#743):
-    // este proyecto solo alcanza el host de ControlHoras.
+    // El Act publica el payload plano que emite Programacion al registrar la ausencia: este proyecto
+    // solo alcanza el host de ControlHoras.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerDepuracionDelDia_Retorna200ConPlanAusenciaYMotivo_CuandoSeRegistraUnaAusenciaDeUnDia()
@@ -261,8 +223,7 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Arrange: codigoColaborador nuevo, nunca creado por ningun test -- ningun dato creo el
-        // stream de ese dia.
+        // Codigo nunca creado por ningun test: ningun dato creo el stream de ese dia.
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 6, 9);
 
@@ -278,7 +239,7 @@ public class ObtenerDepuracionDelDiaSmokeTests(ApiFixture api, ServiceBusFixture
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Arrange: formato DD-MM-YYYY en vez de yyyy-MM-dd.
+        // Formato DD-MM-YYYY en vez de yyyy-MM-dd.
         var codigoColaborador = Guid.CreateVersion7().ToString();
 
         var response = await _client.GetAsync(

@@ -8,13 +8,9 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarAsistenciasDiarias;
 
-// Function QUERY (RFC 10008, MEF-ADR-0042) sobre la vista materializada AsistenciaDiaria, via (a')
-// de MEF-ADR-0035.
-//
-// Primer endpoint QUERY de este consumidor: los gates NO VERIFICADO de MEF-ADR-0042 seccion 6
-// (front-end de App Service y APIM reenviando un verbo no estandar) solo los cierra el smoke test
-// contra dev despues del deploy -- un 404 en dev puede significar tanto "no desplegado" como "el
-// borde filtro el verbo".
+// Verbo QUERY (RFC 10008): los gates NO VERIFICADO de MEF-ADR-0042 seccion 6 (App Service y APIM
+// reenviando un verbo no estandar) solo los cierra el smoke test contra dev; un 404 en dev puede
+// significar tanto "no desplegado" como "el borde filtro el verbo".
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarAsistenciasDiarias")]
@@ -23,8 +19,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         HttpRequest req,
         CancellationToken ct)
     {
-        // El 415 va ANTES de leer el body: ante un Content-Type no-JSON, ReadFromJsonAsync lanza
-        // una excepcion que NO es JsonException y escaparia como 500 pese al catch de abajo.
+        // El 415 va antes de leer el body: ReadFromJsonAsync lanza una excepcion que no es JsonException.
         if (!req.HasJsonContentType())
             return new ObjectResult("La query exige Content-Type: application/json")
             { StatusCode = StatusCodes.Status415UnsupportedMediaType };

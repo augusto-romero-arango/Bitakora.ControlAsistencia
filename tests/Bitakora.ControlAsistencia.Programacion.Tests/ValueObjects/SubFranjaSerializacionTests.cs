@@ -1,4 +1,3 @@
-// Issue #2: Tests de round-trip JSON para SubFranja
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;

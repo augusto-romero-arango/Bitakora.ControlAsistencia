@@ -6,7 +6,6 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 // Foto completa de un dia depurado, persistida en el stream de DiaCalculadoAggregateRoot. Cada
 // recepcion emite una: no hay deduplicacion de ningun tipo (el productor controla los duplicados
 // de negocio y re-aplicar la misma foto es idempotente).
-// MEF-ADR-0024: evento del aggregate, sin marker de bus.
 public sealed class DepuracionDiaRecibida
 {
     // Id es el stream key de DiaCalculado, tal como lo computa DiaCalculadoAggregateRoot.ComputarStreamId.
@@ -48,8 +47,6 @@ public sealed class DepuracionDiaRecibida
     // Constructor privado para Marten/serializacion
     private DepuracionDiaRecibida() { }
 
-    // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
-    // y propiedades con private set. Ver MEF-ADR-0012 y DepuracionDiaRecibidaSerializacionTests.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(DepuracionDiaRecibida)

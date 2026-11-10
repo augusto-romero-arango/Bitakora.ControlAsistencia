@@ -2,7 +2,6 @@ using System.Resources;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
-// Issue #143: Mensajes de error para MomentoDelDia (ADR-0012).
 public sealed partial record MomentoDelDia
 {
     private static readonly ResourceManager ResourceManager = new(

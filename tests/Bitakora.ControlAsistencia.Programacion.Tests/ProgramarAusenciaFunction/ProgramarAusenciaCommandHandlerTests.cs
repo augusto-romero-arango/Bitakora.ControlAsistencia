@@ -38,7 +38,6 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
     private static AusenciaProgramada AusenciaPrevia(DateOnly inicio, DateOnly fin) =>
         new(AusenciaPreviaId, ColaboradorEsperado, inicio, fin, MotivoAusencia.Vacaciones);
 
-    // CA-1
     [Fact]
     public async Task ProgramarAusencia_IniciaElStreamYPublicaUnEventoPorFecha_CuandoElColaboradorNoTieneAusencias()
     {
@@ -82,7 +81,6 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 1);
     }
 
-    // CA-2
     [Fact]
     public async Task ProgramarAusencia_AgregaAlMismoStream_CuandoElRangoNoTocaLaAusenciaPrevia()
     {
@@ -99,7 +97,6 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 2);
     }
 
-    // CA-2: el rango previo termina antes de que empiece el nuevo, del otro lado.
     [Fact]
     public async Task ProgramarAusencia_AgregaAlMismoStream_CuandoElRangoNuevoTerminaJustoAntesDeLaPrevia()
     {
@@ -118,7 +115,6 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 2);
     }
 
-    // CA-3
     [Fact]
     public async Task ProgramarAusencia_DeclinaConLasFechasEnConflicto_CuandoElRangoComparteFechasConUnaAusenciaVigente()
     {
@@ -170,7 +166,6 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 1);
     }
 
-    // CA-4
     [Fact]
     public async Task ProgramarAusencia_LanzaRecursoYaExisteException_CuandoElIdYaEstaRegistradoParaElColaborador()
     {
@@ -187,7 +182,6 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 1);
     }
 
-    // CA-6
     [Fact]
     public async Task ProgramarAusencia_PublicaCientoVeintiseisEventos_CuandoElRangoEsLargoYEstaEnElPasado()
     {

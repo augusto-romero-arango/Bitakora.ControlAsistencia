@@ -1,9 +1,4 @@
-// Issue #376 (MEF-ADR-0043 paso 3): tests del endpoint HTTP DELETE
-// colaboradores/{id}/etiquetas/{categoria} (retirar la etiqueta de una categoria, sin body).
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 3): CA-2: 204 No Content; CA-3: id de ruta invalido -> 400 (parseo tipado unico, precedente
-// ObtenerFichaColaborador); CA-ADR-0030 / MEF-ADR-0004: ReglaDeNegocioDeclinadaException -> 409,
-// RecursoNoEncontradoException -> 404. Categoria sin etiqueta es un no-op exitoso.
+// Retirar una categoria sin etiqueta es un no-op exitoso.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.RetirarEtiquetaFunction;
@@ -27,7 +22,6 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-2: DELETE exitoso retorna 204 No Content, sin cuerpo.
     [Fact]
     public async Task RetirarEtiqueta_Retorna204SinCuerpo_CuandoIdDeRutaEsValido()
     {
@@ -41,9 +35,6 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-2: el endpoint compone el comando interno RetirarEtiqueta ENTERAMENTE desde la ruta ({id} +
-    // {categoria}), sin body -- el router debe recibir esos 3 campos primitivos (MEF-ADR-0039
-    // decision 6), tipo y numero derivados de Identificacion.Parsear.
     [Fact]
     public async Task RetirarEtiqueta_ComponeElComando_DesdeIdDeRutaYCategoriaDeRutaSinBody()
     {
@@ -58,8 +49,6 @@ public class FunctionEndpointTests
             Categoria: CategoriaValida));
     }
 
-    // CA-3: id de ruta sin guion -> 400, sin llegar a invocar el router (el parseo tipado es el
-    // unico punto de traduccion, precedente ObtenerFichaColaborador.FunctionEndpoint).
     [Fact]
     public async Task RetirarEtiqueta_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
@@ -72,7 +61,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-3: tipo fuera de la lista cerrada PILA -> 400.
     [Fact]
     public async Task RetirarEtiqueta_Retorna400_CuandoElTipoDeLaIdentificacionNoEstaEnLaListaCerrada()
     {
@@ -84,11 +72,9 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // MEF-ADR-0004 capa 1: {categoria} llega cruda de la ruta y, sin body, no pasa por ningun
-    // validator. Un segmento en blanco ("%20") SI hace match con la plantilla, y sin guarda de borde
-    // llegaria hasta Etiqueta.NormalizarCategoria, cuyo ArgumentException nadie traduce: 500 en vez
-    // de 400. Es la regla NotEmpty que RetirarEtiquetaValidator (eliminado en #376) tenia sobre
-    // Categoria, reubicada al unico sitio que hoy ve ese segmento.
+    // {categoria} llega cruda de la ruta y, sin body, ningun validator la ve: un segmento en blanco
+    // ("%20") hace match con la plantilla y, sin guarda de borde, el ArgumentException de
+    // Etiqueta.NormalizarCategoria saldria como 500.
     [Fact]
     public async Task RetirarEtiqueta_Retorna400_CuandoLaCategoriaDeRutaEstaEnBlanco()
     {
@@ -102,7 +88,6 @@ public class FunctionEndpointTests
             "el router nunca deberia invocarse con una categoria en blanco");
     }
 
-    // CA-2: vinculacion con terminacion registrada retorna 409 Conflict.
     [Fact]
     public async Task RetirarEtiqueta_Retorna409_CuandoLaVinculacionEstaTerminada()
     {
@@ -116,7 +101,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<ConflictObjectResult>();
     }
 
-    // CA-2: colaborador inexistente retorna 404 Not Found
     [Fact]
     public async Task RetirarEtiqueta_Retorna404_CuandoColaboradorNoExiste()
     {
@@ -142,13 +126,6 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-
-/// <summary>
-/// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
-/// verificar la composicion integramente desde la ruta, y puede completar exitosamente o lanzar la
-/// excepcion configurada.
-/// </summary>
 internal class FakeRetirarEtiquetaCommandRouter : ICommandRouter
 {
     private readonly Exception? _excepcion;

@@ -1,6 +1,3 @@
-// Issue #603: agregar un descanso o un extra a una franja ordinaria ya existente -- segundo paso
-// del diseno de turno por pasos (CA-ADR-0033).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
@@ -27,7 +24,6 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
     private static TurnoCreado CrearEventoTurnoDeDescanso() =>
         TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
 
-    // CA-5: camino feliz -- Tipo = Descanso emite DescansoAgregado con la franja resultante.
     [Fact]
     public async Task AgregarSubFranja_EmiteDescansoAgregado_CuandoElTipoEsDescanso()
     {
@@ -44,7 +40,6 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 1);
     }
 
-    // CA-5: Tipo = Extra emite ExtraAgregado.
     [Fact]
     public async Task AgregarSubFranja_EmiteExtraAgregado_CuandoElTipoEsExtra()
     {
@@ -61,9 +56,8 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Extras.Count, 1);
     }
 
-    // CA-3: turno inexistente -> 404. Sin And<>: el aggregate no existe (ningun Given) y
-    // reconstruirlo lanzaria ArgumentNullException -- mismo criterio que
-    // AgregarFranjaCommandHandlerTests para el mismo escenario.
+    // Sin And<>: el aggregate no existe (ningun Given) y reconstruirlo lanzaria
+    // ArgumentNullException.
     [Fact]
     public async Task AgregarSubFranja_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExisteEnElCatalogo()
     {
@@ -76,7 +70,7 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
         Then(TurnoId.ToString());
     }
 
-    // CA-3: precedencia -- retirado gana sobre descanso y sobre franja-no-existe.
+    // Precedencia: retirado gana sobre descanso y sobre franja-no-existe.
     [Fact]
     public async Task AgregarSubFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoFueRetirado()
     {
@@ -125,7 +119,7 @@ public class AgregarSubFranjaCommandHandlerTests : CommandHandlerAsyncTest<Agreg
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Descansos.Count, 0);
     }
 
-    // CA-4: invariante estructural del VO (hija fuera del contenedor) sube sin capturarse -- dos
+    // La invariante estructural del VO (hija fuera del contenedor) sube sin capturarse -- dos
     // canales de error nunca mezclados en el mismo metodo (CA-ADR-0030).
     [Fact]
     public async Task AgregarSubFranja_DejaSubirArgumentException_CuandoLaHijaQuedaFueraDeLaFranjaContenedora()

@@ -1,10 +1,8 @@
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
-// HU-106: Value object que representa una marcacion normalizada dentro del ControlDiario
-// TimestampNormalizado ya viene truncado al minuto desde RegistrarMarcacion (#105)
-// TipoMarcacion es opcional (ENTRADA, SALIDA o null cuando el dispositivo no reporta tipo)
-// El estampado de sede llega despues del hecho crudo (enriquecimiento coreografiado, MEF-ADR-0046):
-// CodigoSede/NombreSede/CentroDeCostos quedan null hasta que EstamparSede los asocia.
+// TimestampNormalizado ya viene truncado al minuto desde RegistrarMarcacion.
+// TipoMarcacion: ENTRADA, SALIDA o null cuando el dispositivo no reporta tipo.
+// La sede llega despues del hecho crudo (MEF-ADR-0046): queda null hasta que EstamparSede la asocia.
 public record MarcacionNormalizada(
     DateTime TimestampNormalizado,
     string? TipoMarcacion,

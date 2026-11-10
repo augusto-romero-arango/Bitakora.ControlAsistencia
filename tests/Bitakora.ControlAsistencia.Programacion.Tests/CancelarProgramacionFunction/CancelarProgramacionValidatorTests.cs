@@ -25,7 +25,6 @@ public class CancelarProgramacionValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-3: Id no puede ser Guid vacio
     [Fact]
     public async Task DebeTenerError_CuandoIdEsGuidVacio()
     {
@@ -39,7 +38,6 @@ public class CancelarProgramacionValidatorTests
             e.PropertyName == nameof(CancelarProgramacion.Id));
     }
 
-    // CA-3: CodigoColaborador no puede estar vacio
     [Fact]
     public async Task DebeTenerError_CuandoCodigoColaboradorEstaVacio()
     {
@@ -54,7 +52,6 @@ public class CancelarProgramacionValidatorTests
             e.PropertyName.Contains(nameof(ColaboradorSolicitado.CodigoColaborador)));
     }
 
-    // CA-3: Identificacion no puede estar vacia
     [Fact]
     public async Task DebeTenerError_CuandoIdentificacionEstaVacia()
     {
@@ -69,7 +66,6 @@ public class CancelarProgramacionValidatorTests
             e.PropertyName.Contains(nameof(ColaboradorSolicitado.Identificacion)));
     }
 
-    // CA-3: NombreCompleto no puede estar vacio
     [Fact]
     public async Task DebeTenerError_CuandoNombreCompletoEstaVacio()
     {
@@ -84,8 +80,8 @@ public class CancelarProgramacionValidatorTests
             e.PropertyName.Contains(nameof(ColaboradorSolicitado.NombreCompleto)));
     }
 
-    // CA-3: Colaborador null no debe lanzar excepcion (NullReferenceException por desreferencia
-    // encadenada); debe reportar IsValid == false con un error asociado a la propiedad Colaborador.
+    // Colaborador null no debe lanzar NullReferenceException (desreferencia encadenada): reporta el
+    // error en la propiedad Colaborador.
     [Fact]
     public async Task Validar_TieneErrorEnColaborador_CuandoColaboradorEsNull()
     {
@@ -99,7 +95,6 @@ public class CancelarProgramacionValidatorTests
             e.PropertyName == nameof(CancelarProgramacion.Colaborador));
     }
 
-    // CA-3: Fechas debe tener al menos un elemento
     [Fact]
     public async Task DebeTenerError_CuandoFechasEstaVacia()
     {

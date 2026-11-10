@@ -16,14 +16,12 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         string id,
         CancellationToken ct)
     {
-        // MEF-ADR-0037 seccion 2: el {id} de ruta se parsea tipado una unica vez -- 400 explicito si
-        // no es Guid -- y ToString() sin argumentos es la unica salida a string, porque el stream key
-        // del catalogo es exactamente TurnoId.ToString() (StreamIdentity = AsString).
+        // ToString() sin argumentos es la unica salida a string: el stream key del catalogo es
+        // exactamente TurnoId.ToString().
         if (!Guid.TryParse(id, out var turnoId))
             return new BadRequestObjectResult("El id del turno no es un Guid valido");
 
-        // MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
-        // ITenantContext -- nunca a un tenant id que llegara por ruta o query string.
+        // Siempre acotada al tenant de ITenantContext, nunca a un tenant id que llegue por ruta o query.
         await using var session = store.QuerySession(tenantContext.TenantId);
         var ficha = await session.LoadAsync<FichaTurno>(turnoId.ToString(), ct);
 

@@ -1,5 +1,4 @@
-// ExtraQuitado sobrevive un roundtrip de serializacion STJ -- requerido por Marten --
-// transportando FranjaOrdinaria (la franja contenedora RESULTANTE, ya sin la hija).
+// ExtraQuitado transporta la franja contenedora RESULTANTE, ya sin la hija.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;

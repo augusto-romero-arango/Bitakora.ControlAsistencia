@@ -1,6 +1,5 @@
-// Todos los campos de ColaboradorProgramado son string, asi que la igualdad por valor del record ya
-// es correcta sin Equals/GetHashCode custom. Este test congela esa premisa: el dia que el record gane
-// una coleccion (o un Equals custom incompleto), la compararia por referencia y el rojo lo delata.
+// Congela la premisa de que la igualdad del record basta (todo es string): si gana una coleccion o un
+// Equals custom incompleto, la compararia por referencia y este test se pone rojo.
 
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;

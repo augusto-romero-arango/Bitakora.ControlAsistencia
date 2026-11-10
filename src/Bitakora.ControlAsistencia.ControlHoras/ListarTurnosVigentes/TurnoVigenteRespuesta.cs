@@ -3,8 +3,7 @@ using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarTurnosVigentes;
 
 /// <summary>
-/// Forma de respuesta de la programacion vigente de un dia (MEF-ADR-0041 decision 4): igual que
-/// <see cref="TurnoVigente"/> pero sin el turno que una ausencia cubre, que es estado interno del
+/// Igual que <see cref="TurnoVigente"/> pero sin el turno que una ausencia cubre, que es estado interno del
 /// documento. Un dia de ausencia trae MotivoAusencia y Bloques vacio.
 /// </summary>
 public sealed record TurnoVigenteRespuesta(

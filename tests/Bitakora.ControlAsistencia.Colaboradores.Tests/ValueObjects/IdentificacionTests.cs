@@ -1,20 +1,10 @@
-// HU-348: Value object Identificacion -- compone la clave del stream de Colaborador.
-// Issue #381: separador de la llave cambia de ":" a "-"; el numero se limpia a alfanumerico ASCII
-// (letras a MAYUSCULAS, cualquier otro caracter -- incluidas letras acentuadas/enie -- se ELIMINA
-// silenciosamente). El trim de #348 queda SUBSUMIDO por la limpieza: los espacios son caracteres
-// invalidos y se eliminan igual que un guion o un punto.
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ValueObjects;
 
-/// <summary>
-/// Interfaz publica: Crear(tipo, numero), Tipo, Numero, ToString() -- contrato de clave de stream.
-/// </summary>
 public class IdentificacionTests
 {
-    // ---------- CA-1: ToString() compone la llave con guion ----------
-
     [Fact]
     public void ToString_ComponeTipoYNumeroConGuion_CuandoIdentificacionValida()
     {
@@ -22,8 +12,6 @@ public class IdentificacionTests
 
         identificacion.ToString().Should().Be("CC-79543210");
     }
-
-    // ---------- CA-2: limpieza del numero (letras a MAYUSCULAS, no-alfanumerico eliminado) ----------
 
     [Fact]
     public void Crear_LimpiaElNumero_CuandoTraeEspaciosGuionesYPuntos()
@@ -49,11 +37,8 @@ public class IdentificacionTests
         identificacion.Numero.Should().Be("79543210");
     }
 
-    // Fija el alcance exacto de "letras" que el issue #381 deja explicito: alfanumerico ASCII
-    // ([A-Z0-9]) -- una letra acentuada o una enie es caracter invalido y se elimina igual que un
-    // guion, no se conserva como letra valida. No es una desviacion del plan: es la regla del
-    // issue, clavada aqui para que una implementacion con char.IsLetterOrDigit (que SI acepta
-    // no-ASCII) falle en vez de pasar en verde.
+    // Alfanumerico ASCII: una letra acentuada o una enie se elimina; una implementacion con
+    // char.IsLetterOrDigit (que acepta no-ASCII) debe fallar aqui.
     [Fact]
     public void Crear_EliminaLetrasAcentuadasYEnies_CuandoNumeroTraeCaracteresNoAscii()
     {
@@ -61,8 +46,6 @@ public class IdentificacionTests
 
         identificacion.Numero.Should().Be("A123");
     }
-
-    // ---------- CA-3: la limpieza unifica la identidad (ToString / llave del stream) ----------
 
     [Fact]
     public void Crear_ComponeLaMismaLlave_CuandoNumerosDifierenSoloPorCaracteresInvalidos()
@@ -73,8 +56,6 @@ public class IdentificacionTests
         conGuion.ToString().Should().Be("CC-AB123");
         sinGuion.ToString().Should().Be("CC-AB123");
     }
-
-    // ---------- CA-4: numero que queda vacio tras la limpieza lanza ArgumentException ----------
 
     [Fact]
     public void Crear_LanzaArgumentException_CuandoNumeroEsVacio()
@@ -112,10 +93,8 @@ public class IdentificacionTests
             .WithMessage($"*{Identificacion.Mensajes.NumeroVacio}*");
     }
 
-    // El parametro es non-nullable, pero STJ no honra las anotaciones de nulabilidad al deserializar
-    // el body de un comando: un "numeroIdentificacion": null llega aqui como null real. Este test
-    // fija que ese borde termina en el mismo ArgumentException del contrato (traducido a 400 por el
-    // endpoint), nunca en un NullReferenceException sin mensaje de dominio.
+    // STJ no honra la nulabilidad al deserializar: un numero null llega como null real y debe
+    // terminar en ArgumentException, no en NullReferenceException.
     [Fact]
     public void Crear_LanzaArgumentException_CuandoNumeroEsNull()
     {
@@ -125,8 +104,6 @@ public class IdentificacionTests
             .WithMessage($"*{Identificacion.Mensajes.NumeroVacio}*");
     }
 
-    // ---------- Numero alfanumerico sin caracteres a limpiar (pasaportes traen letras) ----------
-
     [Fact]
     public void Crear_AceptaNumeroAlfanumerico_CuandoEsPasaporte()
     {
@@ -135,8 +112,6 @@ public class IdentificacionTests
         identificacion.Numero.Should().Be("AB1234567");
         identificacion.Tipo.Should().BeSameAs(TipoIdentificacion.PA);
     }
-
-    // ---------- Tipo/Numero: observables de solo lectura (identidad misma, no dato intermedio) ----------
 
     [Fact]
     public void Tipo_ExponeElTipoDeIdentificacion_CuandoIdentificacionCreada()
@@ -154,8 +129,6 @@ public class IdentificacionTests
         identificacion.Numero.Should().Be("AB123");
     }
 
-    // ---------- Issue #376 (CA-5): Parsear -- inverso de ToString() ----------
-
     [Fact]
     public void Parsear_ReconstruyeLaIdentificacion_CuandoElValorTieneFormatoValido()
     {
@@ -165,9 +138,6 @@ public class IdentificacionTests
         identificacion.Numero.Should().Be("79543210");
     }
 
-    // CA-5: round-trip explicito -- Parsear(id.ToString()) es igual por valor al id original. El
-    // oraculo (Identificacion.Crear con los mismos componentes) se arma a mano, no se deriva de
-    // ToString()/Parsear (MEF-ADR-0002, oraculo independiente).
     [Fact]
     public void Parsear_CumpleRoundTrip_ConElToStringDeLaMismaIdentificacion()
     {
@@ -205,8 +175,6 @@ public class IdentificacionTests
             .WithMessage($"*{Identificacion.Mensajes.FormatoInvalido}*");
     }
 
-    // El tipo antes del primer guion no esta en la lista cerrada PILA -- TipoIdentificacion.Desde
-    // rechaza con su propio mensaje, que Parsear deja propagar sin envolver.
     [Fact]
     public void Parsear_LanzaArgumentException_CuandoElTipoNoEstaEnLaListaCerrada()
     {
@@ -216,8 +184,6 @@ public class IdentificacionTests
             .WithMessage($"*{TipoIdentificacion.Mensajes.CodigoNoReconocido}*");
     }
 
-    // El numero queda vacio tras la limpieza (issue #381) -- Identificacion.Crear rechaza con su
-    // propio mensaje, que Parsear deja propagar sin envolver.
     [Fact]
     public void Parsear_LanzaArgumentException_CuandoElNumeroQuedaVacioTrasElGuion()
     {
@@ -227,8 +193,6 @@ public class IdentificacionTests
             .WithMessage($"*{Identificacion.Mensajes.NumeroVacio}*");
     }
 
-    // "cc" en minusculas antes del guion sigue resolviendo al mismo tipo (TipoIdentificacion.Desde
-    // ya normaliza, issue #371) -- Parsear no le agrega ni le quita normalizacion propia.
     [Fact]
     public void Parsear_ReconstruyeLaIdentificacion_CuandoElTipoLlegaEnMinusculas()
     {

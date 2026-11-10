@@ -8,7 +8,7 @@ public partial class RegistroDeMarcacionCreadoEventHandler
         "Bitakora.ControlAsistencia.Sedes.ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado.EventHandler.RegistroDeMarcacionCreadoEventHandlerMensajes",
         typeof(RegistroDeMarcacionCreadoEventHandler).Assembly);
 
-    // internal, no private: los tests lo afirman via InternalsVisibleTo (ya declarado en el csproj).
+    // internal, no private: los tests lo afirman via InternalsVisibleTo.
     internal static class Mensajes
     {
         public static string DispositivoDesconocidoMarcando =>

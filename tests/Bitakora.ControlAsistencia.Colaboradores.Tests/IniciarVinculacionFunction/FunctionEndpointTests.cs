@@ -1,20 +1,3 @@
-// Issue #378 (MEF-ADR-0043 paso 1): tests del endpoint HTTP POST
-// colaboradores/{id}/vinculaciones (iniciar una vinculacion nueva sobre un colaborador existente --
-// create disfrazado: emite el MISMO evento que RegistrarColaborador, VinculacionIniciada). Absorbe
-// y reemplaza a ReingresarColaboradorFunction/FunctionEndpointTests.cs (issue #350): {id} se parsea
-// via Identificacion.Parsear (unico punto de conversion, MEF-ADR-0037), el body se reduce a
-// CodigoColaborador + FechaInicio (IniciarVinculacionBody). El comando interno IniciarVinculacion
-// conserva sus 4 campos (mismo criterio que CorregirNombres post-#377): el endpoint lo compone
-// desde ruta + body.
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 1): CA-1: 201 Created con Location a la ficha del colaborador -- {id} tal como llego en la ruta,
-// composicion exacta del comando interno desde {id} + body; CA-2: reglas de estado conservadas ->
-// 409 (vinculacion abierta / fecha solapa); CA-3: colaborador inexistente -> 404, {id} de ruta
-// invalido -> 400 (precedente CorregirNombresFunction.FunctionEndpoint post-#377), body invalido ->
-// 400.
-// Reemplaza el POST Colaboradores/Reingresos (issue #350): la ruta vieja deja de existir (CA-6,
-// verificado por la ausencia de esa ruta en este archivo).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction;
 using Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction.CommandHandler;
@@ -40,8 +23,7 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: POST exitoso retorna 201 Created con Location a la ficha del padre -- {id} tal como
-    // llego en la ruta, sin re-parsear.
+    // Location usa el {id} tal como llego en la ruta, sin re-parsear.
     [Fact]
     public async Task IniciarVinculacion_Retorna201ConLocation_CuandoIdDeRutaYBodySonValidos()
     {
@@ -56,9 +38,6 @@ public class FunctionEndpointTests
         result.As<CreatedResult>().Location.Should().Be($"/api/colaboradores/fichas/{IdValido}");
     }
 
-    // CA-1: el endpoint compone el comando interno IniciarVinculacion desde {id} + los 2 campos del
-    // body -- el router debe recibir exactamente esos 4 campos primitivos (MEF-ADR-0039 decision
-    // 6), tipo y numero derivados de Identificacion.Parsear.
     [Fact]
     public async Task IniciarVinculacion_ComponeElComando_DesdeIdDeRutaYBody()
     {
@@ -75,8 +54,7 @@ public class FunctionEndpointTests
             FechaInicio: new DateOnly(2026, 6, 2)));
     }
 
-    // Issue #520 (CA-3): el endpoint compone el comando interno con el CodigoSede del body cuando
-    // llega -- opcional, se forwardea tal cual (null si el body no lo trae).
+    // CodigoSede es opcional y se forwardea tal cual (null si el body no lo trae).
     [Fact]
     public async Task IniciarVinculacion_ComponeElComando_ConCodigoSedeDesdeElBody()
     {
@@ -95,8 +73,6 @@ public class FunctionEndpointTests
             CodigoSede: "BOG"));
     }
 
-    // CA-3: id de ruta sin guion -> 400, sin llegar a invocar el router (el parseo tipado es el
-    // unico punto de traduccion, precedente CorregirNombresFunction.FunctionEndpoint post-#377).
     [Fact]
     public async Task IniciarVinculacion_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
@@ -110,7 +86,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-3: tipo de identificacion fuera de la lista cerrada PILA -> 400.
     [Fact]
     public async Task IniciarVinculacion_Retorna400_CuandoElTipoDeLaIdentificacionNoEstaEnLaListaCerrada()
     {
@@ -124,7 +99,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-3: numero vacio tras el guion del {id} de ruta -> 400.
     [Fact]
     public async Task IniciarVinculacion_Retorna400_CuandoElNumeroDeLaIdentificacionQuedaVacio()
     {
@@ -138,7 +112,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-3: body invalido (CodigoColaborador vacio o FechaInicio default) -> 400 Bad Request
     [Fact]
     public async Task IniciarVinculacion_Retorna400_CuandoElBodyEsInvalido()
     {
@@ -152,8 +125,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // CA-2: violacion de la invariante de no-solape (vinculacion abierta / fecha solapa la
-    // anterior) retorna 409 Conflict.
     [Fact]
     public async Task IniciarVinculacion_Retorna409_CuandoLaVinculacionVigenteEstaAbierta()
     {
@@ -168,7 +139,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<ConflictObjectResult>();
     }
 
-    // CA-3: colaborador inexistente retorna 404 Not Found
     [Fact]
     public async Task IniciarVinculacion_Retorna404_CuandoColaboradorNoExiste()
     {
@@ -196,12 +166,6 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-
-/// <summary>
-/// Fake configurable de IRequestValidator para el body reducido (IniciarVinculacionBody). Retorna
-/// un body pre-configurado o un error segun lo que se le pase en el constructor.
-/// </summary>
 internal class FakeIniciarVinculacionBodyRequestValidator : IRequestValidator
 {
     private readonly IniciarVinculacionBody? _body;
@@ -228,11 +192,6 @@ internal class FakeIniciarVinculacionBodyRequestValidator : IRequestValidator
     }
 }
 
-/// <summary>
-/// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
-/// verificar la composicion ruta+body, y puede completar exitosamente o lanzar la excepcion
-/// configurada.
-/// </summary>
 internal class FakeIniciarVinculacionCommandRouter : ICommandRouter
 {
     private readonly Exception? _excepcion;

@@ -2,7 +2,6 @@ using System.Resources;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.EstamparSedeCuandoSedeDeMarcacionResuelta.EventHandler;
 
-// Mensajes del handler en .resx separado (MEF-ADR-0009).
 // public y no internal: ControlHoras (Function App) no declara InternalsVisibleTo hacia sus tests,
 // que afirman estos mensajes.
 public partial class SedeDeMarcacionResueltaEventHandler

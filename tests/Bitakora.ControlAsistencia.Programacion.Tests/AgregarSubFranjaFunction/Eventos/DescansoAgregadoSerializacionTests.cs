@@ -1,6 +1,4 @@
-// Issue #603 CA-1: DescansoAgregado sobrevive un roundtrip de serializacion STJ -- requerido por
-// Marten -- transportando FranjaOrdinaria (la franja contenedora RESULTANTE, ya con la hija) como
-// payload rico.
+// DescansoAgregado transporta la franja contenedora RESULTANTE, ya con la hija.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -35,7 +33,7 @@ public class DescansoAgregadoSerializacionTests
         deserializado.Franja.ToString().Should().Be(franja.ToString());
     }
 
-    // CA-regresion: si alguien olvida registrar DescansoAgregado en
+    // Regresion: si alguien olvida registrar DescansoAgregado en
     // ConfiguracionSerializacionProgramacion.ConfigurarResolver, este test falla.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeDescansoAgregado()

@@ -19,8 +19,6 @@ public class FunctionEndpointTests
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
-    // POST crea una entidad con identidad propia -> 201 sin Location: la lectura de ausencias aun
-    // no existe (MEF-ADR-0043 paso 1; CA-ADR-0035).
     [Fact]
     public async Task ProgramarAusencia_Retorna201SinLocation_CuandoElBodyEsValido()
     {

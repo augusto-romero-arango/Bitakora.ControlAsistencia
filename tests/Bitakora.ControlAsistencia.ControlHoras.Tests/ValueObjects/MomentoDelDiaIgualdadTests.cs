@@ -1,12 +1,7 @@
-// Issue #112: Tests de igualdad por valor para MomentoDelDia
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
-/// <summary>
-/// CA-7: Dos MomentoDelDia con misma Hora y DiaOffset son iguales.
-/// Hereda los 8 tests de IgualdadTestBase que verifican el contrato IEquatable completo.
-/// </summary>
 public class MomentoDelDiaIgualdadTests : IgualdadTestBase<MomentoDelDia>
 {
     protected override MomentoDelDia CrearInstancia() =>

@@ -1,19 +1,9 @@
-// Issue #515: UseAzureMonitorExporter() activa el pipeline de metricas automaticamente (verificado
-// descompilando Azure.Monitor.OpenTelemetry.Exporter 1.8.1,
-// OpenTelemetryBuilderExtensions.UseAzureMonitorExporter: llama WithMetrics(WithTracing(...))
-// internamente aunque el proyecto solo invoque .WithTracing(...)), y eso es lo que produce las
-// ~76.000 metricas/dia medidas por app (CA-ADR-0009, actualizacion del episodio de
-// ingestion-warning). Decision de producto: recortar TODO, no una familia puntual.
-//
-// El guardrail no asume el mecanismo de supresion (AddView wildcard, o cualquier otro): verifica el
-// efecto observable -- que NINGUNA metrica, ni siquiera una arbitraria que nadie anticipo, llega al
-// exporter -- sumando al contenedor real un ConfigureOpenTelemetryMeterProvider adicional (se
-// acumulan, no se pisan) con un InMemoryExporter como segundo reader, sin red ni Azure Monitor.
-//
-// El Meter de prueba se registra EXPLICITAMENTE via AddMeter porque el MeterProviderBuilder solo
-// escucha los meters suscritos: sin esa linea el test pasaria en verde aun sin supresion alguna. Se
-// usa un meter propio, y no los reales del runtime, para no acoplar el guardrail a nombres que .NET
-// puede renombrar entre versiones (dotnet.gc.*, kestrel.*, etc. -- ver CA-ADR-0009).
+// UseAzureMonitorExporter() activa el pipeline de metricas aunque solo se invoque .WithTracing(...)
+// (verificado descompilando Azure.Monitor.OpenTelemetry.Exporter 1.8.1); la decision es recortar todo.
+// Se verifica el efecto, no el mecanismo: un segundo reader InMemoryExporter (los
+// ConfigureOpenTelemetryMeterProvider se acumulan) no debe recibir ninguna metrica. El Meter de prueba
+// va con AddMeter porque el provider solo escucha meters suscritos: sin eso el test pasaria aun sin
+// supresion. Es propio para no acoplarse a nombres del runtime que .NET puede renombrar.
 
 using System.Diagnostics.Metrics;
 using AwesomeAssertions;
@@ -67,8 +57,6 @@ public class SupresionMetricasOTelTests
         metricasExportadas.Should().BeEmpty();
     }
 
-    // CA-3: la supresion de metricas no debe tocar el tracing (Capa 2, CA-ADR-0009) como efecto
-    // colateral -- el TracerProvider sigue siendo parte del mismo seam de observabilidad.
     [Fact]
     public void AgregarServiciosColaboradores_ConservaElTracerProviderDelContenedor()
     {

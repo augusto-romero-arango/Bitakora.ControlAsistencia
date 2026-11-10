@@ -46,10 +46,9 @@ public class SedeDeMarcacionResueltaEventHandlerTests
         string streamId, DateTime timestampNormalizado, string? centroDeCostos = CentroDeCostos) =>
         new(streamId, timestampNormalizado, DispositivoId, CodigoSede, NombreSede, centroDeCostos);
 
-    // CA-1 (#463) + CA-3 (#464). Escenario sin turno asignado a proposito: mantiene el DiaDepurado
-    // esperado armado a mano, sin reproducir el calculo de Depurar/Consolidar en el oraculo.
-    // La MarcacionDelDia republicada transporta la sede recien estampada: codigo, nombre y centro de
-    // costos de SedeDeMarcacionResuelta -- no la sede programada, que viaja en la Franja (CA-1/CA-2).
+    // Sin turno asignado a proposito: el DiaDepurado esperado se arma a mano sin reproducir
+    // Depurar/Consolidar. La MarcacionDelDia republicada lleva la sede recien estampada (codigo, nombre y
+    // centro de costos de SedeDeMarcacionResuelta), no la programada, que viaja en la Franja.
     [Fact]
     public async Task SedeDeMarcacionResuelta_EstampaSedeYRepublicaDiaDepurado_CuandoLaMarcacionYaExisteEnElControlDiario()
     {
@@ -73,7 +72,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 2));
     }
 
-    // CA-1: el estampado viaja tal cual llego, incluido el caso sin centro de costos.
+    // El estampado viaja tal cual llego, incluido el caso sin centro de costos.
     [Fact]
     public async Task SedeDeMarcacionResuelta_EstampaSedeSinCentroDeCostos_CuandoLaSedeNoTieneCentroDeCostosAsignado()
     {
@@ -89,8 +88,8 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             null);
     }
 
-    // CA-6 (#1125): el estampado solo toca el dia calendario; la copia en el vecino recibe la sede
-    // por el reparto, no por este handler.
+    // El estampado solo toca el dia calendario; la copia en el vecino recibe la sede por el reparto, no
+    // por este handler.
     [Fact]
     public async Task SedeDeMarcacionResuelta_EstampaSoloElDiaCalendario_CuandoLaMarcacionEstaEnMadrugada()
     {
@@ -120,8 +119,8 @@ public class SedeDeMarcacionResueltaEventHandlerTests
                 new HorasDiscriminadas(new Dictionary<string, decimal>(), []), VersionControlDiario: 2));
     }
 
-    // CA-3 (carrera de orden): el ControlDiario destino no existe todavia -- fallar es deliberado,
-    // el retry del bus lo resuelve; crear un stream vacio inventaria estado.
+    // Carrera de orden: el ControlDiario destino no existe todavia. Fallar es deliberado: el retry del
+    // bus lo resuelve; crear un stream vacio inventaria estado.
     [Fact]
     public async Task SedeDeMarcacionResuelta_LanzaInvalidOperationException_CuandoElControlDiarioNoExiste()
     {
@@ -136,7 +135,7 @@ public class SedeDeMarcacionResueltaEventHandlerTests
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
-    // CA-3, segunda precondicion: el ControlDiario existe pero la marcacion aun no fue adicionada.
+    // Segunda precondicion: el ControlDiario existe pero la marcacion aun no fue adicionada.
     [Fact]
     public async Task SedeDeMarcacionResuelta_LanzaInvalidOperationException_CuandoLaMarcacionAunNoFueAdicionada()
     {
@@ -157,9 +156,9 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             null);
     }
 
-    // Contracara de CA-4: el no-op exige que el estampado sea identico en los tres campos. Una
+    // Contracara del no-op: el no-op exige que el estampado sea identico en los tres campos. Una
     // re-resolucion que cambia NombreSede o CentroDeCostos bajo el mismo CodigoSede si es un hecho
-    // nuevo -- sin este test, reducir la comparacion a CodigoSede pasaria en verde.
+    // nuevo; sin este test, reducir la comparacion a CodigoSede pasaria en verde.
     [Fact]
     public async Task SedeDeMarcacionResuelta_VuelveAEstampar_CuandoElEstampadoPrevioDifiereEnCentroDeCostos()
     {
@@ -176,7 +175,6 @@ public class SedeDeMarcacionResueltaEventHandlerTests
             CentroDeCostos);
     }
 
-    // CA-4: estampado repetido identico -> no-op, sin evento nuevo ni re-publicacion.
     [Fact]
     public async Task SedeDeMarcacionResuelta_NoEmiteEventoNiRepublica_CuandoLaMismaSedeYaFueEstampada()
     {

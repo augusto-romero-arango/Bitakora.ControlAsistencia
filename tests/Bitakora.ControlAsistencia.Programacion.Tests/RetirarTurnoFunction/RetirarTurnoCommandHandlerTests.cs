@@ -1,4 +1,4 @@
-// Issue #500: retirar un turno del catalogo -- ya no asignable a nuevas solicitudes
+// Retirar un turno del catalogo: deja de ser asignable a nuevas solicitudes.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
@@ -26,7 +26,6 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
     private static TurnoCreado CrearEventoTurnoDeDescanso() =>
         TurnoCreado.CrearDescanso(TurnoId, "Descanso Compensatorio");
 
-    // CA-1
     [Fact]
     public async Task RetirarTurno_EmiteTurnoRetiradoYDesactivaElCatalogo_CuandoElTurnoEstaActivo()
     {
@@ -39,7 +38,7 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
             c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
 
-    // CA-5: el retiro tambien aplica a turnos de descanso (turnos de pleno derecho, #423)
+    // El retiro tambien aplica a turnos de descanso (turnos de pleno derecho).
     [Fact]
     public async Task RetirarTurno_EmiteTurnoRetirado_CuandoElTurnoEsDeDescanso()
     {
@@ -52,8 +51,7 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
             c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
 
-    // CA-2 (#665): retirar un turno ya retirado es un no-op exitoso (MEF-ADR-0004 "Estado ya
-    // alcanzado") -- el handler termina sin lanzar y sin agregar eventos al stream.
+    // Estado ya alcanzado: no-op exitoso, el handler termina sin lanzar y sin agregar eventos.
     [Fact]
     public async Task RetirarTurno_NoEmiteEventos_CuandoElTurnoYaEstaRetirado()
     {
@@ -66,7 +64,6 @@ public class RetirarTurnoCommandHandlerTests : CommandHandlerAsyncTest<RetirarTu
             c => c.EvaluarAsignabilidad(), ResultadoAsignabilidadTurno.Retirado);
     }
 
-    // CA-2: turno inexistente -> 404, sin escribir nada al event store
     [Fact]
     public async Task RetirarTurno_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExisteEnElCatalogo()
     {

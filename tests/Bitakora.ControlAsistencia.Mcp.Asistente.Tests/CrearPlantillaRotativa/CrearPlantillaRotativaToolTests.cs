@@ -56,7 +56,6 @@ public class CrearPlantillaRotativaToolTests
     private static void NoEscribioNada(Fakes fakes) =>
         fakes.Handler.Requests.Should().OnlyContain(r => r.Metodo == HttpMethod.Get);
 
-    // CA-1
     [Fact]
     public async Task CrearPlantillaRotativa_ExpandeLosBloquesALosDiasDelCiclo_CuandoLosBloquesSonValidos()
     {
@@ -137,7 +136,6 @@ public class CrearPlantillaRotativaToolTests
         JsonNode.Parse(resultado)!["jornada"]!["jornada_id"]!.GetValue<string>().Should().Be(JornadaId);
     }
 
-    // CA-2
     [Fact]
     public async Task CrearPlantillaRotativa_RechazaSinEscribir_CuandoNombreEstaEnBlanco()
     {
@@ -332,7 +330,6 @@ public class CrearPlantillaRotativaToolTests
         NoEscribioNada(fakes);
     }
 
-    // CA-3
     [Fact]
     public async Task CrearPlantillaRotativa_CreaElTurnoYLoAsignaALosDiasDelBloque_CuandoElBloqueTraeFranja()
     {

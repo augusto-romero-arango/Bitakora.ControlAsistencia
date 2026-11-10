@@ -23,8 +23,6 @@ public class AgregarFranjaToolTests
 
     private sealed record Fakes(AgregarFranjaTool Tool, HandlerPorRuta Programacion, HandlerEnlatado Sedes);
 
-    // Composicion por defecto del camino feliz -- cada test sobreescribe unicamente el fixture que
-    // le interesa via argumentos nombrados, mismo patron de consolidacion que las demas tools.
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
@@ -55,14 +53,12 @@ public class AgregarFranjaToolTests
         CancellationToken ct = default) =>
         tool.Run(context: null!, turnoId: turnoId, inicio: inicio, fin: fin, codigoSede: codigoSede, ct: ct);
 
-    // CA-1/CA-3: ningun rechazo local debe tocar ninguno de los 2 dominios.
     private static void AsegurarNingunaRequest(Fakes fakes)
     {
         fakes.Programacion.Requests.Should().BeEmpty();
         fakes.Sedes.UltimaRequest.Should().BeNull();
     }
 
-    // CA-1: sin codigo_sede, el body no lleva diaOffsetFin ni sede; el eco trae solo el rango.
     [Fact]
     public async Task AgregarFranja_EnviaElBodySinDiaOffsetFinNiSede_CuandoNoHayCodigoSede()
     {
@@ -105,7 +101,7 @@ public class AgregarFranjaToolTests
         JsonNode.Parse(resultado)!["franja"]!.GetValue<string>().Should().Be("08:00-08:00+1");
     }
 
-    // CA-2: con codigo_sede, el body agrega sede {id, nombre, centroDeCostos} y el eco la incluye.
+    // La sede viaja como {id, nombre, centroDeCostos} y el eco la incluye.
     [Fact]
     public async Task AgregarFranja_EnviaLaSedePrearmada_CuandoLlegaCodigoSede()
     {
@@ -145,8 +141,8 @@ public class AgregarFranjaToolTests
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
-    // CA-3: inicio == fin es la unica lectura valida de una franja de 24h -- se traduce a
-    // diaOffsetFin: 1, nunca calculado por la tool a partir de otra cosa que no sea esta igualdad.
+    // inicio == fin es la unica lectura valida de una franja de 24h: la tool nunca calcula diaOffsetFin
+    // a partir de otra cosa.
     [Fact]
     public async Task AgregarFranja_EnviaDiaOffsetFinUno_CuandoInicioYFinSonIguales()
     {
@@ -183,8 +179,6 @@ public class AgregarFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-3: el detalle por identidad responde 404 -> frase con el id que remite a buscar_turnos,
-    // sin lista de nombres y sin invocar el comando.
     [Fact]
     public async Task AgregarFranja_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
@@ -219,7 +213,6 @@ public class AgregarFranjaToolTests
         resultado.Should().Be(string.Format(AgregarFranjaTool.Mensajes.RechazoDelDominio, fixture));
     }
 
-    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
     public async Task AgregarFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidConNombre()
     {
@@ -244,7 +237,6 @@ public class AgregarFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-5: la tool lee el detalle por identidad, nunca el catalogo completo.
     [Fact]
     public async Task AgregarFranja_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
     {

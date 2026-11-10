@@ -34,7 +34,7 @@ public sealed class ArgumentosCrudosMcpMiddleware : IFunctionsWorkerMiddleware
         await next(context);
     }
 
-    // internal, no private: Paso 4 lo prueba nivel 1 sin host (FunctionContext no es instanciable;
+    // internal, no private: se prueba sin host (FunctionContext no es instanciable;
     // ToolInvocationContext si).
     internal static ToolInvocationContext RestaurarTextoOriginal(ToolInvocationContext bindeado, string jsonCrudo)
     {

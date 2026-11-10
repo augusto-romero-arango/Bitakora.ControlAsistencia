@@ -5,11 +5,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Sedes.ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
 
-// Reaccion del dueno del dato (MEF-ADR-0046 paso 2): resuelve la sede de una marcacion contra el
-// read-side propio de Sedes. Consume el mismo evento que ControlHoras, cada uno con su propia
-// subscription (MEF-ADR-0001). Se despacha directo como IPrivateEventHandlerAsync, sin comando
-// espejo (MEF-ADR-0024 decision #8). partial: la clase Mensajes vive en archivo aparte
-// (MEF-ADR-0009).
 public partial class RegistroDeMarcacionCreadoEventHandler
     : IPrivateEventHandlerAsync<RegistroDeMarcacionCreado>
 {
@@ -29,7 +24,7 @@ public partial class RegistroDeMarcacionCreadoEventHandler
 
     public async Task HandleAsync(RegistroDeMarcacionCreado @event, CancellationToken ct = default)
     {
-        // Dato ausente legitimo (marcacion sin dispositivo), no anomalia: silencio total.
+        // Marcacion sin dispositivo: dato ausente legitimo, no anomalia; sin warning.
         if (@event.DispositivoId is null)
             return;
 
@@ -38,9 +33,9 @@ public partial class RegistroDeMarcacionCreadoEventHandler
             ? null
             : await _lector.BuscarFichaSedeAsync(ubicacion.SedeId, ct);
 
-        // Maestro incompleto -- dispositivo sin ubicar, o ubicado en una sede sin ficha: la
-        // marcacion queda sin sede (como hoy) y la correccion es arreglar el maestro, no reintentar.
-        // Cubre tambien la ventana de consistencia eventual de la proyeccion, indistinguible aqui.
+        // Maestro incompleto (dispositivo sin ubicar o sede sin ficha): la marcacion queda sin sede y
+        // se corrige el maestro, no se reintenta. Tambien cubre la ventana de consistencia eventual
+        // de la proyeccion, indistinguible aqui.
         if (fichaSede is null)
         {
             _logger.LogWarning(

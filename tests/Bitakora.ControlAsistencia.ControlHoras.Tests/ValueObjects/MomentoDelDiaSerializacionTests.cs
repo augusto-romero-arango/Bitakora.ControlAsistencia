@@ -1,15 +1,10 @@
-// Issue #112: Tests de serializacion round-trip para MomentoDelDia.
-// Viaja en el evento privado DiaDepurado => contrato critico.
+// MomentoDelDia viaja en el evento privado DiaDepurado: su JSON es contrato.
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
-/// <summary>
-/// MomentoDelDia es un record con primary ctor: STJ lo maneja nativamente.
-/// Estos tests verifican el round-trip JSON y preservacion de la igualdad.
-/// </summary>
 public class MomentoDelDiaSerializacionTests
 {
     [Fact]

@@ -3,9 +3,9 @@ namespace Bitakora.ControlAsistencia.Programacion.ListarAusenciasDelEquipo;
 public readonly record struct RangoAplicado(DateOnly HastaAplicado, bool RangoRecortado);
 
 /// <summary>
-/// Recorte del rango de consulta siempre hacia adelante desde <c>desde</c>. Tercera aparicion de
-/// la politica (ListarTurnosVigentes, ListarAsistenciasDiarias son de ControlHoras): vive en otro
-/// dominio, asi que se duplica a proposito (MEF-ADR-0018); una extraccion cruzaria dominios.
+/// Recorte del rango de consulta siempre hacia adelante desde <c>desde</c>. Duplicado a proposito de
+/// la misma politica en ControlHoras (ListarTurnosVigentes, ListarAsistenciasDiarias): extraerla
+/// cruzaria dominios.
 /// </summary>
 public static class RangoConsulta
 {

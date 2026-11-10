@@ -5,15 +5,14 @@ namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
 public class ApiFixture : IAsyncLifetime
 {
-    // Nombres canonicos que lee TrustedHeadersTenantResolver, fijados por decompilacion de
-    // Cosmos.MultiTenancy.AspNetCore en MEF-ADR-0028. Los valores salen de IdentidadDePrueba.
+    // Deben casar con los headers que lee TenantContextMiddleware. Los valores salen de IdentidadDePrueba.
     private const string HeaderTenantId = "X-Tenant-Id";
     private const string HeaderUserId = "X-User-Id";
     private const string HeaderOrganizationMembershipId = "X-Organization-Membership-Id";
 
     public HttpClient Client { get; private set; } = null!;
 
-    // Issue #700 CA-4: el oraculo con que se compara la identidad que estampan el event store y el bus.
+    // Oraculo con que se compara la identidad que estampan el event store y el bus.
     public string OrganizationMembershipId { get; private set; } = null!;
 
     private Uri _baseUrl = null!;
@@ -46,7 +45,6 @@ public class ApiFixture : IAsyncLifetime
         Client = CrearClienteParaTenant(_identidad.TenantId);
         OrganizationMembershipId = _identidad.OrganizationMembershipId;
 
-        // Fail-fast: verificar que el entorno esta disponible
         var response = await Client.GetAsync("/api/health");
         if (response.StatusCode != HttpStatusCode.OK)
             throw new InvalidOperationException(

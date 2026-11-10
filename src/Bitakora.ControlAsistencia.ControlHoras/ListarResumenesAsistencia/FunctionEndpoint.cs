@@ -8,15 +8,11 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarResumenesAsistencia;
 
-// Function QUERY (RFC 10008, MEF-ADR-0042) sobre la vista materializada AsistenciaDiaria, via (a')
-// de MEF-ADR-0035, con agregacion en query-time.
-//
-// La paginacion keyset va en DOS PASOS y no en un GroupBy: Marten no lo traduce a SQL, asi que la
-// pagina se resuelve primero sobre los CODIGOS -- de la lista pedida, o descubiertos con un distinct
-// sobre el rango -- y solo despues se traen los documentos de esos codigos para agregarlos en
-// memoria. Verificado contra Marten 9.12.0 + Postgres 16 (revision de este PR): el paso de
-// descubrimiento -- Select + Distinct + OrderBy + Take, con el filtro de cursor CompareTo(...) > 0
-// aplicado antes del Select -- traduce y pagina sobre codigos distintos, no sobre filas.
+// Agregacion en query-time sobre AsistenciaDiaria. La paginacion keyset va en dos pasos y no en un
+// GroupBy, que Marten no traduce a SQL: la pagina se resuelve primero sobre los codigos y despues se
+// traen sus documentos para agregarlos en memoria. Verificado contra Marten 9.12.0 + Postgres 16:
+// Select + Distinct + OrderBy + Take, con el filtro de cursor antes del Select, pagina sobre codigos
+// distintos, no sobre filas.
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarResumenesAsistencia")]
@@ -25,8 +21,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         HttpRequest req,
         CancellationToken ct)
     {
-        // El 415 va ANTES de leer el body: ante un Content-Type no-JSON, ReadFromJsonAsync lanza
-        // una excepcion que NO es JsonException y escaparia como 500 pese al catch de abajo.
+        // El 415 va antes de leer el body: ReadFromJsonAsync lanza una excepcion que no es JsonException.
         if (!req.HasJsonContentType())
             return new ObjectResult("La query exige Content-Type: application/json")
             { StatusCode = StatusCodes.Status415UnsupportedMediaType };
@@ -90,13 +85,10 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
     // Con CodigosColaborador explicito la pagina se recorta sobre la lista pedida, sin consultar
     // Marten: el cliente ya trae el universo. Sin ella, se descubre con un distinct sobre el rango.
     //
-    // Las dos ramas ordenan ascendente y acotan por cursor (">") y Take, pero NO con el mismo
-    // comparador, y no pueden: en memoria es ordinal y en Marten es la collation de Postgres.
-    // Medido en la revision de este PR sobre un mismo conjunto: Postgres devuelve
-    // emp-1, EMP_1, EMP-10, EMP-2, EMP-9, EMPA y el ordinal EMP-10, EMP-2, EMP-9, EMPA, EMP_1,
-    // emp-1 -- coinciden solo mientras los codigos sean homogeneos en case y separadores. Cada rama
-    // si es coherente consigo misma (su filtro de cursor usa el mismo comparador que su orden), que
-    // es lo que sostiene la paginacion: alinear una sola de las dos la romperia.
+    // Las dos ramas no usan el mismo comparador, y no pueden: en memoria es ordinal y en Marten es la
+    // collation de Postgres (medido: Postgres ordena emp-1, EMP_1, EMP-10, EMP-2; el ordinal EMP-10,
+    // EMP-2, EMP_1, emp-1). Cada rama es coherente consigo misma (su filtro de cursor usa el mismo
+    // comparador que su orden): alinear una sola de las dos romperia la paginacion.
     private static async Task<IReadOnlyList<string>> DeterminarCodigosPaginaAsync(
         IQuerySession session,
         IReadOnlyList<string>? codigosSolicitados,
@@ -129,8 +121,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
             : await codigos.Take(take.Value + 1).ToListAsync(ct);
     }
 
-    // RFC 10008 seccion 2.1 / MEF-ADR-0042 seccion 3: el 422 se emite como ObjectResult con mensaje,
-    // nunca como codigo pelado.
+    // MEF-ADR-0042 seccion 3: el 422 lleva mensaje, nunca codigo pelado.
     private static ObjectResult NoProcesable(string mensaje) =>
         new(mensaje) { StatusCode = StatusCodes.Status422UnprocessableEntity };
 }

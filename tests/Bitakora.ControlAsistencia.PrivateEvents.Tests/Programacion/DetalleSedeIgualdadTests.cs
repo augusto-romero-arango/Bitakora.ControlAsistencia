@@ -1,7 +1,5 @@
-// Issue #331: Tests de contrato IEquatable para DetalleSede, por simetria con la familia
-// Detalle*IgualdadTests. Todos los campos son string: la igualdad por valor del record por
-// defecto ya es correcta, sin Equals/GetHashCode propios (MEF-ADR-0012) -- mismo criterio que
-// ResumenColaborador.
+// Todos los campos son string: la igualdad por valor del record por defecto basta, sin
+// Equals/GetHashCode propios.
 // CrearInstancia/Copia pueblan TODOS los campos, incluidos los opcionales: con null en ambos
 // lados de la comparacion, un bug de igualdad sobre ese campo pasaria inadvertido.
 

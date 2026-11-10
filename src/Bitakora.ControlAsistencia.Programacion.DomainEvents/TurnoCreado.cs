@@ -3,11 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Issue #3: evento que registra la creacion de un turno de trabajo
-// ADR-0015: sealed class porque contiene IReadOnlyList<FranjaOrdinaria> -- record no puede
-//           garantizar igualdad por valor en colecciones mutables
-// CA-12: factory static Crear(), constructor privado
-// CA-13: constructor vacio privado solo para Marten/JSON
+// sealed class y no record: contiene IReadOnlyList<FranjaOrdinaria> y un record no garantiza igualdad
+// por valor en colecciones.
 public sealed partial class TurnoCreado
 {
     public Guid TurnoId { get; private set; }
@@ -16,7 +13,6 @@ public sealed partial class TurnoCreado
     public bool EsDescanso { get; private set; }
     public bool EsHorarioAbierto { get; private set; }
 
-    // CA-12: constructor real privado -- solo el factory lo invoca
     private TurnoCreado(
         Guid turnoId, string nombre, IReadOnlyList<FranjaOrdinaria> franjasOrdinarias, bool esDescanso)
     {
@@ -26,14 +22,13 @@ public sealed partial class TurnoCreado
         EsDescanso = esDescanso;
     }
 
-    // CA-13: constructor vacio privado para Marten/JSON
+    // Constructor vacio privado para Marten/JSON.
     private TurnoCreado()
     {
         Nombre = string.Empty;
         FranjasOrdinarias = [];
     }
 
-    // Mapping de serializacion para STJ/Marten - mismo patron que FranjaOrdinaria
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(TurnoCreado)
@@ -59,24 +54,19 @@ public sealed partial class TurnoCreado
         });
     }
 
-    // CA-14: el evento nunca se construye en estado invalido
-    // CA-10: acumula TODOS los errores antes de lanzar AggregateException
-    // CA-11: cada error individual es una ArgumentException
+    // Acumula TODOS los errores (cada uno ArgumentException) antes de lanzar AggregateException.
     public static TurnoCreado Crear(Guid turnoId, string nombre, IReadOnlyList<DatosFranja> ordinarias)
     {
         var errores = new List<Exception>();
 
-        // CA-7: validar nombre no vacio
         if (string.IsNullOrWhiteSpace(nombre))
             errores.Add(new ArgumentException(Mensajes.NombreVacio));
 
-        // Un turno nace vacio y se completa por pasos (CA-ADR-0033): la ausencia de franjas ya no
-        // es invalida.
+        // Un turno nace vacio y se completa por pasos (CA-ADR-0033): cero franjas es valido.
         if (HaySolapamientoEntreOrdinarias(ordinarias))
-            // CA-8: solapamiento entre ordinarias -- un unico error independiente de cuantos pares
+            // Un unico error, sin importar cuantos pares se solapen.
             errores.Add(new ArgumentException(Mensajes.FranjasOrdinariasSeSolapan));
 
-        // CA-9: construir VOs delegando validacion a FranjaOrdinaria.Crear() y acumulando errores
         var franjasOrdinarias = new List<FranjaOrdinaria>();
         foreach (var franja in ordinarias)
         {
@@ -120,13 +110,10 @@ public sealed partial class TurnoCreado
         return evento;
     }
 
-    // Detecta si algun par de franjas ordinarias se solapa usando minutos absolutos desde el dia base.
-    // Duplicacion deliberada respecto de FranjaTemporal.SeSolapaCon -- decidida en #272 y #285,
-    // no es deuda pendiente. Dos razones:
-    // 1. Son reglas distintas con divergencia plausible (MEF-ADR-0018): aqui se validan ordinarias
-    //    entre si sobre DatosFranja crudos; alla, hijas contra su contenedor sobre VOs construidos.
-    // 2. El orden del factory lo exige: este chequeo corre ANTES de construir las FranjaOrdinaria
-    //    para acumular todos los errores sin fail-fast (CA-10 de #3).
+    // Duplicacion deliberada de FranjaTemporal.SeSolapaCon, no deuda: son reglas distintas con
+    // divergencia plausible (ordinarias entre si sobre DatosFranja crudos; alla, hijas contra su
+    // contenedor sobre VOs), y este chequeo corre ANTES de construir las FranjaOrdinaria para acumular
+    // todos los errores sin fail-fast.
     private static bool HaySolapamientoEntreOrdinarias(IReadOnlyList<DatosFranja> franjas)
     {
         const int minsPorHora = 60;

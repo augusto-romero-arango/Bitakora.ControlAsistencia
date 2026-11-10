@@ -54,7 +54,6 @@ public class AusenciaDiariaCanceladaEventHandlerTests
 
     private static HorasDiscriminadas SinHoras() => new(new Dictionary<string, decimal>(), []);
 
-    // CA-1
     [Fact]
     public async Task AusenciaDiariaCancelada_LiberaElDiaYPublicaElTurnoSinMotivo_CuandoLaAusenciaVigenteEsLaCancelada()
     {
@@ -75,7 +74,7 @@ public class AusenciaDiariaCanceladaEventHandlerTests
             SinHoras(), VersionControlDiario: 3));
     }
 
-    // CA-2: esperado a mano; 2026-03-15 es domingo, 08:00-16:00 completo = 8h dominical diurna.
+    // Esperado a mano: 2026-03-15 es domingo, 08:00-16:00 completo = 8h dominical diurna.
     [Fact]
     public async Task AusenciaDiariaCancelada_DepuraLasMarcacionesContraElTurno_CuandoElDiaTeniaMarcaciones()
     {
@@ -106,7 +105,6 @@ public class AusenciaDiariaCanceladaEventHandlerTests
                 ]), VersionControlDiario: 5));
     }
 
-    // CA-3
     [Fact]
     public async Task AusenciaDiariaCancelada_PublicaDiaSinProgramarSinMotivo_CuandoElDiaNoTeniaTurno()
     {
@@ -120,7 +118,6 @@ public class AusenciaDiariaCanceladaEventHandlerTests
             Colaborador.CodigoColaborador, Fecha, ColaboradorResumen, null, [], [], SinHoras(), VersionControlDiario: 2));
     }
 
-    // CA-4 (parte 1)
     [Fact]
     public async Task AusenciaDiariaCancelada_IniciaElStreamYRecuerdaLaCancelacion_CuandoElStreamNoExiste()
     {
@@ -133,7 +130,6 @@ public class AusenciaDiariaCanceladaEventHandlerTests
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
-    // CA-5
     [Fact]
     public async Task AusenciaDiariaCancelada_RecuerdaLaCancelacionSinLiberar_CuandoLaAusenciaVigenteEsOtra()
     {
@@ -160,7 +156,6 @@ public class AusenciaDiariaCanceladaEventHandlerTests
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
-    // CA-6
     [Fact]
     public async Task AusenciaDiariaCancelada_NoEmiteNada_CuandoLaAusenciaYaFueCancelada()
     {

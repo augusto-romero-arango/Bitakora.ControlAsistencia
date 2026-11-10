@@ -8,7 +8,6 @@ public partial class QuitarFranjaCommandHandler
         "Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction.CommandHandler.QuitarFranjaCommandHandlerMensajes",
         typeof(QuitarFranjaCommandHandler).Assembly);
 
-    // internal, no private: los tests lo afirman via InternalsVisibleTo.
     internal static class Mensajes
     {
         public static string TurnoNoEncontrado =>

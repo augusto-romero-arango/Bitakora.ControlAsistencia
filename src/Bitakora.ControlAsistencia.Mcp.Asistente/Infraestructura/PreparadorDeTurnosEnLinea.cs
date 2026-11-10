@@ -2,7 +2,7 @@ using System.Net;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-/// <summary>Turno creado/reutilizado/completado por una entrada franja; accion: creo, reutilizo o completo.</summary>
+/// <summary>Accion: creo, reutilizo o completo.</summary>
 public sealed record TurnoInlineResumen(string Nombre, string Accion);
 
 /// <summary>Mensajes de la tool llamadora: {0} nombre del turno; FalloTurnoInline {1} motivo, {2} creados.</summary>
@@ -47,7 +47,7 @@ internal sealed record FranjaInline(TimeOnly Inicio, TimeOnly Fin)
 
 // Resuelve el turno nombrado con la franja (nombre derivado, clave de unicidad del catalogo): lo crea
 // si no existe, lo completa si esta vacio, lo reutiliza si ya tiene esa franja y aborta si existe con
-// otro contenido. Compartido por crear_plantilla y crear_plantilla_semanal (MEF-ADR-0018).
+// otro contenido.
 internal sealed class PreparadorDeTurnosEnLinea(ProgramacionApi programacion, ResolutorTurnoPorNombre resolutor)
 {
     private enum ClaseInline { Nuevo, Equivalente, Vacio, Distinto }

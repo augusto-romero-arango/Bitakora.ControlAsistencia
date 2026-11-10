@@ -3,19 +3,16 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-// HU-106: Evento de event sourcing que registra la adicion de una marcacion al ControlDiario.
-// Se persiste en el stream de ControlDiarioAggregateRoot (Id = stream ID compuesto) y no cruza el bus.
-// ADR-0024: evento del aggregate (categoria event-sourcing), sin marker de bus.
+// Se persiste en el stream de ControlDiarioAggregateRoot; no cruza el bus.
 public sealed class MarcacionAdicionada
 {
     // Id es el stream key del ControlDiario, tal como lo computa ControlDiarioAggregateRoot.ComputarStreamId.
     public string Id { get; private set; } = null!;
     public string CodigoColaborador { get; private set; } = null!;
 
-    // TimestampNormalizado viene ya truncado al minuto desde RegistrarMarcacion (#105)
+    // Ya viene truncado al minuto desde RegistrarMarcacion.
     public DateTime TimestampNormalizado { get; private set; }
 
-    // CA-3: TipoMarcacion y DispositivoId son opcionales
     public string? TipoMarcacion { get; private set; }
     public string? DispositivoId { get; private set; }
 
@@ -33,11 +30,9 @@ public sealed class MarcacionAdicionada
         DispositivoId = dispositivoId;
     }
 
-    // Constructor privado para Marten/serializacion
+    // Solo para Marten/STJ: ConfigurarSerializacion lo invoca por reflexion.
     private MarcacionAdicionada() { }
 
-    // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
-    // y propiedades con private set. Ver ADR-0013 y MarcacionAdicionadaSerializacionTests.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(MarcacionAdicionada)

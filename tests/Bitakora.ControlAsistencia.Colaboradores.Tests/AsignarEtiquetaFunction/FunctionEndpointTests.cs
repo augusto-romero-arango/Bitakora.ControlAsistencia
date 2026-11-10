@@ -1,12 +1,3 @@
-// Issue #376 (MEF-ADR-0043 paso 2): tests del endpoint HTTP PUT
-// colaboradores/{id}/etiquetas/{categoria} (asignar o sobrescribir la etiqueta de una categoria).
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 2: PUT reemplaza -> 204 siempre): CA-1: 204 No Content (incluye la sede/etiqueta identica a la
-// vigente -- SinCambios sin evento -- y la categoria nueva, ambos casos el slot existe por
-// construccion); CA-3: id de ruta invalido -> 400 (parseo tipado unico, precedente
-// ObtenerFichaColaborador); CA-ADR-0030 / MEF-ADR-0004: ReglaDeNegocioDeclinadaException -> 409,
-// RecursoNoEncontradoException -> 404.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction.CommandHandler;
@@ -32,10 +23,8 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: PUT exitoso retorna 204 No Content, sin cuerpo -- mismo resultado cuando la etiqueta
-    // ya es la vigente y el aggregate declina en silencio (SinCambios sin evento, MEF-ADR-0004
-    // "PUT reemplaza"): el endpoint no distingue ambos caminos, el router retorna normalmente en
-    // los dos. El no-op sin evento lo cubre AsignarEtiquetaCommandHandlerTests.
+    // Tambien cuando la etiqueta ya es la vigente (SinCambios): el endpoint no distingue ambos caminos;
+    // el no-op sin evento lo cubre AsignarEtiquetaCommandHandlerTests.
     [Fact]
     public async Task AsignarEtiqueta_Retorna204SinCuerpo_CuandoIdDeRutaYBodySonValidos()
     {
@@ -50,9 +39,6 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-1: el endpoint compone el comando interno AsignarEtiqueta desde {id} + {categoria} + Valor
-    // del body -- el router debe recibir exactamente esos 4 campos primitivos (MEF-ADR-0039
-    // decision 6), tipo y numero derivados de Identificacion.Parsear.
     [Fact]
     public async Task AsignarEtiqueta_ComponeElComando_DesdeIdDeRutaCategoriaDeRutaYValorDelBody()
     {
@@ -69,8 +55,6 @@ public class FunctionEndpointTests
             Valor: ValorValido));
     }
 
-    // CA-3: id de ruta sin guion -> 400, sin llegar a invocar el router (el parseo tipado es el
-    // unico punto de traduccion, precedente ObtenerFichaColaborador.FunctionEndpoint).
     [Fact]
     public async Task AsignarEtiqueta_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
@@ -84,7 +68,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-3: tipo fuera de la lista cerrada PILA -> 400.
     [Fact]
     public async Task AsignarEtiqueta_Retorna400_CuandoElTipoDeLaIdentificacionNoEstaEnLaListaCerrada()
     {
@@ -97,11 +80,8 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // MEF-ADR-0004 capa 1: {categoria} llega cruda de la ruta y no pasa por ningun validator -- el
-    // body reducido de #376 solo trae Valor. Un segmento en blanco ("%20") SI hace match con la
-    // plantilla, y sin guarda de borde llegaria hasta Etiqueta.Crear, cuyo ArgumentException nadie
-    // traduce: 500 en vez de 400. Es la regla NotEmpty que AsignarEtiquetaValidator (eliminado en
-    // #376) tenia sobre Categoria, reubicada al unico sitio que hoy ve ese segmento.
+    // {categoria} llega cruda de la ruta y ningun validator la ve: un segmento en blanco ("%20") hace
+    // match con la plantilla y, sin guarda de borde, el ArgumentException de Etiqueta.Crear saldria como 500.
     [Fact]
     public async Task AsignarEtiqueta_Retorna400_CuandoLaCategoriaDeRutaEstaEnBlanco()
     {
@@ -116,7 +96,6 @@ public class FunctionEndpointTests
             "el router nunca deberia invocarse con una categoria en blanco");
     }
 
-    // CA-1 (body invalido): Valor vacio en el body -> 400 Bad Request
     [Fact]
     public async Task AsignarEtiqueta_Retorna400_CuandoElBodyEsInvalido()
     {
@@ -130,9 +109,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // CA-2: violacion de la regla de apertura (vinculacion con terminacion registrada) retorna 409
-    // Conflict (MEF-ADR-0043 seccion 2 paso 2: el 409 de un PUT es una instancia mas de "declinar
-    // con resultado").
     [Fact]
     public async Task AsignarEtiqueta_Retorna409_CuandoLaVinculacionTieneTerminacionRegistrada()
     {
@@ -147,7 +123,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<ConflictObjectResult>();
     }
 
-    // CA-2: colaborador inexistente retorna 404 Not Found
     [Fact]
     public async Task AsignarEtiqueta_Retorna404_CuandoColaboradorNoExiste()
     {
@@ -175,12 +150,6 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-
-/// <summary>
-/// Fake configurable de IRequestValidator para el body reducido (AsignarEtiquetaBody). Retorna un
-/// body pre-configurado o un error segun lo que se le pase en el constructor.
-/// </summary>
 internal class FakeAsignarEtiquetaBodyRequestValidator : IRequestValidator
 {
     private readonly AsignarEtiquetaBody? _body;
@@ -207,11 +176,6 @@ internal class FakeAsignarEtiquetaBodyRequestValidator : IRequestValidator
     }
 }
 
-/// <summary>
-/// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
-/// verificar la composicion ruta+body, y puede completar exitosamente o lanzar la excepcion
-/// configurada.
-/// </summary>
 internal class FakeAsignarEtiquetaCommandRouter : ICommandRouter
 {
     private readonly Exception? _excepcion;

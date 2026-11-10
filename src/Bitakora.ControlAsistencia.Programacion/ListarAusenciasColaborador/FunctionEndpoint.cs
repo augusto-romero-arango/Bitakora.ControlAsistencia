@@ -9,7 +9,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.ListarAusenciasColaborador;
 
-// Function QUERY (MEF-ADR-0042) via (b1): hidrata AusenciasColaborador en vivo (MEF-ADR-0035).
+// Hidrata AusenciasColaborador en vivo desde su stream, sin proyeccion (MEF-ADR-0035).
 public partial class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     private const int TakeMaximo = 200;

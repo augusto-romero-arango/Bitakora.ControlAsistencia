@@ -1,13 +1,9 @@
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Issue #237: datos de entrada de una franja ordinaria para TurnoCreado.Crear().
-// No es payload del evento -- el payload es FranjaOrdinaria, el VO rico. Existe para que
-// el factory no dependa del comando CrearTurno, que vive en la Function App y dejaria el
-// grafo de referencias en ciclo. El comando se convierte con CrearTurno.ToDatosFranjas().
-// Issue #335: Sede es campo aditivo y opcional -- se propaga a FranjaOrdinaria.Crear() dentro de
-// TurnoCreado.Crear(). El mapeo comando -> DatosFranja lo hace CrearTurno.ToDatosFranjas().
+// Datos de entrada de una franja para TurnoCreado.Crear(); el payload del evento es FranjaOrdinaria.
+// Existe para que el factory no dependa del comando CrearTurno, que vive en la Function App y cerraria
+// un ciclo de referencias; el comando se convierte con CrearTurno.ToDatosFranjas().
 // DiaOffsetFin 0 = inferir (+1 si Fin < Inicio); explicito habilita la franja de 24 h exactas.
-// TurnoCreado.Crear lo propaga a FranjaOrdinaria.Crear() y al chequeo de solape entre ordinarias.
 public record DatosFranja(
     TimeOnly Inicio,
     TimeOnly Fin,

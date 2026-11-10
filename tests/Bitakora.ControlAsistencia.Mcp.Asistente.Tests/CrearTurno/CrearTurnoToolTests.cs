@@ -20,8 +20,7 @@ public class CrearTurnoToolTests
         return (new CrearTurnoTool(new ProgramacionApi(cliente), new ResolutorSedePorCodigo(new SedesApi(ClienteFalso.Con("").Cliente))), handler);
     }
 
-    // CA-1: sin es_descanso, el body envia esDescanso:false y el eco responde completo:false --
-    // un turno recien creado sin franjas no es programable.
+    // Un turno recien creado sin franjas no es programable.
     [Fact]
     public async Task CrearTurno_EnviaElBodyConGuidV7YEsDescansoFalso_YDevuelveElEcoIncompleto_CuandoEsDescansoNoSeEnvia()
     {
@@ -48,8 +47,7 @@ public class CrearTurnoToolTests
         json["nota"]!.GetValue<string>().Should().Be(CrearTurnoTool.Mensajes.NotaVisibilidadEventual);
     }
 
-    // CA-1: con es_descanso true, el body envia esDescanso:true y el eco responde completo:true --
-    // un descanso nace completo, no necesita franjas.
+    // Un descanso nace completo, no necesita franjas.
     [Fact]
     public async Task CrearTurno_EnviaEsDescansoTrue_YDevuelveElEcoCompleto_CuandoEsDescansoEsTrue()
     {
@@ -142,7 +140,7 @@ public class CrearTurnoToolTests
     private static Task<string> EjecutarConFranjas(CrearTurnoTool tool, string? franjas, bool? esDescanso = null) =>
         tool.Run(null!, "Turno completo", esDescanso, franjas, TestContext.Current.CancellationToken);
 
-    // CA-1: las ordinarias viajan en el mismo POST; sin inicio == fin no hay diaOffsetFin.
+    // Sin inicio == fin no hay diaOffsetFin.
     [Fact]
     public async Task CrearTurno_EnviaLasOrdinariasEnElMismoPost_CuandoLlegaFranjasValido()
     {
@@ -190,7 +188,6 @@ public class CrearTurnoToolTests
             .ContainsKey("ordinarias").Should().BeFalse();
     }
 
-    // CA-2: eco completo con franjas en NotacionFranja.
     [Fact]
     public async Task CrearTurno_DevuelveElEcoCompletoConLasFranjasCompactadas_CuandoLlegaFranjasValido()
     {
@@ -234,7 +231,7 @@ public class CrearTurnoToolTests
         turno.AsObject().ContainsKey("franjas").Should().BeFalse();
     }
 
-    // CA-3: validacion previa, sin tocar ningun dominio.
+    // Validacion previa: no toca ningun dominio.
     [Fact]
     public async Task CrearTurno_RespondeFranjasJsonInvalido_CuandoFranjasNoEsJson()
     {
@@ -294,7 +291,6 @@ public class CrearTurnoToolTests
         fakes.Programacion.UltimaRequest.Should().BeNull();
     }
 
-    // CA-4
     [Fact]
     public async Task CrearTurno_RespondeSedeNoExisteSinPost_CuandoElCodigoNoExiste()
     {
@@ -331,7 +327,6 @@ public class CrearTurnoToolTests
         fakes.Sedes.Requests.Should().ContainSingle();
     }
 
-    // CA-5
     [Fact]
     public async Task CrearTurno_TraduceElRechazoDelDominio_Cuando400ConFranjas()
     {

@@ -14,26 +14,17 @@ using Microsoft.Azure.Functions.Worker;
 namespace Bitakora.ControlAsistencia.Colaboradores.ListarDirectorioColaboradores;
 
 // QUERY colaboradores/directorio (MEF-ADR-0042) sobre la vista DirectorioColaborador que el worker
-// ya materializa -- via (a'), session.Query<T>(). No crea proyeccion ni read model: mismo corte que
-// ListarFichasColaborador hizo sobre la ficha.
+// ya materializa.
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     // Take opcional, 1..200 o 422 tambien con identificaciones (CA-ADR-0039 decision 9).
     private const int TakeMaximo = 200;
 
-    // Containment JSONB del filtro por tokens: un array jsonb @> otro array jsonb es "el primero
-    // contiene TODOS los elementos del segundo" -- la semantica exacta de "contiene todos los
-    // tokens, en cualquier orden", en UNA operacion elegible para GIN.
-    //
-    // Verificado contra Postgres 16 real (EXPLAIN con enable_seqscan=off, revision de este issue):
-    // esta expresion reproduce la del indice que declara el worker
-    // (USING gin (((data ->> 'TokensNombre')::jsonb))) y el planner elige Bitmap Index Scan. Un
-    // Where(d => d.TokensNombre.Contains(token)) por token traduce a comparaciones ->> y cae en Seq
-    // Scan (mismo hallazgo que el spike de ListarFichasColaborador sobre EtiquetasNormalizadas).
-    //
-    // El nombre del campo se interpola con nameof, nunca como literal: es el unico punto donde una
-    // propiedad de la vista viaja como texto, y un rename que no lo alcanzara dejaria el filtro
-    // devolviendo 0 resultados sin error de compilacion ni de runtime.
+    // jsonb @> jsonb = "contiene TODOS los tokens, en cualquier orden", en una operacion elegible
+    // para GIN. La expresion debe reproducir la del indice que declara el worker
+    // (USING gin (((data ->> 'TokensNombre')::jsonb))): verificado con EXPLAIN en Postgres 16 que
+    // usa Bitmap Index Scan; un Where(...Contains(token)) por token cae en Seq Scan.
+    // nameof y no literal: un rename que no lo alcanzara devolveria 0 resultados sin error.
     private const string SqlContenimientoTokens =
         $"(data->>'{nameof(DirectorioColaborador.TokensNombre)}')::jsonb @> ?::jsonb";
 
@@ -105,18 +96,14 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
                 return NoProcesable("El cursor no es valido");
         }
 
-        // MEF-ADR-0028: la sesion se abre SIEMPRE acotada al tenant que resuelve ITenantContext --
-        // nunca a un tenant id que llegara por el body.
+        // Siempre el tenant de ITenantContext, nunca uno que llegue por el body (BOLA/IDOR).
         await using var session = store.QuerySession(tenantContext.TenantId);
 
         IQueryable<DirectorioColaborador> query = session.Query<DirectorioColaborador>();
 
-        // OR dentro del campo: cada valor se clasifica -- si Identificacion.Parsear lo acepta va por
-        // igualdad de Id (la PK del documento, armada con ComputarStreamId: punto unico de
-        // conversion, MEF-ADR-0037); si lo rechaza va por igualdad de NumeroDocumento normalizado
-        // con la regla de la vista. Un valor que no corresponde a nadie no produce error: solo no
-        // aporta filas. Cualquiera de las dos listas puede quedar vacia -- Marten genera igual un
-        // `= ANY(...)` que no matchea nada (verificado contra Postgres 16).
+        // Cada valor va por Id si Identificacion.Parsear lo acepta, si no por NumeroDocumento
+        // normalizado; un valor sin dueno no es error, solo no aporta filas. Una lista vacia genera
+        // un `= ANY(...)` que no matchea nada (verificado contra Postgres 16).
         if (tieneIdentificaciones)
         {
             var ids = new List<string>();
@@ -183,9 +170,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         new(mensaje) { StatusCode = StatusCodes.Status422UnprocessableEntity };
 }
 
-// DTO de filtro tipado del body QUERY (MEF-ADR-0042 seccion 3): vive en el feature folder, no en
-// ReadModels -- es contrato de REQUEST, no la vista (MEF-ADR-0041). Al menos uno de
-// Identificaciones/Nombre es obligatorio; si vienen ambos, combinan en AND.
+// Al menos uno de Identificaciones/Nombre es obligatorio; si vienen ambos, combinan en AND.
 public sealed record FiltroListarDirectorioColaboradores(
     IReadOnlyList<string>? Identificaciones,
     string? Nombre,
@@ -219,9 +204,8 @@ public sealed record CursorDirectorio(string NombreCompleto, string Identificaci
     }
 }
 
-// DTO de respuesta, excepcion bajo Rule of Three (MEF-ADR-0018, MEF-ADR-0041 decision 4) por el
-// mismo motivo que FichaColaboradorRespuesta: oculta el centinela de vigencia abierta y TokensNombre,
-// estructura interna de indexacion que jamas es contrato de respuesta.
+// DTO de excepcion (MEF-ADR-0041 decision 4): oculta el centinela de vigencia abierta y
+// TokensNombre, estructura interna de indexacion que jamas es contrato de respuesta.
 public sealed record DirectorioColaboradorRespuesta(
     string Identificacion,
     string TipoDocumento,

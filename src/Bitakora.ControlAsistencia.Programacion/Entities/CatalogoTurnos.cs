@@ -155,8 +155,6 @@ public partial class CatalogoTurnos : AggregateRoot
         _turno = _turno.ConFranjaReemplazada(evento.Franja);
     }
 
-    // Mecanismo "declinar con resultado" (CA-ADR-0030): el aggregate nunca lanza -- retorna la
-    // razon del rechazo y el handler la traduce al status code (409 Conflict).
     internal ResultadoRetiroTurno Retirar()
     {
         if (!_estaActivo)
@@ -194,10 +192,8 @@ public partial class CatalogoTurnos : AggregateRoot
         return ResultadoAgregarFranja.Agregada;
     }
 
-    // Localiza la franja contenedora por hora de inicio (EmpiezaA), delega la construccion de la
-    // hija en ConDescanso (invariantes del VO, #600) y declina con resultado (CA-ADR-0030): la
-    // ArgumentException del VO sube sin capturarse -- es el unico canal de error mezclado que
-    // acepta esta familia de comandos de diseno.
+    // La ArgumentException de ConDescanso/ConExtra (invariantes del VO) sube sin capturarse: es el
+    // unico canal de error mezclado que acepta esta familia de comandos de diseno (CA-ADR-0030).
     internal ResultadoAgregarSubFranja AgregarDescanso(
         TimeOnly horaInicioFranja, TimeOnly inicio, TimeOnly fin)
     {
@@ -306,9 +302,8 @@ public partial class CatalogoTurnos : AggregateRoot
         return ResultadoQuitarSubFranja.Quitada;
     }
 
-    // Mismo mecanismo "declinar con resultado" que QuitarFranja (CA-ADR-0030). Precedencia:
-    // TurnoRetirado > FranjaNoExiste > FranjaSinSede. La sede incompleta NO se declina aqui: es
-    // invariante del VO, y ConSede la deja subir como ArgumentException (400, no 409).
+    // Precedencia: TurnoRetirado > FranjaNoExiste > FranjaSinSede. La sede incompleta NO se declina
+    // aqui: es invariante del VO y ConSede la deja subir como ArgumentException (400, no 409).
     internal ResultadoAsignarSedeAFranja AsignarSedeAFranja(TimeOnly horaInicioFranja, SedeProgramada? sede)
     {
         if (!_estaActivo)
@@ -354,8 +349,6 @@ public partial class CatalogoTurnos : AggregateRoot
     // Programable = completo (CA-ADR-0033).
     internal bool EstaCompleto() => _turno.EstaCompleto();
 
-    // Tell-don't-Ask (MEF-ADR-0012): el catalogo decide si acepta una nueva solicitud, y con que
-    // razon -- el handler no interroga su estado interno para decidir por su cuenta.
     internal ResultadoAsignabilidadTurno EvaluarAsignabilidad()
     {
         if (!_estaActivo)
@@ -401,12 +394,10 @@ public partial class CatalogoTurnos : AggregateRoot
 
     public override string ToString() => _turno.ToString();
 
-    // Tres islas (CA-ADR-0029): devuelve el tipo del dominio; el FA lo mapea a DetalleTurno solo
-    // para los eventos que cruzan el bus.
+    // Devuelve el tipo del dominio; el FA lo mapea a DetalleTurno solo para los eventos que cruzan el bus.
     internal TurnoProgramado ObtenerDetalle() => _turno.Programar();
 
-    // Factory interno: crea el aggregate con el evento en _uncommittedEvents
-    // Usado por el handler para StartStream -- no es parte de la interfaz publica del dominio
+    // Crea el aggregate con el evento pendiente, para el StartStream del handler.
     internal static CatalogoTurnos Iniciar(TurnoCreado evento)
     {
         var catalogo = new CatalogoTurnos();

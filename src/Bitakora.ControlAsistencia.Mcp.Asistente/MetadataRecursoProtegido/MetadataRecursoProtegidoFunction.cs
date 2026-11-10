@@ -5,15 +5,10 @@ using Microsoft.Extensions.Configuration;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.MetadataRecursoProtegido;
 
-// Protected Resource Metadata (RFC 9728): descubrimiento anonimo que un cliente OAuth (flujo
-// MCP/Connect) usa para arrancar la autorizacion (MEF-ADR-0032 seccion 9). Defensa en profundidad
-// -- el gate real vive en la politica dedicada de APIM, que reenvia a este backend anonimo
-// (MEF-ADR-0047 decision 7). Mcp:ResourceUri debe coincidir byte a byte con el <audiences> de esa
-// politica y con el Resource Indicator (RFC 8707) que declara el cliente MCP.
-//
-// Ruta efectiva: el host sirve esta Function bajo el routePrefix por defecto ("api"), o sea en
-// /api/.well-known/oauth-protected-resource. La URL publica del PRM la fija el gateway APIM (ver
-// el README de este scaffold).
+// Protected Resource Metadata (RFC 9728), anonimo: el gate real es la politica de APIM, que reenvia
+// aqui. Mcp:ResourceUri debe coincidir byte a byte con el <audiences> de esa politica y con el
+// Resource Indicator (RFC 8707) que declara el cliente MCP. El host la sirve en
+// /api/.well-known/oauth-protected-resource; la URL publica del PRM la fija APIM.
 public class MetadataRecursoProtegidoFunction(IConfiguration configuration)
 {
     [Function("MetadataRecursoProtegido")]

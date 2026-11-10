@@ -1,28 +1,20 @@
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
 using Marten.Events.Aggregation; // SingleStreamProjection<,> vive aqui, NO en Marten.Events.Projections
-// Solo TipoBloque es ambiguo entre los dos namespaces de arriba (CS0104): Bloque existe unicamente
-// en ReadModels y BloqueTurno unicamente en DomainEvents, asi que ninguno de los dos necesita alias.
+// Solo TipoBloque existe en ambos namespaces (CS0104).
 using TipoBloqueVigente = Bitakora.ControlAsistencia.ReadModels.ControlHoras.TipoBloque;
 using TipoBloqueEvento = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.TipoBloque;
 
 namespace Bitakora.ControlAsistencia.Projections.ControlHoras;
 
 /// <summary>
-/// Clase de proyeccion companion de TurnoVigente (receta N1 de MEF-ADR-0035: un solo stream por
-/// (CodigoColaborador, Fecha)). Vive en el worker, el unico ensamblado que referencia Marten y el
-/// analizador JasperFx.Events.SourceGenerator.
+/// partial es obligatorio: sin el, el source generator no emite el evolver y la proyeccion falla en
+/// RUNTIME al registrarse (InvalidProjectionException), con el build limpio.
 ///
-/// partial es OBLIGATORIO (skills/projections/modelos-marten.md): el source generator descubre
-/// Create/Apply por convencion y emite el dispatcher [GeneratedEvolver]. Sin partial el build queda
-/// limpio y falla en RUNTIME al registrar la proyeccion (InvalidProjectionException); el config-test
-/// ConfigurarControlHoras_RegistraTurnoVigenteProjectionComoAsync es lo que lo detecta.
+/// La segmentacion NO se reimplementa aqui: se delega en DetalleTurno.Segmentar (MEF-ADR-0012).
 ///
-/// La aritmetica de segmentacion NO se reimplementa aqui: Create/Apply delegan en
-/// evento.DetalleTurno.Segmentar(evento.Fecha) (Tell-don't-Ask, MEF-ADR-0012).
-///
-/// MarcacionAdicionada vive en el mismo stream y esta proyeccion la ignora a proposito. Un dia sin turno
-/// ni ausencia se borra (Apply devuelve null).
+/// MarcacionAdicionada vive en el mismo stream y se ignora a proposito. Un dia sin turno ni ausencia
+/// se borra (Apply devuelve null).
 /// </summary>
 public sealed partial class TurnoVigenteProjection : SingleStreamProjection<TurnoVigente, string>
 {
@@ -37,10 +29,8 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
             MapearBloques(evento),
             EsHorarioAbierto: evento.DetalleTurno.EsHorarioAbierto);
 
-    // "El ultimo gana": una reasignacion sobre el mismo (colaborador, fecha) sobrescribe turno,
-    // horario y bloques. NombreCompleto SI se refresca (cada evento trae la terna de identidad).
-    // Con una ausencia vigente el dia sigue mostrando la ausencia: el turno asignado solo actualiza
-    // TurnoCubierto, que se restablece al cancelar la ausencia (CA-5).
+    // El ultimo gana. Con una ausencia vigente el dia sigue mostrando la ausencia: el turno asignado
+    // solo actualiza TurnoCubierto, que se restablece al cancelar la ausencia.
     public static TurnoVigente Apply(TurnoDiarioAsignado evento, TurnoVigente vista) =>
         vista.AusenciaId is not null
             ? vista with
@@ -89,8 +79,8 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
                     vista.NombreTurno, vista.HorarioResumido, vista.Bloques, vista.EsHorarioAbierto)
         };
 
-    // Una cancelacion como primer evento del stream (#747) no crea documento: sin este Create el
-    // evolver generado aplicaria Apply sobre un TurnoVigente sin inicializar.
+    // Una cancelacion como primer evento del stream no crea documento: sin este Create el evolver
+    // generado aplicaria Apply sobre un TurnoVigente sin inicializar.
     public static TurnoVigente? Create(TurnoDiarioCancelado evento) => null;
 
     public static TurnoVigente? Create(CancelacionAusenciaDiariaRegistrada evento) => null;
@@ -125,8 +115,6 @@ public sealed partial class TurnoVigenteProjection : SingleStreamProjection<Turn
     private static IReadOnlyList<Bloque> MapearBloques(TurnoDiarioAsignado evento) =>
         evento.DetalleTurno.Segmentar(evento.Fecha).Select(MapearBloque).ToList();
 
-    // SedeId/NombreSede quedan null cuando la franja de origen no trae sede (turno prearmado sin
-    // resolver, o evento anterior a que Segmentar estampara la sede) -- null es un valor valido.
     private static Bloque MapearBloque(BloqueTurno bloque) =>
         new(MapearTipo(bloque.Tipo), bloque.Inicio, bloque.Fin, bloque.Sede?.Id, bloque.Sede?.Nombre);
 

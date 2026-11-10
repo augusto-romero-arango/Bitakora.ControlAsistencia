@@ -2,8 +2,6 @@ using System.Resources;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarProgramacion;
 
-// MEF-ADR-0009: mensajes runtime de la tool en .resx separado. Las descripciones MCP de la tool y
-// de sus parametros NO viven aqui: son atributos y exigen constantes de compilacion.
 public partial class ConsultarProgramacionTool
 {
     private static readonly ResourceManager ResourceManager = new(

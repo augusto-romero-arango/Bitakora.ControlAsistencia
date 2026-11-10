@@ -9,9 +9,6 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.RegistrarColaborador;
 
 public class RegistrarColaboradorToolTests
 {
-    // Valores por defecto del camino feliz -- cada test sobreescribe unicamente el campo que le
-    // interesa via argumentos nombrados (9 parametros, MEF-ADR-0047 decision 4: consolidar antes
-    // que partir).
     private static Task<string> Ejecutar(
         HttpClient cliente,
         string tipoIdentificacion = "CC",
@@ -206,8 +203,8 @@ public class RegistrarColaboradorToolTests
         handler.UltimaRequest.Should().BeNull("una fecha_inicio en blanco no debe llegar al dominio");
     }
 
-    // CA-3: fecha_inicio ausente NUNCA se sustituye por "hoy" -- llegar con formato invalido (o en
-    // blanco, arriba) corta en el worker igual que cualquier otro requerido.
+    // fecha_inicio ausente NUNCA se sustituye por "hoy": con formato invalido (o en blanco, arriba)
+    // corta en el worker igual que cualquier otro requerido.
     [Fact]
     public async Task RegistrarColaborador_RechazaSinLlamarAlDominio_CuandoFechaInicioTieneFormatoInvalido()
     {

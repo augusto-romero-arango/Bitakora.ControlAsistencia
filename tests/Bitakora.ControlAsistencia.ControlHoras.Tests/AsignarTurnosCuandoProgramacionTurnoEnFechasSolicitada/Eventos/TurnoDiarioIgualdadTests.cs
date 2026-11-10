@@ -1,9 +1,5 @@
-// Issue #322: paridad de campos e igualdad de TurnoDiario (ControlHoras.DomainEvents) con
-// DetalleTurno (PrivateEvents.Programacion) -- payload por rol, CA-ADR-0029 decision #5.
-// CA-1: TurnoDiario replica la semantica de igualdad del original: FranjasOrdinarias
-// (IReadOnlyList) se compara POR VALOR (SequenceEqual), no por referencia (MEF-ADR-0012), y
-// Descripcion (dato derivado) queda EXCLUIDA de la identidad del turno. Mismo patron que
-// DetalleTurnoIgualdadTests (PrivateEvents.Tests), del cual este archivo es espejo deliberado.
+// Espejo de DetalleTurnoIgualdadTests (PrivateEvents.Tests): FranjasOrdinarias se compara por valor y
+// Descripcion (dato derivado) queda fuera de la identidad.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -34,8 +30,6 @@ public class TurnoDiarioIgualdadTests : IgualdadTestBase<TurnoDiario>
             new TurnoDiario("Turno Manana", [], "Turno Manana"));
     }
 
-    // CA-1: dos instancias que difieren SOLO en Descripcion son iguales (dato derivado, no identidad).
-
     [Fact]
     public void Equals_RetornaTrue_CuandoSoloDescripcionEsDiferente()
     {
@@ -54,9 +48,7 @@ public class TurnoDiarioIgualdadTests : IgualdadTestBase<TurnoDiario>
         a.GetHashCode().Should().Be(b.GetHashCode());
     }
 
-    // CA-1: bug latente evitado - dos TurnoDiario con franjas EQUIVALENTES en listas DISTINTAS
-    // son iguales (el record por defecto compararia FranjasOrdinarias por referencia).
-
+    // El record por defecto compararia FranjasOrdinarias por referencia.
     [Fact]
     public void Equals_RetornaTrue_CuandoFranjasSonInstanciasDeListaDiferentesConMismoContenido()
     {

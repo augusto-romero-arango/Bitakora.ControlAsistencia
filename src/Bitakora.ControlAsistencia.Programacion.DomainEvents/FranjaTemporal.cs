@@ -4,14 +4,11 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Clase abstracta base para todas las franjas temporales de un turno.
-// Encapsula estado interno y expone solo comportamiento.
-// ADR-0015: sealed class con factory static, constructor privado, campos readonly.
 public abstract class FranjaTemporal
 {
     private const int MinutosPorHora = 60;
 
-    // protected: FranjaOrdinaria la usa para su propio tope de 24 horas (Issue #598 CA-4/CA-5).
+    // protected: FranjaOrdinaria la usa para su propio tope de 24 horas.
     protected const int MinutosPorDia = 1440;
 
     private static readonly ResourceManager ResourceManager = new(
@@ -36,7 +33,6 @@ public abstract class FranjaTemporal
             ResourceManager.GetString(nameof(LabelExtra))!;
     }
 
-    // Estado interno - solo las subclases lo ven para calculos
     protected readonly TimeOnly _horaInicio;
     protected readonly TimeOnly _horaFin;
     protected readonly int _diaOffsetInicio;
@@ -55,33 +51,26 @@ public abstract class FranjaTemporal
     protected FranjaTemporal() { }
 
     // Minutos absolutos desde el dia base, considerando offset.
-    // Dato intermedio de la aritmetica temporal: nadie fuera de esta clase lo lee (MEF-ADR-0012).
     private int MinutosAbsolutoInicio => CalcularMinutosAbsolutos(_horaInicio, _diaOffsetInicio);
     private int MinutosAbsolutoFin => CalcularMinutosAbsolutos(_horaFin, _diaOffsetFin);
 
-    // CA-10, CA-11: calculo de duracion en minutos considerando offsets
     public int DuracionEnMinutos() => MinutosAbsolutoFin - MinutosAbsolutoInicio;
 
-    // CA-12: conversor a horas decimales
     public decimal DuracionEnHorasDecimales() => DuracionEnMinutos() / (decimal)MinutosPorHora;
 
-    // Issue #285: la franja responde estas dos preguntas en vez de exponer los insumos del
-    // calculo (MEF-ADR-0012). internal y no public: expresan la regla de FranjaOrdinaria sobre
-    // sus hijas, no la superficie publica del evento.
-
-    // Extremos coincidentes SI cuentan como contenida (CA-14 a CA-16 de #3)
+    // EstaContenidaEn y SeSolapaCon son internal y no public: expresan la regla de FranjaOrdinaria sobre
+    // sus hijas, no la superficie publica del evento. Extremos coincidentes SI cuentan como contenida.
     internal bool EstaContenidaEn(FranjaTemporal contenedor) =>
         MinutosAbsolutoInicio >= contenedor.MinutosAbsolutoInicio
         && MinutosAbsolutoFin <= contenedor.MinutosAbsolutoFin;
 
-    // Fin exclusivo: dos franjas contiguas NO se solapan (CA-18 de #3). Simetrico.
+    // Fin exclusivo: dos franjas contiguas NO se solapan. Simetrico.
     internal bool SeSolapaCon(FranjaTemporal otra) =>
         MinutosAbsolutoInicio < otra.MinutosAbsolutoFin
         && otra.MinutosAbsolutoInicio < MinutosAbsolutoFin;
 
-    // Publica en la base: la usan FranjaOrdinaria (localizar la contenedora) y SubFranja
-    // (localizar la hija) desde el ensamblado del Function App, sin abrir _horaInicio
-    // (MEF-ADR-0012).
+    // Publica: FranjaOrdinaria y SubFranja la usan desde el ensamblado del Function App sin abrir
+    // _horaInicio (MEF-ADR-0012).
     public bool EmpiezaA(TimeOnly horaInicio) => _horaInicio == horaInicio;
 
     // Formato legible con offset: "06:00-12:00" o "22:00-06:00+1"
@@ -93,7 +82,6 @@ public abstract class FranjaTemporal
     private static int CalcularMinutosAbsolutos(TimeOnly hora, int diaOffset) =>
         hora.Hour * MinutosPorHora + hora.Minute + diaOffset * MinutosPorDia;
 
-    // Helper para que las subclases registren campos comunes de serializacion
     protected static void RegistrarCampo(
         JsonTypeInfo typeInfo, string nombreCampo, string nombreJson, Type tipoCampo, Type tipoClase)
     {

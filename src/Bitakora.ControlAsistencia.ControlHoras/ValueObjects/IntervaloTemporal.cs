@@ -3,13 +3,7 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
-// Issue #112: Rango temporal entre dos MomentoDelDia.
-// Tiene invariante Inicio < Fin => sealed partial class con factory static (ADR-0015).
-// Issue #143: Alinear con ADR-0015 - campos readonly privados + ConfigurarSerializacion,
-// eliminando [JsonConstructor] que no funciona con Marten (ver ADR-0015 lineas 227-230).
-// PR #148 (review): aplicar Tell-don't-Ask. Los momentos de inicio y fin viven como
-// detalle interno; la API publica expone solo comportamiento (DuracionEnMinutos,
-// ResolverA, ToString, Partir, igualdad por valor).
+// Invariante Inicio < Fin. Los extremos son detalle interno: la API publica expone solo comportamiento.
 public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>, IComparable<IntervaloTemporal>
 {
     private const int MinutosPorHora = 60;
@@ -17,20 +11,16 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>, I
     private readonly MomentoDelDia _inicio = null!;
     private readonly MomentoDelDia _fin = null!;
 
-    // Ctor privado parametrizado: usado por los factories.
-    // Sin [JsonConstructor] - Marten no respeta ese atributo en ctors privados (ADR-0015).
+    // Sin [JsonConstructor]: Marten no respeta ese atributo en ctors privados.
     private IntervaloTemporal(MomentoDelDia inicio, MomentoDelDia fin)
     {
         _inicio = inicio;
         _fin = fin;
     }
 
-    // Ctor privado vacio: SOLO para STJ/Marten via typeInfo.CreateObject.
-    // Nunca llamar desde el dominio - los campos quedan null hasta que ConfigurarSerializacion
-    // los asigne via FieldInfo.SetValue.
+    // Solo para STJ/Marten: los campos quedan null hasta que ConfigurarSerializacion los asigne.
     private IntervaloTemporal() { }
 
-    // Factory con invariante: Inicio < Fin; lanza ArgumentException si se viola.
     public static IntervaloTemporal Crear(MomentoDelDia inicio, MomentoDelDia fin)
     {
         if (inicio.CompareTo(fin) >= 0)
@@ -38,13 +28,9 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>, I
         return new IntervaloTemporal(inicio, fin);
     }
 
-    // Issue #143: Construye desde DateTimes anclados a una fecha ancla.
-    // Usa MomentoDelDia.Desde internamente para calcular DiaOffset.
     public static IntervaloTemporal Desde(DateTime inicio, DateTime fin, DateOnly fechaAncla) =>
         Crear(MomentoDelDia.Desde(inicio, fechaAncla), MomentoDelDia.Desde(fin, fechaAncla));
 
-    // Issue #143: Parte el intervalo en un punto intermedio.
-    // Rechaza minutosDesdeInicio <= 0 || minutosDesdeInicio >= DuracionEnMinutos.
     public (IntervaloTemporal izquierdo, IntervaloTemporal derecho) Partir(int minutosDesdeInicio)
     {
         if (minutosDesdeInicio <= 0 || minutosDesdeInicio >= DuracionEnMinutos)
@@ -58,9 +44,7 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>, I
 
     public decimal DuracionEnHorasDecimales => DuracionEnMinutos / (decimal)MinutosPorHora;
 
-    // Issue #115: corta el intervalo en cada ocurrencia diaria de las fronteras dadas
-    // (exclusivo de los extremos). Operacion geometrica pura - el caller decide que
-    // fronteras pasar.
+    // Corta en cada ocurrencia diaria de las fronteras dadas, sin incluir los extremos.
     public IReadOnlyList<IntervaloTemporal> Segmentar(IEnumerable<TimeOnly> fronterasDiarias)
     {
         var inicioMin = _inicio.MinutosAbsolutos;
@@ -101,10 +85,7 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>, I
         return _inicio.Equals(other._inicio) && _fin.Equals(other._fin);
     }
 
-    // Issue #116: orden cronologico natural por inicio y, a igualdad de inicio, por fin.
-    // Permite ordenar intervalos de distintas franjas sin exponer los momentos internos
-    // (Tell-don't-Ask): el consumidor pide la comparacion, no los extremos. Delega en
-    // MomentoDelDia.CompareTo, que ordena por MinutosAbsolutos.
+    // Orden cronologico por inicio y, a igualdad de inicio, por fin.
     public int CompareTo(IntervaloTemporal? other)
     {
         if (other is null) return 1;
@@ -116,9 +97,8 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>, I
 
     public override int GetHashCode() => HashCode.Combine(_inicio, _fin);
 
-    // Issue #143: Registro en el resolver de Marten (ADR-0015).
-    // Debe llamarse desde ConfiguracionSerializacionControlHoras.ConfigurarResolver.
-    // Sin este registro, Marten no puede deserializar IntervaloTemporal (ctor privado + readonly fields).
+    // Lo invoca ConfiguracionSerializacionCalculoHoras. Sin este registro, Marten no puede
+    // deserializar IntervaloTemporal (ctor privado + campos readonly).
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var fInicio = typeof(IntervaloTemporal)
@@ -135,9 +115,8 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>, I
 
             typeInfo.CreateObject = () => (IntervaloTemporal)ctor.Invoke(null);
 
-            // Sin propiedades publicas Inicio/Fin que STJ pueda auto-detectar,
-            // registramos manualmente las propiedades JSON sobre los campos privados.
-            // El JSON producido conserva la forma {"Inicio":{...},"Fin":{...}}.
+            // Sin propiedades publicas que STJ detecte: se registran a mano sobre los campos
+            // privados, con la forma JSON {"Inicio":{...},"Fin":{...}}.
             var pInicio = typeInfo.CreateJsonPropertyInfo(typeof(MomentoDelDia), "Inicio");
             pInicio.Get = obj => fInicio.GetValue(obj)!;
             pInicio.Set = (obj, val) => fInicio.SetValue(obj, val);

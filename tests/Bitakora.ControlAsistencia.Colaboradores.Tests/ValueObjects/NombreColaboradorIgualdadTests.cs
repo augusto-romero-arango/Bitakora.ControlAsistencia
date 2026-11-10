@@ -1,11 +1,7 @@
-// HU-348: Igualdad por valor de NombreColaborador (CA-5).
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ValueObjects;
 
-/// <summary>
-/// Hereda los 8 tests de IgualdadTestBase que verifican el contrato IEquatable completo.
-/// </summary>
 public class NombreColaboradorIgualdadTests : IgualdadTestBase<NombreColaborador>
 {
     protected override NombreColaborador CrearInstancia() =>

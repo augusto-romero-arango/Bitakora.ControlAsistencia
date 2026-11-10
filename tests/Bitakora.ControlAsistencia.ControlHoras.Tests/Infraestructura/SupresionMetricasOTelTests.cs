@@ -1,19 +1,14 @@
-// Issue #515: UseAzureMonitorExporter() activa el pipeline de metricas automaticamente (verificado
-// descompilando Azure.Monitor.OpenTelemetry.Exporter 1.8.1,
-// OpenTelemetryBuilderExtensions.UseAzureMonitorExporter: llama WithMetrics(WithTracing(...))
-// internamente aunque el proyecto solo invoque .WithTracing(...)), y eso es lo que produce las
-// ~76.000 metricas/dia medidas por app (CA-ADR-0009, actualizacion del episodio de
-// ingestion-warning). Decision de producto: recortar TODO, no una familia puntual.
+// UseAzureMonitorExporter() activa el pipeline de metricas aunque solo se invoque .WithTracing(...)
+// (verificado descompilando Azure.Monitor.OpenTelemetry.Exporter 1.8.1), y eso producia ~76.000
+// metricas/dia por app (CA-ADR-0009). Decision de producto: recortar TODO, no una familia puntual.
 //
-// El guardrail no asume el mecanismo de supresion (AddView wildcard, o cualquier otro): verifica el
-// efecto observable -- que NINGUNA metrica, ni siquiera una arbitraria que nadie anticipo, llega al
-// exporter -- sumando al contenedor real un ConfigureOpenTelemetryMeterProvider adicional (se
-// acumulan, no se pisan) con un InMemoryExporter como segundo reader, sin red ni Azure Monitor.
+// El guardrail verifica el efecto, no el mecanismo: ninguna metrica, ni una arbitraria, llega a un
+// InMemoryExporter agregado como segundo reader (los ConfigureOpenTelemetryMeterProvider se acumulan,
+// no se pisan), sin red ni Azure Monitor.
 //
-// El Meter de prueba se registra EXPLICITAMENTE via AddMeter porque el MeterProviderBuilder solo
-// escucha los meters suscritos: sin esa linea el test pasaria en verde aun sin supresion alguna. Se
-// usa un meter propio, y no los reales del runtime, para no acoplar el guardrail a nombres que .NET
-// puede renombrar entre versiones (dotnet.gc.*, kestrel.*, etc. -- ver CA-ADR-0009).
+// El Meter de prueba se registra EXPLICITAMENTE con AddMeter: el MeterProviderBuilder solo escucha los
+// meters suscritos y sin esa linea el test pasaria en verde aun sin supresion. Es un meter propio para
+// no acoplar el guardrail a nombres del runtime que .NET puede renombrar entre versiones.
 
 using System.Diagnostics.Metrics;
 using AwesomeAssertions;
@@ -67,8 +62,7 @@ public class SupresionMetricasOTelTests
         metricasExportadas.Should().BeEmpty();
     }
 
-    // CA-3: la supresion de metricas no debe tocar el tracing (Capa 2, CA-ADR-0009) como efecto
-    // colateral -- el TracerProvider sigue siendo parte del mismo seam de observabilidad.
+    // La supresion de metricas no debe tocar el tracing (Capa 2, CA-ADR-0009).
     [Fact]
     public void AgregarServiciosControlHoras_ConservaElTracerProviderDelContenedor()
     {

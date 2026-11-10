@@ -1,5 +1,5 @@
-// CA-5: el payload de CancelacionTurnoDiarioSolicitada debe deserializar desde el bus con el
-// serializador por defecto del consumidor -- sin resolver custom (MEF-ADR-0012).
+// El payload debe deserializar desde el bus con el serializador por defecto del consumidor, sin
+// resolver custom (MEF-ADR-0012).
 
 using System.Text.Json;
 using AwesomeAssertions;
@@ -13,7 +13,7 @@ public class CancelacionTurnoDiarioSolicitadaDeserializacionTests
     private static readonly Guid SolicitudId =
         Guid.Parse("019600b0-0000-7000-8000-000000000010");
 
-    // JSON en formato camelCase - exactamente como Wolverine lo serializa al publicar al Service Bus.
+    // Exactamente como Wolverine lo serializa al publicar al Service Bus.
     private const string JsonFormatoWolverine = """
         {
           "solicitudId": "019600b0-0000-7000-8000-000000000010",

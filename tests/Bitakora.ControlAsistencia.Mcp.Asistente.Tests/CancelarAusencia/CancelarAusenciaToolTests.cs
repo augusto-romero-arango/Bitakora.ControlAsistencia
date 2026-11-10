@@ -62,7 +62,7 @@ public class CancelarAusenciaToolTests
             .Select(i => inicio.AddDays(i).ToString("yyyy-MM-dd"))];
     }
 
-    // CA-4: "volvio el 20" sobre una incapacidad 15-24 -> solo 20-24.
+    // "volvio el 20" sobre una incapacidad 15-24 -> solo 20-24.
     [Fact]
     public async Task CancelarAusencia_CancelaSoloLosDiasDelPeriodo_CuandoNoEsCompleta()
     {
@@ -106,8 +106,7 @@ public class CancelarAusenciaToolTests
             .Should().Equal(Rango("2026-09-28", "2026-09-30"));
     }
 
-    // CA-5: completa = true -> una cancelacion por ausencia con todos sus tramos vigentes
-    // (la ausencia de vacaciones tiene un hueco 3-5 de octubre ya cancelado).
+    // La ausencia de vacaciones tiene un hueco 3-5 de octubre ya cancelado.
     [Fact]
     public async Task CancelarAusencia_CancelaCadaAusenciaEnteraConSusTramosVigentes_CuandoEsCompleta()
     {
@@ -128,7 +127,6 @@ public class CancelarAusenciaToolTests
             .GetValue<int>().Should().Be(9);
     }
 
-    // CA-6
     [Fact]
     public async Task CancelarAusencia_ExplicaYNoCancela_CuandoNoHayAusenciasEnElPeriodo()
     {

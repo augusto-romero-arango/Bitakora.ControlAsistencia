@@ -61,10 +61,8 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres, S
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-8: primer paso del diseno de turno por pasos -- crear el turno vacio y agregarle una
-    // franja ordinaria con sede prearmada. franja_agregada no cruza ningun bus: mt_events es la
-    // unica ventana black-box a lo que quedo grabado. El segundo POST con una franja que se
-    // solapa (23:00-01:00 cae dentro de 22:00-06:00+1) cierra la regla de negocio -> 409.
+    // franja_agregada no cruza ningun bus: mt_events es la unica ventana black-box a lo que quedo
+    // grabado. El segundo POST se solapa (23:00-01:00 cae dentro de 22:00-06:00+1) -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_DebeRetornar204YPersistirLaFranja_CuandoElTurnoEstaVacio()
@@ -131,7 +129,6 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres, S
         franja.DiaOffsetFin.Should().Be(0);
     }
 
-    // CA-5: turno inexistente -> 404 (KeyNotFoundException, patron de RetirarTurnoFunction).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_DebeRetornar404_CuandoElTurnoNoExiste()
@@ -145,7 +142,7 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres, S
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-4: precedencia retirado > descanso > solape -- un turno retirado rechaza la franja aunque
+    // Precedencia retirado > descanso > solape -- un turno retirado rechaza la franja aunque
     // no tenga ninguna otra que se solape.
     [Fact]
     [Trait("Category", "Smoke")]
@@ -162,7 +159,6 @@ public class AgregarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres, S
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-4: un descanso rechaza la primera franja ordinaria.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarFranja_DebeRetornar409_CuandoElTurnoEsDescanso()

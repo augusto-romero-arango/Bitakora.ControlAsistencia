@@ -1,5 +1,3 @@
-// Issue #114: Tests de round-trip JSON para IntervaloClasificado con opciones reales de Marten.
-// CA-7: round-trip usando ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten().
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;

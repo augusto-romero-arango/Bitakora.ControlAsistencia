@@ -5,9 +5,7 @@ using ModelContextProtocol.Protocol;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.QuitarSubFranja;
 
 // La invocacion real de quitar_subfranja sobre una sub-franja existente (MEF-ADR-0048 seccion 6,
-// pieza 3) vive en AgregarSubFranja/AgregarSubFranjaSmokeTests.cs: quitar_subfranja deshace ahi lo
-// que agregar_subfranja acaba de agregar en el mismo turno. Aqui quedan los caminos que no
-// dependen de esa sub-franja ya agregada -- mismo criterio que quitar_franja (#609).
+// pieza 3) vive en AgregarSubFranjaSmokeTests; aqui quedan los caminos que no la necesitan.
 public class QuitarSubFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
     private static string TextoDe(CallToolResult resultado) =>

@@ -63,7 +63,7 @@ public class RepartirDescarteDeResolucionTests : CommandHandlerAsyncTest<Reparti
             ResolucionDeAmbiguedadDescartada.Crear(StreamD, DiaVecino.Vispera));
     }
 
-    // CA-1: el turno del dia paso a 04:00-12:00; la vispera descarta su mitad y la 04:30 vuelve a ser ambigua.
+    // El turno del dia paso a 04:00-12:00: la vispera descarta su mitad y la 04:30 vuelve a ser ambigua.
     [Fact]
     public async Task RepartirMarcaciones_DescartaLaResolucionDeLaVispera_CuandoElDiaCambioDePlanYSigueAmbigua()
     {
@@ -77,7 +77,7 @@ public class RepartirDescarteDeResolucionTests : CommandHandlerAsyncTest<Reparti
         And<ControlDiarioAggregateRoot, string>(StreamV, PertenenciaDeLas0430, "Ambigua");
     }
 
-    // CA-2: el turno del dia paso a 08:00-16:00; sin solape, la 04:30 es salida de la vispera.
+    // El turno del dia paso a 08:00-16:00: sin solape, la 04:30 es salida de la vispera.
     [Fact]
     public async Task RepartirMarcaciones_DescartaLaResolucionDeLaVispera_CuandoElDiaCambioDePlanYYaNoHaySolape()
     {
@@ -91,8 +91,6 @@ public class RepartirDescarteDeResolucionTests : CommandHandlerAsyncTest<Reparti
         And<ControlDiarioAggregateRoot, string>(StreamV, PertenenciaDeLas0430, "DelTurno");
     }
 
-    // CA-5: el dia tiene resolucion con la vispera y con el dia siguiente; la vispera ya la descarto,
-    // asi que solo se descarta el par con la vispera.
     [Fact]
     public async Task RepartirMarcaciones_DescartaSoloElParConLaVispera_CuandoElDiaTambienResolvioConElSiguiente()
     {

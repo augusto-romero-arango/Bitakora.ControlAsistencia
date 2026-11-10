@@ -7,9 +7,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.ObtenerTurno;
 
 public class ObtenerTurnoSmokeTests(McpFixture mcp)
 {
-    // CA-5 (issue #612): tool call real ampliada -- toma el primer id de listar_turnos y confirma
-    // que completo viaja como bool y que ninguna franja usa la vieja notacion "(+1)" (CA-3). Los
-    // datos son los reales de dev, asi que se afirma la forma y la consistencia, no valores puntuales.
+    // Datos reales de dev: se afirma la forma y la consistencia, no valores puntuales.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerTurno_DevuelveCompletoYNotacionUnificada_CuandoSeConsultaElPrimerIdDelListado()

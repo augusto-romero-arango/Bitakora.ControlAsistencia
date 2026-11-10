@@ -7,25 +7,12 @@ using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.ObtenerTurnoVigente;
 
-// El arrange va por el bus interno (ProgramacionTurnoEnFechasSolicitada al topic de entrada), nunca
-// sembrando el event store por fuera de el. El CI de PR no ejecuta esta suite (solo corre *.Tests);
-// su veredicto real se lee tras el deploy.
-//
-// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa TurnoVigente DESPUES de que
-// ControlHoras persiste turno_diario_asignado, asi que el caso de exito envuelve la consulta en
-// Polling.WaitUntilAsync -- unica excepcion al "no usar Polling directo en tests": agotar el
-// timeout es un fallo real (worker no desplegado o proyeccion sin registrar en el named store),
-// nunca un skip.
-//
-// Formas locales DESACOPLADAS del read model de produccion: el smoke test no referencia ReadModels
-// (isla, MEF-ADR-0034 seccion 5) ni el Function App. TipoBloqueSmoke replica el ORDEN de valores
-// del enum de produccion porque STJ lo serializa como el entero subyacente (ComposicionServicios no
-// registra JsonStringEnumConverter para las respuestas HTTP) -- si produccion reordenara TipoBloque,
-// la comparacion falla y delata el cambio de contrato.
-//
-// Las reglas de negocio de la proyeccion (reasignacion, mapeo de descansos/extras) las cubre el
-// unit test de TurnoVigenteProjection; aqui solo interesa que el endpoint desplegado responda con
-// la vista materializada.
+// Arrange via el bus interno (ProgramacionTurnoEnFechasSolicitada), nunca sembrando el event store por fuera.
+// La proyeccion es Async: el caso de exito va en Polling (unica excepcion al "no usar Polling directo") y
+// agotar el timeout es un fallo real, no un skip.
+// TipoBloqueSmoke replica el ORDEN del enum de produccion porque STJ lo serializa como entero (las
+// respuestas HTTP no registran JsonStringEnumConverter).
+// Las reglas de la proyeccion las cubre el unit test de TurnoVigenteProjection.
 public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture serviceBus)
 {
     private readonly HttpClient _client = api.Client;
@@ -37,9 +24,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Case-insensitive: la respuesta viaja en camelCase (ComposicionServicios configura
-    // JsonNamingPolicy.CamelCase para las respuestas HTTP), mientras que las formas locales de este
-    // archivo son PascalCase.
+    // La respuesta viaja en camelCase y las formas locales son PascalCase.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -66,8 +51,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
     private static string Ruta(string codigoColaborador, DateOnly fecha) =>
         $"/api/control-horas/turnos-vigentes/{codigoColaborador}/{fecha:yyyy-MM-dd}";
 
-    // Mismo formato que ControlDiarioAggregateRoot.ComputarStreamId, reconstruido localmente:
-    // el smoke test no referencia el Function App (ControlHoras.Entities).
+    // En sync con ControlDiarioAggregateRoot.ComputarStreamId; el smoke no referencia el Function App.
     private static string ComputarStreamId(string codigoColaborador, DateOnly fecha) =>
         $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
 
@@ -89,7 +73,6 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
 
         var ct = TestContext.Current.CancellationToken;
 
-        // Arrange: identificadores unicos por ejecucion y fecha fija (nunca DateTime.UtcNow).
         var solicitudId = Guid.CreateVersion7();
         var codigoColaborador = Guid.CreateVersion7().ToString();
         var fecha = new DateOnly(2026, 4, 9);
@@ -120,11 +103,8 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
             }
         };
 
-        // Act: publicar al bus interno -- ControlHoras persiste TurnoDiarioAsignado y el worker de
-        // proyecciones materializa TurnoVigente de forma asincrona.
         await serviceBus.PublishAsync(codigoColaborador, TopicEntrada, evento, solicitudId.ToString());
 
-        // Act + Assert: reintentar el GET hasta que la proyeccion asincrona materialice la vista.
         var ruta = Ruta(codigoColaborador, fecha);
         var respuesta = await Polling.WaitUntilAsync(async () =>
         {
@@ -137,11 +117,7 @@ public class ObtenerTurnoVigenteSmokeTests(ApiFixture api, ServiceBusFixture ser
                 JsonOptions, cancellationToken: ct);
         }, Timeout);
 
-        // Sin assert de NotBeNull: WaitUntilAsync devuelve un valor no nulo o lanza TimeoutException
-        // ("el worker no materializo TurnoVigente dentro del timeout"), nunca null.
-
-        // Id como stream key: ancla para comandos/lookups de la UI, no se pinta pero SI viaja en
-        // la respuesta.
+        // Id es la stream key: ancla de la UI para comandos y lookups; no se pinta pero viaja.
         respuesta.Id.Should().Be(ComputarStreamId(codigoColaborador, fecha));
         respuesta.CodigoColaborador.Should().Be(codigoColaborador);
         respuesta.NombreCompleto.Should().Be(NombreCompletoSembrado);

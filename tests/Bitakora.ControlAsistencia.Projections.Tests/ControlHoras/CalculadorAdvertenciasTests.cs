@@ -385,7 +385,7 @@ public class CalculadorAdvertenciasTests
         ]);
     }
 
-    // --- Turno con ventana de entrada (#1229): C = CierreTurnoVispera, V = CierreVentanaEntrada. ---
+    // C = CierreTurnoVispera, V = CierreVentanaEntrada.
 
     private static CasillaDia ConVentana(DateTime? cierreVispera, DateTime? cierreVentana) =>
         new(Lunes, TipoCasilla.Trabajo, "T", 480,

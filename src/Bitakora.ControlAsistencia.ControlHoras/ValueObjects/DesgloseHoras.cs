@@ -1,28 +1,21 @@
-// El modelo rico vive en el dominio; HorasDiscriminadas (payload plano del bus) se referencia
-// explicitamente porque Discriminar() lo produce.
-
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
-// Issue #129: Estructura agregada del desglose del dia completo.
-// Record con constructor primario publico - STJ lo serializa nativamente sin ConfigurarSerializacion (ADR-0015).
+// Constructor primario publico: STJ lo serializa sin ConfigurarSerializacion.
 // FranjasAnomalas: franjas excluidas por falta de entrada o salida.
-// RetardoTotal: consolidado del dia; lo calcula #116 con compensacion cruzada.
+// RetardoTotal: consolidado del dia, con compensacion cruzada entre franjas.
 public record DesgloseHoras(
     IReadOnlyList<DesgloseFranja> DesglosePorFranja,
     Retardo RetardoTotal,
     int FranjasAnomalas)
 {
-    // CA-3: suma elemento a elemento de MinutosPorConcepto de cada DesgloseFranja.
     public IReadOnlyDictionary<Concepto, int> TotalMinutosPorConcepto =>
         DesglosePorFranja
             .SelectMany(f => f.MinutosPorConcepto)
             .GroupBy(kv => kv.Key)
             .ToDictionary(g => g.Key, g => g.Sum(kv => kv.Value));
 
-    // CA-4: lista vacia, RetardoTotal = Retardo.Vacio, FranjasAnomalas = 0.
-    // Usado cuando no hay turno o todas las franjas son anomalas.
     public static readonly DesgloseHoras Vacio = new([], Retardo.Vacio, 0);
 
     // Clave literal del retardo en MinutosPorConcepto. No es un Concepto del calculo de horas (el enum
@@ -30,11 +23,9 @@ public record DesgloseHoras(
     // diccionario plano.
     private const string ClaveRetardo = "Retardo";
 
-    // Tell-don't-Ask: el desglose se discrimina a si mismo, sin exponer sus internos para que un
-    // colaborador externo arme el diccionario. El diccionario solo lleva claves con valor (minutos > 0):
-    // publicar un concepto en cero le daria al consumidor una clave sin significado.
-    // Del modelo rico solo viajan los strings ya traducidos de Trazabilidad (ToString() de
-    // IntervaloTemporal y Retardo): el modelo de dominio rico no cruza el bus (MEF-ADR-0012).
+    // El diccionario solo lleva claves con valor (minutos > 0): un concepto en cero le daria al
+    // consumidor una clave sin significado. Del modelo rico solo viajan los strings ya traducidos de
+    // Trazabilidad: el modelo de dominio rico no cruza el bus (CA-ADR-0025).
     public HorasDiscriminadas Discriminar()
     {
         var horasPorConcepto = TotalMinutosPorConcepto

@@ -1,6 +1,3 @@
-// Issue #114: Tests de contrato IEquatable para IntervaloClasificado.
-// IntervaloClasificado es record - autogenera IEquatable<T>.
-// Hereda los 8 tests de IgualdadTestBase que verifican el contrato completo.
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;

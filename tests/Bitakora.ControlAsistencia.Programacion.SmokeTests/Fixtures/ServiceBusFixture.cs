@@ -54,7 +54,7 @@ public class ServiceBusFixture : IAsyncLifetime
         TimeSpan timeout)
         => (await WaitForMessageConPropiedadesAsync(topicName, subscriptionName, match, timeout)).Mensaje;
 
-    // Issue #700 CA-4: la identidad de tenancy viaja en las ApplicationProperties, no en el body.
+    // La identidad de tenancy viaja en las ApplicationProperties, no en el body.
     public async Task<(T Mensaje, IReadOnlyDictionary<string, object> Propiedades)> WaitForMessageConPropiedadesAsync<T>(
         string topicName,
         string subscriptionName,
@@ -124,9 +124,9 @@ public class ServiceBusFixture : IAsyncLifetime
 
     private const int TamanoPaginaDeadLetter = 100;
 
-    // Issue #223 CA-1: recorre el DLQ completo con peek iterativo (patron oficial de Microsoft Learn,
-    // "message-browsing#maximum-number-of-messages"), en vez del tope fijo anterior de 10 mensajes.
-    // El peek no completa mensajes, asi que iterar el DLQ entero es no destructivo.
+    // Recorre el DLQ completo con peek iterativo (patron de Microsoft Learn,
+    // "message-browsing#maximum-number-of-messages"). El peek no completa mensajes, asi que iterar el
+    // DLQ entero es no destructivo.
     public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekDeadLetterMessagesAsync(
         string topicName,
         string subscriptionName)
@@ -151,10 +151,9 @@ public class ServiceBusFixture : IAsyncLifetime
         return mensajes;
     }
 
-    // Issue #223 CA-2/CA-3: acota el assert a "hay un dead letter de ESTA corrida" en vez de
-    // "el DLQ esta globalmente vacio". T es una forma minima plana del mensaje de bus
-    // que solo declara el identificador de correlacion, sin depender de la deserializacion
-    // custom de los value objects ricos del contrato (ADR-0025).
+    // Acota el assert a "hay un dead letter de ESTA corrida", no a "el DLQ esta globalmente vacio".
+    // T es una forma minima plana del mensaje que solo declara el identificador de correlacion, sin
+    // depender de la deserializacion custom de los value objects ricos del contrato.
     public async Task<bool> ExisteDeadLetterDeEstaCorridaAsync<T>(
         string topicName,
         string subscriptionName,

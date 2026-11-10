@@ -1,17 +1,10 @@
-// HU-114: Crear enum Concepto y value objects primitivos del desglose
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
-/// <summary>
-/// Tests de Concepto - enum de conceptos legales de horas segun legislacion colombiana.
-/// CA-1: tiene exactamente 9 valores.
-/// </summary>
 public class ConceptoTests
 {
-    // ---------- CA-1: exactamente 9 valores ----------
-
     [Fact]
     public void Concepto_TieneExactamenteNueveValores()
     {

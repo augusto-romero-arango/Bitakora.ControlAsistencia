@@ -24,8 +24,7 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
     private const string OtroCodigo = "SEDE-002";
     private const string OtroStreamIdEsperado = "s:SEDE-002";
 
-    // Sin ubicacion previa por defecto (CA-3): los tests que necesitan cross-sede reasignan antes
-    // de WhenAsync, mismo patron que RegistroDeMarcacionCreadoEventHandlerTests.
+    // Sin ubicacion previa por defecto: los tests cross-sede la reasignan antes de WhenAsync.
     private FakeLectorUbicacionDispositivo _lector = new();
 
     protected override ICommandHandlerAsync<InstalarDispositivo> Handler =>
@@ -34,7 +33,7 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
     private static SedeRegistrada CrearSedeRegistrada(string codigo = Codigo) =>
         new(codigo, Nombre, null, null);
 
-    // CA-3: nunca instalado -- sin documento UbicacionDispositivo para este dispositivo.
+    // Nunca instalado: sin documento UbicacionDispositivo.
     [Fact]
     public async Task InstalarDispositivo_EmiteDispositivoInstalado_CuandoSedeExiste()
     {
@@ -46,7 +45,6 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
     }
 
-    // CA-3: dos dispositivos distintos conviven en la misma sede.
     [Fact]
     public async Task InstalarDispositivo_EmiteDispositivoInstalado_CuandoLaSedeYaTieneOtroDispositivo()
     {
@@ -58,9 +56,8 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 2);
     }
 
-    // CA-3: reinstalar un dispositivo previamente retirado de esta sede procede -- el retiro deja
-    // sin documento vigente en UbicacionDispositivo (la vista solo guarda la ubicacion vigente,
-    // sin historial).
+    // El retiro deja sin documento en UbicacionDispositivo: la vista solo guarda la ubicacion
+    // vigente, sin historial.
     [Fact]
     public async Task InstalarDispositivo_EmiteDispositivoInstalado_CuandoElDispositivoFueRetiradoPreviamente()
     {
@@ -76,7 +73,7 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
     }
 
-    // CA-1: la vista ubica al dispositivo en OTRA sede -> 409, sin tocar el aggregate destino.
+    // 409 sin tocar el aggregate destino.
     [Fact]
     public async Task InstalarDispositivo_LanzaReglaDeNegocioDeclinadaException_CuandoDispositivoEstaInstaladoEnOtraSede()
     {
@@ -92,10 +89,8 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
     }
 
-    // Nota tecnica del issue: la validacion cross-sede corre ANTES de cargar el aggregate destino
-    // (rechazo barato) -- el 409 prevalece aunque la sede destino ni siquiera exista en el store.
-    // El And afirma sobre el ORIGEN, no sobre el destino: el destino nunca entra al store en este
-    // escenario y And<> exige un aggregate existente (lanza si GetAggregateRoot devuelve null).
+    // La validacion cross-sede corre ANTES de cargar el aggregate destino. El And afirma sobre el
+    // ORIGEN: el destino nunca entra al store y And<> lanza si el aggregate no existe.
     [Fact]
     public async Task InstalarDispositivo_LanzaReglaDeNegocioDeclinadaException_CuandoDispositivoEstaInstaladoEnOtraSede_AunqueLaSedeDestinoNoExista()
     {
@@ -110,8 +105,7 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
         And<SedeAggregateRoot, int>(OtroStreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
     }
 
-    // CA-2: la vista ya ubica al dispositivo en la MISMA sede destino -> la validacion cross-sede
-    // no interviene, sigue el flujo actual (declina por YaInstalado, sin emitir).
+    // La validacion cross-sede no interviene: declina por YaInstalado, sin emitir.
     [Fact]
     public async Task InstalarDispositivo_LanzaReglaDeNegocioDeclinadaException_CuandoElDispositivoYaEstaInstaladoEnEstaSede()
     {
@@ -126,8 +120,7 @@ public class InstalarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<In
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 1);
     }
 
-    // Precondicion de orquestacion (MEF-ADR-0004 capa 2): sede inexistente -> 404, sin escribir
-    // nada al event store. Sin ubicacion previa del dispositivo.
+    // Precondicion de orquestacion (MEF-ADR-0004 capa 2): 404 sin escribir nada al event store.
     [Fact]
     public async Task InstalarDispositivo_LanzaRecursoNoEncontradoException_CuandoSedeNoExiste()
     {

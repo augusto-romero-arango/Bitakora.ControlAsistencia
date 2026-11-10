@@ -6,10 +6,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Sedes.ActualizarUbicacionSedeFunction;
 
-// PUT que reemplaza completa la ubicacion (Ciudad+Direccion) como valor atomico direccionable por
-// {codigo} (MEF-ADR-0043 paso 2), exito 204. El {codigo} de ruta se valida aqui porque
-// IRequestValidator solo cubre el body (MEF-ADR-0037 seccion 2: un unico chequeo del componente,
-// con 400 explicito).
+// PUT que reemplaza Ciudad y Direccion juntas como valor atomico (MEF-ADR-0043 paso 2).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("ActualizarUbicacionSede")]

@@ -4,11 +4,8 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AsignarSedeFranja;
 
-// Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno, via
-// ResolutorTurnoPorId) + GET sedes/fichas/{codigo} (solo con codigo_sede) + POST
-// programacion/turnos/{id}:asignar-sede-franja (paso 4 MEF-ADR-0043). Sin codigo_sede la tool
-// retira la sede prearmada (body sin la clave sede); el 400/404/409 del POST -- incluido
-// FranjaSinSede al retirar sin sede -- se traduce a texto, nunca a excepcion (CA-ADR-0030).
+// Sin codigo_sede la tool retira la sede prearmada (body sin la clave sede); el rechazo
+// FranjaSinSede al retirar una franja sin sede vuelve como texto, como cualquier otro.
 public partial class AsignarSedeFranjaTool(
     ProgramacionApi programacion, ResolutorTurnoPorId resolutor, ResolutorSedePorCodigo resolutorSedes)
 {
@@ -78,9 +75,8 @@ public partial class AsignarSedeFranjaTool(
 }
 
 /// <summary>
-/// Eco compacto de asignar_sede_franja hacia el asistente: el 202 del dominio no trae body, asi
-/// que el resultado se compone con lo que se envio a la tool. Sede viaja null al retirar y
-/// RespuestaJson la omite del JSON (DefaultIgnoreCondition.WhenWritingNull) -- CA-2 exige que el
-/// eco no traiga esa clave.
+/// Eco compacto de asignar_sede_franja: la respuesta del dominio no trae body, asi que el
+/// resultado se compone con lo que se envio a la tool. Sede viaja null al retirar y RespuestaJson
+/// la omite del JSON (WhenWritingNull): el eco no debe traer esa clave.
 /// </summary>
 public sealed record SedeDeFranjaResumen(string Resultado, string Turno, string Franja, string? Sede, string Nota);

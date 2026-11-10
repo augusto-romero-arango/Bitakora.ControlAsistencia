@@ -5,9 +5,8 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction.CommandHandler;
 
-// Mismo mecanismo "declinar con resultado" (CA-ADR-0030) que QuitarFranjaCommandHandler: el
-// aggregate resuelve ConSede/TieneSedePrearmada; la ArgumentException de sede incompleta la deja
-// subir FranjaOrdinaria.Crear (via ConSede), no este handler.
+// La ArgumentException de sede incompleta la lanza FranjaOrdinaria.Crear (via ConSede), no este
+// handler; el aggregate solo declina con resultado (CA-ADR-0030).
 public partial class AsignarSedeAFranjaCommandHandler : ICommandHandlerAsync<AsignarSedeAFranja>
 {
     private readonly IEventStore _eventStore;

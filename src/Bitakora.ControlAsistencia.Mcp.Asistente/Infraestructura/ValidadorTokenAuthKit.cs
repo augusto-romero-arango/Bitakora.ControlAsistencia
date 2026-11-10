@@ -14,18 +14,15 @@ public interface IValidadorTokenAuthKit
 }
 
 /// <summary>
-/// Validador de token de defensa en profundidad (MEF-ADR-0047 decision 7): nunca el gate primario
-/// -- ese vive en la politica dedicada de APIM (MEF-ADR-0032 seccion 9). ValidateAudience = false
-/// porque la audiencia ya la exige esa politica antes de que el request llegue a este worker.
-/// Authority = dominio AuthKit del entorno (MEF-ADR-0032 B12), nunca el issuer de login
-/// user_management/{client_id} -- re-verificar contra el discovery doc en vivo por consumidor.
+/// Defensa en profundidad, nunca el gate primario: ese es la politica de APIM (MEF-ADR-0032 seccion 9),
+/// que ya exige la audiencia; por eso ValidateAudience = false. Authority = dominio AuthKit del entorno,
+/// nunca el issuer de login user_management/{client_id} (re-verificar contra el discovery doc en vivo).
 /// </summary>
 public sealed class ValidadorTokenAuthKit(IConfigurationManager<OpenIdConnectConfiguration>? configManager)
     : IValidadorTokenAuthKit
 {
-    // Sin authorization server resoluble -- app setting ausente, o todavia el placeholder que el
-    // Terraform siembra hasta que existe el API de APIM del servidor -- el validador degrada a
-    // "todo token es invalido", nunca a una excepcion de arranque (MEF-ADR-0047 decision 7).
+    // Sin authorization server resoluble (app setting ausente o aun el placeholder que siembra Terraform)
+    // el validador degrada a "todo token es invalido", nunca a una excepcion de arranque.
     public static ValidadorTokenAuthKit ParaAuthorizationServer(string? authorizationServer) =>
         Uri.TryCreate(authorizationServer, UriKind.Absolute, out var autoridad)
             ? new ValidadorTokenAuthKit(new ConfigurationManager<OpenIdConnectConfiguration>(
@@ -33,9 +30,8 @@ public sealed class ValidadorTokenAuthKit(IConfigurationManager<OpenIdConnectCon
                 new OpenIdConnectConfigurationRetriever()))
             : new ValidadorTokenAuthKit(configManager: null);
 
-    // MapInboundClaims=false: sin esto, el handler traduce "sub" al URI largo de
-    // ClaimTypes.NameIdentifier (mapeo heredado de WS-Federation) antes de que el derivador (issue
-    // #572) pueda leerlo.
+    // MapInboundClaims=false: sin esto el handler traduce "sub" al URI largo de
+    // ClaimTypes.NameIdentifier antes de que el derivador pueda leerlo.
     private static readonly JwtSecurityTokenHandler Handler = new() { MapInboundClaims = false };
 
     public async Task<bool> EsValidoAsync(string token, CancellationToken ct) =>
@@ -63,9 +59,7 @@ public sealed class ValidadorTokenAuthKit(IConfigurationManager<OpenIdConnectCon
         }
         catch (Exception)
         {
-            // Defensa en profundidad: cualquier fallo (token malformado, discovery doc no
-            // alcanzable, firma invalida) se trata como "no valido", nunca propaga -- este
-            // validador jamas debe tumbar el pipeline (MEF-ADR-0047 decision 7).
+            // Cualquier fallo es "no valido" y nunca propaga: este validador jamas debe tumbar el pipeline.
             return null;
         }
     }

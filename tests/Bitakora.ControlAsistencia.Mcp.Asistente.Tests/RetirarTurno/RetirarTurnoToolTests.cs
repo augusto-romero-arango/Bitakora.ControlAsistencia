@@ -39,7 +39,6 @@ public class RetirarTurnoToolTests
     private static Task<string> Ejecutar(Fakes fakes, string turnoId = TurnoIdCocinaManana) =>
         fakes.Tool.Run(context: null!, turnoId: turnoId, ct: TestContext.Current.CancellationToken);
 
-    // CA-4: lee el detalle por id, envia el DELETE a ese id y el eco conserva el nombre leido.
     [Fact]
     public async Task RetirarTurno_EnviaElDeleteAlIdYEcoConElNombreDelDetalle_CuandoElTurnoExiste()
     {
@@ -57,7 +56,6 @@ public class RetirarTurnoToolTests
         json["nota"]!.GetValue<string>().Should().Be(RetirarTurnoTool.Mensajes.NotaVisibilidadEventual);
     }
 
-    // CA-5: nunca llama al catalogo completo.
     [Fact]
     public async Task RetirarTurno_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
     {
@@ -71,7 +69,6 @@ public class RetirarTurnoToolTests
             r.Metodo == HttpMethod.Get && r.Ruta == DetalleDeTurnoFalso.RutaCatalogo);
     }
 
-    // CA-3: detalle 404 -> frase con el id que remite a buscar_turnos, sin DELETE.
     [Fact]
     public async Task RetirarTurno_RespondeTurnoNoExisteSinDelete_Cuando404EnElDetalle()
     {
@@ -84,7 +81,6 @@ public class RetirarTurnoToolTests
         fakes.Handler.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Delete);
     }
 
-    // CA-2: turno_id que no es GUID -> mensaje del .resx con el valor, sin backend.
     [Fact]
     public async Task RetirarTurno_RechazaSinLlamarAlBackend_CuandoTurnoIdNoEsUnGuid()
     {

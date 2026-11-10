@@ -1,23 +1,10 @@
-// Issue #221: guardrail de CI que compone el contenedor DI real del dominio (el mismo metodo que
-// invoca Program.cs, ver ComposicionServicios.AgregarServiciosProgramacion) y valida que el grafo
-// completo es resoluble, sin infra desplegada (connection strings dummy).
+// Compone el contenedor DI real del dominio (el mismo metodo que invoca Program.cs) sin infra
+// desplegada: ni el build ni los demas tests unitarios construyen el grafo, y un registro faltante
+// solo se veria despues del deploy (HTTP 500 en toda funcion).
 //
-// Root cause que cierra este guardrail (issue #219): el upgrade de Cosmos.Event* 0.1.9 -> 2.1.0
-// (issue #207) dejo de auto-registrar un ITenantContext, y ni "dotnet build" ni los tests
-// unitarios existentes construyen el grafo de DI del host, asi que el hueco solo se detecto
-// DESPUES del deploy, en los smoke tests contra dev (HTTP 500 en toda funcion).
-//
-// Programacion no registra IPrivateEventRouter ni IQueryRouter hoy (ver Notas tecnicas del
-// issue #221): solo se resuelve explicitamente ICommandRouter, el unico router critico
-// efectivamente registrado en este dominio.
-//
-// Issue #232 (MEF-ADR-0034 seccion 7): Marten deja deshabilitadas por defecto las tres columnas
-// de metadata de evento (CorrelationId/CausationId/Headers) -- sin opt-in explicito la columna ni
-// siquiera se crea en la tabla de eventos. Este test verifica el opt-in sobre el IDocumentStore
-// resuelto del contenedor real (sin Postgres: el DocumentStore no abre conexion en bootstrap,
-// solo en la primera operacion real -- Marten 7+). La cadena de lectura es de solo lectura y sin
-// downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
-// -> MetadataConfig (IReadonlyMetadataConfig).
+// Marten deshabilita por defecto las columnas de metadata de evento (CorrelationId/CausationId/
+// Headers); sin opt-in la columna ni se crea. Se verifica sin Postgres porque el DocumentStore no
+// abre conexion hasta la primera operacion (Marten 7+).
 
 using System.Text;
 using AwesomeAssertions;
@@ -112,7 +99,7 @@ public class ComposicionServiciosTests
         metadataConfig.HeadersEnabled.Should().BeTrue();
     }
 
-    // Issue #232 CA-5: las tres banderas de metadata comparten el mismo callback ConfigureMarten que
+    // Las tres banderas de metadata comparten el mismo callback ConfigureMarten que
     // registra el resolver de serializacion custom, asi que un edit futuro de ese bloque puede tumbar
     // la serializacion sin que el test de metadata se ponga rojo. Los round-trip existentes
     // (TurnoCreadoSerializacionTests) NO cubren este riesgo: replican las opciones de Marten a mano
@@ -135,11 +122,10 @@ public class ComposicionServiciosTests
         restaurado.ToString().Should().Be(original.ToString());
     }
 
-    // Issue #277 CA-2/CA-4: el #237 movio los eventos persistidos a este ensamblado (namespace y
-    // assembly nuevos) sin registrar su tipo en el EventGraph. Toda lectura quedo dependiendo del
-    // fallback por mt_dotnet_type -- roto para el nuevo namespace -- en vez de resolver por alias
-    // (columna "type" de mt_events). Este guardrail detecta el olvido sobre el store real que
-    // compone el contenedor (mismo store que ya usan las guardas de arriba), sin Postgres.
+    // Sin registrar los tipos en el EventGraph, toda lectura depende del fallback por mt_dotnet_type
+    // (roto si el evento cambia de namespace o assembly) en vez de resolver por alias (columna "type"
+    // de mt_events). Este guardrail detecta el olvido sobre el store real que compone el contenedor,
+    // sin Postgres.
     //
     // Los tipos esperados se listan literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
     // IdentidadEventosProgramacion.TiposPersistidos acoplaria el guardrail al mismo artefacto que
@@ -162,7 +148,7 @@ public class ComposicionServiciosTests
              typeof(AdvertenciasDePlantillaDeTurnosCalculadas)]);
     }
 
-    // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las
+    // Registrar el tipo solo sirve si el alias sigue siendo el que las
     // filas ya escritas llevan en su columna "type". AliasEventosProgramacionTests lo congela sobre
     // un StoreOptions standalone; esta guarda lo congela sobre el store del contenedor, el unico
     // lugar donde un MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
@@ -389,26 +375,18 @@ public class ComposicionServiciosTests
         asegurador.Should().BeOfType<AseguradorJornadaPredeterminada>();
     }
 
-    // --- Issue #309: apagar la recoleccion de metricas de durabilidad de Wolverine (CA-2, CA-3) ---
-    //
-    // Mismo wiring que ControlHoras (AgregarWolverineParaComandosServerless): Programacion no emite
-    // telemetria hoy (no llama UseAzureMonitorExporter, issue #308) y ademas esta frio, asi que el
-    // polling de FetchCountsAsync no aparece en Application Insights -- pero corre igual cada 5s y
-    // carga Postgres. El issue #309 alcanza a los DOS Function Apps para que el dominio no quede con
-    // la regresion latente esperando a que se instrumente.
+    // Metricas de durabilidad de Wolverine apagadas: aunque no aparezca en Application Insights, el
+    // polling de FetchCountsAsync corre cada 5s y carga Postgres. Mismo wiring que ControlHoras.
     //
     // Se resuelve WolverineOptions del CONTENEDOR REAL (no un DurabilitySettings construido a mano):
-    // el gotcha de wiring verificado en el issue es de ORDEN -- dentro de
-    // AgregarWolverineParaComandosServerless el callback del consumidor corre PRIMERO y
-    // options.Durability.Mode = Solo se asigna DESPUES, pisando cualquier intento de tocar Mode
-    // desde el callback, pero NO pisa DurabilityMetricsEnabled. Ver el guardrail hermano en
-    // ControlHoras.Tests para el detalle completo de FetchCountsAsync/PersistenceMetrics.
+    // el gotcha de wiring es de ORDEN -- dentro de AgregarWolverineParaComandosServerless el callback
+    // del consumidor corre PRIMERO y options.Durability.Mode = Solo se asigna DESPUES, pisando
+    // cualquier intento de tocar Mode desde el callback, pero NO pisa DurabilityMetricsEnabled. Ver el
+    // guardrail hermano en ControlHoras.Tests para el detalle de FetchCountsAsync/PersistenceMetrics.
     //
-    // El provider se libera con await using porque WolverineOptions se registra Singleton via
-    // factory-lambda -- el contenedor lo trackea para disposal -- y solo implementa IAsyncDisposable:
-    // el Dispose() sincrono del provider raiz lanzaria InvalidOperationException al encontrarlo entre
-    // sus disposables. Mismo motivo por el que los tests de ICommandRouter/IPrivateEventRouter de
-    // este archivo usan await using.
+    // await using: WolverineOptions se registra Singleton via factory-lambda y solo implementa
+    // IAsyncDisposable, asi que el Dispose() sincrono del provider raiz lanzaria
+    // InvalidOperationException al encontrarlo entre sus disposables.
     [Fact]
     public async Task AgregarServiciosProgramacion_ApagaLaRecoleccionDeMetricasDeDurabilidad_CuandoElContenedorEstaCompuesto()
     {
@@ -419,11 +397,11 @@ public class ComposicionServiciosTests
         opciones.Durability.DurabilityMetricsEnabled.Should().BeFalse();
     }
 
-    // CA-3: este issue apaga la recoleccion de METRICAS de cola, no la durabilidad real -- recovery,
-    // scheduled jobs y dead letters siguen activos. Fijar Mode en el mismo test que
-    // DurabilityMetricsEnabled evita que una futura correccion de CA-2 se resuelva apagando la
-    // durabilidad completa en vez de solo la bandera de metricas -- Mode sigue siendo Solo, el valor
-    // que AgregarWolverineParaComandosServerless fija incondicionalmente despues del callback.
+    // Se apaga la recoleccion de METRICAS de cola, no la durabilidad real -- recovery, scheduled jobs
+    // y dead letters siguen activos. Fijar Mode en el mismo test que DurabilityMetricsEnabled evita
+    // que una correccion futura apague la durabilidad completa en vez de solo la bandera de metricas:
+    // Mode sigue siendo Solo, el valor que AgregarWolverineParaComandosServerless fija
+    // incondicionalmente despues del callback.
     [Fact]
     public async Task AgregarServiciosProgramacion_ConservaLaDurabilidadReal_CuandoApagaLasMetricasDeCola()
     {
@@ -435,9 +413,6 @@ public class ComposicionServiciosTests
         opciones.Durability.Mode.Should().Be(DurabilityMode.Solo);
     }
 
-    // Issue #399: test de composicion del tercer endpoint HTTP de operacion (mismo patron que las
-    // guardas de arriba para las Functions GET de lectura) -- ReadyCheck depende de
-    // IEventStoreReadinessProbe, hoy sin registrar en AgregarServiciosProgramacion.
     [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeReady_CuandoElContenedorEstaCompuesto()
     {

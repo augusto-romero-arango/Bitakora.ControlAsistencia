@@ -8,9 +8,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarAdvertenciasProgramacionSemanal;
 
-// Function QUERY (RFC 10008, MEF-ADR-0042) sobre la vista materializada AdvertenciasProgramacionSemanal,
-// via (a') de MEF-ADR-0035. Una semana ISO a la vez; keyset por CodigoColaborador con cursor opaco
-// y Take opcional (CA-ADR-0039).
+// Una semana ISO a la vez; keyset por CodigoColaborador con cursor opaco y Take opcional (CA-ADR-0039).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarAdvertenciasProgramacionSemanal")]

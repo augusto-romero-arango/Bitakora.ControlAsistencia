@@ -1,23 +1,13 @@
-// Issue #356: primera proyeccion concreta del dominio Colaboradores. Invocacion
-// DIRECTA de los metodos estaticos de FichaColaboradorProjection (N1, MEF-ADR-0035) -- no el DSL
-// Given/When/Then de CommandHandlerTestBase (MEF-ADR-0002, testea command handlers contra el event
-// store): aqui se testean funciones puras evento -> vista, sin abrir ningun stream.
+// Invocacion DIRECTA de los metodos estaticos de la proyeccion N1, no el DSL Given/When/Then: aqui
+// se testean funciones puras evento -> vista, sin abrir ningun stream. El endpoint no se prueba
+// aqui: ver el test de composicion en Colaboradores.Tests.
 //
-// Cada assert compara contra un oraculo armado a mano (MEF-ADR-0002, no-tautologia): nunca se
-// reusa la logica de Create/Apply bajo prueba para construir el valor esperado -- ni siquiera el
-// centinela de vigencia abierta se referencia desde produccion, se escribe el literal
-// new DateOnly(9999, 12, 31) en cada test.
+// Oraculo armado a mano: nunca se reusa la logica de Create/Apply bajo prueba ni el centinela de
+// produccion para construir el valor esperado; la vistaPrevia de los tests de Apply se construye a
+// mano, nunca con Create/Apply, para no encadenar el oraculo de un test con la logica de otro.
 //
-// Dos ejes cohesivos (issue #356, "Nota de complejidad"): CA-1..CA-5 son variaciones del mismo eje
-// (materializacion Create/Apply); CA-6 (el endpoint) no se prueba aqui -- ver el test de
-// composicion en Colaboradores.Tests.
-//
-// Dato de vistaPrevia en los tests de Apply: se construye a mano, simulando el documento que Marten
-// ya habria materializado -- nunca se obtiene invocando Create/Apply, para no encadenar el oraculo
-// de un test con la logica bajo prueba de otro.
-//
-// Issue #519: CodigoSede es opcional al final de FichaColaborador -- por eso las llamadas
-// posicionales de este archivo que no lo nombran siguen valiendo.
+// CodigoSede es opcional al final de FichaColaborador: por eso las llamadas posicionales de este
+// archivo que no lo nombran siguen valiendo.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
@@ -29,9 +19,8 @@ namespace Bitakora.ControlAsistencia.Projections.Tests.Colaboradores;
 
 public class FichaColaboradorProjectionTests
 {
-    // Centinela de vigencia abierta (issue #356, "Vista a materializar"): estructura interna de
-    // filtrado, jamas expuesta por la API (eso es CA-6, responsabilidad del endpoint). Se repite
-    // como literal en cada test -- ninguno lo importa desde produccion (oraculo independiente).
+    // Centinela de vigencia abierta: estructura interna de filtrado, jamas expuesta por la API (eso es
+    // responsabilidad del endpoint). Literal propio: ningun test lo importa desde produccion.
     private static readonly DateOnly CentinelaVigenciaAbierta = new(9999, 12, 31);
 
     private static Identificacion IdentificacionDePrueba() =>
@@ -39,8 +28,6 @@ public class FichaColaboradorProjectionTests
 
     private static NombreColaborador NombreDePrueba() =>
         NombreColaborador.Crear("Ana", null, "Ramirez", null);
-
-    // --- CA-1 (primera mitad): Create nace la ficha con Id y NombreCompleto ---
 
     // Create toma IEvent<ColaboradorRegistrado>, no el evento a secas: la identidad del documento
     // es el StreamKey del stream de ColaboradorAggregateRoot ("CC-123456"), nunca recomputada a
@@ -63,9 +50,7 @@ public class FichaColaboradorProjectionTests
         vista.NombreCompleto.Should().Be("Ana Ramirez");
     }
 
-    // --- CA-1 (segunda mitad): Apply(VinculacionIniciada) completa codigo, fechas y deja las
-    // etiquetas vacias sobre la ficha recien nacida (mismo commit que ColaboradorRegistrado) ---
-
+    // Deja las etiquetas vacias sobre la ficha recien nacida (mismo commit que ColaboradorRegistrado).
     [Fact]
     public void Apply_AsignaCodigoYFechaInicioYAbreLaVigencia_CuandoVinculacionIniciada()
     {
@@ -86,8 +71,6 @@ public class FichaColaboradorProjectionTests
         vista.EtiquetasNormalizadas.Should().BeEmpty();
     }
 
-    // --- CA-2 (primera mitad): VinculacionTerminada cierra la vigencia ---
-
     [Fact]
     public void Apply_CierraLaVigencia_CuandoVinculacionTerminada()
     {
@@ -106,8 +89,6 @@ public class FichaColaboradorProjectionTests
         vista.VigenteDesde.Should().Be(new DateOnly(2026, 8, 1));
     }
 
-    // --- CA-2 (segunda mitad): TerminacionAnulada reabre -- vuelve al centinela ---
-
     [Fact]
     public void Apply_ReabreLaVigencia_CuandoTerminacionAnulada()
     {
@@ -122,8 +103,6 @@ public class FichaColaboradorProjectionTests
         vista.CodigoColaborador.Should().Be("EMP-001");
         vista.VigenteDesde.Should().Be(new DateOnly(2026, 8, 1));
     }
-
-    // --- CA-3 (primera mitad): NombresCorregidos reemplaza NombreCompleto ---
 
     [Fact]
     public void Apply_ReemplazaElNombreCompleto_CuandoNombresCorregidos()
@@ -141,8 +120,6 @@ public class FichaColaboradorProjectionTests
         vista.CodigoColaborador.Should().Be("EMP-001");
     }
 
-    // --- CA-3 (segunda mitad): FechaInicioVinculacionCorregida reemplaza VigenteDesde ---
-
     [Fact]
     public void Apply_ReemplazaVigenteDesde_CuandoFechaInicioVinculacionCorregida()
     {
@@ -159,10 +136,8 @@ public class FichaColaboradorProjectionTests
         vista.VigenteHasta.Should().Be(CentinelaVigenciaAbierta);
     }
 
-    // --- CA-4 (primera mitad): EtiquetaAsignada agrega en AMBAS estructuras, sin tocar categorias
-    // existentes (oraculo mas fuerte que "agregar sobre lista vacia": descarta una implementacion
-    // que sobrescriba todo el listado en vez de agregar) ---
-
+    // Oraculo mas fuerte que "agregar sobre lista vacia": descarta una implementacion que sobrescriba
+    // todo el listado en vez de agregar.
     [Fact]
     public void Apply_AgregaLaEtiquetaEnAmbasEstructuras_CuandoEtiquetaAsignadaEsUnaCategoriaNueva()
     {
@@ -186,9 +161,8 @@ public class FichaColaboradorProjectionTests
         });
     }
 
-    // --- CA-4 (segunda mitad): upsert -- reasignar la MISMA categoria normalizada (distinta forma
-    // original, "area" en vez de "Área") deja UNA sola entrada con el valor nuevo, no dos ---
-
+    // Upsert: reasignar la MISMA categoria normalizada ("area" en vez de "Área") deja UNA sola
+    // entrada con el valor nuevo, no dos.
     [Fact]
     public void Apply_SobrescribeElValorDeLaCategoria_CuandoEtiquetaAsignadaReutilizaLaMismaCategoriaNormalizada()
     {
@@ -204,9 +178,6 @@ public class FichaColaboradorProjectionTests
         vista.EtiquetasNormalizadas.Should().BeEquivalentTo(
             new Dictionary<string, string> { ["area"] = "sistemas" });
     }
-
-    // --- CA-4 (tercera mitad): EtiquetaRetirada remueve SOLO la categoria indicada de ambas
-    // estructuras, dejando intactas las demas ---
 
     [Fact]
     public void Apply_RemueveSoloLaCategoriaIndicada_CuandoEtiquetaRetirada()
@@ -224,11 +195,8 @@ public class FichaColaboradorProjectionTests
             new Dictionary<string, string> { ["sede"] = "suba" });
     }
 
-    // --- CA-5: reingreso nace limpio -- un colaborador terminado, CON etiquetas, que reingresa
-    // (VinculacionIniciada de nuevo sobre el mismo stream) recibe codigo y VigenteDesde nuevos,
-    // VigenteHasta vuelve al centinela y AMBAS estructuras de etiquetas se vacian. Espejo de
-    // Apply(VinculacionIniciada) en ColaboradorAggregateRoot (#355 CA-6). ---
-
+    // Espejo de Apply(VinculacionIniciada) en ColaboradorAggregateRoot: el reingreso recibe codigo y
+    // VigenteDesde nuevos, VigenteHasta vuelve al centinela y AMBAS estructuras de etiquetas se vacian.
     [Fact]
     public void Apply_NaceLimpio_CuandoVinculacionIniciadaEsUnReingresoConEtiquetasPrevias()
     {
@@ -250,10 +218,7 @@ public class FichaColaboradorProjectionTests
         vista.EtiquetasNormalizadas.Should().BeEmpty();
     }
 
-    // --- Issue #519 CA-1: Apply(SedeAsignada) asienta CodigoSede -- SedeAsignada representa
-    // siempre el reemplazo completo de la sede (DomainEvents/SedeAsignada.cs: "no existe evento de
-    // retiro"), tanto para la primera asignacion como para una reasignacion. ---
-
+    // SedeAsignada representa siempre el reemplazo completo de la sede (no existe evento de retiro).
     [Fact]
     public void Apply_AsignaCodigoSede_CuandoSedeAsignadaEsLaPrimeraAsignacion()
     {
@@ -285,11 +250,8 @@ public class FichaColaboradorProjectionTests
         vista.CodigoSede.Should().Be("SEDE-MED-02");
     }
 
-    // --- Issue #519 CA-2: Apply(VinculacionIniciada) se amplia para asentar e.CodigoSede tal cual
-    // -- null deja la ficha sin sede. "Reingreso nace limpio" (espejo de
-    // ColaboradorAggregateRoot.Apply(VinculacionIniciada), #520): la sede tampoco se hereda entre
-    // vinculaciones. ---
-
+    // e.CodigoSede se asienta tal cual (null deja la ficha sin sede): la sede no se hereda entre
+    // vinculaciones, espejo de ColaboradorAggregateRoot.Apply(VinculacionIniciada).
     [Fact]
     public void Apply_AsignaCodigoSede_CuandoVinculacionIniciadaTraeSede()
     {
@@ -338,8 +300,7 @@ public class FichaColaboradorProjectionTests
         vista.CodigoColaborador.Should().Be("EMP-002");
     }
 
-    // --- Issue #860 CA-1: JornadaId (Jornada asignada a la vinculacion vigente) ---
-
+    // JornadaId es la Jornada asignada a la vinculacion vigente.
     [Fact]
     public void Apply_DejaJornadaIdNulo_CuandoVinculacionIniciadaYNoSeAsignoJornada()
     {

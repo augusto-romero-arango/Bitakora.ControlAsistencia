@@ -4,10 +4,8 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction.CommandHandler;
 
-// CA-ADR-0030: el aggregate declina con resultado y este handler traduce la razon a
-// ReglaDeNegocioDeclinadaException (-> 409, MEF-ADR-0004 capa 2). Aval del vacio (CA-7): un stream
-// inexistente tambien es un acto valido, no un 404 -- se crea con DiaAprobado como primer evento.
-// partial: la clase Mensajes vive en archivo separado (MEF-ADR-0009).
+// Aval del vacio: aprobar un dia sin stream es un acto valido, no un 404; el stream se crea con
+// DiaAprobado como primer evento.
 public partial class AprobarDiaCommandHandler : ICommandHandlerAsync<AprobarDia>
 {
     private readonly IEventStore _eventStore;

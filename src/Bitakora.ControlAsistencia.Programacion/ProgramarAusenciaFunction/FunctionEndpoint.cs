@@ -7,8 +7,6 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.ProgramarAusenciaFunction;
 
-// Crea una entidad con identidad propia -> 201 sin Location: la lectura de ausencias aun no existe
-// (MEF-ADR-0043 paso 1; CA-ADR-0035).
 public partial class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     // \z y no $: "$" acepta un "\n" final. Mismo charset URL-safe que la invariante de #387.

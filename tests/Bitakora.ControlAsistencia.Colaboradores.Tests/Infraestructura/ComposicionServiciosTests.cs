@@ -1,12 +1,6 @@
-// Issue #360 (replica del patron fijado en issue #221 para Programacion/ControlHoras): guardrail
-// de CI que compone el contenedor DI real del dominio (el mismo metodo que invoca Program.cs, ver
-// ComposicionServicios.AgregarServiciosColaboradores) y valida que el grafo completo es resoluble,
-// sin infra desplegada (connection strings dummy).
-//
-// Root cause que este guardrail atrapa (issue #219): un ITenantContext sin registrar compila y
-// pasa los tests unitarios existentes -- ni "dotnet build" ni un test que no construya el grafo de
-// DI del host detectan el hueco -- y solo aparece DESPUES del deploy, en los smoke tests contra
-// dev (HTTP 500 en toda funcion).
+// Compone el contenedor DI real (el mismo AgregarServiciosColaboradores que invoca Program.cs) con
+// connection strings dummy: un registro faltante (p. ej. ITenantContext) compila y pasa los tests
+// unitarios, y solo aparece tras el deploy como HTTP 500 en toda funcion.
 //
 // Limite conocido: BuildServiceProvider(ValidateOnBuild) no valida registros por factory-lambda
 // (Wolverine/Marten registran varios), solo los de tipo mapeado -- de ahi la resolucion explicita
@@ -46,14 +40,11 @@ public class ComposicionServiciosTests
     private const string ServiceBusConnectionStringDummy =
         "Endpoint=sb://dummy.servicebus.windows.net/;SharedAccessKeyName=dummy;SharedAccessKey=dummy";
 
-    // Issue #308 (replicado): nombre de la variable de entorno y default del ratio de sampling
-    // (CA-ADR-0009 Capa 2). Se repite como literal inline en ComposicionServicios.cs -- a
-    // diferencia de Projections, este dominio no declara InternalsVisibleTo hacia su proyecto de
-    // tests -- por eso se fijan aqui una sola vez para no repetirlos en cada test.
+    // Variable y ratio por defecto repetidos como literal de ComposicionServicios.cs: el dominio no
+    // declara InternalsVisibleTo hacia sus tests.
     private const string VariableRatioSampling = "TELEMETRY_SAMPLING_RATIO";
-    // Issue #515: la variable que el exporter lee para su ConnectionString. El seam nunca la lee
-    // (MEF-ADR-0025: el secreto no pasa por el codigo del dominio); se nombra aqui solo para que el
-    // guardrail del PostConfigure pueda simular su presencia.
+    // El seam nunca lee esta variable (el secreto no pasa por el codigo del dominio): se nombra solo para
+    // simular su presencia en el guardrail del PostConfigure.
     private const string VariableConnectionStringAppInsights = "APPLICATIONINSIGHTS_CONNECTION_STRING";
 
     private const double RatioSamplingPorDefecto = 0.2;
@@ -71,9 +62,7 @@ public class ComposicionServiciosTests
             new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
     }
 
-    // Fija el valor de la variable de entorno mientras corre la accion y lo restaura despues (null
-    // la elimina). Necesario para que el escenario de ratio configurado sea determinista frente a
-    // tests corriendo en paralelo.
+    // Restaura el valor original al terminar; null elimina la variable.
     private static void ConVariableDeEntorno(string nombre, string? valor, Action accion)
     {
         var original = Environment.GetEnvironmentVariable(nombre);
@@ -88,10 +77,8 @@ public class ComposicionServiciosTests
         }
     }
 
-    // Issue #308 (replicado): lee la propiedad interna `Sampler` de TracerProviderSdk
-    // (OpenTelemetry.dll no la expone publicamente). Determinista -- compara tipos y lee
-    // Sampler.Description (publica) --, no requiere muestrear actividades reales contra un ratio
-    // fraccionario.
+    // Lee por reflection la propiedad interna Sampler de TracerProviderSdk: asi no hace falta muestrear
+    // actividades reales contra un ratio fraccionario.
     private static Sampler ObtenerSamplerEfectivo(TracerProvider tracerProvider)
     {
         var propiedad = tracerProvider.GetType()
@@ -138,21 +125,16 @@ public class ComposicionServiciosTests
         metadataConfig.HeadersEnabled.Should().BeTrue();
     }
 
-    // --- Sampler efectivo del TracerProvider (issue #308, replicado) ---
     [Fact]
     public void AgregarServiciosColaboradores_ResuelveElSamplerConfiguradoPorElProyecto_EnVezDeRateLimitedSampler()
     {
-        // TracerProvider se registra Singleton (default de OpenTelemetry): no requiere un scope
-        // Wolverine (IAsyncDisposable) para resolverse, a diferencia de ICommandRouter arriba --
-        // Dispose() sincrono del ServiceProvider raiz basta.
+        // TracerProvider es Singleton: basta el Dispose() sincrono del provider raiz, sin scope.
         using var provider = ComponerServiceProvider();
         var tracerProvider = provider.GetRequiredService<TracerProvider>();
 
         var samplerEfectivo = ObtenerSamplerEfectivo(tracerProvider);
 
-        // Oraculo por nombre completo, no por referencia al tipo (es internal en otro ensamblado:
-        // Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler no se puede nombrar
-        // desde este proyecto).
+        // Por nombre completo: RateLimitedSampler es internal en Azure.Monitor.OpenTelemetry.Exporter.
         samplerEfectivo.GetType().FullName.Should().NotBe(
             "Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler");
         samplerEfectivo.Should().BeOfType<ParentBasedSampler>();
@@ -191,13 +173,10 @@ public class ComposicionServiciosTests
     private static string FormatearRatio(double ratio) =>
         ratio.ToString("F6", CultureInfo.InvariantCulture);
 
-    // --- Issue #309 (replicado): apagar la recoleccion de metricas de durabilidad de Wolverine ---
     [Fact]
     public async Task AgregarServiciosColaboradores_ApagaLaRecoleccionDeMetricasDeDurabilidad_CuandoElContenedorEstaCompuesto()
     {
-        // El provider se libera con await using porque WolverineOptions se registra Singleton via
-        // factory-lambda -- el contenedor lo trackea para disposal -- y solo implementa
-        // IAsyncDisposable.
+        // await using: WolverineOptions es Singleton por factory-lambda y solo implementa IAsyncDisposable.
         await using var provider = ComponerServiceProvider();
 
         var opciones = provider.GetRequiredService<WolverineOptions>();
@@ -205,10 +184,8 @@ public class ComposicionServiciosTests
         opciones.Durability.DurabilityMetricsEnabled.Should().BeFalse();
     }
 
-    // Este issue apaga la recoleccion de METRICAS de cola, no la durabilidad real -- recovery,
-    // scheduled jobs y dead letters (procesados por el mismo DurabilityAgent) siguen activos. Mode
-    // sigue siendo Solo, el valor que AgregarWolverineParaComandosServerless fija
-    // incondicionalmente DESPUES del callback del consumidor.
+    // Se apagan las metricas de cola, no la durabilidad real (recovery, scheduled jobs, dead letters).
+    // Mode sigue Solo: AgregarWolverineParaComandosServerless lo fija despues del callback del consumidor.
     [Fact]
     public async Task AgregarServiciosColaboradores_ConservaLaDurabilidadReal_CuandoApagaLasMetricasDeCola()
     {
@@ -220,31 +197,8 @@ public class ComposicionServiciosTests
         opciones.Durability.Mode.Should().Be(DurabilityMode.Solo);
     }
 
-    // Issue #330 (patron replicado de ControlHoras/Programacion #277 CA-2/CA-4): ColaboradorRegistrado
-    // y VinculacionIniciada nacen con este issue en Colaboradores.DomainEvents sin registrar su tipo
-    // en el EventGraph. Toda lectura quedaria dependiendo del fallback por mt_dotnet_type en vez de
-    // resolver por alias (columna "type" de mt_events). Este guardrail detecta el olvido sobre el
-    // store real que compone el contenedor, sin Postgres.
-    //
-    // Los tipos esperados se listan literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
-    // IdentidadEventosColaboradores.TiposPersistidos acoplaria el guardrail al mismo artefacto que
-    // AliasEventosColaboradoresTests ya verifica, y la asercion pasaria en verde aunque la lista
-    // quedara vacia.
-    // Issue #349: agrega VinculacionTerminada (segundo evento persistido de la vinculacion) a la
-    // lista esperada -- mismo criterio, mismo guardrail.
-    // Issue #351: agrega NombresCorregidos (cuarto evento persistido, corregir nombres) a la lista
-    // esperada.
-    // Rojo esperado (fase roja, issue #351): TiposPersistidos todavia no incluye NombresCorregidos.
-    // Issue #352: agrega FechaInicioVinculacionCorregida (quinto evento persistido, corregir la
-    // fecha de inicio de la ultima vinculacion) a la lista esperada.
-    // Rojo esperado (fase roja, issue #352): TiposPersistidos todavia no incluye
-    // FechaInicioVinculacionCorregida.
-    // Issue #354: agrega TerminacionAnulada (sexto evento persistido, anular la terminacion de la
-    // ultima vinculacion) a la lista esperada.
-    // Issue #355: agrega EtiquetaAsignada y EtiquetaRetirada (septimo y octavo eventos persistidos,
-    // asignar/retirar una etiqueta dinamica) a la lista esperada.
-    // Rojo esperado (fase roja, issue #355): TiposPersistidos todavia no incluye ninguno de los
-    // dos.
+    // Tipos listados literalmente (oraculo independiente): leerlos de TiposPersistidos pasaria en verde
+    // aunque la lista quedara vacia.
     [Fact]
     public async Task AgregarServiciosColaboradores_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -268,20 +222,6 @@ public class ComposicionServiciosTests
             ]);
     }
 
-    // Issue #330: registrar el tipo solo sirve si el alias sigue siendo el que las filas ya
-    // escritas llevan en su columna "type". AliasEventosColaboradoresTests lo congela sobre un
-    // StoreOptions standalone; esta guarda lo congela sobre el store del contenedor, el unico lugar
-    // donde un MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
-    // Issue #349: agrega VinculacionTerminada -> "vinculacion_terminada" al diccionario esperado.
-    // Issue #351: agrega NombresCorregidos -> "nombres_corregidos" al diccionario esperado.
-    // Rojo esperado (fase roja, issue #351): NombresCorregidos no aparece en AllKnownEventTypes().
-    // Issue #352: agrega FechaInicioVinculacionCorregida -> "fecha_inicio_vinculacion_corregida"
-    // al diccionario esperado.
-    // Rojo esperado (fase roja, issue #352): FechaInicioVinculacionCorregida no aparece en
-    // AllKnownEventTypes().
-    // Issue #354: agrega TerminacionAnulada -> "terminacion_anulada" al diccionario esperado.
-    // Issue #355: agrega EtiquetaAsignada -> "etiqueta_asignada" y EtiquetaRetirada ->
-    // "etiqueta_retirada" al diccionario esperado.
     [Fact]
     public async Task AgregarServiciosColaboradores_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
     {
@@ -318,15 +258,9 @@ public class ComposicionServiciosTests
         alias.Should().Be("jornada_asignada");
     }
 
-    // Issue #330 (patron replicado de ControlHoras #232 CA-5): las tres banderas de metadata
-    // (arriba) comparten el mismo callback ConfigureMarten que debe registrar el resolver de
-    // serializacion custom -- un edit futuro de ese bloque puede tumbar la serializacion sin que el
-    // test de metadata se ponga rojo. Los round-trip de ColaboradorRegistradoSerializacionTests NO
-    // cubren este riesgo: usan ConfiguracionSerializacionColaboradores.CrearOpcionesMarten() -- una
-    // ruta paralela que no atraviesa el contenedor. Este test ejercita el ISerializer que el store
-    // realmente compuso, usando Identificacion (VO real y completo de #348) como canario.
-    // Rojo esperado (fase roja, issue #330): ComposicionServicios.cs todavia no invoca
-    // ConfiguracionSerializacionColaboradores.ConfigurarResolver dentro de ConfigureMarten.
+    // Las banderas de metadata comparten el callback ConfigureMarten que registra el resolver de
+    // serializacion custom, y los round-trip de *SerializacionTests usan CrearOpcionesMarten() sin pasar
+    // por el contenedor: aqui se ejercita el ISerializer del store real, con Identificacion de canario.
     [Fact]
     public async Task AgregarServiciosColaboradores_ConservaLaSerializacionCustom_CuandoTambienHabilitaMetadataDeEvento()
     {
@@ -342,22 +276,9 @@ public class ComposicionServiciosTests
         restaurado.ToString().Should().Be(original.ToString());
     }
 
-    // Issue #356 CA-6: test de composicion de una Function GET, hermano de MEF-ADR-0029 -- misma
-    // idea que las guardas de arriba (grafo de DI real, sin infra desplegada), pero sobre un
-    // FunctionEndpoint en vez de un router de Wolverine. Precedente: ObtenerTurnoVigente/
-    // ListarTurnosVigentes en ControlHoras.Tests (issue #328/#329).
-    //
-    // Ninguna Function de este ensamblado se registra explicitamente en el contenedor -- el host
-    // de Azure Functions isolated worker las activa por tipo, resolviendo su constructor contra el
-    // mismo ServiceProvider que arma Program.cs. ActivatorUtilities.CreateInstance reproduce esa
-    // misma activacion sin levantar el host real (Alt 1 de MEF-ADR-0029: no existe un
-    // WebApplicationFactory para Functions isolated worker).
-    //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantContext por constructor -- no el
-    // comportamiento de Run (issue #386: parseo del {id} de ruta con 400 explicito,
-    // session.LoadAsync y el 200/404, la traduccion centinela -> vacio de CA-6), que es
-    // responsabilidad del endpoint (parcialmente unit-testeado, ver ObtenerFichaColaborador/
-    // FunctionEndpointTests.cs) y del smoke test, no de este guardrail de wiring.
+    // Las Functions no se registran en el contenedor: el host isolated worker las activa por tipo contra
+    // el mismo ServiceProvider. ActivatorUtilities.CreateInstance reproduce esa activacion sin host real
+    // (no hay WebApplicationFactory para Functions). Solo prueba la resolucion por constructor, no Run.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeObtenerFichaColaborador_CuandoElContenedorEstaCompuesto()
     {
@@ -369,23 +290,14 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #356, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
-    // seccion 6). Heredada de la guarda que #328 dejo para TurnoVigente en ControlHoras.Tests, por
-    // el incidente real del issue #294: este Function App LEE FichaColaborador con
-    // session.LoadAsync (ObtenerFichaColaborador) sin registrar la proyeccion, mientras el worker
-    // la MATERIALIZA en otro proceso sobre la misma tabla fisica.
-    //
-    // Marten aplica ProjectionDocumentPolicy a todo documento que sea target de una proyeccion
-    // registrada en ese store: UseNumericRevisions = true, Metadata.Revision (mt_version bigint)
-    // habilitada y Metadata.Version (mt_version uuid) DESHABILITADA -- incondicional, sin opt-in ni
-    // dependencia de IRevisioned (https://martendb.io/documents/concurrency, "Numeric Revisioned
-    // Documents"). Sin la declaracion explicita del lado lectura, este store espera mt_version uuid
-    // sobre la tabla que el worker creo como bigint, Marten intenta "alter column" en CADA request
-    // y Postgres responde 42804: GET en 500 permanente con el daemon funcionando.
-    //
-    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
-    // .ConfigurarColaboradores_MaterializaFichaColaboradorConRevisionNumerica congela desde el
-    // worker, sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    // Este Function App lee FichaColaborador sin registrar su proyeccion; el worker la materializa sobre
+    // la misma tabla. Marten aplica a todo target de proyeccion revision numerica (mt_version bigint) y
+    // deshabilita Version (uuid), incondicionalmente (https://martendb.io/documents/concurrency,
+    // "Numeric Revisioned Documents"). Sin declararlo aqui, este store espera uuid sobre la columna
+    // bigint, intenta "alter column" en cada request y Postgres responde 42804: GET en 500 permanente.
+    // Oraculo literal, espejo de ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaFichaColaboradorConRevisionNumerica (sin referencias entre
+    // ensamblados, CA-ADR-0029).
     [Fact]
     public async Task AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaFichaColaborador()
     {
@@ -400,17 +312,10 @@ public class ComposicionServiciosTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Issue #356, segunda dimension del mismo par 2 (precedente #328 sobre TurnoVigente): tabla,
-    // tenancy e IdMember tienen que converger entre el worker que materializa y este Function App
-    // que consulta, o el GET responde 404 para siempre con el daemon funcionando. Ningun compilador
-    // lo garantiza -- son dos configuraciones de Marten independientes sobre el mismo schema.
-    //
-    // Los tres valores los resuelve Marten por convencion, pero este lado ya declara un
-    // Schema.For<FichaColaborador>() propio (la linea de UseNumericRevisions del test de arriba) --
-    // justo el tipo de declaracion por documento que puede desviar la tabla o la tenancy de un solo
-    // lado. Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
-    // .ConfigurarColaboradores_MaterializaFichaColaboradorSobreLaTablaQueConsultaElWriteSide congela
-    // desde el worker.
+    // Tabla, tenancy e IdMember deben converger entre el worker y este Function App, o el GET responde
+    // 404 para siempre: son dos configuraciones de Marten independientes sobre el mismo schema, y el
+    // Schema.For<FichaColaborador>() propio de este lado puede desviarlas. Espejo de
+    // ConfiguracionMartenProjectionsTests.ConfigurarColaboradores_MaterializaFichaColaboradorSobreLaTablaQueConsultaElWriteSide.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveFichaColaboradorSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
     {
@@ -425,17 +330,6 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(FichaColaborador.Id));
     }
 
-    // Issue #373 CA-4 (segunda mitad del desglose de #356): test de composicion de la SEGUNDA
-    // Function de lectura del dominio, hermano del que #356 dejo para ObtenerFichaColaborador --
-    // misma idea (MEF-ADR-0029/ActivatorUtilities.CreateInstance, sin host real), pero ahora sobre
-    // un endpoint QUERY (MEF-ADR-0042) en vez de GET. Ninguna proyeccion ni read model nuevos: este
-    // issue consulta la MISMA vista materializada FichaColaborador via (a') (session.Query, en vez
-    // de LoadAsync por id).
-    //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantContext por constructor -- no el
-    // comportamiento de Run (415/400/422, filtro AND por etiquetas, paginacion keyset), que es
-    // responsabilidad del endpoint y cubre FunctionEndpointTests.cs (validacion) y el smoke test
-    // contra dev (CA-6, camino feliz + Marten real).
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeListarFichasColaborador_CuandoElContenedorEstaCompuesto()
     {
@@ -447,16 +341,6 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #357: test de composicion de la Function GET del catalogo CategoriaDeEtiquetas, mismo
-    // patron que #356 dejo para ObtenerFichaColaborador (MEF-ADR-0029: ActivatorUtilities
-    // .CreateInstance, sin host real -- no existe un WebApplicationFactory para Functions isolated
-    // worker). El endpoint recibe IDocumentStore/ITenantContext por constructor, ya registrados por
-    // AgregarServiciosColaboradores desde el issue #360 -- no hace falta ningun registro nuevo para
-    // que este guardrail de wiring resuelva.
-    //
-    // Se prueba solo la RESOLUCION de dependencias por constructor -- no el comportamiento de Run
-    // (200 con la coleccion, incluso vacia -- CA-6), que es responsabilidad del endpoint y del smoke
-    // test contra dev.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeListarCategoriasDeEtiquetas_CuandoElContenedorEstaCompuesto()
     {
@@ -468,20 +352,9 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #357, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
-    // seccion 6) para la SEGUNDA vista materializada del dominio -- hermano exacto del guardrail
-    // que #356 dejo para FichaColaborador, cuyo comentario documenta el gotcha completo de
-    // "Numeric Revisioned Documents" y el incidente de dev del issue #294.
-    //
-    // Ninguna de las dos guardas de FichaColaborador cubre a CategoriaDeEtiquetas: cada documento
-    // lleva su propio mapping, asi que la declaracion explicita del lado LECTURA es por vista, no
-    // por store. Sin ella, este Function App esperaria mt_version uuid sobre la tabla que el worker
-    // crea como bigint y ListarCategoriasDeEtiquetas responderia 500 permanente (42804 por
-    // request), con el daemon funcionando.
-    //
-    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
-    // .ConfigurarColaboradores_MaterializaCategoriaDeEtiquetasConRevisionNumerica congela desde el
-    // worker, sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    // Cada documento lleva su propio mapping: la guarda de FichaColaborador (gotcha completo arriba) no
+    // cubre esta vista. Espejo de ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaCategoriaDeEtiquetasConRevisionNumerica.
     [Fact]
     public async Task AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaCategoriaDeEtiquetas()
     {
@@ -496,15 +369,8 @@ public class ComposicionServiciosTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Issue #357, segunda dimension del mismo par 2 sobre CategoriaDeEtiquetas (precedente #356
-    // sobre FichaColaborador): tabla, tenancy e IdMember tienen que converger entre el worker que
-    // materializa y este Function App que consulta, o el GET devuelve coleccion vacia para siempre
-    // con el daemon funcionando. Ningun compilador lo garantiza -- son dos configuraciones de
-    // Marten independientes sobre el mismo schema.
-    //
-    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
-    // .ConfigurarColaboradores_MaterializaCategoriaDeEtiquetasSobreLaTablaQueConsultaElWriteSide
-    // congela desde el worker.
+    // Misma convergencia que la de FichaColaborador; aqui el GET devolveria coleccion vacia. Espejo de
+    // ConfiguracionMartenProjectionsTests.ConfigurarColaboradores_MaterializaCategoriaDeEtiquetasSobreLaTablaQueConsultaElWriteSide.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveCategoriaDeEtiquetasSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
     {
@@ -519,21 +385,9 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(CategoriaDeEtiquetas.Id));
     }
 
-    // Issue #379 (agregado en la revision): guardrail del descubrimiento de los validators de body.
-    //
-    // El modo de falla que atrapa es SILENCIOSO por construccion: RequestValidator.ValidarAsync
-    // resuelve IValidator<T> del contenedor y, si no lo encuentra, DEJA PASAR el body sin validar
-    // (retorna (comando, null)) en vez de fallar. Un validator que el escaneo
-    // AddValidatorsFromAssemblyContaining no recoja convierte todos los 400 de forma de ese comando
-    // en 202 -- compila, pasa todos los tests unitarios (que inyectan un IRequestValidator fake) y
-    // solo aflora contra dev.
-    //
-    // El issue #379 movio estos validators de CommandHandler/{Comando}Validator (sobre el comando
-    // interno completo) a {Comando}BodyValidator en la raiz del feature folder (sobre el body
-    // reducido), y elimino los tres viejos: exactamente el tipo de cambio de ubicacion/tipo generico
-    // que este guardrail vigila. Se listan los dos comandos del issue con body; AnularTerminacion no
-    // aparece porque quedo SIN body (sus tres campos viajan en la ruta), asi que no tiene validator
-    // que descubrir.
+    // Falla silenciosa: RequestValidator.ValidarAsync deja pasar el body sin validar si no encuentra
+    // IValidator<T>, asi que un validator que AddValidatorsFromAssemblyContaining no recoja convierte los
+    // 400 de forma en exito, y los unit tests (con IRequestValidator fake) no lo ven.
     [Fact]
     public async Task AgregarServiciosColaboradores_DescubreLosValidatorsDeLosBodiesDeComando_CuandoElContenedorEstaCompuesto()
     {
@@ -542,15 +396,12 @@ public class ComposicionServiciosTests
 
         scope.ServiceProvider.GetService<IValidator<TerminarVinculacionBody>>()
             .Should().NotBeNull(
-                "sin el validator registrado, un body sin FechaEfectiva responderia 202 en vez de 400");
+                "sin el validator registrado, un body sin FechaEfectiva responderia 204 en vez de 400");
         scope.ServiceProvider.GetService<IValidator<CorregirFechaInicioVinculacionBody>>()
             .Should().NotBeNull(
-                "sin el validator registrado, un body sin FechaCorregida responderia 202 en vez de 400");
+                "sin el validator registrado, un body sin FechaCorregida responderia 204 en vez de 400");
     }
 
-    // Issue #399: test de composicion del tercer endpoint HTTP de operacion (mismo patron que las
-    // guardas de arriba para las Functions GET de lectura) -- ReadyCheck depende de
-    // IEventStoreReadinessProbe, hoy sin registrar en AgregarServiciosColaboradores.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeReady_CuandoElContenedorEstaCompuesto()
     {
@@ -562,13 +413,9 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // --- Issue #515 / MEF-ADR-0038 seccion 9 (write-side, harness #700) ---
-
-    // La garantia no es el comentario del seam: es este test, que resuelve el valor EFECTIVO que el
-    // exporter usara. Con el flip en su default (true) el exporter instala LogFilteringProcessor y
-    // descarta todo LogRecord emitido dentro de un span no muestreado; con
-    // TELEMETRY_SAMPLING_RATIO fraccionario (0.2 por defecto en este dominio) eso pierde en silencio
-    // los LogError que alimentan la alerta exception_spike (CA-ADR-0009 Capa 4).
+    // Con EnableTraceBasedLogsSampler en su default (true), el exporter descarta todo LogRecord emitido
+    // dentro de un span no muestreado; con ratio fraccionario eso pierde en silencio los LogError que
+    // alimentan la alerta exception_spike.
     [Fact]
     public void AgregarServiciosColaboradores_DeshabilitaElSamplerDeLogsBasadoEnTrazas()
     {
@@ -579,8 +426,6 @@ public class ComposicionServiciosTests
         opciones.EnableTraceBasedLogsSampler.Should().BeFalse();
     }
 
-    // Solo la RESOLUCION de IDocumentStore/ITenantContext por constructor (MEF-ADR-0029). El
-    // comportamiento de Run lo cubren FunctionEndpointTests.cs y el smoke test contra dev.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveElEndpointDeListarDirectorioColaboradores_CuandoElContenedorEstaCompuesto()
     {
@@ -592,15 +437,8 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034 seccion 6)
-    // para la tercera vista del dominio: el worker la materializa con mt_version bigint y este
-    // Function App solo la consulta, asi que sin la declaracion del lado lectura cada request
-    // responderia 500 permanente (42804). El gotcha completo esta en el guardrail de
-    // FichaColaborador, mas arriba.
-    //
-    // Oraculo literal, espejo del que congela ConfiguracionMartenProjectionsTests
-    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorConRevisionNumerica desde el worker,
-    // sin que ningun ensamblado referencie al otro (CA-ADR-0029).
+    // Tercera vista, mismo gotcha que FichaColaborador (arriba). Espejo de ConfiguracionMartenProjectionsTests
+    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorConRevisionNumerica.
     [Fact]
     public async Task AgregarServiciosColaboradores_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaDirectorioColaborador()
     {
@@ -615,13 +453,8 @@ public class ComposicionServiciosTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Segunda dimension del mismo par 2: tabla, tenancy e IdMember tienen que converger entre el
-    // worker que materializa y este Function App que consulta, o el QUERY devuelve coleccion vacia
-    // para siempre con el daemon funcionando. Son dos configuraciones de Marten independientes
-    // sobre el mismo schema: ningun compilador las alinea.
-    //
-    // Oraculo literal, espejo del que congela ConfiguracionMartenProjectionsTests
-    // .ConfigurarColaboradores_MaterializaDirectorioColaboradorSobreLaTablaQueConsultaElWriteSide.
+    // Misma convergencia que la de FichaColaborador; aqui el QUERY devolveria coleccion vacia. Espejo de
+    // ConfiguracionMartenProjectionsTests.ConfigurarColaboradores_MaterializaDirectorioColaboradorSobreLaTablaQueConsultaElWriteSide.
     [Fact]
     public async Task AgregarServiciosColaboradores_ResuelveDirectorioColaboradorSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
     {
@@ -636,15 +469,10 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(DirectorioColaborador.Id));
     }
 
-    // Issue #515: el seam agrega un PostConfigure que rellena ConnectionString con un valor inerte
-    // cuando queda vacia, para que el reader de metricas de Azure Monitor (que se construye de forma
-    // sincronica y exige una connection string) no tumbe el arranque en frio con la Key Vault
-    // reference aun sin resolver. Ese fallback es seguro SOLO mientras no pise una connection string
-    // real -- si la pisara, trazas y logs (que comparten AzureMonitorExporterOptions) se exportarian
-    // a un endpoint inexistente, en silencio y de forma permanente: el peor modo de fallo posible
-    // para telemetria. Nada en el codigo garantiza el orden Configure -> PostConfigure frente a un
-    // upgrade del exporter que mueva la lectura de la variable a otro punto del pipeline; este test
-    // es esa garantia.
+    // El seam rellena ConnectionString con un valor inerte cuando esta vacia (el reader de metricas la
+    // exige al arrancar en frio, con la Key Vault reference aun sin resolver). Si pisara una real, trazas
+    // y logs se exportarian en silencio a un endpoint inexistente; nada en el codigo garantiza el orden
+    // Configure -> PostConfigure ante un upgrade del exporter: este test si.
     [Fact]
     public void AgregarServiciosColaboradores_ConservaLaConnectionStringReal_CuandoLaVariableDeEntornoEstaPresente()
     {

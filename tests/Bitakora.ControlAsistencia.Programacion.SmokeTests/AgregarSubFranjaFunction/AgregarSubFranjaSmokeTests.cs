@@ -35,9 +35,8 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
             "el arrange de este smoke test depende de que AgregarFranja funcione");
     }
 
-    // CA-7: segundo paso del diseno de turno por pasos -- crear el turno, agregarle la franja
-    // nocturna, y agregarle un descanso de madrugada. descanso_agregado no cruza ningun bus:
-    // mt_events es la unica ventana black-box a lo que quedo grabado.
+    // descanso_agregado no cruza ningun bus: mt_events es la unica ventana black-box a lo que
+    // quedo grabado.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarSubFranja_DebeRetornar204YPersistirElDescansoDeMadrugada_CuandoLaFranjaEsNocturna()
@@ -66,9 +65,8 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
         descanso.GetProperty("diaOffsetFin").GetInt32().Should().Be(1);
     }
 
-    // CA-5: mismo discriminador de frontera que CrearTurno.EsDescanso, pero aqui produce un
-    // segundo tipo de evento (extra_agregado en vez de descanso_agregado). El test de descanso ya
-    // cubre el camino feliz del comando; este solo cierra que "tipo: extra" enruta al otro evento.
+    // El test de descanso ya cubre el camino feliz del comando; este solo cierra que "tipo: extra"
+    // enruta al otro evento (extra_agregado).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarSubFranja_DebeRetornar204YPersistirElExtraDeMadrugada_CuandoTipoEsExtra()
@@ -97,7 +95,6 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
         extra.GetProperty("diaOffsetFin").GetInt32().Should().Be(1);
     }
 
-    // CA-6: tipo desconocido -> 400 (validado por AgregarSubFranjaBodyValidator).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarSubFranja_DebeRetornar400_CuandoElTipoEsDesconocido()
@@ -113,7 +110,6 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-3: turno inexistente -> 404.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarSubFranja_DebeRetornar404_CuandoElTurnoNoExiste()
@@ -127,7 +123,6 @@ public class AgregarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-3: ninguna franja empieza a la hora especificada -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AgregarSubFranja_DebeRetornar409_CuandoNingunaFranjaEmpiezaALaHoraEspecificada()

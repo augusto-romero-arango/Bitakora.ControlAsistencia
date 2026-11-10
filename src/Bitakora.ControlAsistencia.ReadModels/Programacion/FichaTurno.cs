@@ -5,21 +5,13 @@ namespace Bitakora.ControlAsistencia.ReadModels.Programacion;
 /// el turno que necesita ya existe antes de crear uno nuevo.
 /// </summary>
 /// <remarks>
-/// Record plano SIN partial ni comportamiento (MEF-ADR-0035): el mapeo evento -> vista
-/// (HorarioResumido, Descripcion, EsDescanso) vive integro en la clase companion
-/// FichaTurnoProjection, en el worker.
+/// Id es el stream key del catalogo (TurnoId.ToString()), nunca un Guid.
 ///
-/// Vive en ReadModels, la cuarta isla del repo -- cero ProjectReference (MEF-ADR-0041 decision 2):
-/// FranjaFicha/SubFranjaFicha son tipos propios, nunca los de Programacion.DomainEvents.
+/// EsDescanso viene del evento, no del conteo de franjas: un turno vacio no-descanso tambien tiene
+/// cero franjas (CA-ADR-0033).
 ///
-/// Id es el stream key del catalogo (TurnoId.ToString(), StreamIdentity.AsString), nunca un Guid.
-///
-/// EsDescanso se lee de TurnoCreado.EsDescanso, nunca del conteo de franjas: con el turno
-/// componible (CA-ADR-0033) un turno vacio no-descanso tambien tiene cero franjas.
-///
-/// Completo es un derivado de LECTURA, nunca un campo del aggregate/evento (MEF-ADR-0041):
-/// EsDescanso || Franjas.Count > 0. Responde "ya es programable este turno" sin que el consumidor
-/// tenga que inspeccionar Franjas por su cuenta.
+/// Completo (EsDescanso || Franjas.Count > 0) dice si el turno ya es programable; es derivado de
+/// lectura, no campo del aggregate.
 /// </remarks>
 [MaterializadoPorProyeccion]
 public sealed record FichaTurno(

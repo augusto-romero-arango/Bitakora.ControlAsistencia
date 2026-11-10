@@ -25,7 +25,6 @@ public class ListaAusenciasDelEquipoComponerTests
     private static AusenciaVigente AnaVacaciones1Al30() =>
         Vista(VacacionesAna, "EMP-001", "Ana Ramirez", "Vacaciones", new TramoDeAusencia(Oct(1), Oct(30)));
 
-    // CA-2: tramos recortados al periodo, agrupados por colaborador y ordenados por nombre.
     [Fact]
     public void Componer_AgrupaPorColaboradorOrdenadoPorNombre_ConLosTramosRecortadosAlPeriodo()
     {
@@ -85,7 +84,6 @@ public class ListaAusenciasDelEquipoComponerTests
                 [new TramoAplicado(new DateOnly(2026, 11, 7), new DateOnly(2026, 11, 10))]));
     }
 
-    // CA-6: periodo sin ausencias -> lista vacia.
     [Fact]
     public void Componer_RetornaListaVacia_CuandoNoHayAusenciasEnElPeriodo()
     {

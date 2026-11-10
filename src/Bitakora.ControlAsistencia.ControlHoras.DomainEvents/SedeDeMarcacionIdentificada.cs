@@ -3,10 +3,9 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-// Evento de event sourcing persistido en el stream de ControlDiarioAggregateRoot; no cruza el bus,
-// sin marker (MEF-ADR-0024). El nombre simple difiere a proposito del evento de bus que lo origina
-// (SedeDeMarcacionResuelta, PrivateEvents.Sedes): el Function App ve ambos ensamblados y dos
-// homonimos harian que un using equivocado compile y resuelva mal en silencio (MEF-ADR-0039 #6).
+// El nombre difiere a proposito del evento de bus que lo origina (SedeDeMarcacionResuelta,
+// PrivateEvents.Sedes): el Function App ve ambos ensamblados y dos homonimos harian que un using
+// equivocado compile y resuelva mal en silencio.
 public sealed class SedeDeMarcacionIdentificada
 {
     // Id es el stream key del ControlDiario, tal como lo computa ControlDiarioAggregateRoot.ComputarStreamId.
@@ -38,11 +37,10 @@ public sealed class SedeDeMarcacionIdentificada
         CentroDeCostos = centroDeCostos;
     }
 
-    // Constructor privado para Marten/serializacion
+    // Solo para Marten/STJ: ConfigurarSerializacion lo invoca por reflexion.
     private SedeDeMarcacionIdentificada() { }
 
-    // Deserializacion con ctor privado y propiedades private set: STJ no lo resuelve solo y Marten no
-    // respeta [JsonConstructor] en ctores privados (MEF-ADR-0012).
+    // Marten no respeta [JsonConstructor] en ctores privados (MEF-ADR-0012).
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(SedeDeMarcacionIdentificada)

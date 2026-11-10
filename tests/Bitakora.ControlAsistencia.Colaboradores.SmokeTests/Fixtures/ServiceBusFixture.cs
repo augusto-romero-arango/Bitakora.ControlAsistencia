@@ -6,20 +6,8 @@ namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
 
 public class ServiceBusFixture : IAsyncLifetime
 {
-    // Issues #538 y #698: claves de wire verificadas por decompilacion (ilspycmd) de los ensamblados vigentes
-    // -- Wolverine 6.16.0 (EnvelopeMapper<> mapea Envelope.TenantId al header "tenant-id" sin prefijo,
-    // y AzureServiceBusEnvelopeMapper copia cada ApplicationProperty a Envelope.Headers tal cual) y
-    // Cosmos.MultiTenancy.CritterStack 2.3.0 (WolverineMessageContextTenantResolver lee UserId de
-    // Envelope.Headers["user_id"]). Issue #698 suma "organization_membership_id"
-    // (TenancyHeaders.OrganizationMembershipId de Cosmos 3.x), que viaja por el mismo camino que
-    // "user_id" y Cosmos 2.3.1 ignora. Son otro plano que los headers HTTP X-Tenant-Id/X-User-Id/
-    // X-Organization-Membership-Id de MEF-ADR-0028: viajan en ApplicationProperties del mensaje, no en la request.
-    //
-    // Advertencia para el flip a etapa (b): hoy los dominios NO montan un listener de Wolverine. Cada
-    // evento entra por [ServiceBusTrigger] de Azure Functions y se despacha con IPrivateEventRouter,
-    // que arma DeliveryOptions desde el ITenantContext del proceso -- nadie lee estas claves del
-    // mensaje entrante, asi que la metadata queda declarada pero inerte. Sirve para no romper la
-    // ventana el dia que exista ese puente; verificarlo al correr /install-auth.
+    // Deben casar con las claves que TenantContextMiddleware lee de ApplicationProperties: "tenant-id"
+    // (la de Wolverine para Envelope.TenantId) y TenancyHeaders.UserId/OrganizationMembershipId.
     private const string TenantIdApplicationProperty = "tenant-id";
     private const string UserIdApplicationProperty = "user_id";
     private const string OrganizationMembershipIdApplicationProperty = "organization_membership_id";
@@ -142,9 +130,7 @@ public class ServiceBusFixture : IAsyncLifetime
 
     private const int TamanoPaginaDeadLetter = 100;
 
-    // Recorre el DLQ completo con peek iterativo (patron oficial de Microsoft Learn,
-    // "message-browsing#maximum-number-of-messages"). El peek no completa mensajes, asi que
-    // iterar el DLQ entero es no destructivo.
+    // Peek por paginas: no completa mensajes, asi que recorrer el DLQ entero es no destructivo.
     public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekDeadLetterMessagesAsync(
         string topicName,
         string subscriptionName)
@@ -169,9 +155,8 @@ public class ServiceBusFixture : IAsyncLifetime
         return mensajes;
     }
 
-    // Acota el assert a "hay un dead letter de ESTA corrida" en vez de "el DLQ esta globalmente
-    // vacio". T es una forma minima plana que solo declara el identificador de correlacion, sin
-    // depender de la deserializacion custom de los value objects ricos del contrato.
+    // Busca un dead letter de ESTA corrida, no exige el DLQ vacio. T es una forma plana con solo el
+    // identificador de correlacion, para no depender de la deserializacion de los VO del contrato.
     public async Task<bool> ExisteDeadLetterDeEstaCorridaAsync<T>(
         string topicName,
         string subscriptionName,

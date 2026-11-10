@@ -4,9 +4,8 @@ using System.Text.Json;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-// Lee el detalle de un turno por identidad (GET programacion/turnos/{id}) en vez del catalogo
-// completo (CA-ADR-0039 decision 18). Cada tool consumidora aporta sus mensajes desde su .resx
-// (MEF-ADR-0009); el fallo de lectura se devuelve crudo para su RechazoDelDominio (CA-ADR-0030).
+// Lee el turno por identidad y no el catalogo completo (CA-ADR-0039 decision 18); el fallo de lectura
+// vuelve crudo para el RechazoDelDominio de cada tool.
 public sealed class ResolutorTurnoPorId(ProgramacionApi programacion)
 {
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);

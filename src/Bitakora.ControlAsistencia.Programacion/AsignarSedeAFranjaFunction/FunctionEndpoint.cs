@@ -6,11 +6,8 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.AsignarSedeAFranjaFunction;
 
-// Accion de negocio con verbo propio (MEF-ADR-0043 paso 4): la sede es un VO atomico pero no
-// direccionable por URL -- la franja contenedora tiene clave natural HH:mm, con ":" fuera del
-// charset URL-safe (seccion 1.1) -- y la misma accion cubre asignar y retirar (payload con sede o
-// sin ella) -- POST "{recurso}:{verbo}". El {id} de ruta se valida a mano (MEF-ADR-0037 seccion 2);
-// el body lo valida IRequestValidator.
+// POST "{recurso}:{verbo}" (MEF-ADR-0043 paso 4): la sede no es direccionable por URL (la franja tiene
+// clave HH:mm y ":" no es URL-safe) y la misma accion cubre asignar y retirar.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AsignarSedeAFranja")]

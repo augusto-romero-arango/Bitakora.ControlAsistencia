@@ -4,10 +4,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.CrearTurno;
 
-// Cliente HTTP puro del comando CrearTurno (POST /api/programacion/turnos, paso 1
-// MEF-ADR-0043): el turnoId es un Guid v7 generado por esta tool (MEF-ADR-0037 seccion 1), nunca
-// por el dominio. El rechazo del dominio (nombre duplicado) se devuelve como texto, nunca como
-// excepcion (CA-ADR-0030).
+// El turnoId es un Guid v7 generado por esta tool, nunca por el dominio (MEF-ADR-0037 seccion 1).
 public partial class CrearTurnoTool(ProgramacionApi programacion, ResolutorSedePorCodigo resolutorSedes)
 {
     internal const string NombreTool = "crear_turno";

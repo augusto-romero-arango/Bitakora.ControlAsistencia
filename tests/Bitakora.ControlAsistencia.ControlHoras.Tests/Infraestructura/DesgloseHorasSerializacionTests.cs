@@ -1,7 +1,3 @@
-// HU-129: Crear estructuras agregadas DesgloseFranja y DesgloseHoras
-// CA-6: DesgloseHoras sobrevive round-trip JSON con ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten()
-//       preservando DesglosePorFranja, RetardoTotal, FranjasAnomalas y recalculando TotalMinutosPorConcepto.
-// Barrera anti-regresion: sin el registro de Retardo en el resolver, la deserializacion falla.
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -19,7 +15,7 @@ public class DesgloseHorasSerializacionTests
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
-    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
+    // Descripcion es un dato derivado, irrelevante aqui: placeholder "".
     private static FranjaProgramada CrearFranjaProgramadaSimple() =>
         new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
 
@@ -125,8 +121,6 @@ public class DesgloseHorasSerializacionTests
     [Fact]
     public void RoundTrip_PreservaRetardoDeFranjaInterna_CuandoDesgloseTieneFranjaConRetardo()
     {
-        // Verifica que el Retardo dentro de cada DesgloseFranja se preserva correctamente
-        // tras anidar DesgloseFranja > DesgloseHoras y atravesar dos niveles de serializacion.
         var franja = CrearFranjaConRetardo();
         var original = new DesgloseHoras([franja], Retardo.Vacio, 0);
         var opciones = CrearOpciones();
@@ -138,9 +132,7 @@ public class DesgloseHorasSerializacionTests
         restaurado!.DesglosePorFranja[0].Retardo.RetardoNeto.Should().Be(30);
     }
 
-    // Barrera anti-regresion: DesgloseHoras.RetardoTotal (Retardo) no sobrevive sin
-    // ConfigurarSerializacion registrado. Si alguien borra Retardo.ConfigurarSerializacion(resolver)
-    // de ConfigurarResolver, este test falla.
+    // Si alguien borra Retardo.ConfigurarSerializacion(resolver) de ConfigurarResolver, este test falla.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeRetardo()
     {

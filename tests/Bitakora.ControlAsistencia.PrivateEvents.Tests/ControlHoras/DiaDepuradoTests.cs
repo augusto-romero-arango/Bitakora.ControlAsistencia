@@ -6,14 +6,9 @@ using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.ControlHoras;
 
 /// <summary>
-/// Verifica que DiaDepurado (IPrivateEvent) sobrevive el cruce fisico del ASB interno del BC
-/// (MEF-ADR-0024 decision #3). Nunca se persiste (IdentidadEventosControlHoras lo excluye
-/// explicitamente), asi que no hay round-trip de Marten que cubrir (seccion 6d del test-writer):
-/// solo el canal del bus (seccion 6e), donde la expectativa es que el payload SOBREVIVA sin
-/// resolver custom -- si no sobreviviera, el tipo no seria portable (MEF-ADR-0023).
-///
-/// Este test compila referenciando UNICAMENTE PrivateEvents (CA-ADR-0029 seccion 3: si necesitara
-/// mas, el tipo no seria portable).
+/// DiaDepurado nunca se persiste (IdentidadEventosControlHoras lo excluye), asi que solo se cubre el
+/// cruce del bus: el payload debe sobrevivir SIN resolver custom, o el tipo no seria portable.
+/// Compila referenciando UNICAMENTE PrivateEvents: si necesitara mas, el tipo no seria portable.
 /// </summary>
 public class DiaDepuradoTests
 {

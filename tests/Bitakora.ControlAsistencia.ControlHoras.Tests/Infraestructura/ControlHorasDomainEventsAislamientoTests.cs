@@ -1,12 +1,7 @@
-// Issue #322: CA-3. ControlHoras.DomainEvents es una de las "tres islas" de ensamblados de
-// eventos (CA-ADR-0029 decision #2 / MEF-ADR-0039 decision #2): cero <ProjectReference> (ni hacia
-// PublicEvents/PrivateEvents ni hacia ningun otro proyecto del repo) y cero <PackageReference> --
-// el retiro de Cosmos.EventDriven.Abstractions cierra la posibilidad de reintroducir un marker de
-// bus (IPublicEvent/IPrivateEvent) en un evento persistido por compilacion.
-//
-// Verificado por lectura directa del .csproj (no por reflexion del assembly compilado): esta es
-// la unica forma de detectar una referencia declarada pero no usada por ningun tipo, que el
-// compilador no delataria.
+// ControlHoras.DomainEvents es una de las "tres islas" (CA-ADR-0029 decision #2): cero
+// ProjectReference y cero PackageReference, para que un evento persistido no pueda reintroducir un
+// marker de bus (IPublicEvent/IPrivateEvent). Se lee el .csproj y no el assembly compilado: una
+// referencia declarada pero no usada no la delata el compilador.
 
 using System.Runtime.CompilerServices;
 using AwesomeAssertions;

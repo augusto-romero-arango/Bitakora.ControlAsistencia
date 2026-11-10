@@ -24,7 +24,6 @@ public class AusenciaVigenteProjectionTests
     private static AusenciaCancelada Cancelar(params int[] dias) =>
         new(AusenciaId, Ana(), dias.Select(Oct).ToList());
 
-    // CA-1: el documento nace con un unico tramo, los limites y la terna del evento.
     [Fact]
     public void Create_ProyectaLaAusenciaConUnTramo_DesdeAusenciaProgramada()
     {
@@ -35,7 +34,6 @@ public class AusenciaVigenteProjectionTests
         vista!.Should().BeEquivalentTo(VistaDeVacaciones1Al30());
     }
 
-    // CA-1: cancelar dias del medio parte el tramo en dos; los limites no cambian.
     [Fact]
     public void Apply_ParteElTramoEnDos_CuandoSeCancelanDiasDelMedio()
     {
@@ -47,7 +45,6 @@ public class AusenciaVigenteProjectionTests
         });
     }
 
-    // CA-1: cancelar el inicio mueve PrimerDiaVigente.
     [Fact]
     public void Apply_AjustaPrimerDiaVigente_CuandoSeCancelaElInicio()
     {
@@ -60,7 +57,6 @@ public class AusenciaVigenteProjectionTests
         });
     }
 
-    // CA-1: cancelar el final mueve UltimoDiaVigente ("volvio el 20").
     [Fact]
     public void Apply_AjustaUltimoDiaVigente_CuandoSeCancelaElFinal()
     {
@@ -87,7 +83,6 @@ public class AusenciaVigenteProjectionTests
         vista!.Should().BeEquivalentTo(previa);
     }
 
-    // Correlacion N2: la cancelacion conserva la identidad (AusenciaId) del documento creado.
     [Fact]
     public void Apply_ConservaLaIdentidadDeLaAusencia_CuandoSeCancelaParcialmente()
     {
@@ -96,8 +91,8 @@ public class AusenciaVigenteProjectionTests
         vista!.Id.Should().Be(AusenciaId);
     }
 
-    // CA-1: cancelar todas las fechas elimina el documento: Apply retorna null, que el evolver
-    // generado traduce a Delete (ShouldDelete(e, vista) + Apply no compila con el generador, CS8120).
+    // Apply retorna null, que el evolver generado traduce a Delete (ShouldDelete(e, vista) + Apply
+    // no compila con el generador, CS8120).
     [Fact]
     public void Apply_RetornaNull_CuandoSeCancelanTodasLasFechasVigentes()
     {

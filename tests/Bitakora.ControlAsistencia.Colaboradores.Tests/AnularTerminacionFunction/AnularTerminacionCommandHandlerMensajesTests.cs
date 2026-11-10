@@ -1,11 +1,6 @@
-// Issue #354: guardrail de resolucion del .resx del handler (MEF-ADR-0009), gemelo del que
-// TerminarVinculacionCommandHandlerMensajesTests.cs aplica.
-//
-// Por que existe: AnularTerminacionCommandHandler.Mensajes devuelve ResourceManager.GetString(...)!
-// -- el "!" es supresion del compilador, no garantia de runtime. Si la CLAVE desaparece del .resx
-// (rename, merge que la pierde) GetString retorna null en silencio y los tests del handler pasan
-// en FALSO: sus aserciones son WithMessage($"*{Mensajes.X}*"), que con X == null se vuelve "**" y
-// matchea cualquier excepcion.
+// Guardrail del .resx (MEF-ADR-0009): el "!" de ResourceManager.GetString(...)! no garantiza nada en
+// runtime. Si la clave desaparece, GetString da null y las aserciones WithMessage($"*{Mensajes.X}*")
+// de los tests del handler se vuelven "**" y pasan en falso.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction.CommandHandler;

@@ -263,8 +263,7 @@ public partial class ListarAdvertenciasProgramacionSemanalSmokeTests(ApiFixture 
             .GetProperty("dias").GetInt32().Should().Be(1);
     }
 
-    // Recorre asignacion -> reparto -> cobertura vecina -> proyeccion; el domingo cae a proposito en la
-    // semana anterior para cruzar la frontera de la semana.
+    // El domingo cae a proposito en la semana anterior para cruzar la frontera de la semana.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarAdvertenciasProgramacionSemanal_DebeMostrarDescansoEntreTurnos_CuandoElLunesSolapaConElDomingoDeNoche()

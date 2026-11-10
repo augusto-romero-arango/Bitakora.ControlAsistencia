@@ -1,5 +1,3 @@
-// Issue #602: tests del endpoint HTTP POST /programacion/turnos/{id}:agregar-franja
-
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction;
@@ -30,10 +28,8 @@ public class FunctionEndpointTests
             .Select(parametro => parametro.GetCustomAttribute<HttpTriggerAttribute>())
             .Single(trigger => trigger is not null)!;
 
-    // CA-7 (ultimo enunciado): la ruta declarada es exactamente esta, con verbo post -- congelada
-    // por reflexion (mismo criterio que ContratoHttpComandosTests de Colaboradores), porque
-    // ningun otro test local ejercita el HttpTriggerAttribute (Run() se llama directo, sin pasar
-    // por el enrutador del host).
+    // Congela verbo y ruta por reflexion: ningun otro test local ejercita el HttpTriggerAttribute
+    // (Run() se llama directo, sin pasar por el enrutador del host).
     [Fact]
     public void AgregarFranja_ExponeElVerboYLaRutaPactadosEnElIssue()
     {
@@ -142,7 +138,7 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
+// Fakes manuales - NO NSubstitute.
 
 internal class FakeRequestValidator<TComando> : IRequestValidator
 {

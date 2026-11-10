@@ -1,18 +1,10 @@
-// Issue #143: Alinear IntervaloTemporal con ADR-0015 y agregar factories de conversion al VO
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
-/// <summary>
-/// Tests para los factories de conversion de MomentoDelDia agregados en Issue #143.
-/// Interfaz publica nueva: Desde(DateTime, DateOnly) y DesdeMinutosAbsolutos(int).
-/// CA-7 a CA-12.
-/// </summary>
 public class MomentoDelDiaFactoriesTests
 {
-    // ---------- CA-7: Desde con mismo dia ----------
-
     [Fact]
     public void Desde_RetornaMomentoConOffsetCero_CuandoFechaYAnclaCoinciden()
     {
@@ -22,8 +14,6 @@ public class MomentoDelDiaFactoriesTests
 
         momento.Should().Be(new MomentoDelDia(new TimeOnly(8, 0), 0));
     }
-
-    // ---------- CA-8: Desde con dia siguiente ----------
 
     [Fact]
     public void Desde_RetornaMomentoConOffsetUno_CuandoFechaEsUnDiaDespuesDeAncla()
@@ -35,8 +25,6 @@ public class MomentoDelDiaFactoriesTests
         momento.Should().Be(new MomentoDelDia(new TimeOnly(6, 0), 1));
     }
 
-    // ---------- CA-9: DesdeMinutosAbsolutos = 480 ----------
-
     [Fact]
     public void DesdeMinutosAbsolutos_Retorna8En0_CuandoSonLas480()
     {
@@ -45,8 +33,6 @@ public class MomentoDelDiaFactoriesTests
 
         momento.Should().Be(new MomentoDelDia(new TimeOnly(8, 0), 0));
     }
-
-    // ---------- CA-10: DesdeMinutosAbsolutos = 1800 ----------
 
     [Fact]
     public void DesdeMinutosAbsolutos_Retorna6En1_CuandoSonLas1800()
@@ -57,8 +43,6 @@ public class MomentoDelDiaFactoriesTests
         momento.Should().Be(new MomentoDelDia(new TimeOnly(6, 0), 1));
     }
 
-    // ---------- CA-11: DesdeMinutosAbsolutos rechaza negativos ----------
-
     [Fact]
     public void DesdeMinutosAbsolutos_LanzaArgumentException_CuandoMinutosSonNegativos()
     {
@@ -67,8 +51,6 @@ public class MomentoDelDiaFactoriesTests
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{MomentoDelDia.Mensajes.MinutosAbsolutosDebeSerPositivoOCero}*");
     }
-
-    // ---------- CA-12: Round-trip DesdeMinutosAbsolutos(MinutosAbsolutos) == original ----------
 
     [Fact]
     public void DesdeMinutosAbsolutos_EsInversoDeMinutosAbsolutos_ParaVariosMomentos()

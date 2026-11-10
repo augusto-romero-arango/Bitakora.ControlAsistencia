@@ -1,16 +1,4 @@
-// Issue #379 (MEF-ADR-0043 paso 4): tests del endpoint HTTP POST
-// colaboradores/{id}/vinculaciones/{codigo}:anular-terminacion (anular la terminacion registrada
-// de la ultima vinculacion de un colaborador, ahora direccionada por su codigo). {id} se parsea
-// via Identificacion.Parsear (unico punto de conversion, MEF-ADR-0037); {codigo} viaja intacto al
-// comando -- la comparacion contra el codigo vigente vive en el aggregate. SIN body: los tres
-// campos del comando interno viajan completos en la ruta -- el endpoint NO depende de
-// IRequestValidator (AnularTerminacionValidator se elimino junto con el body).
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 4): CA-3: 204 No Content, con composicion exacta del comando interno desde {id} + {codigo};
-// CA-4/CA-5: reglas de estado y de codigo conservadas -> 409; CA-6: colaborador inexistente -> 404,
-// {id} de ruta invalido -> 400 (precedente CorregirNombresFunction.FunctionEndpoint post-#377).
-// Reemplaza el POST Colaboradores/Terminaciones/Anulaciones (issue #354): la ruta vieja deja de
-// existir (CA-7, verificado por la ausencia de esa ruta en este archivo).
+// {codigo} viaja intacto al comando: la comparacion contra el codigo vigente vive en el aggregate.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction;
@@ -34,7 +22,6 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-3: POST exitoso retorna 204 No Content, sin cuerpo.
     [Fact]
     public async Task AnularTerminacion_Retorna204SinCuerpo_CuandoIdDeRutaYCodigoSonValidos()
     {
@@ -48,9 +35,6 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-3: el endpoint compone el comando interno AnularTerminacion desde {id} + {codigo} --
-    // el router debe recibir exactamente esos 3 campos primitivos (MEF-ADR-0039 decision 6), tipo
-    // y numero derivados de Identificacion.Parsear.
     [Fact]
     public async Task AnularTerminacion_ComponeElComando_DesdeIdDeRutaYCodigo()
     {
@@ -65,8 +49,6 @@ public class FunctionEndpointTests
             Codigo: CodigoValido));
     }
 
-    // CA-6: id de ruta sin guion -> 400, sin llegar a invocar el router (el parseo tipado es el
-    // unico punto de traduccion, precedente CorregirNombresFunction.FunctionEndpoint post-#377).
     [Fact]
     public async Task AnularTerminacion_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
@@ -79,7 +61,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-6: tipo de identificacion fuera de la lista cerrada PILA -> 400.
     [Fact]
     public async Task AnularTerminacion_Retorna400_CuandoElTipoDeLaIdentificacionNoEstaEnLaListaCerrada()
     {
@@ -92,7 +73,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-6: numero vacio tras el guion del {id} de ruta -> 400.
     [Fact]
     public async Task AnularTerminacion_Retorna400_CuandoElNumeroDeLaIdentificacionQuedaVacio()
     {
@@ -105,8 +85,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-4/CA-5: violacion de una regla de negocio (vinculacion abierta / codigo no corresponde)
-    // retorna 409 Conflict.
     [Fact]
     public async Task AnularTerminacion_Retorna409_CuandoLaVinculacionEstaAbierta()
     {
@@ -120,7 +98,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<ConflictObjectResult>();
     }
 
-    // CA-6: colaborador inexistente retorna 404 Not Found
     [Fact]
     public async Task AnularTerminacion_Retorna404_CuandoColaboradorNoExiste()
     {
@@ -146,13 +123,6 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-
-/// <summary>
-/// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
-/// verificar la composicion desde la ruta, y puede completar exitosamente o lanzar la excepcion
-/// configurada.
-/// </summary>
 internal class FakeAnularTerminacionCommandRouter : ICommandRouter
 {
     private readonly Exception? _excepcion;

@@ -9,13 +9,9 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarProgramacion;
 
-// UNA sola tool de rango sobre QUERY control-horas/turnos-vigentes (tools consolidadas):
-// el caso puntual "que le toca a Juan el 3" es desde = hasta + codigos_colaborador, sin tool aparte sobre ObtenerTurnoVigente.
-//
-// Remodelado: se podan el Id (stream key "cd:...") y el HorarioResumido (los bloques compactos son
-// la forma canonica y traen la sede); las fechas invalidas y el rango invertido se responden como
-// mensaje sin llamar al dominio; el 422 upstream (rango que el propio dominio rechaza) se traduce
-// pasando su mensaje.
+// Una sola tool de rango: el caso puntual "que le toca a Juan el 3" es desde = hasta +
+// codigos_colaborador, sin tool aparte sobre ObtenerTurnoVigente. Se podan el Id (stream key) y el
+// HorarioResumido: los bloques compactos son la forma canonica y traen la sede.
 public partial class ConsultarProgramacionTool(
     ControlHorasApi api, ResolutorCandidatosPorGrupo grupo, ResolutorSedePorCodigo sedes)
 {

@@ -9,7 +9,6 @@ public class CrearTurnoValidatorTests
 {
     private const string NombreTurno = "Turno Manana";
 
-    // Factory method compartido entre las clases anidadas
     private static CrearTurno.Franja FranjaDiurnaSimple() =>
         new(new TimeOnly(8, 0), new TimeOnly(16, 0), [], []);
 
@@ -18,7 +17,6 @@ public class CrearTurnoValidatorTests
 
     private readonly IValidator<CrearTurno> _validator = new CrearTurnoValidator();
 
-    // CA-5 (camino feliz): todos los campos validos pasan la validacion
     [Fact]
     public async Task DebeSerValido_CuandoDatosCompletos()
     {
@@ -28,7 +26,6 @@ public class CrearTurnoValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-5: TurnoId no puede ser Guid vacio
     [Fact]
     public async Task DebeRechazar_CuandoTurnoIdEsGuidVacio()
     {
@@ -41,7 +38,6 @@ public class CrearTurnoValidatorTests
             .Contain(e => e.PropertyName == nameof(CrearTurno.TurnoId));
     }
 
-    // CA-5: Nombre no puede estar vacio
     [Fact]
     public async Task DebeRechazar_CuandoNombreEstaVacio()
     {
@@ -54,8 +50,8 @@ public class CrearTurnoValidatorTests
             .Contain(e => e.PropertyName == nameof(CrearTurno.Nombre));
     }
 
-    // Un turno nace vacio y se completa por pasos (CA-ADR-0033): Ordinarias vacia (o ausente) ya
-    // no es invalida cuando no se marca como descanso.
+    // Un turno nace vacio y se completa por pasos (CA-ADR-0033): Ordinarias vacia (o ausente) es
+    // valida cuando no se marca como descanso.
     [Fact]
     public async Task CrearTurno_EsValido_CuandoOrdinariasEsListaVaciaYNoEsDescanso()
     {

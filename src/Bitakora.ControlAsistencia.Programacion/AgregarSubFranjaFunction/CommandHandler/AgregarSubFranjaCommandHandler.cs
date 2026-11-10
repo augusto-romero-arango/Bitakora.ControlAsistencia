@@ -5,9 +5,8 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction.CommandHandler;
 
-// Mismo criterio de canales que AgregarFranjaCommandHandler (#602, CA-ADR-0030): la
-// ArgumentException de FranjaOrdinaria.ConDescanso/ConExtra sube sin capturarse -- solo el
-// resultado del aggregate (TurnoRetirado/TurnoEsDescanso/FranjaNoExiste) se traduce aqui.
+// La ArgumentException de FranjaOrdinaria.ConDescanso/ConExtra sube sin capturarse; solo el resultado
+// del aggregate se traduce aqui (CA-ADR-0030).
 public partial class AgregarSubFranjaCommandHandler : ICommandHandlerAsync<AgregarSubFranja>
 {
     private readonly IEventStore _eventStore;

@@ -1,17 +1,6 @@
-// Issue #429: tests del endpoint HTTP GET control-horas/depuraciones/{codigoColaborador}/{fecha}.
-// CA-5: fecha con formato invalido -> 400 con mensaje que indique el formato esperado (yyyy-MM-dd).
-// Mismo patron que Colaboradores.Tests/ObtenerFichaColaborador/FunctionEndpointTests.cs: store y
-// tenantContext nulos a proposito -- el parseo debe cortocircuitar ANTES de tocar Marten. Si un
-// cambio futuro moviera la validacion despues de abrir la QuerySession, este test se pondria rojo
-// por la razon correcta (excepcion de referencia nula), nunca en verde por accidente.
-//
-// CA-6 (404 sin body cuando el stream no existe) y la mitad de comportamiento de CA-7 (que la
-// QuerySession efectivamente filtre por el tenant resuelto) dependen de
-// session.Events.AggregateStreamAsync contra Marten real -- black-box del smoke test
-// (ObtenerDepuracionDelDiaSmokeTests, MEF-ADR-0013), mismo criterio que el precedente de
-// ObtenerFichaColaborador documenta para su 200/404. La RESOLUCION por constructor de
-// IDocumentStore/ITenantContext (la mitad de wiring de CA-7) la cubre el test de composicion en
-// ComposicionServiciosTests.cs (hermano de MEF-ADR-0029).
+// Una fecha invalida responde 400 con un mensaje que indica el formato esperado (yyyy-MM-dd).
+// El 404 y el filtro por tenant dependen de Marten real: los cubre ObtenerDepuracionDelDiaSmokeTests;
+// la resolucion de IDocumentStore/ITenantContext por constructor, ComposicionServiciosTests.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ObtenerDepuracionDelDia;
@@ -42,7 +31,6 @@ public class FunctionEndpointTests
             .Which.Should().NotBeNullOrWhiteSpace();
     }
 
-    // CA-5, variante: fecha que ni siquiera tiene forma de fecha.
     [Fact]
     public async Task ObtenerDepuracionDelDia_Retorna400ConMensaje_CuandoLaFechaEsTextoArbitrario()
     {

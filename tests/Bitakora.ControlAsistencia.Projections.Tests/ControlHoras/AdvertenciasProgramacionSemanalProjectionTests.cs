@@ -782,8 +782,6 @@ public class AdvertenciasProgramacionSemanalProjectionTests
         AdvertenciasProgramacionSemanalProjection.Create(CierreVispera(2, SeisAm(2))).Should().BeNull();
     }
 
-    // --- Turno con ventana de entrada (#1229) ---
-
     private static DateTime En(int offset, int h) => Dia(offset).ToDateTime(new TimeOnly(h, 0));
 
     private static TurnoDiario ConVentana(int hi, int hf, int amplitudMin) =>

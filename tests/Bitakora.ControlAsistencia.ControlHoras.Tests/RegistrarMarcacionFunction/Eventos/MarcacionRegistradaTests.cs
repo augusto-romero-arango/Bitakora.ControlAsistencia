@@ -1,8 +1,3 @@
-// Issue #275: Proteger el evento de dominio MarcacionRegistrada con factory y ctor privado.
-// Interfaz publica: Crear(...), CodigoColaborador, TimestampNormalizado, TipoMarcacion, DispositivoId.
-// El evento nunca cruzo el bus como razon para tener ctor publico (#270 ya lo saco del canal);
-// este issue le da, por primera vez, la proteccion que ese rol impedia (ver contexto del issue).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
@@ -13,8 +8,6 @@ public class MarcacionRegistradaTests
     private const string CodigoColaborador = "EMP-001";
     private static readonly DateTime TimestampConSegundos = new(2026, 3, 15, 8, 9, 59);
     private static readonly DateTime TimestampNormalizadoEsperado = new(2026, 3, 15, 8, 9, 0);
-
-    // ---------- CA-1: unica via de construccion es Crear(...); ningun ctor publico ----------
 
     [Fact]
     public void MarcacionRegistrada_NoExponeConstructorPublico()
@@ -31,8 +24,6 @@ public class MarcacionRegistradaTests
         evento.TipoMarcacion.Should().Be("ENTRADA");
         evento.DispositivoId.Should().Be("DEV-001");
     }
-
-    // ---------- CA-2: Crear trunca los segundos del timestamp recibido (floor al minuto) ----------
 
     [Fact]
     public void Crear_TruncaSegundosAlMinuto_CuandoTimestampTraeSegundos()
@@ -77,8 +68,6 @@ public class MarcacionRegistradaTests
             new DateTime(2026, 3, 15, 8, 9, 0, DateTimeKind.Utc));
     }
 
-    // ---------- CA-3: CodigoColaborador nulo, vacio o solo espacios es rechazado ----------
-
     [Fact]
     public void Crear_LanzaArgumentException_CuandoCodigoColaboradorEsNulo()
     {
@@ -105,8 +94,6 @@ public class MarcacionRegistradaTests
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{MarcacionRegistrada.Mensajes.CodigoColaboradorVacio}*");
     }
-
-    // ---------- TipoMarcacion y DispositivoId son opcionales (nullable) ----------
 
     [Fact]
     public void Crear_AceptaCamposOpcionalesNulos()

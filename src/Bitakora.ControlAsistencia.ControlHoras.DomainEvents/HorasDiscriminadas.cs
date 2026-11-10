@@ -3,9 +3,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 // Payload propio de esta isla, espejo de PrivateEvents.ControlHoras.HorasDiscriminadas
 // (payload por rol, MEF-ADR-0039 decision #6).
 //
-// El record por defecto compara HorasPorConcepto/Trazabilidad por referencia; estos overrides las
-// comparan por valor (MEF-ADR-0012, nota sobre equality: un record con colecciones promete una
-// igualdad que el compilador no genera).
+// El record por defecto compara las colecciones por referencia; estos overrides las comparan por valor.
 public record HorasDiscriminadas(
     IReadOnlyDictionary<string, decimal> HorasPorConcepto,
     IReadOnlyList<string> Trazabilidad)

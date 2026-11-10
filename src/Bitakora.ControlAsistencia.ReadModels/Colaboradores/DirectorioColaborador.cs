@@ -4,26 +4,18 @@ using System.Text;
 namespace Bitakora.ControlAsistencia.ReadModels.Colaboradores;
 
 /// <summary>
-/// Read model del directorio de colaboradores -- una entrada por colaborador, para ENCONTRAR a una
-/// persona por nombre o numero de documento. Necesidad de lectura distinta de la ficha, que muestra
-/// el detalle de una persona ya identificada (MEF-ADR-0041).
+/// Directorio de colaboradores, una entrada por colaborador, para ENCONTRAR a una persona por nombre
+/// o numero de documento; el detalle de una persona ya identificada es la ficha.
 /// </summary>
 /// <remarks>
-/// Record plano SIN partial (MEF-ADR-0035): el comportamiento de proyeccion vive en la clase
-/// companion DirectorioColaboradorProjection, en el worker. ReadModels es la cuarta isla del repo
-/// (CA-ADR-0029): cero referencias de proyecto.
+/// Id es el stream key ("{Tipo}-{Numero}", ej. "CC-79879078") y ES la identificacion completa.
+/// TipoDocumento/NumeroDocumento la descomponen para buscar por numero suelto.
 ///
-/// Id es el stream key de ColaboradorAggregateRoot ("{Tipo}-{Numero}", ej. "CC-79879078") y ES la
-/// identificacion completa -- por eso NO existe un campo Identificacion aparte, seria redundante.
-/// TipoDocumento/NumeroDocumento son la forma descompuesta de esa misma identidad, necesaria para
-/// buscar por numero suelto ("79879078", sin el prefijo de tipo).
-///
-/// CodigoColaborador, VigenteDesde, VigenteHasta y CodigoSede reflejan siempre la ULTIMA
-/// vinculacion: un reingreso los sobrescribe, y un reingreso sin sede LIMPIA la anterior en vez de
-/// heredarla ("reingreso nace limpio"). Sin ShouldDelete: el directorio nunca borra -- un
+/// CodigoColaborador, VigenteDesde, VigenteHasta y CodigoSede reflejan la ULTIMA vinculacion; un
+/// reingreso sin sede LIMPIA la anterior ("reingreso nace limpio"). El directorio nunca borra: un
 /// colaborador terminado sigue apareciendo con su VigenteHasta y el consumidor decide.
 ///
-/// No lleva etiquetas: la busqueda por grupo sigue siendo del QUERY de fichas.
+/// Sin etiquetas: la busqueda por grupo es del QUERY de fichas.
 /// </remarks>
 [MaterializadoPorProyeccion]
 public sealed record DirectorioColaborador(
@@ -45,10 +37,8 @@ public sealed record DirectorioColaborador(
     /// registrada).
     /// </summary>
     /// <remarks>
-    /// Constante PROPIA de esta vista aunque coincida con FichaColaborador.CentinelaVigenciaAbierta:
-    /// cada vista codifica sus propios campos. Vive con la vista y no con la proyeccion porque la
-    /// comparten dos procesos que solo se ven a traves de ReadModels -- el worker que la escribe y
-    /// el endpoint que la lee.
+    /// Propia de esta vista aunque coincida con FichaColaborador.CentinelaVigenciaAbierta: cada vista
+    /// codifica sus propios campos.
     /// </remarks>
     public static readonly DateOnly CentinelaVigenciaAbierta = new(9999, 12, 31);
 
@@ -57,15 +47,13 @@ public sealed record DirectorioColaborador(
     /// por todo caracter que no sea letra ni digito, sin duplicados, en orden de aparicion.
     /// </summary>
     /// <remarks>
-    /// La expone la vista (Tell-don't-Ask, MEF-ADR-0012) porque la usan dos procesos que no se
-    /// referencian entre si -- la proyeccion al escribir TokensNombre y el endpoint de consulta al
-    /// tokenizar el termino de busqueda del cliente: un algoritmo por lado divergiria en silencio.
+    /// La usan la proyeccion al escribir TokensNombre y el endpoint al tokenizar el termino de
+    /// busqueda: un algoritmo por lado divergiria en silencio.
     /// </remarks>
     public static IReadOnlyList<string> TokenizarNombre(string nombre)
     {
-        // Quitar diacriticos duplica a proposito Etiqueta.Normalizar (Colaboradores.DomainEvents):
-        // cruza islas, ReadModels no referencia DomainEvents (MEF-ADR-0018). Colapsa la enie --
-        // "Munoz" y "Munoz" con virgulilla son el mismo token, consecuencia deseada para buscar.
+        // Duplica a proposito Etiqueta.Normalizar: ReadModels no referencia DomainEvents. Colapsar
+        // la enie es deseado para buscar.
         var sinDiacriticos = new string(nombre.Normalize(NormalizationForm.FormD)
                 .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
                 .ToArray())
@@ -89,9 +77,8 @@ public sealed record DirectorioColaborador(
     /// invariantes ("79.879.078" y " ab-123.456 " se vuelven "79879078" y "AB123456").
     /// </summary>
     /// <remarks>
-    /// Misma regla que Identificacion.Crear (Colaboradores.DomainEvents), duplicada a proposito:
-    /// cruza islas, ReadModels no referencia DomainEvents (MEF-ADR-0018). Expuesta por la vista por
-    /// la misma razon que <see cref="TokenizarNombre"/>.
+    /// Misma regla que Identificacion.Crear, duplicada a proposito: ReadModels no referencia
+    /// DomainEvents.
     /// </remarks>
     public static string NormalizarNumeroDocumento(string numero) =>
         new(numero.Where(char.IsAsciiLetterOrDigit).Select(char.ToUpperInvariant).ToArray());

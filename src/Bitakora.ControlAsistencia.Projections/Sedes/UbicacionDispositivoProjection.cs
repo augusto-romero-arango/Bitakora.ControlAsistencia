@@ -11,13 +11,11 @@ namespace Bitakora.ControlAsistencia.Projections.Sedes;
 /// documento es el DispositivoId del payload, no el StreamKey de origen.
 /// </summary>
 /// <remarks>
-/// partial es obligatorio: el source generator descubre Create/Apply/ShouldDelete por convencion y
-/// emite el dispatcher [GeneratedEvolver]. Sin partial el build queda limpio y falla en RUNTIME al
-/// registrar la proyeccion (InvalidProjectionException).
+/// partial es obligatorio: sin el, el source generator no emite el evolver y la proyeccion falla en
+/// RUNTIME al registrarse (InvalidProjectionException), con el build limpio.
 ///
-/// Semantica "solo la vigente": la sede vigente sale siempre del StreamKey del evento, nunca del
-/// payload (ninguno de los dos eventos la lleva). No declarar ningun Create(DispositivoRetirado):
-/// esa ausencia es lo que hace que un retiro sin documento existente no cree nada.
+/// La sede sale del StreamKey del evento: ningun evento la lleva en el payload. No declarar un
+/// Create(DispositivoRetirado): su ausencia es lo que hace que un retiro sin documento no cree nada.
 /// </remarks>
 public sealed partial class UbicacionDispositivoProjection : MultiStreamProjection<UbicacionDispositivo, string>
 {

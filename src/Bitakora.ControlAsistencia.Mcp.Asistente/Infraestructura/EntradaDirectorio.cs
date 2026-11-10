@@ -1,10 +1,8 @@
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 /// <summary>
-/// Contrato upstream de QUERY colaboradores/directorio, redeclarado aqui (cero referencias a los
-/// ensamblados del BC, CA-ADR-0029). Solo los campos que la tool consume: TipoDocumento,
-/// NumeroDocumento y TokensNombre ni siquiera se declaran -- STJ ignora lo que sobra en el JSON.
-/// VigenteHasta llega null cuando la vinculacion esta abierta.
+/// Contrato upstream de QUERY colaboradores/directorio, redeclarado aqui (cero referencias al BC,
+/// CA-ADR-0029) con solo los campos que la tool consume. VigenteHasta null = vinculacion abierta.
 /// </summary>
 public sealed record EntradaDirectorio(
     string Identificacion,

@@ -1,7 +1,5 @@
-// HU-116: Consolidar DesgloseFranjas del dia con compensacion cronologica inversa.
-// Familia 4 - Compensacion sobre extras programadas (no por excedente de salida). La regla aplica
-// sobre TODAS las extras sin distincion de origen: el consolidador come la extra programada igual
-// que comeria un excedente, y es agnostico al concepto especifico (diurna/nocturna/dominical).
+// La compensacion consume las extras programadas igual que un excedente, sin distincion de origen ni
+// de concepto.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
@@ -15,10 +13,7 @@ public class ConsolidadorDesgloseHorasExtrasProgramadasTests
     [Fact]
     public void Consolidar_ConsumeUnaExtraProgramada_CuandoNoHayExcedentePorSalida()
     {
-        // CA-11: F1 retardo 30min, F2 con extra programada 18:00-19:00 (ExtraDiurna 60min) y salida
-        // 19:00 (sin excedente adicional). La compensacion cronologico inverso come 30min desde el
-        // final de la extra = [18:30-19:00]. Resultado: 30min ExtraDiurna (18:00-18:30). Verifica que
-        // las extras programadas son consumibles por compensacion sin distincion de origen.
+        // Consume 30 min desde el final de la extra programada: [18:30-19:00].
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(8, 30), M(12), Concepto.OrdinariaDiurna)],
@@ -52,10 +47,7 @@ public class ConsolidadorDesgloseHorasExtrasProgramadasTests
     [Fact]
     public void Consolidar_ComeSoloLaExtraNocturnaProgramada_CuandoLaExtraCruzaLaFronteraNocturna()
     {
-        // CA-12: F1 retardo 30min, F2 con extra programada 18:00-20:00 repartida en [ExtraDiurna
-        // 18:00-19:00 (60min) + ExtraNocturna 19:00-20:00 (60min)], salida 20:00. La compensacion
-        // cronologico inverso come 30min de ExtraNocturna desde el final = [19:30-20:00]. Resultado:
-        // ExtraDiurna 60min intacta + ExtraNocturna 30min.
+        // Consume 30 min de la ExtraNocturna desde el final, [19:30-20:00]; la ExtraDiurna queda intacta.
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(8, 30), M(12), Concepto.OrdinariaDiurna)],
@@ -92,11 +84,7 @@ public class ConsolidadorDesgloseHorasExtrasProgramadasTests
     [Fact]
     public void Consolidar_ComeLaExtraDominicalFestiva_CuandoElDiaEsDomingo()
     {
-        // CA-13: mismo escenario del CA-12 pero en domingo. Los conceptos de extras son
-        // ExtraDiurnaDominicalFestiva + ExtraNocturnaDominicalFestiva (por #135), y el tiempo ordinario
-        // es DominicalFestivaDiurna. La compensacion come 30min de ExtraNocturnaDominicalFestiva desde
-        // el final. Verifica que la compensacion es agnostica al concepto: consume cualquier extra y
-        // deja intactas las ordinarias dominicales.
+        // En domingo: consume la ExtraNocturnaDominicalFestiva y deja intactas las ordinarias dominicales.
         var franja1 = Desglose(
             Programada(8, 12),
             [Clasif(M(8, 30), M(12), Concepto.DominicalFestivaDiurna)],

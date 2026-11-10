@@ -1,13 +1,6 @@
-// Issue #429: unit tests puros (sin Marten) de DiaCalculadoAggregateRoot.GenerarDepuracionDelDia()
-// -- el metodo generador que produce la vista DepuracionDelDia (via (b1),
-// skills/projections/read-apis.md). Se instancia el aggregate directamente y se le aplica
-// DepuracionDiaRecibida via Apply (publico -- "requerido para que TestStore.ApplyEvent lo encuentre
-// via GetMethods()", ver el propio archivo de produccion) -- sin AggregateStreamAsync, sin Postgres:
-// es exactamente como el aggregate se hidrata en produccion, reaplicando el mismo evento (mecanismo
-// Live, MEF-ADR-0015), solo que aqui se hace a mano en vez de sobre un stream real.
-//
-// Cada assert arma el esperado a mano (oraculo independiente, MEF-ADR-0002) -- nunca reusa la logica
-// del generador bajo prueba. CA-1..CA-4 del issue #429.
+// Sin Marten: el aggregate se hidrata a mano aplicando DepuracionDiaRecibida via Apply, igual que en
+// produccion (mecanismo Live, MEF-ADR-0015). Cada esperado se arma a mano (oraculo independiente,
+// MEF-ADR-0002).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -48,11 +41,8 @@ public class DiaCalculadoAggregateRootTests
             streamId, CodigoColaborador, Fecha, colaborador, nombreTurno, franjas, marcaciones, horas);
     }
 
-    // CA-1: dia con jornada valida -> 200 con la vista completa: identidad + foto del colaborador,
-    // Plan=ConJornada + NombreTurno, franjas plan/realidad, TODAS las marcaciones en orden
-    // cronologico, HorasPorConcepto sparse, Trazabilidad y Estado=Provisional. WithStrictOrdering
-    // porque el contrato del evento exige orden cronologico de las marcaciones (issue #429,
-    // "Necesidad de lectura") -- BeEquivalentTo por defecto ignora el orden de las colecciones.
+    // WithStrictOrdering: el contrato exige orden cronologico de las marcaciones y BeEquivalentTo por
+    // defecto ignora el orden de las colecciones.
     [Fact]
     public void GenerarDepuracionDelDia_ProduceLaVistaCompleta_CuandoElDiaTieneJornadaValida()
     {
@@ -93,8 +83,6 @@ public class DiaCalculadoAggregateRootTests
         vista.Should().BeEquivalentTo(esperado, opciones => opciones.WithStrictOrdering());
     }
 
-    // CA-2: marcacion cuyo Timestamp coincide EXACTAMENTE con la Entrada o Salida de alguna
-    // franja -> Usada=true.
     [Fact]
     public void GenerarDepuracionDelDia_MarcaUsadaVerdadero_CuandoElTimestampCoincideConEntradaOSalidaDeUnaFranja()
     {
@@ -112,8 +100,7 @@ public class DiaCalculadoAggregateRootTests
         vista.Marcaciones.Should().OnlyContain(m => m.Usada);
     }
 
-    // CA-2: las demas -- descartadas visibles -- quedan con Usada=false. La marcacion esta a un
-    // minuto de la Entrada real: cerca, pero sin igualdad exacta.
+    // La marcacion esta a un minuto de la Entrada real: cerca, pero sin igualdad exacta.
     [Fact]
     public void GenerarDepuracionDelDia_MarcaUsadaFalso_CuandoElTimestampNoCoincideConNingunaFranja()
     {
@@ -130,8 +117,6 @@ public class DiaCalculadoAggregateRootTests
         vista.Marcaciones.Should().ContainSingle().Which.Usada.Should().BeFalse();
     }
 
-    // CA-3: NombreTurno null -> Plan=SinProgramar (marcaciones todas con Usada=false, sin franjas,
-    // horas vacias).
     [Fact]
     public void GenerarDepuracionDelDia_DerivaPlanSinProgramar_CuandoNombreTurnoEsNulo()
     {
@@ -149,7 +134,6 @@ public class DiaCalculadoAggregateRootTests
         vista.HorasPorConcepto.Should().BeEmpty();
     }
 
-    // CA-3: nombre + cero franjas -> Plan=Descanso.
     [Fact]
     public void GenerarDepuracionDelDia_DerivaPlanDescanso_CuandoHayNombreTurnoYCeroFranjas()
     {
@@ -164,8 +148,6 @@ public class DiaCalculadoAggregateRootTests
         vista.Franjas.Should().BeEmpty();
     }
 
-    // CA-4: dia que nacio solo por marcacion (sin ResumenColaborador en el evento) ->
-    // IdentificacionColaborador y NombreColaborador null, el resto de la vista integro.
     [Fact]
     public void GenerarDepuracionDelDia_DejaNulaLaFotoDelColaborador_CuandoElEventoNoTraeResumenColaborador()
     {
@@ -193,7 +175,6 @@ public class DiaCalculadoAggregateRootTests
     private static readonly SedeDeFranja SedeNorte = new("SEDE-02", "Sede Norte", "CC-200");
     private static readonly SedeDeFranja SedeSur = new("SEDE-03", "Sede Sur", "CC-300");
 
-    // CA-1.
     [Fact]
     public void GenerarDepuracionDelDia_DerivaSedeEfectivaSinConflicto_CuandoProgramadaYMarcadaCoincidenEnSede()
     {
@@ -220,7 +201,6 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeFalse();
     }
 
-    // CA-2.
     [Fact]
     public void GenerarDepuracionDelDia_DerivaFranjaEnConflicto_CuandoProgramadaYMarcacionUsadaDifierenEnSede()
     {
@@ -247,7 +227,6 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeTrue();
     }
 
-    // CA-3.
     [Fact]
     public void GenerarDepuracionDelDia_ExponeTresCandidatas_CuandoEntradaYSalidaVienenDeSedesDistintasDeLaProgramada()
     {
@@ -274,7 +253,6 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeTrue();
     }
 
-    // CA-4, variante "solo la fuente programada".
     [Fact]
     public void GenerarDepuracionDelDia_DerivaSedeEfectivaConLaProgramada_CuandoSoloHaySedeProgramada()
     {
@@ -298,7 +276,6 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeFalse();
     }
 
-    // CA-4, variante "solo la fuente marcada".
     [Fact]
     public void GenerarDepuracionDelDia_DerivaSedeEfectivaConLaMarcada_CuandoSoloHaySedeMarcadaEnLaMarcacionUsada()
     {
@@ -323,8 +300,7 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeFalse();
     }
 
-    // CA-4, variante "dia sin franjas": la sede marcada se expone igual, aunque no haya franja que
-    // la confronte.
+    // La sede marcada se expone aunque no haya franja que la confronte.
     [Fact]
     public void GenerarDepuracionDelDia_ExponeSedeMarcadaEnLaMarcacion_CuandoElDiaNacioSoloPorMarcacion()
     {
@@ -345,7 +321,7 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeFalse();
     }
 
-    // CA-5: la sede se hereda y prevalece el CC estampado en la marcacion, nunca un lookup al maestro.
+    // Prevalece el CC estampado en la marcacion, nunca un lookup al maestro.
     [Fact]
     public void GenerarDepuracionDelDia_NoDetectaConflicto_CuandoLaSedeEsIgualYSoloElCentroDeCostosDifiere()
     {
@@ -372,8 +348,7 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeFalse();
     }
 
-    // CA-6: sin evento de resolucion -- el conflicto se disuelve solo con la foto nueva (#483 es el
-    // acto humano de resolver, no esto).
+    // Sin evento de resolucion: el conflicto se disuelve solo con la foto nueva.
     [Fact]
     public void TieneConflictoDeSedePendiente_ReflejaLaUltimaFoto_CuandoUnaNuevaFotoResuelveLaDiscrepancia()
     {
@@ -399,8 +374,8 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeFalse();
     }
 
-    // Streams anteriores a #484, sin campos de sede: sin candidatas y sin conflicto FALSO
-    // (MEF-ADR-0004: deriva, nunca lanza).
+    // Streams escritos antes de los campos de sede: sin candidatas y sin conflicto FALSO (MEF-ADR-0004:
+    // deriva, nunca lanza).
     [Fact]
     public void GenerarDepuracionDelDia_DerivaSinCandidatasNiConflicto_CuandoNiLaFranjaNiLasMarcacionesTraenSede()
     {
@@ -422,8 +397,8 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeFalse();
     }
 
-    // La precedencia del CC rige tambien DENTRO del conflicto: la candidata que el Aprobador elija
-    // (#483) debe traer el CC estampado en la marcacion, no el programado que quedo obsoleto.
+    // La precedencia del CC rige tambien DENTRO del conflicto: la candidata que el Aprobador elija debe
+    // traer el CC estampado en la marcacion, no el programado que quedo obsoleto.
     [Fact]
     public void GenerarDepuracionDelDia_ExponeLaCandidataConElCentroDeCostosEstampado_CuandoUnaSedeEnConflictoLoTraeDistintoPorFuente()
     {
@@ -451,8 +426,8 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeTrue();
     }
 
-    // Los tres campos de sede son opcionales e INDEPENDIENTES en el evento (#484): un codigo sin
-    // nombre sigue siendo candidata -- descartarla ocultaria el conflicto que si existe.
+    // Los tres campos de sede son opcionales e INDEPENDIENTES en el evento: un codigo sin nombre sigue
+    // siendo candidata; descartarla ocultaria el conflicto que si existe.
     [Fact]
     public void GenerarDepuracionDelDia_ExponeLaCandidataSinNombre_CuandoLaSedeMarcadaLlegaConCodigoYSinNombre()
     {
@@ -476,8 +451,6 @@ public class DiaCalculadoAggregateRootTests
         dia.TieneConflictoDeSedePendiente.Should().BeTrue();
     }
 
-    // Issue #489 CA-2: tras aprobar, GenerarDepuracionDelDia refleja la sede decidida como
-    // efectiva y sin conflicto -- el expediente aprobado se lee resuelto.
     [Fact]
     public void GenerarDepuracionDelDia_MuestraLaSedeDecididaComoEfectivaSinConflicto_CuandoElDiaEstaAprobado()
     {

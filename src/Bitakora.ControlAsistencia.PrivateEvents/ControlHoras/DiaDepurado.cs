@@ -5,18 +5,16 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
 // Nunca se persiste: IdentidadEventosControlHoras lo excluye a proposito.
 //
-// CodigoColaborador viaja top-level y siempre presente, tambien cuando Colaborador es null (dia
-// nacido solo por marcacion, sin turno): el consumidor arma "dc:{codigo}:{yyyyMMdd}" con el. Moverlo
-// dentro de Colaborador reintroduce el defecto que este campo corrige.
+// CodigoColaborador viaja top-level y siempre, tambien con Colaborador null (dia nacido solo por
+// marcacion): el consumidor arma "dc:{codigo}:{yyyyMMdd}" con el. No moverlo dentro de Colaborador.
 //
-// NombreTurno + Franjas son la senal estructural del plan, sin enum: null = sin programacion;
-// nombre + Franjas vacia = descanso programado; nombre + Franjas >= 1 = jornada valida. Un dia sin
-// jornada valida no tiene depuracion (Franjas y HorasPorConcepto vacios, Marcaciones cruda): la
-// anomalia la deriva el receptor de esa combinacion, no un campo explicito del payload.
+// NombreTurno + Franjas son la senal del plan: null = sin programacion; nombre + Franjas vacia =
+// descanso programado; nombre + Franjas >= 1 = jornada valida. Sin jornada valida no hay depuracion
+// (Franjas y HorasPorConcepto vacios, Marcaciones cruda) y el receptor deriva la anomalia de esa
+// combinacion.
 //
-// Marcaciones viaja completa y en orden cronologico ascendente: es contrato del evento, no reflejo
-// del orden de llegada al aggregate. Es la unica evidencia de las anomalias de un dia sin jornada
-// valida, y el consumidor no puede ir a buscarlas a otro aggregate.
+// Marcaciones viaja completa y en orden cronologico ascendente (contrato del evento): es la unica
+// evidencia de las anomalias de un dia sin jornada valida.
 public record DiaDepurado(
     string CodigoColaborador,
     DateOnly Fecha,
@@ -28,9 +26,8 @@ public record DiaDepurado(
     string? MotivoAusencia = null,
     long? VersionControlDiario = null) : IPrivateEvent
 {
-    // El record por defecto compara Franjas/Marcaciones por referencia; estos overrides las comparan
-    // por valor. Todo campo nuevo del record debe sumarse a ambos a mano (MEF-ADR-0012, nota sobre
-    // equality: un record con colecciones promete una igualdad que el compilador no genera).
+    // Equals/GetHashCode comparan Franjas/Marcaciones por valor: todo campo nuevo del record debe sumarse
+    // a ambos a mano.
     public virtual bool Equals(DiaDepurado? other)
     {
         if (other is null) return false;

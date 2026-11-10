@@ -3,10 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Issue #237: gemela de ConfiguracionSerializacionControlHoras. Antes esta lista vivia inline en
-// ComposicionServicios de la Function App, asi que el worker de proyecciones no tenia como
-// replicarla. Ahora el ensamblado que aloja los tipos ricos aloja tambien su registro, y
-// cualquier proceso que lea estos streams -- write-side o read-side -- invoca la misma lista.
+// Vive en el ensamblado de los tipos ricos para que cualquier proceso que lea estos streams
+// (write-side o read-side) invoque la misma lista.
 public static class ConfiguracionSerializacionProgramacion
 {
     public static JsonSerializerOptions CrearOpcionesMarten()
@@ -20,11 +18,9 @@ public static class ConfiguracionSerializacionProgramacion
         };
     }
 
-    // Los tres tipos ricos de Programacion: ctor privado + propiedades con private set, que STJ
-    // solo puede reconstruir con el resolver custom (MEF-ADR-0012). Van de mas interno a mas
-    // externo porque SubFranja es hija de FranjaOrdinaria y esta es payload de TurnoCreado.
-    // ProgramacionTurnoSolicitada no entra: su ctor publico es el unico, asi que STJ lo resuelve
-    // sin ayuda y no declara ConfigurarSerializacion.
+    // Tipos con ctor privado y private set, que STJ solo reconstruye con el resolver custom
+    // (MEF-ADR-0012). Van de mas interno a mas externo: SubFranja es hija de FranjaOrdinaria y esta es
+    // payload de TurnoCreado. ProgramacionTurnoSolicitada no entra: su ctor publico es el unico.
     public static void ConfigurarResolver(DefaultJsonTypeInfoResolver resolver)
     {
         SubFranja.ConfigurarSerializacion(resolver);

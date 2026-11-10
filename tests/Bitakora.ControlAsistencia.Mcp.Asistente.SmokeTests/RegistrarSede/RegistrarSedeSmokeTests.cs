@@ -6,9 +6,8 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.RegistrarSede;
 
 public class RegistrarSedeSmokeTests(McpFixture mcp)
 {
-    // Recorre la cadena completa: host MCP -> worker -> HttpClient tipado -> Function App de
-    // Sedes -> event store. Codigo unico por corrida (TEST-{Guid v7}) para no colisionar con
-    // otras ejecuciones del mismo tenant-smoke (CA-ADR-0030: 409 si el codigo ya existe).
+    // Codigo unico por corrida (TEST-{Guid v7}): el dominio responde 409 si el codigo ya existe en el
+    // mismo tenant-smoke (CA-ADR-0030).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarSede_RegistraLaSede_CuandoElCodigoYNombreSonValidos()
@@ -27,9 +26,8 @@ public class RegistrarSedeSmokeTests(McpFixture mcp)
         texto.Should().Contain(codigo);
     }
 
-    // Error path que no toca el dominio: la validacion de campo en blanco corta en el worker y
-    // responde el mensaje del .resx CampoObligatorio en produccion. Afirmar el texto exacto prueba
-    // que los recursos embebidos viajaron en el publish.
+    // Error path que no toca el dominio: el texto exacto del .resx (CampoObligatorio) prueba que los
+    // recursos embebidos viajaron en el publish.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarSede_RespondeElMensajeDeValidacion_CuandoElCodigoEstaEnBlanco()
@@ -45,11 +43,9 @@ public class RegistrarSedeSmokeTests(McpFixture mcp)
             .Should().Be("'codigo' es obligatorio.");
     }
 
-    // CA-2 end-to-end: el 409 del dominio (SedeYaRegistrada) tiene que llegar al asistente como
-    // TEXTO traducido, nunca como error del protocolo -- es la decision de CA-ADR-0030, y el
-    // unit test con handler falso no puede probar que el dominio real responda ese status.
-    // Autocontenido (registra y repite el MISMO codigo) para no depender del orden de los tests
-    // ni sembrar una sede extra.
+    // El 409 real del dominio (SedeYaRegistrada) debe llegar como TEXTO, nunca como error del protocolo
+    // (CA-ADR-0030); el unit test con handler falso no puede probarlo. Autocontenido: registra y repite
+    // el MISMO codigo para no depender del orden de los tests.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarSede_DevuelveElRechazoComoTexto_CuandoElCodigoYaEstaRegistrado()

@@ -6,7 +6,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ListarMallaSemanalTurnos
 
 public class ComponedorMallaSemanalTests
 {
-    // Semana ISO 2027-03-01 (lunes) a 2027-03-07 (domingo)
+    // 2027-03-01 es lunes.
     private static readonly SemanaIso Semana = new(2027, 9, new DateOnly(2027, 3, 1), new DateOnly(2027, 3, 7));
 
     private static DateOnly Dia(int d) => new(2027, 3, d);

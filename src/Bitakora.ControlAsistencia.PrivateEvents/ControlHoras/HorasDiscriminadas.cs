@@ -1,18 +1,12 @@
 namespace Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 
-// Payload plano del dia que viaja en DiaDepurado. Debe permanecer 100% primitivo: el resolver custom
-// de Marten NO se aplica al canal de publicacion a Service Bus, asi que un campo rico llegaria lossy
-// al consumidor (MEF-ADR-0012, frontera event store vs bus).
+// Debe permanecer 100% primitivo: el resolver custom de Marten no se aplica al canal de Service Bus y
+// un campo rico llegaria lossy al consumidor (MEF-ADR-0012).
 //
-// HorasPorConcepto: clave = Concepto.ToString() ("OrdinariaDiurna", ...) o la clave literal "Retardo";
-// valor = horas liquidables del dia, producidas via HorasLiquidables (unico punto de conversion del
-// BC). Todo el diccionario habla el mismo idioma, incluida la clave "Retardo".
-// Trazabilidad narra en minutos e intervalos a proposito: es memoria de auditoria del calculo, no
-// dato operable del mundo humano.
-//
-// El record por defecto compara HorasPorConcepto/Trazabilidad por referencia; los overrides de
-// Equals/GetHashCode las comparan por valor sin perder la forma de record (MEF-ADR-0012, nota sobre
-// equality).
+// HorasPorConcepto: clave = Concepto.ToString() ("OrdinariaDiurna", ...) o la literal "Retardo";
+// valor = horas liquidables del dia, producidas via HorasLiquidables (unico punto de conversion del BC).
+// Trazabilidad narra en minutos e intervalos a proposito: es memoria de auditoria, no dato operable.
+// Equals/GetHashCode comparan ambas colecciones por valor.
 public record HorasDiscriminadas(
     IReadOnlyDictionary<string, decimal> HorasPorConcepto,
     IReadOnlyList<string> Trazabilidad)
@@ -25,8 +19,7 @@ public record HorasDiscriminadas(
             && Trazabilidad.SequenceEqual(other.Trazabilidad);
     }
 
-    // Igualdad de diccionario independiente del orden de insercion: mismo tamanio y cada par presente
-    // con el mismo valor en el otro.
+    // Independiente del orden de insercion.
     private bool HorasPorConceptoIguales(IReadOnlyDictionary<string, decimal> otros) =>
         HorasPorConcepto.Count == otros.Count
         && HorasPorConcepto.All(par => otros.TryGetValue(par.Key, out var valor) && valor == par.Value);
@@ -34,8 +27,7 @@ public record HorasDiscriminadas(
     public override int GetHashCode()
     {
         var hash = new HashCode();
-        // El diccionario se hashea con XOR de los pares para que el hash no dependa del orden de
-        // enumeracion (objetos iguales deben producir el mismo hash). Trazabilidad es ordenada.
+        // XOR de los pares: el hash no depende del orden de enumeracion del diccionario.
         var hashHoras = 0;
         foreach (var par in HorasPorConcepto)
             hashHoras ^= HashCode.Combine(par.Key, par.Value);

@@ -2,8 +2,6 @@ using System.Resources;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction.CommandHandler;
 
-// MEF-ADR-0009: mensajes del handler en .resx separado.
-// internal: accesible desde tests via InternalsVisibleTo en el .csproj.
 public partial class AsignarEtiquetaCommandHandler
 {
     private static readonly ResourceManager ResourceManager = new(
