@@ -7,12 +7,9 @@ namespace Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 /// Nombre completo del colaborador -- dueno unico de la composicion del nombre completo.
 /// </summary>
 /// <remarks>
-/// Issue #348: primer nombre y primer apellido son obligatorios (minimo colombiano); los segundos
-/// son opcionales (null, vacio o whitespace se normalizan a ausente, con trim en los presentes).
-/// NombreCompleto es la unica composicion canonica -- ningun consumidor concatena por su cuenta
-/// (Tell-don't-Ask, MEF-ADR-0012).
-/// Los 4 componentes NO son publicos: cuando el futuro evento persistido (#349+) necesite mapear a
-/// un DTO plano de bus, ese issue decidira la via de conversion (ej. ToContrato()), no este.
+/// Primer nombre y primer apellido son obligatorios (minimo colombiano); los segundos son
+/// opcionales (null, vacio o whitespace se normalizan a ausente). NombreCompleto es la unica
+/// composicion canonica: ningun consumidor concatena por su cuenta (MEF-ADR-0012).
 /// </remarks>
 public sealed partial class NombreColaborador : IEquatable<NombreColaborador>
 {
@@ -30,15 +27,13 @@ public sealed partial class NombreColaborador : IEquatable<NombreColaborador>
         _segundoApellido = segundoApellido;
     }
 
-    // Constructor vacio para STJ/Marten
+    // Para STJ/Marten
     private NombreColaborador()
     {
         _primerNombre = string.Empty;
         _primerApellido = string.Empty;
     }
 
-    // CA-3: primer nombre y primer apellido obligatorios (no vacios ni whitespace, con trim). Los
-    // segundos se normalizan a ausente cuando llegan null, vacios o whitespace.
     public static NombreColaborador Crear(
         string primerNombre, string? segundoNombre, string primerApellido, string? segundoApellido)
     {
@@ -52,14 +47,12 @@ public sealed partial class NombreColaborador : IEquatable<NombreColaborador>
             primerApellido.Trim(), NormalizarOpcional(segundoApellido));
     }
 
-    // CA-4: composicion canonica unica -- espacios simples, omite opcionales ausentes.
     public string NombreCompleto =>
         string.Join(" ", new[] { _primerNombre, _segundoNombre, _primerApellido, _segundoApellido }
             .Where(componente => !string.IsNullOrWhiteSpace(componente)));
 
     public override string ToString() => NombreCompleto;
 
-    // Igualdad por valor
     public bool Equals(NombreColaborador? other) =>
         other is not null
         && _primerNombre == other._primerNombre

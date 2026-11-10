@@ -1,5 +1,3 @@
-// Issue #500: tests del endpoint HTTP DELETE /programacion/turnos/{id}
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction.CommandHandler;
@@ -17,9 +15,8 @@ public class FunctionEndpointTests
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
-    // CA-1: DELETE exitoso -> 204 No Content, sin cuerpo (la transaccion confirma antes de
-    // responder). Cubre tanto el retiro real como el no-op de retirar un turno ya retirado
-    // (#665, MEF-ADR-0004): el router no distingue -- ambos terminan sin lanzar.
+    // 204 sin cuerpo: la transaccion confirma antes de responder. Cubre tambien el no-op de retirar
+    // un turno ya retirado: el router no distingue, ambos terminan sin lanzar.
     [Fact]
     public async Task RetirarTurno_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
@@ -33,7 +30,6 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-2: turno inexistente -> 404
     [Fact]
     public async Task RetirarTurno_Retorna404_CuandoElTurnoNoExiste()
     {
@@ -70,7 +66,7 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fake manual - NO NSubstitute ----
+// Fake manual - NO NSubstitute.
 
 internal sealed class FakeCommandRouter(Exception? excepcion = null) : ICommandRouter
 {

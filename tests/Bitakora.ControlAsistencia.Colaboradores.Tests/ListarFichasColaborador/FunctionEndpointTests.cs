@@ -1,22 +1,8 @@
-// Issue #373 CA-4: validacion del borde HTTP del endpoint QUERY ListarFichasColaborador (MEF-ADR-
-// 0042, RFC 10008). Estos casos cortocircuitan ANTES de abrir la QuerySession -- store y
-// tenantContext se pasan nulos a proposito, mismo patron que ListarTurnosVigentes/
-// FunctionEndpointTests.cs (ControlHoras.Tests, issue #329): si un cambio futuro moviera la
-// validacion DESPUES de tocar Marten, estos tests se pondrian rojos por la razon correcta.
-//
-// Fase roja (projection-test-writer): FunctionEndpoint.Run() hoy SOLO lanza NotImplementedException
-// (MEF-ADR-0033, stub minimo de compilacion) -- ninguno de estos tests puede pasar todavia. El
-// COMPORTAMIENTO (que status code y que rama dispara cada uno) es responsabilidad de
-// projection-implementer; el MECANISMO exacto (required del record, chequeo explicito de default,
-// etc., segun el propio issue) es su decision, no la de este archivo.
-//
-// Los cinco casos de deserializacion (body ausente, JSON invalido, literal "null", FechaReferencia
-// ausente, cursor incompleto) estan verificados por spike propio contra
-// HttpRequestJsonExtensions.ReadFromJsonAsync (STJ reflection-based, sin JsonOptions en
-// RequestServices): un campo string/DateOnly ausente en el JSON NO lanza -- se completa con el
-// default del tipo (null / 0001-01-01) sin excepcion -- y JsonException solo aparece con body vacio
-// o JSON sintacticamente invalido. De ahi que CA-4 exija una validacion EXPLICITA post-deserializacion
-// para el 422 (missing FechaReferencia, cursor con un solo campo): STJ por si solo no la produce.
+// Store y tenantContext nulos a proposito: estos casos cortocircuitan antes de abrir la QuerySession,
+// y si la validacion se moviera despues de tocar Marten se pondrian rojos.
+// ReadFromJsonAsync (STJ por reflection) no lanza por un campo string/DateOnly ausente: lo deja en
+// su default (null / 0001-01-01); JsonException solo sale con body vacio o JSON invalido. Por eso el
+// 422 por FechaReferencia ausente o cursor incompleto exige validacion explicita.
 
 using System.Text;
 using AwesomeAssertions;
@@ -48,8 +34,6 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // --- 415: Content-Type ausente o distinto de application/json (RFC 10008 seccion 2) ---
-
     [Fact]
     public async Task ListarFichasColaborador_Retorna415_CuandoElContentTypeNoEsJson()
     {
@@ -72,8 +56,6 @@ public class FunctionEndpointTests
         var objectResult = resultado.Should().BeOfType<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status415UnsupportedMediaType);
     }
-
-    // --- 400: body ausente, JSON invalido o literal "null" (RFC 10008 seccion 2.1) ---
 
     [Fact]
     public async Task ListarFichasColaborador_Retorna400_CuandoElBodyEstaAusente()
@@ -99,9 +81,6 @@ public class FunctionEndpointTests
     [Fact]
     public async Task ListarFichasColaborador_Retorna400_CuandoElBodyEsElLiteralJsonNull()
     {
-        // JSON sintacticamente valido que deserializa a null (distinto del caso anterior, JSON
-        // invalido) -- misma rama que el ejemplo canonico de skills/projections/read-apis.md:
-        // "if (filtro is null) return new BadRequestObjectResult(...)".
         var request = FakeHttpRequest(contentType: "application/json", body: "null");
 
         var resultado = await Endpoint().Run(request, CancellationToken.None);
@@ -109,14 +88,10 @@ public class FunctionEndpointTests
         resultado.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // --- 422: JSON valido pero no procesable (CA-4) ---
-
     [Fact]
     public async Task ListarFichasColaborador_Retorna422_CuandoFaltaFechaReferencia()
     {
-        // FechaReferencia es obligatoria (el back jamas resuelve "hoy") -- STJ no lanza por su
-        // ausencia (verificado por spike: el campo queda en 0001-01-01), asi que el 422 depende de
-        // una validacion explicita del implementer, no de la deserializacion.
+        // FechaReferencia es obligatoria: el back jamas resuelve "hoy".
         var request = FakeHttpRequest(contentType: "application/json", body: """{"take":10}""");
 
         var resultado = await Endpoint().Run(request, CancellationToken.None);
@@ -129,9 +104,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task ListarFichasColaborador_Retorna422_CuandoUnaEtiquetaDelFiltroEsInvalida()
     {
-        // CA-2: normalizacion simetrica -- el endpoint construye Etiqueta.Crear(Categoria, Valor)
-        // con cada par; un par con categoria vacia lo rechaza Etiqueta.Crear con ArgumentException
-        // (Colaboradores.DomainEvents/Etiqueta.cs), que el endpoint traduce a 422.
+        // Etiqueta.Crear rechaza la categoria vacia con ArgumentException, que el endpoint traduce a 422.
         var request = FakeHttpRequest(
             contentType: "application/json",
             body: """{"fechaReferencia":"2026-08-14","etiquetas":[{"categoria":"","valor":"Tecnologia"}]}""");
@@ -142,10 +115,8 @@ public class FunctionEndpointTests
         unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
-    // Agregado en la revision: el body es entrada del cliente y STJ acepta un elemento null dentro
-    // del array pese a la anotacion no-nullable de FiltroEtiqueta. Sin el guard del endpoint, el
-    // acceso a par.Categoria era una NullReferenceException que escapaba del catch de
-    // ArgumentException y salia como 500 donde RFC 10008 seccion 2.1 pide 422.
+    // STJ acepta un elemento null dentro del array pese a la anotacion no-nullable de FiltroEtiqueta:
+    // sin el guard, la NullReferenceException escapaba del catch de ArgumentException como 500.
     [Fact]
     public async Task ListarFichasColaborador_Retorna422_CuandoUnaEtiquetaDelFiltroEsNula()
     {
@@ -160,10 +131,8 @@ public class FunctionEndpointTests
         unprocessable.Value.Should().BeOfType<string>();
     }
 
-    // Agregado en la revision (issue #519 CA-4): el filtro por sede es opcional -- ausente/null no
-    // filtra -- pero presente y en blanco no es una consulta legitima: ninguna ficha puede llevar
-    // sede en blanco (AsignarSedeBodyValidator exige NotEmpty del lado comando), asi que responder
-    // 200 con lista vacia esconderia un error del cliente. Misma rama 422 que una etiqueta invalida.
+    // Sede ausente no filtra, pero presente en blanco es error del cliente: ninguna ficha lleva sede en
+    // blanco (AsignarSedeBodyValidator exige NotEmpty) y un 200 vacio lo esconderia.
     [Fact]
     public async Task ListarFichasColaborador_Retorna422_CuandoElCodigoSedeDelFiltroEstaEnBlanco()
     {
@@ -232,8 +201,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task ListarFichasColaborador_Retorna422_CuandoElCursorTraeUnSoloCampo()
     {
-        // Cursor con NombreCompleto pero sin Id (el otro campo del cursor keyset, CursorFicha.Id
-        // queda null -- verificado por spike: STJ no lanza por un campo string ausente).
+        // Cursor con NombreCompleto pero sin Id (el otro campo del cursor keyset).
         var request = FakeHttpRequest(
             contentType: "application/json",
             body: """{"fechaReferencia":"2026-08-14","cursor":{"nombreCompleto":"Ana Torres"}}""");
@@ -254,8 +222,6 @@ public class FunctionEndpointTests
         // store nulo: superar la validacion del borde equivale a llegar a la QuerySession.
         await act.Should().ThrowExactlyAsync<NullReferenceException>();
     }
-
-    // --- CA-4: entrada invalida del sobre unico (CA-ADR-0039) -> 422 ---
 
     [Fact]
     public async Task ListarFichasColaborador_Retorna422_CuandoTakeEsCero()
@@ -313,8 +279,6 @@ public class FunctionEndpointTests
         await act.Should().ThrowExactlyAsync<NullReferenceException>();
     }
 
-    // --- Cursor opaco ---
-
     [Fact]
     public void CursorFicha_RecuperaLasClavesKeyset_CuandoSeDecodificaLoCodificado()
     {
@@ -331,8 +295,6 @@ public class FunctionEndpointTests
         CursorFicha.TryDecodificar("esto no es base64url!", out var decodificado).Should().BeFalse();
         decodificado.Should().BeNull();
     }
-
-    // --- Sobre { elementos, siguienteCursor } (CA-2) ---
 
     private static FichaColaborador Ficha(string id, string nombre) => new(
         Id: id, NombreCompleto: nombre, CodigoColaborador: "COL-" + id,

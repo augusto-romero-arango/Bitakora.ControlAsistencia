@@ -1,17 +1,10 @@
-// Issue #112: Crear value objects MomentoDelDia e IntervaloTemporal
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
-/// <summary>
-/// Tests de MomentoDelDia - punto en el tiempo con offset de dia opcional.
-/// Interfaz publica: constructor, Hora, DiaOffset, MinutosAbsolutos, ResolverA(), ToString(), IComparable.
-/// </summary>
 public class MomentoDelDiaTests
 {
-    // ---------- CA-1: MinutosAbsolutos sin offset ----------
-
     [Fact]
     public void MinutosAbsolutos_Retorna480_CuandoHoraEsLas8SinOffset()
     {
@@ -19,8 +12,6 @@ public class MomentoDelDiaTests
 
         momento.MinutosAbsolutos.Should().Be(480);
     }
-
-    // ---------- CA-2: MinutosAbsolutos con offset 1 ----------
 
     [Fact]
     public void MinutosAbsolutos_Retorna1800_CuandoHoraEsLas6ConOffsetUno()
@@ -30,8 +21,6 @@ public class MomentoDelDiaTests
 
         momento.MinutosAbsolutos.Should().Be(1800);
     }
-
-    // ---------- CA-3: ResolverA sin offset ----------
 
     [Fact]
     public void ResolverA_Retorna20260315Las22_CuandoHoraEsLas22SinOffset()
@@ -44,8 +33,6 @@ public class MomentoDelDiaTests
         resultado.Should().Be(new DateTime(2026, 3, 15, 22, 0, 0));
     }
 
-    // ---------- CA-4: ResolverA con offset 1 ----------
-
     [Fact]
     public void ResolverA_Retorna20260316Las6_CuandoHoraEsLas6ConOffsetUno()
     {
@@ -57,8 +44,6 @@ public class MomentoDelDiaTests
         resultado.Should().Be(new DateTime(2026, 3, 16, 6, 0, 0));
     }
 
-    // ---------- CA-5: ToString sin offset ----------
-
     [Fact]
     public void ToString_Retorna08Colon00_CuandoSinOffset()
     {
@@ -66,8 +51,6 @@ public class MomentoDelDiaTests
 
         momento.ToString().Should().Be("08:00");
     }
-
-    // ---------- CA-6: ToString con offset 1 ----------
 
     [Fact]
     public void ToString_Retorna06Colon00MasUno_CuandoOffsetEsUno()
@@ -84,8 +67,6 @@ public class MomentoDelDiaTests
 
         momento.ToString().Should().Be("06:00");
     }
-
-    // ---------- CA-8: IComparable por MinutosAbsolutos ----------
 
     [Fact]
     public void CompareTo_RetornaPositivo_CuandoMomentoConOffsetEsMayorQueMomentoNocturnoSinOffset()

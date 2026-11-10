@@ -17,7 +17,6 @@ public class FunctionEndpointTests
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
-    // CA-3
     [Fact]
     public async Task ActualizarUbicacionSede_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
@@ -32,7 +31,6 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-4
     [Fact]
     public async Task ActualizarUbicacionSede_Retorna404_CuandoSedeNoExiste()
     {
@@ -59,8 +57,8 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // El {codigo} de ruta se rechaza en el borde antes de tocar el comando: sin esta guarda el
-    // charset URL-safe que #456 gano solo regiria en el registro (MEF-ADR-0037 seccion 2).
+    // Sin esta guarda el charset URL-safe del codigo solo regiria en el registro (MEF-ADR-0037
+    // seccion 2).
     [Fact]
     public async Task ActualizarUbicacionSede_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()
     {

@@ -1,7 +1,5 @@
 namespace Bitakora.ControlAsistencia.Rendimiento.Fixtures;
 
-// Copia del patron de Mcp.Asistente.SmokeTests/Fixtures/Polling.cs: la preparacion espera a que las
-// proyecciones materialicen lo sembrado antes de arrancar el cronometro.
 public static class Polling
 {
     public static async Task<T> WaitUntilAsync<T>(

@@ -21,8 +21,7 @@ public class QuitarFranjaToolTests
 
     private sealed record Fakes(QuitarFranjaTool Tool, HandlerPorRuta Programacion);
 
-    // Composicion por defecto del camino feliz (ficha vigente CON la franja) -- cada test
-    // sobreescribe unicamente el fixture que le interesa via argumentos nombrados.
+    // Por defecto la ficha vigente trae la franja.
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
@@ -46,8 +45,7 @@ public class QuitarFranjaToolTests
     private static void AsegurarNingunaRequest(Fakes fakes) =>
         fakes.Programacion.Requests.Should().BeEmpty();
 
-    // CA-4: el body siempre viaja con la hora tal cual, y el eco compone la franja completa desde
-    // la ficha vigente al momento de la llamada (descansos, extras y sede incluidos).
+    // El eco incluye descansos, extras y sede de la franja en la ficha vigente.
     [Fact]
     public async Task QuitarFranja_EnviaElBodyConLaHora_YComponeElEcoDesdeLaFichaVigente()
     {
@@ -65,8 +63,7 @@ public class QuitarFranjaToolTests
         json["nota"]!.GetValue<string>().Should().Be(QuitarFranjaTool.Mensajes.NotaVisibilidadEventual);
     }
 
-    // CA-4: si la ficha vigente aun no muestra la franja (visibilidad eventual), el eco trae solo
-    // la hora -- pero el POST se envia igual: el dominio decide con 409 si en verdad no existe.
+    // Visibilidad eventual: el POST se envia igual y el dominio decide con 409 si en verdad no existe.
     [Fact]
     public async Task QuitarFranja_ComponeElEcoSoloConLaHora_CuandoLaFichaVigenteAunNoMuestraLaFranja()
     {
@@ -78,8 +75,6 @@ public class QuitarFranjaToolTests
         JsonNode.Parse(resultado)!["franjaQuitada"]!.GetValue<string>().Should().Be("15:00");
     }
 
-    // CA-3: el detalle por identidad responde 404 -> frase con el id que remite a buscar_turnos,
-    // sin lista de nombres y sin invocar el comando.
     [Fact]
     public async Task QuitarFranja_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
@@ -92,7 +87,6 @@ public class QuitarFranjaToolTests
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
-    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
     public async Task QuitarFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidConNombre()
     {
@@ -117,7 +111,6 @@ public class QuitarFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-5: la tool lee el detalle por identidad, nunca el catalogo completo.
     [Fact]
     public async Task QuitarFranja_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
     {

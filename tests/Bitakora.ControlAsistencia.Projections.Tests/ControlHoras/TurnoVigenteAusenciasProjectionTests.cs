@@ -6,7 +6,6 @@ using TipoBloqueVigente = Bitakora.ControlAsistencia.ReadModels.ControlHoras.Tip
 
 namespace Bitakora.ControlAsistencia.Projections.Tests.ControlHoras;
 
-// La programacion vigente refleja ausencias y cancelaciones de turno.
 // Oraculos armados a mano (MEF-ADR-0002).
 public class TurnoVigenteAusenciasProjectionTests
 {
@@ -48,7 +47,6 @@ public class TurnoVigenteAusenciasProjectionTests
             new TurnoDiario("Turno Tarde", [franja], "Turno Tarde: (14:00-22:00)"), Guid.NewGuid());
     }
 
-    // CA-3
     [Fact]
     public void Create_ProyectaAusenciaSinBloques_DesdeAusenciaDiariaAsignada()
     {
@@ -64,7 +62,6 @@ public class TurnoVigenteAusenciasProjectionTests
         vista.TurnoCubierto.Should().BeNull();
     }
 
-    // CA-2
     [Fact]
     public void Apply_MuestraAusenciaSinBloquesYConservaTurnoCubierto_CuandoAusenciaAsignadaSobreTurno()
     {
@@ -77,7 +74,6 @@ public class TurnoVigenteAusenciasProjectionTests
             new TurnoCubierto("Turno Manana", "Turno Manana: (06:00-14:00)", BloquesManana()));
     }
 
-    // CA-4
     [Fact]
     public void Apply_RestableceElTurno_CuandoCancelacionDeAusenciaConTurnoDebajo()
     {
@@ -91,7 +87,6 @@ public class TurnoVigenteAusenciasProjectionTests
         vista.TurnoCubierto.Should().BeNull();
     }
 
-    // CA-4
     [Fact]
     public void Apply_NoBorra_CuandoCancelacionDeAusenciaConTurnoDebajo()
     {
@@ -99,7 +94,6 @@ public class TurnoVigenteAusenciasProjectionTests
             .Should().NotBeNull();
     }
 
-    // CA-4
     [Fact]
     public void Apply_Borra_CuandoCancelacionDeAusenciaSinTurnoDebajo()
     {
@@ -119,14 +113,12 @@ public class TurnoVigenteAusenciasProjectionTests
         TurnoVigenteProjection.Create(TurnoCancelado()).Should().BeNull();
     }
 
-    // CA-1
     [Fact]
     public void Apply_Borra_CuandoTurnoDiarioCanceladoSinAusencia()
     {
         TurnoVigenteProjection.Apply(TurnoCancelado(), VistaConTurno()).Should().BeNull();
     }
 
-    // CA-5
     [Fact]
     public void Apply_NoBorra_CuandoTurnoDiarioCanceladoConAusencia()
     {
@@ -134,7 +126,6 @@ public class TurnoVigenteAusenciasProjectionTests
             .Should().NotBeNull();
     }
 
-    // CA-5
     [Fact]
     public void Apply_SigueMostrandoAusenciaYDescartaTurnoCubierto_CuandoTurnoDiarioCanceladoConAusencia()
     {
@@ -145,7 +136,6 @@ public class TurnoVigenteAusenciasProjectionTests
         vista.TurnoCubierto.Should().BeNull();
     }
 
-    // CA-5
     [Fact]
     public void Apply_SigueMostrandoAusenciaYActualizaTurnoCubierto_CuandoTurnoAsignadoConAusencia()
     {

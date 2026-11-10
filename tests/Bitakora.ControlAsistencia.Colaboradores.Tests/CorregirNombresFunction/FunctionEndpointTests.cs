@@ -1,14 +1,4 @@
-// Issue #377 (MEF-ADR-0043 paso 2): tests del endpoint HTTP PUT colaboradores/{id}/nombres
-// (corregir los nombres de un colaborador existente -- reemplazo completo del VO atomico
-// NombreColaborador, direccionable por {id}). Reemplaza el POST Colaboradores/Nombres (issue #351):
-// la ruta vieja deja de existir (CA-5, verificado por la ausencia de esta ruta en este archivo).
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 2: PUT reemplaza -> 204): CA-1: 204 No Content, con composicion exacta del comando interno
-// CorregirNombres desde {id} + body (incluye el no-op cuando el nombre ya es el solicitado --
-// SinCambios sin evento, precedente #351); CA-2: colaborador inexistente -> 404 (sin 409: este
-// comando no tiene reglas de estado, CA-ADR-0030); CA-3: id de ruta invalido -> 400 (parseo tipado
-// unico, precedente AsignarEtiquetaFunction.FunctionEndpoint post-#376); CA-4: body invalido
-// (PrimerNombre/PrimerApellido vacios) -> 400.
+// Sin caso 409: CorregirNombres no tiene reglas de estado.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction;
@@ -37,10 +27,8 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: PUT exitoso retorna 204 No Content, sin cuerpo -- mismo resultado cuando el nombre ya
-    // es el vigente y el aggregate declina en silencio (SinCambios sin evento, precedente #351):
-    // el endpoint no distingue ambos caminos. El no-op sin evento lo cubre
-    // CorregirNombresCommandHandlerTests.
+    // Tambien cuando el nombre ya es el vigente (SinCambios): el endpoint no distingue ambos caminos;
+    // el no-op sin evento lo cubre CorregirNombresCommandHandlerTests.
     [Fact]
     public async Task CorregirNombres_Retorna204SinCuerpo_CuandoIdDeRutaYBodySonValidos()
     {
@@ -55,9 +43,6 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-1: el endpoint compone el comando interno CorregirNombres desde {id} + los 4 campos del
-    // body -- el router debe recibir exactamente esos 6 campos primitivos (MEF-ADR-0039 decision
-    // 6), tipo y numero derivados de Identificacion.Parsear.
     [Fact]
     public async Task CorregirNombres_ComponeElComando_DesdeIdDeRutaYBody()
     {
@@ -76,8 +61,6 @@ public class FunctionEndpointTests
             SegundoApellido: null));
     }
 
-    // CA-3: id de ruta sin guion -> 400, sin llegar a invocar el router (el parseo tipado es el
-    // unico punto de traduccion, precedente AsignarEtiquetaFunction.FunctionEndpoint post-#376).
     [Fact]
     public async Task CorregirNombres_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
@@ -91,7 +74,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-3: tipo de identificacion fuera de la lista cerrada PILA -> 400.
     [Fact]
     public async Task CorregirNombres_Retorna400_CuandoElTipoDeLaIdentificacionNoEstaEnLaListaCerrada()
     {
@@ -105,7 +87,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-3: numero vacio tras el guion del {id} de ruta -> 400.
     [Fact]
     public async Task CorregirNombres_Retorna400_CuandoElNumeroDeLaIdentificacionQuedaVacio()
     {
@@ -119,7 +100,6 @@ public class FunctionEndpointTests
         router.ComandoRecibido.Should().BeNull("el router nunca deberia invocarse con un id invalido");
     }
 
-    // CA-4: body invalido (PrimerNombre o PrimerApellido vacios) -> 400 Bad Request
     [Fact]
     public async Task CorregirNombres_Retorna400_CuandoElBodyEsInvalido()
     {
@@ -133,7 +113,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // CA-2: colaborador inexistente retorna 404 Not Found
     [Fact]
     public async Task CorregirNombres_Retorna404_CuandoColaboradorNoExiste()
     {
@@ -161,12 +140,6 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-
-/// <summary>
-/// Fake configurable de IRequestValidator para el body reducido (CorregirNombresBody). Retorna un
-/// body pre-configurado o un error segun lo que se le pase en el constructor.
-/// </summary>
 internal class FakeCorregirNombresBodyRequestValidator : IRequestValidator
 {
     private readonly CorregirNombresBody? _body;
@@ -193,11 +166,6 @@ internal class FakeCorregirNombresBodyRequestValidator : IRequestValidator
     }
 }
 
-/// <summary>
-/// Fake configurable de ICommandRouter. Registra el comando recibido (ComandoRecibido) para
-/// verificar la composicion ruta+body, y puede completar exitosamente o lanzar la excepcion
-/// configurada.
-/// </summary>
 internal class FakeCorregirNombresCommandRouter : ICommandRouter
 {
     private readonly Exception? _excepcion;

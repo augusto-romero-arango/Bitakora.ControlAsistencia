@@ -14,8 +14,6 @@ public partial class RetirarEtiquetaCommandHandler : ICommandHandlerAsync<Retira
 
     public async Task HandleAsync(RetirarEtiqueta command, CancellationToken ct = default)
     {
-        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
-        // CorregirFechaInicioVinculacionCommandHandler/IniciarVinculacionCommandHandler.
         var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion);
         var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
 
@@ -24,8 +22,6 @@ public partial class RetirarEtiquetaCommandHandler : ICommandHandlerAsync<Retira
         if (colaborador is null)
             throw new RecursoNoEncontradoException(Mensajes.ColaboradorNoEncontrado);
 
-        // Tell-don't-Ask: la normalizacion de una categoria aislada (sin Valor) vive en el VO
-        // Etiqueta (#355), nunca en este handler.
         var categoriaNormalizada = Etiqueta.NormalizarCategoria(command.Categoria);
 
         var resultado = colaborador.RetirarEtiqueta(categoriaNormalizada);

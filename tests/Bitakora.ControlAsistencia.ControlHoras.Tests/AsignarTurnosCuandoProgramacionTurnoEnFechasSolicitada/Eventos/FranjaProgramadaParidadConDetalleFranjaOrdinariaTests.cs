@@ -1,14 +1,6 @@
-// Issue #336 (agregado en revision): guardrail de la duplicacion deliberada de payload por rol
-// (tres islas, CA-ADR-0029 decisiones #2 y #5): FranjaProgramada (ControlHoras.DomainEvents) y
-// DetalleFranjaOrdinaria (PrivateEvents.Programacion) declaran el mismo dato en dos ensamblados
-// que no se referencian entre si. Sin este guardrail, agregar un campo a uno de los dos no rompe
-// nada y el dato se pierde en silencio en MapearFranja (el modo de fallo que CA-ADR-0029 decision
-// #5 documenta como silencioso). Este par es justamente el que el issue #336 extiende con Sede.
-//
-// Espejo del guardrail equivalente del lado de Programacion
-// (FranjaProgramadaParidadConDetalleFranjaOrdinariaTests, Programacion.Tests, issues #319/#341):
-// la paridad se verifica en varios pasos porque las hijas (Descansos/Extras) y la sede tipan
-// DELIBERADAMENTE distinto en cada isla -- son gemelos de payload por rol, no el mismo tipo.
+// Payload por rol (CA-ADR-0029 #5): sin esta paridad, un campo nuevo en uno de los dos tipos se pierde
+// en silencio en MapearFranja. Las hijas y la sede tipan distinto a proposito en cada isla, por eso la
+// paridad va por partes.
 
 using System.Reflection;
 using AwesomeAssertions;
@@ -50,9 +42,8 @@ public class FranjaProgramadaParidadConDetalleFranjaOrdinariaTests
             .Should().Be(typeof(DetalleFranjaOrdinaria).GetProperty(nameof(DetalleFranjaOrdinaria.Descripcion))!.PropertyType);
     }
 
-    // Issue #336: Sede tipa DELIBERADAMENTE distinto en cada lado (SedeProgramada propia de esta
-    // isla vs DetalleSede del bus interno) -- mismo criterio que Descansos/Extras. Su paridad de
-    // campos la cubre SedeProgramadaParidadConDetalleSedeTests.
+    // Sede tipa distinto a proposito en cada isla; su paridad de campos la cubre
+    // SedeProgramadaParidadConDetalleSedeTests.
     [Fact]
     public void FranjaProgramada_TipaSedeComoSedeProgramadaYDetalleFranjaOrdinariaComoDetalleSede()
     {

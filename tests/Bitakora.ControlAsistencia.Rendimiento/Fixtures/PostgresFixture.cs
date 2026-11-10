@@ -52,12 +52,10 @@ public sealed class PostgresFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Cuando ocurrio cada eslabon de la cadena de programacion para los colaboradores cuyo codigo
-    /// empieza por <paramref name="prefijoCodigo"/>, en segundos desde <paramref name="origen"/>:
-    /// la solicitud confirmada en Programacion, el turno asignado en ControlDiario, la depuracion
-    /// recibida en DiaCalculado y la fila de AsistenciaDiaria. Los nombres de evento son los alias
-    /// de Marten y los ids de stream los de ControlDiarioAggregateRoot ("cd:") y
-    /// DiaCalculadoAggregateRoot ("dc:"); el JSON de los eventos va en PascalCase (Casing.Default).
+    /// Cuando ocurrio cada eslabon de la cadena de programacion (solicitud confirmada, turno asignado,
+    /// depuracion recibida, fila de AsistenciaDiaria) para los colaboradores cuyo codigo empieza por
+    /// <paramref name="prefijoCodigo"/>, en segundos desde <paramref name="origen"/>. Los nombres de
+    /// evento son los alias de Marten y el JSON de los eventos va en PascalCase (Casing.Default).
     /// </summary>
     public async Task<IReadOnlyList<FaseDeLaCorrida>> LeerFasesAsync(
         string tenant, string prefijoCodigo, DateTimeOffset origen, CancellationToken ct)

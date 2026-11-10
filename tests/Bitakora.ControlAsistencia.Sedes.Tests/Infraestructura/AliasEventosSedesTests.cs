@@ -1,12 +1,7 @@
-// Issue #456 (gemela de AliasEventosColaboradoresTests/AliasEventosControlHorasTests/
-// AliasEventosProgramacionTests): congela el alias que Marten deriva del nombre de clase del
-// primer evento persistido de Sedes (JasperFx.Events.EventTypeExtensions ->
-// eventType.Name.ToTableAlias()). Es la garantia central de MEF-ADR-0036: si el alias resuelve,
-// EventDocumentStorage.Resolve nunca cae al fallback por mt_dotnet_type. Este test hace visible el
-// dia en que un rename de clase rompa la convencion, ANTES de desplegarlo.
-//
-// No necesita Postgres: EventGraph.AllKnownEventTypes() es calculo puro en memoria sobre un
-// StoreOptions standalone.
+// Congela el alias que Marten deriva del nombre de clase de cada evento persistido de Sedes: si el
+// alias resuelve, nunca se cae al fallback por mt_dotnet_type (MEF-ADR-0036). Un rename de clase que
+// rompa la convencion se ve aqui, antes de desplegarlo. Sin Postgres: AllKnownEventTypes() es
+// calculo en memoria.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Sedes.DomainEvents;

@@ -4,11 +4,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AgregarSubFranja;
 
-// Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno, via
-// ResolutorTurnoPorId) + POST programacion/turnos/{id}:agregar-subfranja (paso 4
-// MEF-ADR-0043). Descanso y extra comparten forma exacta: una tool con tipo, no cuatro
-// (MEF-ADR-0047 decision 4). El 400/404/409 del POST se traduce a texto, nunca a excepcion
-// (CA-ADR-0030).
+// Descanso y extra comparten forma exacta: una tool con tipo, no cuatro (MEF-ADR-0047 decision 4).
 public partial class AgregarSubFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
 {
     internal const string NombreTool = "agregar_subfranja";
@@ -84,8 +80,8 @@ public partial class AgregarSubFranjaTool(ProgramacionApi programacion, Resoluto
 }
 
 /// <summary>
-/// Eco compacto de agregar_subfranja hacia el asistente: el 202 del dominio no trae body, asi que
-/// la sub-franja agregada se reconstruye con lo que se envio a la tool, en notacion compacta.
+/// Eco compacto de agregar_subfranja: la respuesta del dominio no trae body, asi que la sub-franja
+/// agregada se reconstruye con lo que se envio a la tool, en notacion compacta.
 /// </summary>
 public sealed record SubFranjaAgregadaResumen(
     string Resultado, string Turno, string Franja, string SubFranja, string Nota);

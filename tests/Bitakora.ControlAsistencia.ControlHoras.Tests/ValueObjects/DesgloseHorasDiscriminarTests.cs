@@ -1,26 +1,11 @@
-// Issue #183: DesgloseHoras.Discriminar() - traduce el desglose rico al payload plano que viaja en
-// DiaDepurado (Tell-don't-Ask: el desglose se discrimina a si mismo).
-// CA-2 (#183): produce HorasPorConcepto con una entrada por cada Concepto con minutos > 0 del dia,
-//       clave = Concepto.ToString(), valor = horas liquidables agregadas (reusa TotalMinutosPorConcepto
-//       y las convierte via HorasLiquidables.DesdeMinutos -- issue #424).
-// CA-3 (#183): incluye la clave literal "Retardo" con RetardoTotal.RetardoNeto (en horas) cuando es > 0;
-//       no la incluye cuando es 0. El enum Concepto permanece SIN un valor Retardo.
+// Discriminar() traduce el desglose rico al payload plano de DiaDepurado. Las claves de
+// HorasPorConcepto son codigo (Concepto.ToString() y la literal "Retardo", presente solo si
+// RetardoNeto > 0); solo Trazabilidad es texto humano, una linea por item con valor, construida desde
+// los ToString() de los objetos ricos: solo viajan los strings.
 //
-// Issue #184: Discriminar() ademas puebla Trazabilidad (la memoria de calculo). Decision del planner
-// (2026-06-23): lista de lineas (IReadOnlyList<string>), una por item con valor, ya traducida en el back.
-// CA-1 (#184): una linea por concepto con minutos > 0, armada desde el/los IntervaloTemporal.ToString() del
-//       concepto y su etiqueta humana traducida (IntervaloClasificado.Mensajes.Etiqueta). Ej (issue):
-//       "18:15-21:00 (165min): Ordinaria diurna".
-// CA-2 (#184): incluye una linea para el retardo cuando RetardoNeto > 0, derivada de Retardo.ToString().
-// CA-3 (#184): las lineas estan traducidas (.resx); no hay lineas para items en cero.
-// CA-4 (#184): las claves de HorasPorConcepto siguen como codigo ("OrdinariaDiurna", "Retardo"); solo
-//       Trazabilidad es texto humano.
-// "El modelo de dominio rico no cruza el bus": la trazabilidad se construye DESDE los ToString() de los
-// objetos ricos (IntervaloTemporal, Retardo); solo viajan los strings, no los objetos ricos.
-// Oraculo independiente (regla 20): las lineas esperadas se arman a mano con IntervaloTemporal.ToString()
-// (primitiva ya probada) y la etiqueta del recurso (no un literal), nunca ejecutando Discriminar. Los
-// valores de HorasPorConcepto se arman a mano dividiendo los minutos conocidos entre 60 (sin ejecutar
-// HorasLiquidables.DesdeMinutos, la logica bajo prueba).
+// Oraculo independiente: las lineas esperadas se arman con IntervaloTemporal.ToString() (primitiva ya
+// probada) y la etiqueta del recurso (no un literal), y las horas dividiendo minutos entre 60, nunca
+// ejecutando Discriminar ni HorasLiquidables.DesdeMinutos.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
@@ -33,7 +18,7 @@ public class DesgloseHorasDiscriminarTests
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
-    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
+    // Descripcion es un dato derivado, irrelevante aqui: placeholder "".
     private static FranjaProgramada FranjaProgramada() =>
         new(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
 
@@ -48,13 +33,9 @@ public class DesgloseHorasDiscriminarTests
         return new DesgloseFranja(FranjaProgramada(), intervalos, Retardo.Vacio);
     }
 
-    // Oraculo independiente de la linea de trazabilidad de un concepto con UN solo intervalo:
-    // "{intervalo}: {etiqueta traducida}". Se arma desde IntervaloTemporal.ToString() (primitiva probada)
-    // y la etiqueta del recurso (no un literal), sin ejecutar Discriminar (regla 20).
+    // Linea de trazabilidad de un concepto con UN solo intervalo: "{intervalo}: {etiqueta traducida}".
     private static string LineaConcepto(IntervaloTemporal intervalo, Concepto concepto) =>
         $"{intervalo}: {IntervaloClasificado.Mensajes.Etiqueta(concepto)}";
-
-    // ---------- CA-2: una entrada por cada Concepto con minutos > 0, clave = Concepto.ToString() ----------
 
     [Fact]
     public void Discriminar_ProduceUnaEntradaPorConcepto_CuandoVariasFranjas()
@@ -112,8 +93,6 @@ public class DesgloseHorasDiscriminarTests
         resultado.HorasPorConcepto.Should().BeEmpty();
     }
 
-    // ---------- CA-3: clave literal "Retardo" segun RetardoNeto ----------
-
     [Fact]
     public void Discriminar_IncluyeClaveRetardo_CuandoRetardoNetoEsMayorACero()
     {
@@ -149,12 +128,10 @@ public class DesgloseHorasDiscriminarTests
         resultado.HorasPorConcepto.Should().ContainKey("OrdinariaDiurna");
     }
 
-    // ---------- Issue #184 - CA-1: una linea por concepto con minutos > 0 ----------
-
     [Fact]
     public void Discriminar_FormateaLaLineaComoIntervaloYEtiquetaTraducida_CuandoUnSoloIntervalo()
     {
-        // Ejemplo literal del issue: "18:15-21:00 (165min): Ordinaria diurna" (18:15-21:00 es todo diurno).
+        // "18:15-21:00 (165min): Ordinaria diurna" (18:15-21:00 es todo diurno).
         var franja = FranjaConIntervalos(
             (new TimeOnly(18, 15), new TimeOnly(21, 0), Concepto.OrdinariaDiurna));
         var desglose = new DesgloseHoras([franja], Retardo.Vacio, 0);
@@ -179,12 +156,11 @@ public class DesgloseHorasDiscriminarTests
 
         var resultado = desglose.Discriminar();
 
-        // CA-1: una linea por concepto (no por intervalo): 2 conceptos -> 2 lineas.
+        // Una linea por concepto (no por intervalo): 2 conceptos -> 2 lineas.
         resultado.Trazabilidad.Should().HaveCount(2);
 
-        // La linea de OrdinariaDiurna referencia sus DOS intervalos y su etiqueta traducida (una sola vez
-        // la etiqueta -> es una linea por concepto, no por intervalo). Formato exacto del join a criterio
-        // del implementer; aqui se verifica el contenido obligatorio.
+        // La linea de OrdinariaDiurna referencia sus DOS intervalos y una sola vez la etiqueta. El formato
+        // exacto del join es libre; aqui se verifica el contenido obligatorio.
         var diurna1 = CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(12, 0));
         var diurna2 = CrearIntervalo(new TimeOnly(13, 0), new TimeOnly(17, 0));
         var lineaDiurna = resultado.Trazabilidad.Should()
@@ -202,8 +178,7 @@ public class DesgloseHorasDiscriminarTests
     [Fact]
     public void Discriminar_ProduceUnaLineaPorEntradaDeHorasPorConcepto_SinRetardo()
     {
-        // Decision del planner: "una linea por item con valor". Sin retardo, los items son los conceptos,
-        // asi que Trazabilidad.Count == HorasPorConcepto.Count.
+        // Una linea por item con valor: sin retardo, Trazabilidad.Count == HorasPorConcepto.Count.
         var franja1 = FranjaConIntervalos(
             (new TimeOnly(6, 0), new TimeOnly(8, 0), Concepto.OrdinariaNocturna),
             (new TimeOnly(8, 0), new TimeOnly(12, 0), Concepto.OrdinariaDiurna));
@@ -226,8 +201,6 @@ public class DesgloseHorasDiscriminarTests
         resultado.Trazabilidad.Should().BeEmpty();
     }
 
-    // ---------- Issue #184 - CA-3 / CA-4: traducida pero claves como codigo ----------
-
     [Fact]
     public void Discriminar_TraduceLaTrazabilidadPeroDejaLaClaveComoCodigo_CuandoUnConcepto()
     {
@@ -237,9 +210,9 @@ public class DesgloseHorasDiscriminarTests
 
         var resultado = desglose.Discriminar();
 
-        // CA-4: la clave de HorasPorConcepto es el codigo estable Concepto.ToString().
+        // La clave de HorasPorConcepto es el codigo estable Concepto.ToString().
         resultado.HorasPorConcepto.Should().ContainKey("DominicalFestivaDiurna");
-        // CA-3: la trazabilidad lleva el texto humano traducido del recurso, no el codigo camelCase.
+        // La trazabilidad lleva el texto humano traducido del recurso, no el codigo camelCase.
         resultado.Trazabilidad.Should().ContainSingle()
             .Which.Should().Contain(IntervaloClasificado.Mensajes.Etiqueta(Concepto.DominicalFestivaDiurna));
         string.Join(" | ", resultado.Trazabilidad).Should().NotContain("DominicalFestivaDiurna");
@@ -260,13 +233,11 @@ public class DesgloseHorasDiscriminarTests
         todas.Should().NotContain(IntervaloClasificado.Mensajes.Etiqueta(Concepto.OrdinariaNocturna));
     }
 
-    // ---------- Issue #184 - CA-2: linea de retardo derivada de Retardo.ToString() ----------
-
     [Fact]
     public void Discriminar_IncluyeLineaDeRetardoDerivadaDeRetardoToString_CuandoRetardoNetoEsMayorACero()
     {
         // Retardo de 15min sin compensacion -> neto 15. Retardo.ToString() ya viene traducido por sus
-        // propios .resx; la linea de trazabilidad del retardo se deriva de el (CA-2).
+        // propios .resx; la linea de trazabilidad del retardo se deriva de el.
         var retardo = Retardo.Crear(
             [CrearIntervalo(new TimeOnly(6, 0), new TimeOnly(6, 15))],
             []);
@@ -301,8 +272,8 @@ public class DesgloseHorasDiscriminarTests
                 CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(12, 0)), Concepto.OrdinariaDiurna));
     }
 
-    // CA-3 (guardrail estructural): el enum Concepto NO tiene un valor Retardo; "Retardo" es una clave
-    // literal del diccionario, no un concepto del calculo de horas.
+    // El enum Concepto NO tiene un valor Retardo: "Retardo" es una clave literal del diccionario, no un
+    // concepto del calculo de horas.
     [Fact]
     public void Concepto_NoTieneValorRetardo()
     {

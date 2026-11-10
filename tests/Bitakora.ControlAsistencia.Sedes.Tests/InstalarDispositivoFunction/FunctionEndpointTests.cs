@@ -17,7 +17,6 @@ public class FunctionEndpointTests
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
-    // CA-1
     [Fact]
     public async Task InstalarDispositivo_Retorna201ConLocation_CuandoComandoEsValido()
     {
@@ -32,7 +31,6 @@ public class FunctionEndpointTests
         result.As<CreatedResult>().Location.Should().Be($"/api/sedes/fichas/{Codigo}");
     }
 
-    // CA-2: dispositivo ya instalado en esta sede -> 409
     [Fact]
     public async Task InstalarDispositivo_Retorna409_CuandoElDispositivoYaEstaInstalado()
     {
@@ -46,7 +44,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<ConflictObjectResult>();
     }
 
-    // Sede inexistente -> 404 (precondicion de orquestacion, no un CA propio del issue)
     [Fact]
     public async Task InstalarDispositivo_Retorna404_CuandoSedeNoExiste()
     {
@@ -59,7 +56,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<NotFoundObjectResult>();
     }
 
-    // CA-5: DispositivoId vacio o fuera del charset URL-safe -> 400
     [Fact]
     public async Task InstalarDispositivo_Retorna400_CuandoRequestEsInvalido()
     {

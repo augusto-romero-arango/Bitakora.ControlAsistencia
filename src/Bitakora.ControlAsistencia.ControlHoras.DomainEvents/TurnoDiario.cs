@@ -1,19 +1,15 @@
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 /// <summary>
-/// Representacion plana del turno que rige efectivamente a un colaborador en una fecha concreta,
-/// propia de este ensamblado (payload por rol -- CA-ADR-0029 decision #5 / MEF-ADR-0039
-/// decision #6). Duplica los campos de DetalleTurno (PrivateEvents.Programacion) con los mismos
-/// nombres en vez de importarlo: los tres ensamblados de eventos son tres islas sin referencias
-/// entre si, y ningun test fija esta paridad. "TurnoDiario" es el termino exacto del glosario
-/// (docs/eda/ubiquitous-language.yaml).
+/// Turno que rige efectivamente a un colaborador en una fecha concreta. Duplica los campos de
+/// DetalleTurno (PrivateEvents.Programacion) con los mismos nombres en vez de importarlo: los
+/// ensamblados de eventos son islas sin referencias entre si (CA-ADR-0029 decision #5), y ningun
+/// test fija esta paridad.
 /// </summary>
 /// <remarks>
-/// Equals/GetHashCode propios comparan FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN
-/// Descripcion (dato derivado, no identidad del turno) -- mismo criterio que DetalleTurno y
-/// TurnoProgramado (Programacion.DomainEvents). La amplitud de la ventana de entrada y la marca
-/// de horario abierto SI entran: son dato de identidad (los streams legados sin la clave leen 0
-/// y false).
+/// Equals/GetHashCode comparan FranjasOrdinarias por valor y excluyen Descripcion (dato derivado,
+/// no identidad del turno), igual que DetalleTurno y TurnoProgramado. La amplitud de la ventana de
+/// entrada y la marca de horario abierto si entran (los streams legados sin la clave leen 0 y false).
 /// </remarks>
 public record TurnoDiario(
     string Nombre,
@@ -23,9 +19,8 @@ public record TurnoDiario(
     bool EsHorarioAbierto = false)
 {
     /// <summary>
-    /// Los eventos anteriores a este record no llevan el campo: STJ deja null en el parametro
-    /// posicional y la propiedad declarada como string no anulable mentiria. Se normaliza a
-    /// cadena vacia -- mismo criterio que DetalleTurno.
+    /// Los eventos anteriores a este record no llevan el campo y STJ deja null: se normaliza a
+    /// cadena vacia para no mentir en un string no anulable.
     /// </summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
 
@@ -116,11 +111,9 @@ public record TurnoDiario(
     }
 
     /// <summary>
-    /// Segmenta el turno en bloques absolutos de tiempo: cada franja se recorta por sus
-    /// descansos y extras, cada tramo resultante se rompe en la medianoche que cruce y se resuelve
-    /// contra <paramref name="fecha"/> (el dia de asignacion del turno). Lectura pura -- no muta el
-    /// turno ni persiste el resultado (MEF-ADR-0012, Tell-don't-Ask: cada paso lo ejecuta el objeto
-    /// dueno del dato, no un calculo externo sobre TimeOnly/DiaOffset crudos).
+    /// Segmenta el turno en bloques absolutos: cada franja se recorta por sus descansos y extras,
+    /// y cada tramo se rompe en la medianoche que cruce. <paramref name="fecha"/> es el dia de
+    /// asignacion del turno.
     /// </summary>
     public IReadOnlyList<BloqueTurno> Segmentar(DateOnly fecha) =>
         FranjasOrdinarias

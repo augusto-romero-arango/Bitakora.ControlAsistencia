@@ -37,7 +37,6 @@ public class RetirarDispositivoCommandHandlerTests : CommandHandlerAsyncTest<Ret
         And<SedeAggregateRoot, int>(StreamIdEsperado, s => s.DispositivosInstalados.Count, 0);
     }
 
-    // Retirar un dispositivo deja intactos los demas instalados en la misma sede.
     [Fact]
     public async Task RetirarDispositivo_EmiteDispositivoRetirado_CuandoLaSedeTieneOtroDispositivoInstalado()
     {

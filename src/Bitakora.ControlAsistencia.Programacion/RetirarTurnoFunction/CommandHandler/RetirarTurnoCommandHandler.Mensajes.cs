@@ -8,7 +8,6 @@ public partial class RetirarTurnoCommandHandler
         "Bitakora.ControlAsistencia.Programacion.RetirarTurnoFunction.CommandHandler.RetirarTurnoCommandHandlerMensajes",
         typeof(RetirarTurnoCommandHandler).Assembly);
 
-    // internal, no private: los tests los afirman via InternalsVisibleTo.
     internal static class Mensajes
     {
         public static string TurnoNoEncontrado =>

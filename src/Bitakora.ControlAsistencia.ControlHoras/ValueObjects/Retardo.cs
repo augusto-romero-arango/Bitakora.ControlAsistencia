@@ -3,10 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
-// Issue #114: Detalle del retardo de una franja - intervalos retardados y compensados.
-// ADR-0015: sealed class con factory + ctor vacio privado + ConfigurarSerializacion.
-// El unico observable publico es RetardoNeto (el castigo). Los datos crudos e intermedios
-// son privados; se exponen como texto via ToString() para trazabilidad/auditoria.
+// El unico observable publico es RetardoNeto (el castigo). Los datos crudos e intermedios son
+// privados; se exponen como texto via ToString() para trazabilidad.
 public sealed partial class Retardo : IEquatable<Retardo>
 {
     private readonly IReadOnlyList<IntervaloTemporal> _tiempoRetardado = [];
@@ -43,12 +41,8 @@ public sealed partial class Retardo : IEquatable<Retardo>
 
     public static readonly Retardo Vacio = new([], [], 0, 0);
 
-    // Issue #116: consolida los Retardo de las franjas de un dia en uno solo, sumando los
-    // intervalos compensados cross-franja que calcula el ConsolidadorDesgloseHoras. El tiempo
-    // retardado del dia es la concatenacion del retardado de cada franja; el compensado, la
-    // concatenacion del compensado intra-franja mas el cross-franja. Mantiene encapsulados los
-    // intervalos crudos de cada franja (ADR-0015): el consumidor entrega los Retardo
-    // completos, no lee sus intervalos. Crear recalcula los minutos y respeta el invariante.
+    // El compensado del dia es el intra-franja de cada Retardo mas el cross-franja que calcula
+    // ConsolidadorDesgloseHoras.
     public static Retardo Consolidar(
         IEnumerable<Retardo> retardosPorFranja,
         IReadOnlyList<IntervaloTemporal> compensacionCrossFranja)

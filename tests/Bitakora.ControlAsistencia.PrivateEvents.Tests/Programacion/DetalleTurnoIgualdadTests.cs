@@ -1,10 +1,6 @@
-// Issue #288: Tests de contrato IEquatable para DetalleTurno.
-// Dos intervenciones sobre el record por defecto:
-// 1) Descripcion (dato derivado, texto de CatalogoTurnos.ToString()) EXCLUIDA de Equals/GetHashCode.
-// 2) Bug latente corregido: FranjasOrdinarias es IReadOnlyList y el record por defecto la compara
-//    por referencia (ADR-0015 advierte sobre esto; mismo bug que #129 ya corrigio en
-//    DetalleFranjaOrdinaria). Equals/GetHashCode propios comparan FranjasOrdinarias POR VALOR
-//    (SequenceEqual).
+// Equals/GetHashCode propios EXCLUYEN Descripcion (dato derivado, texto de CatalogoTurnos.ToString())
+// y comparan FranjasOrdinarias POR VALOR (SequenceEqual): el record por defecto compararia la
+// IReadOnlyList por referencia.
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
@@ -33,8 +29,6 @@ public class DetalleTurnoIgualdadTests : IgualdadTestBase<DetalleTurno>
             new DetalleTurno("Turno Manana", [FranjaOrdinaria()], "Turno Manana (06:00-14:00)", 0, true));
     }
 
-    // CA-4: dos instancias que difieren SOLO en Descripcion son iguales (dato derivado, no identidad).
-
     [Fact]
     public void Equals_RetornaTrue_CuandoSoloDescripcionEsDiferente()
     {
@@ -52,10 +46,6 @@ public class DetalleTurnoIgualdadTests : IgualdadTestBase<DetalleTurno>
 
         a.GetHashCode().Should().Be(b.GetHashCode());
     }
-
-    // CA-5: bug latente corregido - dos DetalleTurno con franjas EQUIVALENTES en listas DISTINTAS
-    // son iguales. Antes de esta correccion, el record por defecto comparaba FranjasOrdinarias por
-    // referencia y este caso fallaba (mismo bug que #129 corrigio en DetalleFranjaOrdinaria).
 
     [Fact]
     public void Equals_RetornaTrue_CuandoFranjasSonInstanciasDeListaDiferentesConMismoContenido()

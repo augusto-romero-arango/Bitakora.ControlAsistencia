@@ -8,10 +8,7 @@ namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.Sedes;
 /// Guardrail de portabilidad por el bus: el productor (Wolverine) serializa en camelCase y el
 /// consumidor deserializa SIN resolver custom. Al reves que un round-trip de Marten, aqui la
 /// expectativa es que el payload sobreviva sin resolver -- si no lo hiciera, el tipo no seria
-/// portable (MEF-ADR-0023).
-///
-/// Compila referenciando UNICAMENTE PrivateEvents (CA-ADR-0029 seccion 3): si necesitara mas, el
-/// tipo no seria portable.
+/// portable. Compila referenciando UNICAMENTE PrivateEvents por la misma razon.
 /// </summary>
 public class SedeDeMarcacionResueltaTests
 {

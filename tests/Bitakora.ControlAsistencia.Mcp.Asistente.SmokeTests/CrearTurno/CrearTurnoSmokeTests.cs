@@ -4,14 +4,13 @@ using ModelContextProtocol.Protocol;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.CrearTurno;
 
-// El ciclo crear -> retirar va junto (CA-6): retirar_turno es tambien la limpieza del turno que
+// El ciclo crear -> retirar va junto: retirar_turno es tambien la limpieza del turno que
 // este smoke siembra en el catalogo de dev. Los caminos de retirar_turno que no siembran nada
 // viven en RetirarTurno/RetirarTurnoSmokeTests.cs.
 public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
-    // Recorre la cadena completa: host MCP -> worker -> HttpClient tipado -> Function App de
-    // Programacion -> event store. El assert de creacion vive DENTRO del polling (materializacion
-    // asincronica del catalogo); retirar_turno limpia el turno sembrado por este mismo test.
+    // El assert de creacion vive DENTRO del polling (catalogo asincrono); retirar_turno limpia el
+    // turno sembrado.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_CreaYRetiraElTurno_CuandoEsDescansoNoSeEnvia()
@@ -42,8 +41,7 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
             CatalogoDeTurnos.TimeoutPolling);
     }
 
-    // Variante es_descanso=true (CA-6): la ficha debe llegar con esDescanso true; el descanso
-    // nunca admite franjas, asi que no hay nada mas que verificar en el catalogo.
+    // El descanso nunca admite franjas: basta verificar esDescanso en la ficha.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_CreaUnDescanso_CuandoEsDescansoEsTrue()
@@ -64,8 +62,6 @@ public class CrearTurnoSmokeTests(McpFixture mcp, ProgramacionApiFixture program
             "retirar_turno", new Dictionary<string, object?> { ["turno_id"] = ficha.RootElement.GetProperty("id").GetString()! }, cancellationToken: ct);
     }
 
-    // CA-6: turno completo en una sola llamada; obtener_turno con el id del eco lo muestra con
-    // la franja y el descanso (polling por la materializacion asincronica del catalogo).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_CreaElTurnoCompletoConFranjaYDescanso_CuandoLlegaFranjas()

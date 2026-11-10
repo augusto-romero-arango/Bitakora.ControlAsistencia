@@ -1,23 +1,14 @@
-// Issue #221: guardrail de CI que compone el contenedor DI real del dominio (el mismo metodo que
-// invoca Program.cs, ver ComposicionServicios.AgregarServiciosControlHoras) y valida que el grafo
-// completo es resoluble, sin infra desplegada (connection strings dummy).
-//
-// Root cause que cierra este guardrail (issue #219): el upgrade de Cosmos.Event* 0.1.9 -> 2.1.0
-// (issue #207) dejo de auto-registrar un ITenantContext, y ni "dotnet build" ni los tests
-// unitarios existentes construyen el grafo de DI del host, asi que el hueco solo se detecto
-// DESPUES del deploy, en los smoke tests contra dev (HTTP 500 en toda funcion).
+// Compone el contenedor DI real del dominio (el mismo metodo que invoca Program.cs) y valida que el
+// grafo es resoluble sin infra desplegada: ni "dotnet build" ni los unit tests construyen el grafo
+// del host, y un hueco ahi solo se veria despues del deploy (HTTP 500 en toda funcion).
 //
 // Limite conocido: BuildServiceProvider(ValidateOnBuild) no valida registros por factory-lambda
 // (Wolverine/Marten registran varios), solo los de tipo mapeado -- de ahi la resolucion explicita
 // de ICommandRouter e IPrivateEventRouter en un scope, ademas del build general.
 //
-// Issue #232 (MEF-ADR-0034 seccion 7): Marten deja deshabilitadas por defecto las tres columnas
-// de metadata de evento (CorrelationId/CausationId/Headers) -- sin opt-in explicito la columna ni
-// siquiera se crea en la tabla de eventos. Este test verifica el opt-in sobre el IDocumentStore
-// resuelto del contenedor real (sin Postgres: el DocumentStore no abre conexion en bootstrap,
-// solo en la primera operacion real -- Marten 7+). La cadena de lectura es de solo lectura y sin
-// downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
-// -> MetadataConfig (IReadonlyMetadataConfig).
+// Marten deja deshabilitadas por defecto las columnas de metadata de evento (CorrelationId/
+// CausationId/Headers): sin opt-in explicito ni siquiera se crean (MEF-ADR-0034 seccion 7). Sin
+// Postgres: el DocumentStore no abre conexion en bootstrap, solo en la primera operacion (Marten 7+).
 
 using System.Globalization;
 using System.Reflection;
@@ -58,16 +49,10 @@ public class ComposicionServiciosTests
     private const string ServiceBusConnectionStringDummy =
         "Endpoint=sb://dummy.servicebus.windows.net/;SharedAccessKeyName=dummy;SharedAccessKey=dummy";
 
-    // Issue #308: nombre de la variable de entorno y default del ratio de sampling (CA-ADR-0009
-    // Capa 2). Ambos se repiten como literal inline en ComposicionServicios.cs -- a diferencia de
-    // Projections, que los extrae a constantes internas testeables -- porque este dominio no declara
-    // InternalsVisibleTo hacia su proyecto de tests. Se fijan aqui una sola vez para no repetirlos
-    // en cada test; si algun dia el dominio abre sus internals, estas dos constantes se reemplazan
-    // por las de produccion.
+    // Copia del literal inline de ComposicionServicios.cs (variable y default del ratio de sampling,
+    // CA-ADR-0009 Capa 2): el dominio no declara InternalsVisibleTo hacia este proyecto.
     private const string VariableRatioSampling = "TELEMETRY_SAMPLING_RATIO";
-    // Issue #515: la variable que el exporter lee para su ConnectionString. El seam nunca la lee
-    // (MEF-ADR-0025: el secreto no pasa por el codigo del dominio); se nombra aqui solo para que el
-    // guardrail del PostConfigure pueda simular su presencia.
+    // El seam nunca lee esta variable (MEF-ADR-0025): se nombra solo para simular su presencia.
     private const string VariableConnectionStringAppInsights = "APPLICATIONINSIGHTS_CONNECTION_STRING";
 
     private const double RatioSamplingPorDefecto = 0.2;
@@ -85,10 +70,7 @@ public class ComposicionServiciosTests
             new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
     }
 
-    // Fija el valor de la variable de entorno mientras corre la accion y lo restaura despues (null
-    // la elimina). Mismo patron que ConfiguracionObservabilidadProjectionsTests.ConVariableDeEntorno
-    // (issue #250/#308): sin esto, el escenario de ratio configurado no seria determinista frente a
-    // tests corriendo en paralelo.
+    // Fija la variable mientras corre la accion y restaura el valor original (null la elimina).
     private static void ConVariableDeEntorno(string nombre, string? valor, Action accion)
     {
         var original = Environment.GetEnvironmentVariable(nombre);
@@ -103,13 +85,8 @@ public class ComposicionServiciosTests
         }
     }
 
-    // Issue #308: lee la propiedad interna `Sampler` de TracerProviderSdk (OpenTelemetry.dll no la
-    // expone publicamente). Determinista -- compara tipos y lee Sampler.Description (publica) --,
-    // no requiere muestrear actividades reales contra un ratio fraccionario. Duplicado deliberado
-    // del mismo helper en Bitakora.ControlAsistencia.Projections.Tests (SamplerEfectivo.De): son
-    // proyectos de test distintos, sin un ensamblado compartido entre ambos (CA-ADR-0029:
-    // Contracts.Tests fue eliminado). Dos sitios -- MEF-ADR-0018 Rule of Three: se tolera la
-    // duplicacion hasta que aparezca un tercer consumidor que justifique un ensamblado comun.
+    // Sampler es una propiedad interna de TracerProviderSdk. Duplicado deliberado de SamplerEfectivo.De
+    // en Projections.Tests: no hay ensamblado de test compartido (MEF-ADR-0018, Rule of Three).
     private static Sampler ObtenerSamplerEfectivo(TracerProvider tracerProvider)
     {
         var propiedad = tracerProvider.GetType()
@@ -167,15 +144,10 @@ public class ComposicionServiciosTests
         metadataConfig.HeadersEnabled.Should().BeTrue();
     }
 
-    // Issue #232 CA-5: las tres banderas de metadata comparten el mismo callback ConfigureMarten que
-    // registra el resolver de serializacion custom, asi que un edit futuro de ese bloque puede tumbar
-    // la serializacion sin que el test de metadata se ponga rojo. Los round-trip existentes
-    // (IntervaloTemporalSerializacionMartenTests) NO cubren este riesgo: usan
-    // ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten() -- una ruta paralela que no
-    // atraviesa el contenedor. Este test ejercita el ISerializer que el store realmente compuso.
-    // Importa porque el `if (options.Serializer() is SystemTextJsonSerializer)` del wiring omite el
-    // resolver EN SILENCIO si el serializador deja de ser STJ, e IntervaloTemporal (campos privados,
-    // sin propiedades publicas) no sobrevive STJ vanilla.
+    // Las banderas de metadata comparten el callback ConfigureMarten con el resolver de serializacion
+    // custom, y los round-trip de IntervaloTemporalSerializacionMartenTests no atraviesan el contenedor.
+    // El `if (options.Serializer() is SystemTextJsonSerializer)` del wiring omite el resolver EN
+    // SILENCIO si el serializador deja de ser STJ, e IntervaloTemporal no sobrevive STJ vanilla.
     [Fact]
     public async Task AgregarServiciosControlHoras_ConservaLaSerializacionCustom_CuandoTambienHabilitaMetadataDeEvento()
     {
@@ -193,16 +165,9 @@ public class ComposicionServiciosTests
         restaurado.ToString().Should().Be(original.ToString());
     }
 
-    // Issue #277 CA-2/CA-4: el #237 movio los eventos persistidos a este ensamblado (namespace y
-    // assembly nuevos) sin registrar su tipo en el EventGraph. Toda lectura quedo dependiendo del
-    // fallback por mt_dotnet_type -- roto para el nuevo namespace -- en vez de resolver por alias
-    // (columna "type" de mt_events). Este guardrail detecta el olvido sobre el store real que
-    // compone el contenedor (mismo store que ya usan las guardas de arriba), sin Postgres.
-    //
-    // Los tipos esperados se listan literalmente (oraculo independiente, MEF-ADR-0002): leerlos de
-    // IdentidadEventosControlHoras.TiposPersistidos acoplaria el guardrail al mismo artefacto que
-    // IdentidadEventosControlHorasTests ya verifica, y la asercion pasaria en verde aunque la lista
-    // quedara vacia.
+    // Sin registrar los tipos en el EventGraph, toda lectura depende del fallback por mt_dotnet_type en
+    // vez del alias (issue #237). Los tipos se listan literalmente: leerlos de
+    // IdentidadEventosControlHoras.TiposPersistidos pasaria en verde aunque la lista quedara vacia.
     [Fact]
     public async Task AgregarServiciosControlHoras_RegistraLosTiposDeEventoPersistidos_CuandoElContenedorEstaCompuesto()
     {
@@ -224,13 +189,10 @@ public class ComposicionServiciosTests
         ]);
     }
 
-    // Issue #279 CA-1: el validator del comando no se registra a mano -- lo descubre
-    // AddValidatorsFromAssemblyContaining<IControlHorasAssemblyMarker>() por escaneo del ensamblado.
-    // RequestValidator es fail-open: si no encuentra un IValidator<T> deja pasar el comando sin
-    // validar (ver RequestValidator, "if (validator is null) return (comando, null)"), asi que un
-    // validator movido de ensamblado, renombrado a no-publico o un cambio del marker desactivarian la
-    // validacion del borde EN SILENCIO -- con el endpoint anonimo y los eventos inmutables detras.
-    // Ningun test del validator detecta eso: todos lo instancian directamente.
+    // RequestValidator es fail-open: sin IValidator<T> deja pasar el comando, asi que un validator movido
+    // de ensamblado, no publico o un cambio del marker de AddValidatorsFromAssemblyContaining
+    // desactivaria en silencio la validacion del endpoint anonimo. Los tests del validator lo instancian
+    // directo.
     [Fact]
     public async Task AgregarServiciosControlHoras_DescubreElValidatorDeRegistrarMarcacion_CuandoElContenedorEstaCompuesto()
     {
@@ -242,10 +204,8 @@ public class ComposicionServiciosTests
         validator.Should().BeOfType<RegistrarMarcacionValidator>();
     }
 
-    // Issue #277 CA-5/CA-7/CA-8: registrar el tipo solo sirve si el alias sigue siendo el que las
-    // filas ya escritas llevan en su columna "type". AliasEventosControlHorasTests lo congela sobre
-    // un StoreOptions standalone; esta guarda lo congela sobre el store del contenedor, el unico
-    // lugar donde un MapEventType o un EventNamingStyle agregados al wiring podrian cambiarlo.
+    // Registrar el tipo solo sirve si el alias sigue siendo el de las filas ya escritas: aqui se congela
+    // sobre el store del contenedor, donde un MapEventType o un EventNamingStyle podrian cambiarlo.
     [Fact]
     public async Task AgregarServiciosControlHoras_DerivaElAliasDeEventoDelNombreDeClase_CuandoElContenedorEstaCompuesto()
     {
@@ -319,24 +279,10 @@ public class ComposicionServiciosTests
         alias.Should().Be("ambiguedad_de_marcaciones_resuelta");
     }
 
-    // Issue #328 CA-4: test de composicion de una Function GET, hermano de MEF-ADR-0029 -- misma
-    // idea que las guardas de arriba (grafo de DI real, sin infra desplegada), pero sobre un
-    // FunctionEndpoint en vez de un router de Wolverine.
-    //
-    // Ninguna Function de este ensamblado se registra explicitamente en el contenedor
-    // (RegistrarMarcacionFunction, ActualizarControlDiario: ninguna lleva un
-    // services.AddScoped<FunctionEndpoint>() explicito) -- el host de Azure Functions isolated
-    // worker las activa por tipo, resolviendo su constructor contra el mismo ServiceProvider que
-    // arma Program.cs. ActivatorUtilities.CreateInstance reproduce esa misma activacion sin
-    // levantar el host real (Alt 1 de MEF-ADR-0029: no existe un WebApplicationFactory para
-    // Functions isolated worker).
-    //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantContext por constructor -- no el
-    // comportamiento de Run (parseo de codigoColaborador/fecha con 400 explicito, session.LoadAsync y el
-    // 200/404, CA-4), que es responsabilidad de projection-implementer y del smoke test (CA-8), no
-    // de este guardrail de wiring. Por eso este test queda en verde tan pronto exista el
-    // FunctionEndpoint stub con el constructor correcto -- no es la guarda que fuerza el rojo de
-    // este issue (esa la dan los unit tests de la proyeccion y el config-test del worker).
+    // Composicion de las Functions (hermano de MEF-ADR-0029): el host isolated las activa por tipo contra
+    // el mismo ServiceProvider sin registrarlas, y ActivatorUtilities.CreateInstance reproduce esa
+    // activacion sin levantar el host. Solo prueba la RESOLUCION de IDocumentStore/ITenantContext por
+    // constructor; el comportamiento de Run lo cubren los unit tests y el smoke test.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeObtenerTurnoVigente_CuandoElContenedorEstaCompuesto()
     {
@@ -348,18 +294,12 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #328, mismo par que el issue #294 tuvo que cerrar en su momento para el read model
-    // anterior (retirado por #323): TurnoVigenteProjection esta registrada en el worker (ver
-    // ConfiguracionMartenProjectionsTests.ConfigurarControlHoras_RegistraTurnoVigenteProjection
-    // ComoAsync), asi que Marten le aplica ProjectionDocumentPolicy alla (UseNumericRevisions =
-    // true, mt_version bigint) -- este Function App NO puede registrar esa proyeccion (vive en el
-    // ensamblado del worker, referenciarla violaria CA-ADR-0029) asi que, sin declarar la misma
-    // forma explicitamente con Schema.For<TurnoVigente>().UseNumericRevisions(true), esperaria
-    // mt_version uuid sobre la MISMA tabla fisica y las dos lecturas convergerian en un "alter
-    // column" incompatible (42804), el mismo 500 permanente que produjo el deploy de #290.
-    //
-    // Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
-    // .ConfigurarControlHoras_MaterializaTurnoVigenteConRevisionNumerica congela desde el worker.
+    // TurnoVigenteProjection se registra en el worker, donde Marten le aplica UseNumericRevisions
+    // (mt_version bigint). Este Function App no puede registrar la proyeccion (CA-ADR-0029), asi que
+    // declara la misma forma con Schema.For<TurnoVigente>().UseNumericRevisions(true); sin ella esperaria
+    // mt_version uuid sobre la MISMA tabla y ambos lados chocarian en un "alter column" incompatible
+    // (42804, 500 permanente). Espejo de ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaTurnoVigenteConRevisionNumerica.
     [Fact]
     public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaTurnoVigente()
     {
@@ -374,18 +314,11 @@ public class ComposicionServiciosTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Issue #328, mitad write-side del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034
-    // seccion 6), heredada de la guarda equivalente que #289 dejo para el read model anterior: este
-    // Function App lee TurnoVigente con session.LoadAsync sin registrar la proyeccion, y el worker
-    // la materializa en otro proceso. Tabla, tenancy e IdMember tienen que converger o el GET
-    // devuelve 404 para siempre con el daemon funcionando.
-    //
-    // Anadida en la revision de #328: los tres valores los resuelve Marten por convencion, pero este
-    // lado ya declara un Schema.For<TurnoVigente>() propio (la linea de UseNumericRevisions del test
-    // de arriba) -- justo el tipo de declaracion por documento que puede desviar la tabla o la
-    // tenancy de un solo lado. Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
-    // .ConfigurarControlHoras_MaterializaTurnoVigenteSobreLaTablaQueConsultaElWriteSide congela desde
-    // el worker.
+    // Par 2 de compatibilidad write-side/read-side (MEF-ADR-0034 seccion 6): este Function App lee
+    // TurnoVigente sin registrar la proyeccion; tabla, tenancy e IdMember tienen que converger con el
+    // worker o el GET devuelve 404 para siempre. El Schema.For<TurnoVigente>() propio puede desviarlos de
+    // un solo lado. Espejo de ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaTurnoVigenteSobreLaTablaQueConsultaElWriteSide.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveTurnoVigenteSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
     {
@@ -400,10 +333,9 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(TurnoVigente.Id));
     }
 
-    // Hermano del de TurnoVigente de arriba, para la proyeccion que el worker registra desde el
-    // issue #441. Oraculo literal, espejo del que ConfiguracionMartenProjectionsTests
-    // .ConfigurarControlHoras_MaterializaAsistenciaDiariaConRevisionNumerica congela desde el worker:
-    // los tres literales tienen que cambiar en los dos lados a la vez o dejan de ser un par.
+    // Mismo par que TurnoVigente, para AsistenciaDiaria. Espejo de ConfiguracionMartenProjectionsTests
+    // .ConfigurarControlHoras_MaterializaAsistenciaDiariaConRevisionNumerica: los literales cambian en
+    // los dos lados a la vez.
     [Fact]
     public async Task AgregarServiciosControlHoras_EsperaLaMismaColumnaDeVersionQueMaterializaraElWorker_ParaAsistenciaDiaria()
     {
@@ -418,13 +350,9 @@ public class ComposicionServiciosTests
         mapping.Metadata.Version.Enabled.Should().BeFalse();
     }
 
-    // Segunda mitad del par 2 de compatibilidad write-side/read-side (MEF-ADR-0034 seccion 6) para
-    // AsistenciaDiaria, la que el test de arriba no cubre: tabla, tenancy e IdMember tienen que
-    // converger con lo que el worker materializa o los GET devuelven vacio para siempre con el
-    // daemon funcionando. Marten resuelve los tres por convencion, pero este lado ya declara un
-    // Schema.For<AsistenciaDiaria>() propio -- justo el tipo de declaracion por documento que puede
-    // desviar la tabla o la tenancy de un solo lado. Mismo razonamiento que motivo el test hermano
-    // de TurnoVigente en la revision de #328.
+    // Par 2 (MEF-ADR-0034 seccion 6) para AsistenciaDiaria: tabla, tenancy e IdMember tienen que
+    // converger con el worker o los GET devuelven vacio para siempre; el Schema.For<AsistenciaDiaria>()
+    // propio puede desviarlos de un solo lado.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveAsistenciaDiariaSobreLaTablaQueMaterializaElWorker_CuandoElContenedorEstaCompuesto()
     {
@@ -471,16 +399,6 @@ public class ComposicionServiciosTests
         mapping.IdMember.Name.Should().Be(nameof(AdvertenciasProgramacionSemanal.Id));
     }
 
-    // Issue #429: test de composicion de la Function GET via (b1) -- aggregate en vivo, sin
-    // proyeccion materializada (skills/projections/read-apis.md) -- hermano de MEF-ADR-0029 y del
-    // de ObtenerTurnoVigente de arriba. Se prueba solo la RESOLUCION de IDocumentStore/
-    // ITenantContext por constructor -- no el comportamiento de Run (parseo de fecha con 400,
-    // DiaCalculadoAggregateRoot.ComputarStreamId, AggregateStreamAsync y el 200/404, CA-5/CA-6/
-    // CA-7), que es responsabilidad de projection-implementer y del smoke test. Este issue no crea
-    // proyeccion nueva ni toca el seam del worker ("Necesidad de lectura", via (b1)): junto con la
-    // ausencia deliberada de config-test/unit tests de proyeccion Marten (no aplica, el aggregate
-    // ya existe desde #425), es la unica capa read-side de wiring declarada para el -- por eso este
-    // test queda en verde tan pronto exista el FunctionEndpoint stub con el constructor correcto.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeObtenerDepuracionDelDia_CuandoElContenedorEstaCompuesto()
     {
@@ -492,20 +410,6 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Issue #329: test de composicion de la Function GET de listado sobre TurnoVigente (#328),
-    // hermano del de ObtenerTurnoVigente (#328 CA-4, arriba) y de MEF-ADR-0029. ActivatorUtilities
-    // .CreateInstance reproduce la activacion por tipo que hace el host de Azure Functions isolated
-    // worker, sin levantar el host real (Alt 1 de MEF-ADR-0029).
-    //
-    // Se prueba solo la RESOLUCION de IDocumentStore/ITenantContext por constructor -- no el
-    // comportamiento de Run (parseo de desde/hasta/codigoColaborador, recorte de rango, session.Query y
-    // mapeo al envelope de respuesta), que es responsabilidad de projection-implementer y del smoke
-    // test, no de este guardrail de wiring. Este issue no crea proyeccion nueva ni toca el seam del
-    // worker (issue #329, "Necesidad de lectura"): esta es la UNICA capa read-side declarada para
-    // el, junto con la ausencia deliberada de config-test/unit tests de proyeccion (carve-out de
-    // coverage de Functions GET, MEF-ADR-0035/issue #371) -- por eso este test queda en verde tan
-    // pronto exista el FunctionEndpoint stub con el constructor correcto, igual que su hermano de
-    // ObtenerTurnoVigente arriba.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarTurnosVigentes_CuandoElContenedorEstaCompuesto()
     {
@@ -517,9 +421,6 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Hermano del de ListarTurnosVigentes (arriba) y de MEF-ADR-0029: verifica la RESOLUCION por
-    // constructor de IDocumentStore/ITenantContext, no el comportamiento de Run (guards 415/422,
-    // recorte, sintesis), que cubren los unit tests puros del feature folder y el smoke test.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarAsistenciasDiarias_CuandoElContenedorEstaCompuesto()
     {
@@ -531,9 +432,6 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // Hermano de los de ListarTurnosVigentes/ListarAsistenciasDiarias (MEF-ADR-0029). Prueba solo la
-    // RESOLUCION de IDocumentStore/ITenantContext por constructor; el comportamiento de Run
-    // (guards, agregacion, keyset, recorte) lo cubren los unit tests puros del feature folder.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeListarResumenesAsistencia_CuandoElContenedorEstaCompuesto()
     {
@@ -545,46 +443,29 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // --- Sampler efectivo del TracerProvider (issue #308 CA-2, CA-3) ---
-    //
-    // Hallazgo 1 del issue #308: UseAzureMonitorExporter llama SetSampler internamente
-    // (Azure.Monitor.OpenTelemetry.Exporter 1.8.1) con RateLimitedSampler porque
-    // AzureMonitorExporterOptions.TracesPerSecond tiene default 5.0. Escrito en el orden actual de
-    // este seam (SetSampler ANTES de UseAzureMonitorExporter), ese SetSampler interno pisa al
-    // ParentBasedSampler{TraceIdRatioBasedSampler{ratio}} que CA-ADR-0009 Capa 2 describe -- nunca
-    // llega a instalarse. La correccion es de ORDEN (un segundo .WithTracing(...) despues de
-    // .UseAzureMonitorExporter()), asi que el guardrail verifica el sampler EFECTIVO resuelto del
-    // contenedor, no que el codigo "llame a SetSampler" (eso ya lo hacia el seam roto).
-    //
-    // A diferencia de Projections (que envuelve el sampler de ratio con
-    // SamplerQueDescartaPollingDelDaemon porque el worker corre el daemon HotCold de Marten),
-    // ControlHoras no corre ningun daemon -- MEF-ADR-0018 Rule of Three: el filtro tiene un solo
-    // consumidor real (el worker) y no se generaliza aqui. El sampler efectivo esperado es
-    // directamente el ParentBasedSampler configurado por el proyecto, sin wrapper.
+    // UseAzureMonitorExporter llama SetSampler internamente con RateLimitedSampler
+    // (AzureMonitorExporterOptions.TracesPerSecond = 5.0 por defecto, Exporter 1.8.1) y pisa un
+    // SetSampler previo: el ParentBasedSampler de CA-ADR-0009 Capa 2 solo gana si se configura DESPUES
+    // (un segundo .WithTracing(...)). Por eso se verifica el sampler EFECTIVO del contenedor.
+    // ControlHoras no corre daemon de Marten: sin el wrapper SamplerQueDescartaPollingDelDaemon de
+    // Projections.
     [Fact]
     public void AgregarServiciosControlHoras_ResuelveElSamplerConfiguradoPorElProyecto_EnVezDeRateLimitedSampler()
     {
-        // TracerProvider se registra Singleton (default de OpenTelemetry): no requiere un scope
-        // Wolverine (IAsyncDisposable) para resolverse, a diferencia de ICommandRouter/
-        // IPrivateEventRouter arriba -- Dispose() sincrono del ServiceProvider raiz basta.
+        // TracerProvider es Singleton IDisposable: basta el Dispose() sincrono, sin scope.
         using var provider = ComponerServiceProvider();
         var tracerProvider = provider.GetRequiredService<TracerProvider>();
 
         var samplerEfectivo = ObtenerSamplerEfectivo(tracerProvider);
 
-        // Oraculo por nombre completo, no por referencia al tipo (es internal en otro ensamblado:
-        // Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler no se puede nombrar
-        // desde este proyecto). Verificado en runtime (issue #308) que este es exactamente el tipo
-        // que gana hoy con el wiring actual.
+        // RateLimitedSampler es internal en otro ensamblado: se compara por nombre completo.
         samplerEfectivo.GetType().FullName.Should().NotBe(
             "Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler");
         samplerEfectivo.Should().BeOfType<ParentBasedSampler>();
     }
 
-    // CA-3: complementa (no reemplaza) el parsing inline del ratio que ya vive en
-    // ComposicionServicios.cs -- verifica que el ratio efectivamente llega al sampler compuesto que
-    // el contenedor resuelve, no solo que se calcula correctamente. Determinista via
-    // Sampler.Description (propiedad publica: "ParentBased{TraceIdRatioBasedSampler{F6}}").
+    // Verifica que el ratio llega al sampler compuesto, no solo que se calcula. Sampler.Description es
+    // publica: "ParentBased{TraceIdRatioBasedSampler{F6}}".
     [Fact]
     public void AgregarServiciosControlHoras_PropagaElRatioDeSamplingConfigurado_AlSamplerEfectivo()
     {
@@ -599,11 +480,9 @@ public class ComposicionServiciosTests
         });
     }
 
-    // La otra mitad de CA-3, y la que mas importa hoy: TELEMETRY_SAMPLING_RATIO no esta puesta en
-    // ningun recurso desplegado (medido en el issue #308), asi que el camino que efectivamente corre
-    // en dev es el del DEFAULT. Sin este guardrail, el sampler efectivo podria quedar con un ratio
-    // distinto al declarado y solo se veria como un volumen de ingestion inesperado -- el mismo modo
-    // de falla silenciosa que este issue corrige.
+    // TELEMETRY_SAMPLING_RATIO no esta puesta en ningun recurso desplegado (medido en el issue #308): el
+    // camino que corre en dev es el del DEFAULT, y un ratio distinto solo se veria como volumen de
+    // ingestion inesperado.
     [Fact]
     public void AgregarServiciosControlHoras_PropagaElRatioPorDefecto_AlSamplerEfectivo_CuandoLaVariableEstaAusente()
     {
@@ -623,31 +502,17 @@ public class ComposicionServiciosTests
     private static string FormatearRatio(double ratio) =>
         ratio.ToString("F6", CultureInfo.InvariantCulture);
 
-    // --- Issue #309: apagar la recoleccion de metricas de durabilidad de Wolverine (CA-1, CA-3) ---
+    // PersistenceMetrics.StartPolling es un PeriodicTimer (default 5s) que llama
+    // store.Admin.FetchCountsAsync(): ~123.000 spans/24h en dev de metricas que nadie consume, y
+    // CheckHealthAsync llama FetchCountsAsync por su cuenta.
     //
-    // PersistenceMetrics.StartPolling (Wolverine.RDBMS.DurabilityAgent.StartAsync) es un
-    // PeriodicTimer(DurabilitySettings.UpdateMetricsPeriod, default 5s) que llama
-    // store.Admin.FetchCountsAsync() -- de ahi salen las cuatro consultas Postgres medidas en dev
-    // (123.050 spans/24h, 85/min): el "group by status" de wolverine_incoming_envelopes mas dos
-    // estimateTableCount (pg_class) con su fallback select count(*). Nadie consume esas metricas
-    // hoy (sin dashboard ni alerta) y CheckHealthAsync llama FetchCountsAsync por su cuenta, asi
-    // que el health check no depende de este polling.
+    // Se resuelve WolverineOptions del CONTENEDOR REAL porque el riesgo es de ORDEN:
+    // AgregarWolverineParaComandosServerless (Cosmos.EventSourcing.CritterStack 2.3.1) corre el callback
+    // del consumidor PRIMERO y asigna Durability.Mode = Solo DESPUES; hoy no pisa
+    // DurabilityMetricsEnabled, pero un upgrade podria.
     //
-    // Se resuelve WolverineOptions del CONTENEDOR REAL (no un DurabilitySettings construido a
-    // mano) porque el gotcha de wiring verificado en el issue es de ORDEN: dentro de
-    // AgregarWolverineParaComandosServerless (Cosmos.EventSourcing.CritterStack 2.3.1) el callback
-    // del consumidor corre PRIMERO y options.Durability.Mode = Solo se asigna DESPUES, pisando
-    // cualquier intento de tocar Mode desde el callback -- pero NO pisa DurabilityMetricsEnabled.
-    // Un test que solo construyera un DurabilitySettings a mano nunca detectaria si un futuro
-    // upgrade del paquete empieza a pisar tambien esa bandera; resolver el WolverineOptions
-    // efectivo del grafo de DI si lo detecta.
-    //
-    // El provider se libera con await using porque WolverineOptions se registra Singleton via
-    // factory-lambda -- el contenedor lo trackea para disposal -- y solo implementa IAsyncDisposable:
-    // el Dispose() sincrono del provider raiz lanzaria InvalidOperationException al encontrarlo entre
-    // sus disposables. Mismo motivo por el que los tests de ICommandRouter/IPrivateEventRouter usan
-    // await using, y a diferencia de los de TracerProvider (singleton IDisposable, que si tolera el
-    // using sincrono).
+    // await using: WolverineOptions es Singleton por factory-lambda y solo implementa IAsyncDisposable;
+    // el Dispose() sincrono del provider raiz lanzaria InvalidOperationException.
     [Fact]
     public async Task AgregarServiciosControlHoras_ApagaLaRecoleccionDeMetricasDeDurabilidad_CuandoElContenedorEstaCompuesto()
     {
@@ -658,12 +523,8 @@ public class ComposicionServiciosTests
         opciones.Durability.DurabilityMetricsEnabled.Should().BeFalse();
     }
 
-    // CA-3: este issue apaga la recoleccion de METRICAS de cola, no la durabilidad real -- recovery,
-    // scheduled jobs y dead letters (procesados por el mismo DurabilityAgent) siguen activos. Fijar
-    // Mode en el mismo test que DurabilityMetricsEnabled evita que una futura correccion de CA-1 se
-    // resuelva "apagando" la durabilidad completa (p.ej. cambiando Mode) en vez de solo la bandera de
-    // metricas -- Mode sigue siendo Solo, el valor que AgregarWolverineParaComandosServerless fija
-    // incondicionalmente DESPUES del callback del consumidor.
+    // Se apaga la recoleccion de METRICAS, no la durabilidad real (recovery, scheduled jobs, dead
+    // letters): fijar Mode evita que la correccion se resuelva apagando la durabilidad completa.
     [Fact]
     public async Task AgregarServiciosControlHoras_ConservaLaDurabilidadReal_CuandoApagaLasMetricasDeCola()
     {
@@ -675,9 +536,6 @@ public class ComposicionServiciosTests
         opciones.Durability.Mode.Should().Be(DurabilityMode.Solo);
     }
 
-    // Issue #399: test de composicion del tercer endpoint HTTP de operacion (mismo patron que las
-    // guardas de arriba para las Functions GET de lectura) -- ReadyCheck depende de
-    // IEventStoreReadinessProbe, hoy sin registrar en AgregarServiciosControlHoras.
     [Fact]
     public async Task AgregarServiciosControlHoras_ResuelveElEndpointDeReady_CuandoElContenedorEstaCompuesto()
     {
@@ -689,13 +547,9 @@ public class ComposicionServiciosTests
         act.Should().NotThrow();
     }
 
-    // --- Issue #515 / MEF-ADR-0038 seccion 9 (write-side, harness #700) ---
-
-    // La garantia no es el comentario del seam: es este test, que resuelve el valor EFECTIVO que el
-    // exporter usara. Con el flip en su default (true) el exporter instala LogFilteringProcessor y
-    // descarta todo LogRecord emitido dentro de un span no muestreado; con
-    // TELEMETRY_SAMPLING_RATIO fraccionario (0.2 por defecto en este dominio) eso pierde en silencio
-    // los LogError que alimentan la alerta exception_spike (CA-ADR-0009 Capa 4).
+    // Con EnableTraceBasedLogsSampler en su default (true) el exporter descarta todo LogRecord emitido
+    // dentro de un span no muestreado: con ratio 0.2 se perderian en silencio los LogError que alimentan
+    // la alerta exception_spike (CA-ADR-0009 Capa 4).
     [Fact]
     public void AgregarServiciosControlHoras_DeshabilitaElSamplerDeLogsBasadoEnTrazas()
     {
@@ -706,15 +560,11 @@ public class ComposicionServiciosTests
         opciones.EnableTraceBasedLogsSampler.Should().BeFalse();
     }
 
-    // Issue #515: el seam agrega un PostConfigure que rellena ConnectionString con un valor inerte
-    // cuando queda vacia, para que el reader de metricas de Azure Monitor (que se construye de forma
-    // sincronica y exige una connection string) no tumbe el arranque en frio con la Key Vault
-    // reference aun sin resolver. Ese fallback es seguro SOLO mientras no pise una connection string
-    // real -- si la pisara, trazas y logs (que comparten AzureMonitorExporterOptions) se exportarian
-    // a un endpoint inexistente, en silencio y de forma permanente: el peor modo de fallo posible
-    // para telemetria. Nada en el codigo garantiza el orden Configure -> PostConfigure frente a un
-    // upgrade del exporter que mueva la lectura de la variable a otro punto del pipeline; este test
-    // es esa garantia.
+    // El PostConfigure del seam rellena ConnectionString con un valor inerte cuando esta vacia (el reader
+    // de metricas exige una al construirse y la Key Vault reference puede no estar resuelta en frio). Si
+    // pisara una connection string real, trazas y logs se exportarian en silencio a un endpoint
+    // inexistente; nada en el codigo garantiza el orden Configure -> PostConfigure frente a un upgrade
+    // del exporter, este test si.
     [Fact]
     public void AgregarServiciosControlHoras_ConservaLaConnectionStringReal_CuandoLaVariableDeEntornoEstaPresente()
     {

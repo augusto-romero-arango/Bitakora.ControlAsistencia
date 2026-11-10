@@ -12,7 +12,6 @@ using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradore
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
-// partial para admitir una clase Mensajes en archivo separado (ADR-0015).
 public partial class ControlDiarioAggregateRoot : AggregateRoot
 {
     public ColaboradorProgramado? InformacionColaborador { get; private set; }
@@ -285,12 +284,11 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             desgloses, anomalas, DetalleTurno?.EsHorarioAbierto == true);
     }
 
-    // CA-ADR-0031: prefijo por iniciales -- disjunta este stream del futuro DiaCalculado ("dc:"), que
-    // comparte la identidad logica colaborador+fecha en el mismo store. La fecha va en ISO 8601 basico
-    // porque no aporta ':' propios: asi Split(SeparadorStreamId) devuelve siempre los 3 componentes.
-    // Los tres valores son el contrato de identidad de todo stream ya escrito -- cambiar cualquiera
-    // exige migracion. InvariantCulture: una culture con calendario no gregoriano (ar-SA) rendiria
-    // otro ano en la clave.
+    // CA-ADR-0031: el prefijo disjunta este stream de DiaCalculado ("dc:"), que comparte la identidad
+    // colaborador+fecha en el mismo store. La fecha va en ISO 8601 basico porque no aporta ':'
+    // propios: asi Split(SeparadorStreamId) devuelve siempre los 3 componentes. Los tres valores son
+    // el contrato de identidad de todo stream ya escrito: cambiar cualquiera exige migracion.
+    // InvariantCulture: una culture con calendario no gregoriano (ar-SA) rendiria otro ano en la clave.
     private const string PrefijoStreamId = "cd";
     private const char SeparadorStreamId = ':';
     private const string FormatoFechaStreamId = "yyyyMMdd";
@@ -335,7 +333,6 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     }
 
     // Fecha sale del stream ID: el ControlDiario puede nacer solo por marcacion, sin turno que la traiga.
-    // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
     public void Apply(MarcacionAdicionada e)
     {
         _eventosAplicados++;
@@ -409,9 +406,7 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
     private IEnumerable<MarcacionNormalizada> MarcacionesDeSuDiaCalendario() =>
         _marcaciones.Where(m => DateOnly.FromDateTime(m.TimestampNormalizado) == Fecha);
 
-    // Proyecta el estampado sobre la marcacion correlacionada. Sin coincidencia no lanza
-    // (MEF-ADR-0004): Apply solo proyecta estado.
-    // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
+    // Sin coincidencia no lanza (MEF-ADR-0004): Apply solo proyecta estado.
     public void Apply(SedeDeMarcacionIdentificada e)
     {
         _eventosAplicados++;
@@ -428,10 +423,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         RecalcularDesgloseHoras();
     }
 
-    // Declina con resultado (CA-ADR-0030) en vez de que el handler interrogue
-    // Marcaciones para decidir (Tell-don't-Ask, MEF-ADR-0012). El handler traduce
-    // MarcacionNoEncontrada a la excepcion que dispara el retry del bus (CA-3); SedeYaEstampada es
-    // el no-op de CA-4, sin evento nuevo ni re-publicacion.
+    // El handler traduce MarcacionNoEncontrada a la excepcion que dispara el retry del bus;
+    // SedeYaEstampada es no-op, sin evento nuevo ni re-publicacion.
     internal ResultadoEstampadoSede EstamparSede(SedeDeMarcacionIdentificada evento)
     {
         var marcacion = _marcaciones.Find(m => CorrespondeA(m, evento));
@@ -455,7 +448,6 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
 
     // Quita el plan sin borrar marcaciones ni sedes estampadas: sin DetalleTurno, Depurar() deja
     // las franjas vacias y las marcaciones quedan crudas, sin desglose.
-    // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods().
     public void Apply(TurnoDiarioCancelado e)
     {
         _eventosAplicados++;
@@ -464,8 +456,6 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         RecalcularDesgloseHoras();
     }
 
-    // Declina con resultado (CA-ADR-0030) en vez de que el handler interrogue DetalleTurno para
-    // decidir el no-op de un stream sin turno asignado (Tell-don't-Ask, MEF-ADR-0012).
     internal ResultadoCancelacionTurno CancelarTurno(TurnoDiarioCancelado evento)
     {
         if (DetalleTurno is null) return ResultadoCancelacionTurno.SinTurnoAsignado;
@@ -544,9 +534,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
         return libera ? ResultadoCancelarAusencia.Liberado : ResultadoCancelarAusencia.CancelacionRecordada;
     }
 
-    // Tell-don't-Ask: el aggregate entrega el evento ya empaquetado al handler, que no lo arma campo
-    // a campo. Debe invocarse DESPUES del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras()
-    // refresca al final de cada uno.
+    // Debe invocarse despues del Apply: lee DesgloseHoras, que RecalcularDesgloseHoras() refresca al
+    // final de cada uno.
     public DiaDepurado CrearDiaDepurado() =>
         new(
             ExtraerCodigoColaboradorDeStreamId(Id),
@@ -587,9 +576,8 @@ public partial class ControlDiarioAggregateRoot : AggregateRoot
             controlFranja.Programada.Sede?.Nombre,
             controlFranja.Programada.Sede?.CentroDeCostos);
 
-    // Mapeo campo a campo entre dos islas: vive aqui porque el aggregate esta en el Function App, el
-    // unico proyecto que ve las tres (CA-ADR-0029 decision #5). ColaboradorProgramado ya trae la
-    // terna compuesta desde el origen de la cadena -- aqui no se compone nada.
+    // Mapeo entre islas de eventos: vive aqui porque el Function App es el unico proyecto que las ve
+    // (CA-ADR-0029 decision #5).
     private ResumenColaborador? CrearResumenColaborador() =>
         InformacionColaborador is null
             ? null

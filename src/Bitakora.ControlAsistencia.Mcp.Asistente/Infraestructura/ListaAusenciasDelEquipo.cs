@@ -1,9 +1,6 @@
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-/// <summary>
-/// Contrato upstream de QUERY programacion/ausencias, redeclarado aqui (cero referencias a los
-/// ensamblados del BC).
-/// </summary>
+/// <summary>Contrato upstream de QUERY programacion/ausencias, redeclarado aqui (cero referencias al BC).</summary>
 public sealed record ListaAusenciasDelEquipo(
     DateOnly Desde,
     DateOnly Hasta,

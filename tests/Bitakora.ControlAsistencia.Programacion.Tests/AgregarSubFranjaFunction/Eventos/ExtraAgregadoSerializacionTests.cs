@@ -1,6 +1,4 @@
-// Issue #603 CA-1: ExtraAgregado sobrevive un roundtrip de serializacion STJ -- requerido por
-// Marten -- transportando FranjaOrdinaria (la franja contenedora RESULTANTE, ya con la hija) como
-// payload rico.
+// ExtraAgregado transporta la franja contenedora RESULTANTE, ya con la hija.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -35,7 +33,7 @@ public class ExtraAgregadoSerializacionTests
         deserializado.Franja.ToString().Should().Be(franja.ToString());
     }
 
-    // CA-regresion: si alguien olvida registrar ExtraAgregado en
+    // Regresion: si alguien olvida registrar ExtraAgregado en
     // ConfiguracionSerializacionProgramacion.ConfigurarResolver, este test falla.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroDeExtraAgregado()

@@ -3,7 +3,6 @@ using ComandoCrearTurno = Bitakora.ControlAsistencia.Programacion.CrearTurnoFunc
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
 
-// Se auto-registra via AddValidatorsFromAssemblyContaining (Program.cs).
 public partial class CrearTurnoValidator : AbstractValidator<ComandoCrearTurno>
 {
     public CrearTurnoValidator()
@@ -11,9 +10,8 @@ public partial class CrearTurnoValidator : AbstractValidator<ComandoCrearTurno>
         RuleFor(x => x.TurnoId).NotEmpty();
         RuleFor(x => x.Nombre).NotEmpty();
 
-        // La marca de descanso y las franjas ordinarias se excluyen mutuamente. Un turno nace vacio
-        // y se completa por pasos (CA-ADR-0033): sin marca de descanso, Ordinarias vacia o ausente
-        // ya no es invalida.
+        // Marca de descanso y franjas se excluyen mutuamente; sin la marca, Ordinarias vacia es valida
+        // (un turno nace vacio y se completa por pasos, CA-ADR-0033).
         When(x => x.EsDescanso,
             () => RuleFor(x => x.Ordinarias).Empty()
                 .WithMessage(Mensajes.EsDescansoConFranjas));

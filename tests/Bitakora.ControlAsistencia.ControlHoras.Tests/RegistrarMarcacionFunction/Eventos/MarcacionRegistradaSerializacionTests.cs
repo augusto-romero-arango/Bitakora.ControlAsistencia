@@ -1,8 +1,3 @@
-// HU-105 / Issue #275: Proteger MarcacionRegistrada con factory Crear() y ctores privados.
-// Requerido por regla 16: todo evento persistido en Marten debe sobrevivir Serialize -> Deserialize.
-// CA-6: el round-trip con las opciones de Marten y el resolver custom sigue verde, ahora como
-// UNICA via de reconstruccion -- ya no hay ctor publico que STJ pueda usar como fallback.
-
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -21,16 +16,12 @@ public class MarcacionRegistradaSerializacionTests
     private static readonly DateTime TimestampConSegundos = new(2026, 3, 15, 8, 9, 59);
     private static readonly DateTime TimestampNormalizadoEsperado = new(2026, 3, 15, 8, 9, 0);
 
-    // Usa las opciones REALES de Marten del dominio (regla 6d) -- no un resolver armado inline que
-    // solo registre este tipo. Esa eleccion es lo que convierte a los dos RoundTrip_* de abajo en la
-    // barrera contra el borrado de la linea de registro en
-    // ConfiguracionSerializacionControlHoras.ConfigurarResolver: sin ella, el ctor vacio privado es
-    // inalcanzable para STJ y ambos fallan con NotSupportedException.
+    // Opciones REALES de Marten del dominio, no un resolver inline: asi los RoundTrip_* son la barrera
+    // contra borrar el registro en ConfiguracionSerializacionControlHoras.ConfigurarResolver (sin el, el
+    // ctor vacio privado es inalcanzable para STJ y fallan con NotSupportedException).
     private static JsonSerializerOptions CrearOpcionesMarten() =>
         ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
 
-    // Verifica todos los campos incluyendo los opcionales con valores reales.
-    // Issue #275: el evento se construye con el factory Crear -- unica via posible con ctor privado.
     [Fact]
     public void RoundTrip_ReconstruyeEvento_CuandoDatosCompletos()
     {
@@ -47,7 +38,6 @@ public class MarcacionRegistradaSerializacionTests
         deserializado.DispositivoId.Should().Be("DEV-001");
     }
 
-    // Verifica que los campos opcionales null se preservan correctamente en el roundtrip
     [Fact]
     public void RoundTrip_ReconstruyeEvento_CuandoCamposOpcionalesSonNulos()
     {
@@ -64,10 +54,8 @@ public class MarcacionRegistradaSerializacionTests
         deserializado.DispositivoId.Should().BeNull();
     }
 
-    // Documenta POR QUE el registro en ConfigurarResolver es obligatorio: con las mismas opciones de
-    // Marten pero un resolver vacio, STJ no tiene forma de invocar el ctor vacio privado. Quien
-    // detecta el borrado del registro son los RoundTrip_* de arriba (usan las opciones reales del
-    // dominio); este test fija el comportamiento del canal sin resolver.
+    // Fija el comportamiento del canal sin resolver: con un resolver vacio STJ no puede invocar el ctor
+    // vacio privado. El borrado del registro lo detectan los RoundTrip_* de arriba.
     [Fact]
     public void Deserializar_LanzaNotSupportedException_CuandoElResolverNoRegistraElTipo()
     {
@@ -85,12 +73,9 @@ public class MarcacionRegistradaSerializacionTests
         act.Should().Throw<NotSupportedException>();
     }
 
-    // CA-5: guardrail anti-regresion -- MarcacionRegistrada ya no cruza el bus (issue #270) y,
-    // cerrado el ctor (issue #275), tampoco es reconstruible con el serializador del canal (sin
-    // resolver custom): la operacion lanza NotSupportedException. Es la barrera que CA-ADR-0025
-    // describe para HorasDiscriminadas, en sentido inverso -- alli el payload plano DEBE sobrevivir
-    // sin resolver; aqui el evento de dominio rico NO debe hacerlo, porque solo vive en el event
-    // store (CA-ADR-0025 seccion 4).
+    // MarcacionRegistrada no cruza el bus: con el serializador del canal (sin resolver custom) lanza
+    // NotSupportedException. Es la barrera inversa a la de HorasDiscriminadas (CA-ADR-0025 seccion 4):
+    // alli el payload plano DEBE sobrevivir sin resolver; aqui el evento rico solo vive en el event store.
     [Fact]
     public void Deserializar_LanzaNotSupportedException_CuandoUsaElSerializadorDelCanalDeBus()
     {

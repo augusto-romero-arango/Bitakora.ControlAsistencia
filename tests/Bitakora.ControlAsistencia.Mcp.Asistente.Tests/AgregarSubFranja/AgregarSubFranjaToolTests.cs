@@ -20,8 +20,6 @@ public class AgregarSubFranjaToolTests
 
     private sealed record Fakes(AgregarSubFranjaTool Tool, HandlerPorRuta Programacion);
 
-    // Composicion por defecto del camino feliz -- cada test sobreescribe unicamente el fixture que
-    // le interesa via argumentos nombrados, mismo patron que las demas tools de diseno de turno.
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
@@ -131,8 +129,6 @@ public class AgregarSubFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-3: el detalle por identidad responde 404 -> frase con el id que remite a buscar_turnos,
-    // sin lista de nombres y sin invocar el comando.
     [Fact]
     public async Task AgregarSubFranja_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
@@ -167,7 +163,6 @@ public class AgregarSubFranjaToolTests
         resultado.Should().Be(string.Format(AgregarSubFranjaTool.Mensajes.RechazoDelDominio, fixture));
     }
 
-    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
     public async Task AgregarSubFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidConNombre()
     {
@@ -192,7 +187,6 @@ public class AgregarSubFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-5: la tool lee el detalle por identidad, nunca el catalogo completo.
     [Fact]
     public async Task AgregarSubFranja_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
     {

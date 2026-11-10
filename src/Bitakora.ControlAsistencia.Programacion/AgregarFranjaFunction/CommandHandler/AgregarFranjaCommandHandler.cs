@@ -6,9 +6,8 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction.CommandHandler;
 
-// El handler construye FranjaOrdinaria (invariantes del VO) ANTES de leer el aggregate: una
-// ArgumentException del factory sube sin tocar el catalogo (CA-ADR-0030 -- dos canales de error
-// distintos, nunca mezclados en el mismo metodo del aggregate).
+// FranjaOrdinaria se construye ANTES de leer el aggregate: la ArgumentException del factory sube sin
+// tocar el catalogo, y el aggregate solo declina con resultado (CA-ADR-0030: dos canales de error).
 public partial class AgregarFranjaCommandHandler : ICommandHandlerAsync<AgregarFranja>
 {
     private readonly IEventStore _eventStore;

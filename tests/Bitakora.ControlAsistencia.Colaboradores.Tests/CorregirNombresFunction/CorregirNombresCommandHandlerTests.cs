@@ -1,9 +1,3 @@
-// Issue #351: corregir los nombres de un colaborador -- cuarto comando del ciclo de vida de
-// ColaboradorAggregateRoot (desglose #348-#357) y el mas simple: sin reglas de estado.
-// CA-ADR-0030: no hay eventos de fallo -- el handler solo traduce "colaborador inexistente" a
-// RecursoNoEncontradoException (404). El aggregate declina en SILENCIO (idempotencia por igualdad de
-// valor, decision de refinamiento 2026-08-11) cuando el nombre nuevo es igual por valor al actual.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction.CommandHandler;
@@ -14,16 +8,12 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.CorregirNombresFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
-// GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
-// test-writer, mismo criterio que TerminarVinculacionCommandHandlerTests/
-// IniciarVinculacionCommandHandlerTests).
 public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<CorregirNombres>
 {
     private const string NumeroValido = "79543210";
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
-    // derivado de ColaboradorAggregateRoot.ComputarStreamId.
+    // Oraculo independiente: literal, nunca derivado de ComputarStreamId -- si se derivara, un cambio
+    // de formato de la clave se auto-validaria.
     private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionOriginal = "COL-001";
@@ -36,8 +26,6 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
     private static Identificacion IdentificacionValida() =>
         Identificacion.Crear(TipoIdentificacion.CC, NumeroValido);
 
-    // Nombre original del colaborador registrado -- oraculo del "actual" contra el que el
-    // aggregate compara por igualdad de valor.
     private static NombreColaborador NombreOriginal() =>
         NombreColaborador.Crear("Luis", "Augusto", "Barreto", null);
 
@@ -63,20 +51,15 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
         PrimerApellido: "Barreto",
         SegundoApellido: null);
 
-    // Precondicion: colaborador registrado con una vinculacion abierta (sin terminacion).
     private void DadoUnColaboradorConVinculacionAbierta() =>
         Given(StreamIdEsperado, ColaboradorRegistradoValido(), VinculacionIniciadaOriginal());
 
-    // Precondicion (CA-2): colaborador registrado con la vinculacion ya terminada.
     private void DadoUnColaboradorConVinculacionTerminada() =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
             VinculacionIniciadaOriginal(),
             new VinculacionTerminada(FechaEfectivaTerminacion));
 
-    // CA-1: colaborador existente + comando con nombres distintos -> el stream recibe
-    // NombresCorregidos con el NombreColaborador nuevo; el aggregate rehidratado refleja el
-    // NombreCompleto corregido.
     [Fact]
     public async Task CorregirNombres_EmiteNombresCorregidos_CuandoElNombreEsDistintoPorValor()
     {
@@ -90,13 +73,8 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
             StreamIdEsperado, c => c.Nombre.NombreCompleto, "Luis Alberto Barreto");
     }
 
-    // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> la correccion alcanza el MISMO stream ("CC-79543210") y emite el
-    // evento. La normalizacion del numero la garantiza Identificacion.Crear (#348); la del codigo
-    // de tipo ("cc" -> "CC") la garantiza TipoIdentificacion.Desde, que normaliza internamente
-    // (issue #371 -- supersede el racional de #348, ver TipoIdentificacionTests). Sin esa
-    // normalizacion el handler computaria otra clave y responderia 404 sobre un colaborador que si
-    // existe.
+    // Sin normalizar tipo y numero, el handler computaria otra clave y responderia 404 sobre un
+    // colaborador que si existe.
     [Fact]
     public async Task CorregirNombres_EmiteNombresCorregidos_CuandoTipoYNumeroLleganSinNormalizar()
     {
@@ -114,9 +92,7 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
             StreamIdEsperado, c => c.Nombre.NombreCompleto, "Luis Alberto Barreto");
     }
 
-    // CA-2: la vinculacion vigente esta TERMINADA -> la correccion procede igual -- solo exige
-    // existencia del colaborador, nunca vigencia de la vinculacion (decision de refinamiento
-    // 2026-08-11: los nombres son de la PERSONA, no de la vinculacion).
+    // Los nombres son de la persona, no de la vinculacion: solo se exige que el colaborador exista.
     [Fact]
     public async Task CorregirNombres_EmiteNombresCorregidos_CuandoLaVinculacionEstaTerminada()
     {
@@ -128,14 +104,10 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
         Then(StreamIdEsperado, new NombresCorregidos(nombreEsperado));
         And<ColaboradorAggregateRoot, string>(
             StreamIdEsperado, c => c.Nombre.NombreCompleto, "Luis Alberto Barreto");
-        // La terminacion previa no se toca por esta correccion (Tell-don't-Ask: la correccion es
-        // ortogonal a la vinculacion, MEF-ADR-0012).
         And<ColaboradorAggregateRoot, DateOnly?>(
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, FechaEfectivaTerminacion);
     }
 
-    // CA-3: el nombre del comando es IGUAL por valor al actual -> idempotencia silenciosa: ningun
-    // evento nuevo en el stream, el estado conserva el nombre original.
     [Fact]
     public async Task CorregirNombres_NoEmiteEvento_CuandoElNombreEsIgualPorValorAlActual()
     {
@@ -148,10 +120,7 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
             StreamIdEsperado, c => c.Nombre.NombreCompleto, "Luis Augusto Barreto");
     }
 
-    // CA-3 (variante de opcionales): un segundo apellido que llega whitespace se normaliza a
-    // ausente igual que el original (NombreColaborador.Crear, #348) -> sigue siendo "igual por
-    // valor", idempotencia silenciosa -- la comparacion ocurre DESPUES de normalizar, no sobre los
-    // primitivos crudos del comando.
+    // La comparacion ocurre despues de normalizar: el whitespace se vuelve ausente, igual que el original.
     [Fact]
     public async Task CorregirNombres_NoEmiteEvento_CuandoElSegundoApellidoLlegaComoWhitespaceYElOriginalEsAusente()
     {
@@ -164,10 +133,6 @@ public class CorregirNombresCommandHandlerTests : CommandHandlerAsyncTest<Correg
             StreamIdEsperado, c => c.Nombre.NombreCompleto, "Luis Augusto Barreto");
     }
 
-    // CA-4: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
-    // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
-    // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-5 /
-    // IniciarVinculacionCommandHandlerTests CA-5).
     [Fact]
     public async Task CorregirNombres_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {

@@ -5,8 +5,7 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Soporte;
 
 /// <summary>
-/// HttpMessageHandler falso (CA-4 del issue #502): responde el JSON enlatado y captura la request
-/// para que los tests verifiquen verbo, ruta y body enviados al dominio.
+/// HttpMessageHandler falso: responde el JSON enlatado y captura la ultima request (verbo, ruta y body).
 /// </summary>
 public sealed class HandlerEnlatado(HttpStatusCode status, string cuerpo) : HttpMessageHandler
 {
@@ -29,10 +28,8 @@ public sealed class HandlerEnlatado(HttpStatusCode status, string cuerpo) : Http
 }
 
 /// <summary>
-/// HttpMessageHandler falso que responde segun una funcion arbitraria de la request y registra
-/// TODAS las requests recibidas (a diferencia de <see cref="HandlerEnlatado"/>, que solo guarda la
-/// ultima): necesario para tools que hacen mas de un GET (resolver nombre -> id, issue #629) y
-/// deben verificar cuantas veces se llamo al dominio.
+/// Responde segun una funcion de la request y registra TODAS las requests (<see cref="HandlerEnlatado"/>
+/// solo guarda la ultima): para tools que llaman mas de una vez al dominio.
 /// </summary>
 public sealed class HandlerFuncional(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
 {
@@ -47,21 +44,16 @@ public sealed class HandlerFuncional(Func<HttpRequestMessage, HttpResponseMessag
 }
 
 /// <summary>
-/// HttpMessageHandler falso que responde por verbo+ruta: HandlerEnlatado alcanza cuando un cliente
-/// tipado solo pega una ruta, pero ProgramacionApi responde dos (GET turnos, POST solicitudes) por
-/// el MISMO HttpClient -- y el POST se llama N veces con outcomes distintos (uno 202, otro 409).
-/// Registra una fabrica de respuesta por (metodo, ruta) que recibe el cuerpo ya leido, para que un
-/// test pueda decidir el status inspeccionando el body (p.ej. por identificacion del colaborador).
+/// Responde por (metodo, ruta) con una fabrica que recibe el cuerpo ya leido, para que un test decida el
+/// status inspeccionando el body; sirve a clientes tipados que pegan varias rutas por el MISMO HttpClient.
 /// Captura TODAS las requests con lock: la tool llama en paralelo (Parallel.ForEachAsync).
 /// </summary>
 public sealed class HandlerPorRuta : HttpMessageHandler
 {
     private readonly Dictionary<(HttpMethod Metodo, string Ruta), Func<HttpRequestMessage, string?, HttpResponseMessage>> _respuestas = [];
 
-    // Match por prefijo para rutas cuyo tramo final lo decide un id generado DENTRO de la tool
-    // (p.ej. el plantillaId de crear_plantilla_semanal, Guid v7 que el test no puede predecir antes
-    // de ejecutar el Run): a diferencia de _respuestas (ruta exacta), esta lista se recorre en
-    // orden de registro y usa el primer prefijo que matchea metodo + StartsWith.
+    // Match por prefijo para rutas cuyo tramo final es un id generado DENTRO de la tool (Guid v7 que el
+    // test no puede predecir): se recorre en orden de registro y gana el primer prefijo que matchea.
     private readonly List<(HttpMethod Metodo, string Prefijo, Func<HttpRequestMessage, string?, HttpResponseMessage> Fabrica)> _porPrefijo = [];
 
     public List<(HttpMethod Metodo, string Ruta, string? Cuerpo)> Requests { get; } = [];

@@ -7,10 +7,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.BuscarColaboradore
 
 public class BuscarColaboradoresSmokeTests(McpFixture mcp)
 {
-    // Recorre la cadena completa: host MCP -> worker -> HttpClient tipado -> dominio Colaboradores
-    // -> Marten. "test" es un token real: las suites de Colaboradores registran colaboradores
-    // [TEST] ... en dev y TokenizarNombre separa por todo caracter no alfanumerico. Se afirma la
-    // forma del remodelado, no valores puntuales -- los datos de dev cambian entre corridas.
+    // "test" es un token real: las suites de Colaboradores registran colaboradores [TEST] en dev y
+    // TokenizarNombre separa por todo caracter no alfanumerico. Se afirma la forma, no valores: los
+    // datos de dev cambian entre corridas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task BuscarColaboradores_DevuelveLasCoincidenciasConDatosReales_CuandoSeBuscaPorNombre()
@@ -41,9 +40,8 @@ public class BuscarColaboradoresSmokeTests(McpFixture mcp)
         }
     }
 
-    // Error path que NO toca el dominio: la validacion de criterio corta en el worker y responde
-    // el mensaje del .resx en produccion. Afirmar el texto exacto prueba que los recursos
-    // embebidos viajaron en el publish.
+    // Error path que no toca el dominio: el texto exacto del .resx prueba que los recursos embebidos
+    // viajaron en el publish.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task BuscarColaboradores_RespondeElMensajeDeValidacion_CuandoNoHayNombreNiIdentificaciones()

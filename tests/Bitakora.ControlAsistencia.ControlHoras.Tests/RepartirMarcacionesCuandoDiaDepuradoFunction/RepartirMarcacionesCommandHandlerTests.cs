@@ -43,7 +43,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
     private static SedeDeMarcacionIdentificada Sede(string streamId, DateTime timestamp) =>
         new(streamId, timestamp, Dispositivo, "001", "Sede Principal", "CC-100");
 
-    // CA-1 (empujar): la salida de madrugada vive en el dia 21 y el reparto del 21 la entrega a la vispera.
+    // Empujar: la salida de madrugada vive en el dia 21 y el reparto del 21 la entrega a la vispera.
     [Fact]
     public async Task RepartirMarcaciones_EntregaLaSalidaALaVispera_CuandoCaeEnSuCoberturaNocturna()
     {
@@ -63,7 +63,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, DateTime?>(Stream20, c => c.ControlesDeFranja.Single().Salida, salida);
     }
 
-    // CA-2 (recoger): la 06:05 ya estaba en el 21 y el turno del 20 llega despues; el reparto del 20 la recoge.
+    // Recoger: la 06:05 ya estaba en el 21 y el turno del 20 llega despues; el reparto del 20 la recoge.
     [Fact]
     public async Task RepartirMarcaciones_RecogeLaMarcacionDelVecino_CuandoElTurnoLlegaDespuesDeLaMarcacion()
     {
@@ -78,7 +78,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
-    // CA-2/CA-3: cada DiaDepurado del reparto (dia y vecinos) sale con GroupId del colaborador, nunca sin opciones.
+    // Cada DiaDepurado del reparto (dia y vecinos) sale con GroupId del colaborador, nunca sin opciones.
     [Fact]
     public async Task RepartirMarcaciones_PublicaDiaDepuradoConGroupIdDelColaborador_CuandoRecogeLaMarcacionDelVecino()
     {
@@ -97,7 +97,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
-    // CA-2 (convergencia): con la copia ya entregada, un reparto adicional no emite eventos ni publica.
+    // Convergencia: con la copia ya entregada, un reparto adicional no emite eventos ni publica.
     [Fact]
     public async Task RepartirMarcaciones_NoEmiteEventosNiPublica_CuandoLaCopiaYaFueEntregada()
     {
@@ -116,7 +116,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
-    // CA-3: 12x12 -- el turno nocturno A (18:00-06:00) recibe su 06:00 en su vispera.
+    // 12x12 -- el turno nocturno A (18:00-06:00) recibe su 06:00 en su vispera.
     [Fact]
     public async Task RepartirMarcaciones_EntregaLas0600AlNocturno_Cuando12x12()
     {
@@ -130,7 +130,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
-    // CA-3: 12x12 -- el turno diurno B (06:00-18:00) conserva su 05:55; una vispera diurna no la recibe.
+    // 12x12 -- el turno diurno B (06:00-18:00) conserva su 05:55; una vispera diurna no la recibe.
     [Fact]
     public async Task RepartirMarcaciones_NoEntregaLas0555ALaVisperaDiurna_Cuando12x12()
     {
@@ -148,7 +148,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream21, c => c.Marcaciones.Count, 1);
     }
 
-    // CA-3: turno de 24 h 07:00-07:00 -- la salida 07:05 del dia siguiente llega al dia del turno.
+    // Turno de 24 h 07:00-07:00 -- la salida 07:05 del dia siguiente llega al dia del turno.
     [Fact]
     public async Task RepartirMarcaciones_EntregaLaSalidaAlDiaDelTurno_CuandoElTurnoEsDe24Horas()
     {
@@ -162,7 +162,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
-    // CA-3: turno 00:30-08:30 -- la entrada 23:50 del dia anterior llega al dia del turno (empujar al siguiente).
+    // Turno 00:30-08:30 -- la entrada 23:50 del dia anterior llega al dia del turno (empujar al siguiente).
     [Fact]
     public async Task RepartirMarcaciones_EntregaLaEntradaAlDiaSiguiente_CuandoElTurnoEmpezoPasadaLaMedianoche()
     {
@@ -177,7 +177,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream22, c => c.Marcaciones.Count, 1);
     }
 
-    // CA-4: la 01:55 del siguiente (turno 02:00-10:00) no llega a un dia 07:00-16:00.
+    // La 01:55 del siguiente (turno 02:00-10:00) no llega a un dia 07:00-16:00.
     [Fact]
     public async Task RepartirMarcaciones_NoEntrega_CuandoLaMarcacionQuedaFueraDeLaCoberturaDelVecino()
     {
@@ -194,7 +194,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-4: un vecino con stream pero sin turno no recibe nada.
+    // Un vecino con stream pero sin turno no recibe nada.
     [Fact]
     public async Task RepartirMarcaciones_NoEntrega_CuandoElVecinoNoTieneTurno()
     {
@@ -211,7 +211,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 1);
     }
 
-    // CA-4: un vecino sin stream no recibe nada y no se crea su stream.
+    // Un vecino sin stream no recibe nada y no se crea su stream.
     [Fact]
     public async Task RepartirMarcaciones_NoCreaElStreamDelVecino_CuandoElVecinoNoExiste()
     {
@@ -226,7 +226,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream21, c => c.Marcaciones.Count, 1);
     }
 
-    // CA-5: la cobertura posible incluye el desplazamiento maximo de la ventana de entrada.
+    // La cobertura posible incluye el desplazamiento maximo de la ventana de entrada.
     [Fact]
     public async Task RepartirMarcaciones_EntregaLaSalidaFueraDeLaCoberturaDeReferencia_CuandoElTurnoTieneVentana()
     {
@@ -243,7 +243,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, DateTime?>(Stream20, c => c.ControlesDeFranja.Single().Salida, salida);
     }
 
-    // CA-6: la copia lleva la sede de la marcacion de origen.
+    // La copia lleva la sede de la marcacion de origen.
     [Fact]
     public async Task RepartirMarcaciones_EntregaLaCopiaConSede_CuandoLaMarcacionDeOrigenTieneSede()
     {
@@ -258,7 +258,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
             Stream20, c => c.Marcaciones.Single().CodigoSede, "001");
     }
 
-    // CA-6: la sede llega despues de la entrega -- la copia existente sin sede se estampa.
+    // La sede llega despues de la entrega -- la copia existente sin sede se estampa.
     [Fact]
     public async Task RepartirMarcaciones_EstampaLaSedeEnLaCopia_CuandoLaCopiaYaExistiaSinSede()
     {
@@ -275,7 +275,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
             Stream20, c => c.Marcaciones.Single().CodigoSede, "001");
     }
 
-    // CA-6: la copia que ya tenia otra sede se re-estampa con la de la marcacion de origen.
+    // La copia que ya tenia otra sede se re-estampa con la de la marcacion de origen.
     [Fact]
     public async Task RepartirMarcaciones_ReestampaLaSedeDeLaCopia_CuandoLaCopiaTieneOtraSede()
     {
@@ -293,8 +293,8 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
             Stream20, c => c.Marcaciones.Single().CodigoSede, "001");
     }
 
-    // CA-2 (ambos repartos): dos repartos concurrentes persistieron la misma copia; el replay conserva
-    // una sola y un reparto adicional no emite eventos.
+    // Ambos repartos: dos repartos concurrentes persistieron la misma copia; el replay conserva una sola
+    // y un reparto adicional no emite eventos.
     [Fact]
     public async Task RepartirMarcaciones_ConservaUnaSolaCopia_CuandoDosRepartosConcurrentesLaEntregaron()
     {
@@ -342,7 +342,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
 
     private static readonly ColaboradorProgramado Colaborador = new("1098765432", CodigoColaborador, "Ana Perez");
 
-    // CA-5: al asignar, cada dia recibe la cobertura de su vecino.
+    // Al asignar, cada dia recibe la cobertura de su vecino.
     [Fact]
     public async Task RepartirMarcaciones_InformaLaCoberturaALosVecinos_CuandoAmbosTienenTurno()
     {
@@ -356,7 +356,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-5: cancelar el turno del dia deja al vecino con limite null.
+    // Cancelar el turno del dia deja al vecino con limite null.
     [Fact]
     public async Task RepartirMarcaciones_InformaLimiteNull_CuandoElVecinoCancelaSuTurno()
     {
@@ -375,7 +375,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-5: una ausencia en el dia cancela su cobertura; el vecino recibe null.
+    // Una ausencia en el dia cancela su cobertura; el vecino recibe null.
     [Fact]
     public async Task RepartirMarcaciones_InformaLimiteNull_CuandoElVecinoTieneAusencia()
     {
@@ -394,7 +394,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-5: un reparto sin cambios no emite eventos.
+    // Un reparto sin cambios no emite eventos.
     [Fact]
     public async Task RepartirMarcaciones_NoEmiteEventos_CuandoLasCoberturasYaEstanInformadas()
     {
@@ -415,7 +415,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-2: el turno del dia pasa a 08:00-16:00 (cobertura desde 06:00): la vispera recibe el limite
+    // El turno del dia pasa a 08:00-16:00 (cobertura desde 06:00): la vispera recibe el limite
     // nuevo y la 04:30 que ya tenia copiada deja de ser ambigua.
     [Fact]
     public async Task RepartirMarcaciones_LaVisperaTomaLaSalida_CuandoElDiaSiguienteCambiaASuTurnoDeLas0800()
@@ -443,7 +443,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, DateTime?>(Stream21, c => c.ControlesDeFranja.Single().Entrada, entradaDia);
     }
 
-    // CA-4: la vispera con ventana entro a las 23:00 (fin efectivo 07:00): informa su cobertura hasta
+    // La vispera con ventana entro a las 23:00 (fin efectivo 07:00): informa su cobertura hasta
     // las 11:00 y la 08:55 queda ambigua en ambos dias.
     [Fact]
     public async Task RepartirMarcaciones_InformaLaCoberturaHastaLas1100_CuandoLaVisperaConVentanaEntroALas2300()
@@ -466,7 +466,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, DateTime?>(Stream21, c => c.ControlesDeFranja.Single().Entrada, null);
     }
 
-    // CA-4: la misma vispera entro a las 20:00 (sin desplazamiento): su cobertura llega hasta las 08:00
+    // La misma vispera entro a las 20:00 (sin desplazamiento): su cobertura llega hasta las 08:00
     // y la 08:55 es la entrada del dia.
     [Fact]
     public async Task RepartirMarcaciones_ElDiaTomaLa0855ComoEntrada_CuandoLaVisperaConVentanaEntroALas2000()
@@ -497,7 +497,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
     private void DadaLaVisperaNocturna() =>
         Given(Stream20, TurnoAsignado(Stream20, Dia20, Turno(Franja(new TimeOnly(17, 0), new TimeOnly(1, 0), 1))));
 
-    // CA-1: dia de descanso tras una vispera 17:00-01:00 (cobertura hasta las 05:00).
+    // Dia de descanso tras una vispera 17:00-01:00 (cobertura hasta las 05:00).
     [Fact]
     public async Task RepartirMarcaciones_MarcaLaSalidaDeTurnoVecino_CuandoElDiaEsDescanso()
     {
@@ -515,7 +515,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, string>(Stream21, PertenenciasDe, "DeTurnoVecino|null");
     }
 
-    // CA-1: dia sin programar.
+    // Dia sin programar.
     [Fact]
     public async Task RepartirMarcaciones_MarcaLaSalidaDeTurnoVecino_CuandoElDiaNoEstaProgramado()
     {
@@ -532,7 +532,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, string>(Stream21, PertenenciasDe, "DeTurnoVecino|null");
     }
 
-    // CA-1: dia con ausencia (cubre el turno sin reemplazarlo).
+    // Dia con ausencia (cubre el turno sin reemplazarlo).
     [Fact]
     public async Task RepartirMarcaciones_MarcaLaSalidaDeTurnoVecino_CuandoElDiaTieneAusencia()
     {
@@ -551,7 +551,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, string>(Stream21, PertenenciasDe, "DeTurnoVecino|null");
     }
 
-    // CA-2: el dia siguiente con turno 00:00-08:00 (cobertura desde las 22:00).
+    // El dia siguiente con turno 00:00-08:00 (cobertura desde las 22:00).
     [Fact]
     public async Task RepartirMarcaciones_MarcaLas2300DeTurnoVecino_CuandoElDiaSiguienteEmpiezaALas0000()
     {
@@ -566,7 +566,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, string>(Stream21, PertenenciasDe, "DeTurnoVecino");
     }
 
-    // CA-3: el vecino cancela su turno; el limite ya registrado pasa a null y la 01:00 queda propia.
+    // El vecino cancela su turno; el limite ya registrado pasa a null y la 01:00 queda propia.
     [Fact]
     public async Task RepartirMarcaciones_InformaLimiteNullYQuitaLaPertenencia_CuandoLaVisperaCancelaSuTurno()
     {
@@ -585,7 +585,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, string>(Stream21, PertenenciasDe, "null");
     }
 
-    // CA-4: la cobertura de la vispera 06:00-14:00 termina a las 18:00 del 20, antes del dia.
+    // La cobertura de la vispera 06:00-14:00 termina a las 18:00 del 20, antes del dia.
     [Fact]
     public async Task RepartirMarcaciones_NoRegistraLimite_CuandoLaCoberturaDeLaVisperaNoAlcanzaElDia()
     {
@@ -601,7 +601,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, string>(Stream21, PertenenciasDe, "null");
     }
 
-    // CA-1: el solape oculta la cobertura vecina (guard de Invade) pero el dia igual conoce el cierre de la vispera.
+    // El solape oculta la cobertura vecina (guard de Invade) pero el dia igual conoce el cierre de la vispera.
     [Fact]
     public async Task RepartirMarcaciones_InformaElCierreDeLaVispera_CuandoLosTurnosSeSolapan()
     {
@@ -617,7 +617,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream21, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-3: la vispera cancela su turno y el dia ya tenia cierre: se apaga con null.
+    // La vispera cancela su turno y el dia ya tenia cierre: se apaga con null.
     [Fact]
     public async Task RepartirMarcaciones_InformaCierreNull_CuandoLaVisperaCancelaSuTurno()
     {
@@ -634,7 +634,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream21, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-3: la vispera pasa a descanso y el dia ya tenia cierre: se apaga con null.
+    // La vispera pasa a descanso y el dia ya tenia cierre: se apaga con null.
     [Fact]
     public async Task RepartirMarcaciones_InformaCierreNull_CuandoLaVisperaPasaADescanso()
     {
@@ -649,7 +649,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream21, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-3: la vispera recibe una ausencia y el dia ya tenia cierre: se apaga con null.
+    // La vispera recibe una ausencia y el dia ya tenia cierre: se apaga con null.
     [Fact]
     public async Task RepartirMarcaciones_InformaCierreNull_CuandoLaVisperaRecibeUnaAusencia()
     {
@@ -666,7 +666,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream21, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-3: sin cierre previo, una vispera sin trabajo no emite nada en el dia.
+    // Sin cierre previo, una vispera sin trabajo no emite nada en el dia.
     [Fact]
     public async Task RepartirMarcaciones_NoEmiteCierre_CuandoLaVisperaNoTrabajaYElDiaNoTeniaCierre()
     {
@@ -681,7 +681,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream21, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-4: con ventana de entrada y marcacion de entrada, el cierre informado sigue siendo el de referencia.
+    // Con ventana de entrada y marcacion de entrada, el cierre informado sigue siendo el de referencia.
     [Fact]
     public async Task RepartirMarcaciones_InformaElCierreDeReferencia_CuandoLaVisperaConVentanaYaMarcoEntrada()
     {
@@ -699,7 +699,7 @@ public class RepartirMarcacionesCommandHandlerTests : CommandHandlerAsyncTest<Re
         And<ControlDiarioAggregateRoot, int>(Stream21, c => c.Marcaciones.Count, 0);
     }
 
-    // CA-4: marcar la entrada no reemite el cierre ya informado.
+    // Marcar la entrada no reemite el cierre ya informado.
     [Fact]
     public async Task RepartirMarcaciones_NoReemiteElCierre_CuandoLaVisperaMarcaDespuesDeInformado()
     {

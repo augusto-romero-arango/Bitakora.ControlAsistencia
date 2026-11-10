@@ -147,7 +147,6 @@ public class SolicitarProgramacionTurnoToolTests
         programadoBeto["dias"]!.GetValue<int>().Should().Be(20);
     }
 
-    // El detalle responde 404 -> frase con el id que remite a buscar_turnos, sin lista de nombres.
     [Fact]
     public async Task SolicitarProgramacionTurno_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
@@ -237,8 +236,7 @@ public class SolicitarProgramacionTurnoToolTests
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
-    // La repeticion (con espacios y otra caja) coincide con la misma entrada del directorio,
-    // se programa una sola vez y la sobrante cuenta como omitida.
+    // La repeticion viene con espacios y otra caja.
     [Fact]
     public async Task SolicitarProgramacionTurno_ProgramaUnaSolaVezYCuentaLaRepeticionComoOmitida_CuandoUnaIdentificacionSeRepite()
     {

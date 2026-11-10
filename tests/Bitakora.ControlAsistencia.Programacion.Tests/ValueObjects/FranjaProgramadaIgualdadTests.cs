@@ -1,8 +1,5 @@
-// Issue #319: Tests de contrato IEquatable para FranjaProgramada (record propio de
-// Programacion.DomainEvents, tres islas). Equals/GetHashCode propios comparan Descansos/Extras
-// POR VALOR (SequenceEqual, el record por defecto compararia por referencia -- ADR-0015) y
-// EXCLUYEN Descripcion (dato derivado, no identidad de la franja) -- mismo criterio que
-// DetalleFranjaOrdinaria (issues #129 y #288).
+// Equals/GetHashCode propios comparan Descansos/Extras POR VALOR (SequenceEqual; el record por
+// defecto compararia por referencia) y EXCLUYEN Descripcion (dato derivado, no identidad).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -35,14 +32,12 @@ public class FranjaProgramadaIgualdadTests : IgualdadTestBase<FranjaProgramada>
             new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [Extra()], ""));
         yield return ("Extras",
             new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [], ""));
-        // Issue #335: Sede entra en Equals/GetHashCode -- es dato de identidad del diseno de la
+        // Sede entra en Equals/GetHashCode: es dato de identidad del diseno de la
         // franja, a diferencia de Descripcion (derivado, excluido).
         yield return ("Sede",
             new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "",
                 new SedeProgramada("SEDE-01", "Sede Principal")));
     }
-
-    // Cobertura especifica del override: las listas se comparan por valor, no por referencia.
 
     [Fact]
     public void Equals_RetornaTrue_CuandoListasSonInstanciasDiferentesConMismoContenido()
@@ -69,8 +64,6 @@ public class FranjaProgramadaIgualdadTests : IgualdadTestBase<FranjaProgramada>
 
         a.GetHashCode().Should().Be(b.GetHashCode());
     }
-
-    // CA-1: dos instancias que difieren SOLO en Descripcion son iguales (dato derivado, no identidad).
 
     [Fact]
     public void Equals_RetornaTrue_CuandoSoloDescripcionEsDiferente()

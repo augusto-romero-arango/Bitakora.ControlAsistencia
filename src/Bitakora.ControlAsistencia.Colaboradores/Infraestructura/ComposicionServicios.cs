@@ -19,11 +19,8 @@ using OpenTelemetry.Trace;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
 
-// Issue #360: composicion del contenedor DI del dominio Colaboradores, extraida de Program.cs a un
-// metodo testeable. Unica fuente de verdad: Program.cs y el test de composicion
-// (Colaboradores.Tests) invocan este mismo metodo -- mismo patron que ComposicionServicios de
-// Programacion/ControlHoras (issue #221), asi que un wiring roto (p.ej. el hueco de
-// ITenantContext de #219) no puede desincronizarse entre el host real y el guardrail de CI.
+// Program.cs y el test de composicion invocan este mismo metodo: un wiring roto no puede
+// desincronizarse entre el host real y el guardrail de CI.
 public static class ComposicionServicios
 {
     public static IServiceCollection AgregarServiciosColaboradores(
@@ -39,102 +36,52 @@ public static class ComposicionServicios
             isDev,
             options =>
             {
-                // Issue #309 (replicado desde el scaffold del dominio -- Programacion/ControlHoras
-                // ya lo aplican): apaga el polling de metricas de profundidad de cola de Wolverine
-                // (PersistenceMetrics.StartPolling, PeriodicTimer de 5s que llama
-                // store.Admin.FetchCountsAsync()). Nadie las consume hoy (sin dashboard ni alerta)
-                // y CheckHealthAsync llama FetchCountsAsync por su cuenta, asi que el health check
-                // no depende de este polling.
-                //
-                // Se conserva la durabilidad real -- recovery, scheduled jobs y dead letters, que
-                // corren en el mismo DurabilityAgent: DurabilityAgentEnabled y Mode no se tocan.
-                //
-                // Va en el callback de AgregarWolverineParaComandosServerless, y no despues de esa
-                // llamada, porque es el hook que el paquete expone sobre WolverineOptions:
-                // Cosmos.EventSourcing.CritterStack 2.3.1 lo corre PRIMERO y despues solo reasigna
-                // Durability.Mode = Solo -- esa reasignacion pisaria en silencio cualquier intento
-                // de tocar Mode desde aqui, pero no toca DurabilityMetricsEnabled (verificado
-                // descompilando el paquete en ControlHoras/ComposicionServicios). Que sobreviva no
-                // es contrato del paquete: lo sostiene el guardrail de ComposicionServiciosTests
-                // sobre el contenedor real.
+                // Apaga el polling de metricas de cola de Wolverine (PeriodicTimer de 5 s sobre
+                // store.Admin.FetchCountsAsync()): nadie las consume y CheckHealthAsync no depende
+                // de el. La durabilidad real (recovery, scheduled jobs, dead letters) no se toca.
+                // Cosmos.EventSourcing.CritterStack 2.3.1 corre este callback PRIMERO y luego
+                // reasigna Durability.Mode = Solo (pisaria cualquier cambio de Mode aqui); que
+                // DurabilityMetricsEnabled sobreviva no es contrato del paquete, lo sostiene el
+                // guardrail de ComposicionServiciosTests.
                 options.Durability.DurabilityMetricsEnabled = false;
 
                 options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
 
-                // El dominio nace sin ningun evento de bus (issue #360: solo se genera el andamiaje
-                // sobre el que se implementan los cortes #348/#353 y el resto del desglose). Cuando
-                // Colaboradores publique su primer evento (privado o publico), se registra aqui con
-                // options.PublicarEventoServerless<TEvento>("<topic>") -- ADR-0024 decision #3.
+                // Sin eventos de bus todavia: el primero se registra aqui con
+                // options.PublicarEventoServerless<TEvento>("<topic>").
             });
 
         services.AgregarMartenEventStore();
-        // Tenancy (MEF-ADR-0028 etapa b): identidad ambiente por AsyncLocal, poblada por
-        // TenantContextMiddleware en Program.cs (patron de Cosmos.ControlPlane, MEF-ADR-0032). NO usar
-        // AgregarTenantContextHibrido(): su ProxyTenantContext decide la rama en el constructor
-        // segun IHttpContextAccessor.HttpContext, que es null cuando el grafo de DI lo construye en el
-        // worker aislado -- toda request HTTP caia en la rama de Wolverine y fallaba (hotfix 2026-09-01).
+        // Identidad ambiente por AsyncLocal, poblada por TenantContextMiddleware en Program.cs
+        // (CA-ADR-0032). NO usar AgregarTenantContextHibrido(): su ProxyTenantContext decide la rama
+        // en el constructor segun IHttpContextAccessor.HttpContext, que es null en el worker aislado.
         services.AgregarTenantResolverControlAsistencia();
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
-        // Nota: AgregarWolverinePrivateEventRouter() no se registra todavia -- el dominio no
-        // consume ningun evento privado por ahora (mismo criterio que Programacion). Se agrega
-        // junto con el primer FunctionEndpoint de ServiceBus que este dominio necesite.
+        // AgregarWolverinePrivateEventRouter() no se registra: el dominio no consume eventos
+        // privados. Se agrega con su primer FunctionEndpoint de Service Bus.
 
         services.ConfigureMarten(options =>
         {
-            // Issue #277 (replicado desde el scaffold): registra los tipos de evento persistidos en
-            // el EventGraph. Lista vacia al nacer -- se llena a medida que ColaboradorAggregateRoot
-            // aplique sus primeros eventos.
             options.Events.AddEventTypes(IdentidadEventosColaboradores.TiposPersistidos);
 
-            // Issue #294 (aplicado a FichaColaborador por #356, mismo patron que #328 aplico a
-            // TurnoVigente en ControlHoras): declara del lado LECTURA la forma de mt_version que el
-            // worker ya impone del lado escritura -- aqui la tabla la posee la proyeccion y este
-            // Function App solo la consulta (ObtenerFichaColaborador).
-            //
-            // Marten aplica ProjectionDocumentPolicy a todo documento que sea target de una
-            // proyeccion registrada en ese store: UseNumericRevisions = true, Metadata.Revision
-            // (mt_version bigint) habilitada y Metadata.Version (mt_version uuid) DESHABILITADA. No
-            // es opt-in ni depende de IRevisioned ni del lifecycle: la doc lo declara como la
-            // excepcion a que el versionado sea opt-in
-            // (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents") y el
-            // codigo lo hace incondicional (Marten/Events/Projections/ProjectionDocumentPolicy.cs).
-            //
-            // El worker registra FichaColaboradorProjection, asi que crea mt_version como bigint.
-            // Este store NO la registra ni puede hacerlo -- FichaColaboradorProjection vive en el
-            // ensamblado del worker y referenciarlo violaria CA-ADR-0029 --, asi que sin esta linea
-            // esperaria mt_version uuid sobre la MISMA tabla fisica. Con AutoCreate en su default
-            // CreateOrUpdate el sintoma no es un 404: Marten intenta "alter column mt_version type
-            // uuid" en CADA request, Postgres lo rechaza con 42804 (no hay cast automatico
-            // bigint -> uuid) y los GET responden 500 de forma permanente. Eso fue lo que ocurrio en
-            // dev tras el deploy de #290 sobre el read model que #323 ya retiro.
-            //
-            // Se declara por documento y no via Policies para no alterar la forma de ningun otro
-            // documento de este store. El par de config-tests (este lado y el del worker) congela
-            // los mismos valores literales.
+            // Cada vista materializada que este store consulta declara aqui la forma de mt_version
+            // que el worker impone al escribirla. Marten aplica ProjectionDocumentPolicy (mt_version
+            // bigint) a todo target de una proyeccion registrada, sin opt-in
+            // (https://martendb.io/documents/concurrency, "Numeric Revisioned Documents"); este store
+            // no registra la proyeccion (vive en el worker, CA-ADR-0029), asi que sin esta linea
+            // esperaria mt_version uuid sobre la MISMA tabla: con AutoCreate CreateOrUpdate intenta
+            // el alter en CADA request, Postgres lo rechaza (42804) y los GET dan 500 permanente.
+            // Por documento y no via Policies, para no tocar otros documentos. Si cambias esto,
+            // cambia tambien el config-test gemelo del worker.
             options.Schema.For<FichaColaborador>().UseNumericRevisions(true);
 
-            // Issue #357: MISMA razon que la linea de arriba, para la segunda vista materializada
-            // del dominio -- el worker registra CategoriaDeEtiquetasProjection (N2) y crea
-            // mt_version como bigint; este Function App la consulta con session.Query en
-            // ListarCategoriasDeEtiquetas. Sin esta linea el GET responde 500 permanente en dev
-            // (42804 por request), no un 404: el mismo modo de falla que #294 dejo documentado
-            // arriba. Cada vista materializada que este store consulte necesita su propia
-            // declaracion -- el par de config-tests de ambos lados la congela.
             options.Schema.For<CategoriaDeEtiquetas>().UseNumericRevisions(true);
-
-            // Tercera vista materializada del dominio, misma razon que las dos lineas de arriba:
-            // el worker la crea con mt_version bigint y ListarDirectorioColaboradores la consulta.
             options.Schema.For<DirectorioColaborador>().UseNumericRevisions(true);
 
-            // Issue #330: registra la serializacion custom de los VOs con ctor privado que aparecen
-            // como payload de eventos persistidos (Identificacion, NombreColaborador) -- AQUI
-            // DENTRO junto a AddEventTypes -- nunca en un ConfigureMarten separado (issue #232 CA-5:
-            // ComposicionServiciosTests lo verifica sobre el store real del contenedor, y un segundo
-            // ConfigureMarten corre el riesgo de que el resolver de serializacion custom quede sin
-            // efecto en silencio si el orden de callbacks cambia). Mismo patron que
-            // ControlHoras/Programacion: reconfigura el SystemTextJsonSerializer que Marten ya
-            // registro con un resolver custom.
+            // AQUI DENTRO, nunca en un ConfigureMarten separado: un segundo callback puede dejar el
+            // resolver custom sin efecto en silencio si cambia el orden (lo verifica
+            // ComposicionServiciosTests sobre el store real).
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {
                 stj.Configure(jsonOptions =>
@@ -146,11 +93,6 @@ public static class ComposicionServicios
             }
         });
 
-        // Observabilidad (issue #308, CA-ADR-0009 Capa 2): mismo wiring que ControlHoras -- el
-        // dominio de referencia mas reciente en adoptar el exporter completo (a diferencia de
-        // Programacion, que todavia no lo tiene). Ratio configurable via TELEMETRY_SAMPLING_RATIO
-        // (default 0.2, igual que los otros dos dominios); el daily cap (Capa 3) y la alerta de
-        // spike (Capa 4) siguen siendo el respaldo si el sampling deja pasar demasiado.
         var samplingRatio = double.TryParse(
             Environment.GetEnvironmentVariable("TELEMETRY_SAMPLING_RATIO"),
             NumberStyles.Float,
@@ -159,12 +101,9 @@ public static class ComposicionServicios
                 ? ratio
                 : 0.2;
 
-        // Issue #308 hallazgo 1: UseAzureMonitorExporter() llama SetSampler internamente
-        // (Azure.Monitor.OpenTelemetry.Exporter 1.8.1) con RateLimitedSampler porque
-        // AzureMonitorExporterOptions.TracesPerSecond tiene default 5.0. El SetSampler propio DEBE
-        // ir en un segundo .WithTracing(...) DESPUES de .UseAzureMonitorExporter() o ese
-        // SetSampler interno lo pisa y el sampler configurado aqui nunca se instala (verificado en
-        // runtime sobre ControlHoras).
+        // UseAzureMonitorExporter() (Azure.Monitor.OpenTelemetry.Exporter 1.8.1) instala su propio
+        // RateLimitedSampler: el SetSampler propio DEBE ir en un segundo .WithTracing(...) DESPUES
+        // o queda pisado (verificado en runtime sobre ControlHoras).
         services.AddOpenTelemetry()
             .WithTracing(tracing => tracing
                 .AddSource("Wolverine")
@@ -172,30 +111,22 @@ public static class ComposicionServicios
                 .AddSource("Npgsql")
                 .AddSource("Bitakora.ControlAsistencia.Colaboradores.*"))
             .UseFunctionsWorkerDefaults()
-            // MEF-ADR-0038 seccion 9 (extendida al write-side, harness #700): con el flip en su
-            // default (true) el exporter instala LogFilteringProcessor, que descarta todo LogRecord
-            // emitido dentro de un span no muestreado. Con TELEMETRY_SAMPLING_RATIO fraccionario
-            // (default 0.2 aqui) eso pierde en silencio los LogError de los handlers, Wolverine y
-            // Marten -- justo la senal que la alerta exception_spike (CA-ADR-0009 Capa 4) mira.
+            // En true (default) el exporter descarta todo LogRecord emitido dentro de un span no
+            // muestreado: con sampling fraccionario se perderian en silencio los LogError que mira
+            // la alerta exception_spike (MEF-ADR-0038 seccion 9).
             .UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)
             .WithTracing(tracing => tracing
                 .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio))))
-            // Issue #515 (CA-ADR-0009): UseAzureMonitorExporter() activa el pipeline de metricas sin
-            // opt-out por senal (WithMetrics interno) -- ~76.000 metricas/dia de runtime/ASP.NET Core
-            // (dotnet.gc.*, kestrel.*, etc.) que nadie consulta, medidas en el episodio de
-            // ingestion-warning. El wildcard cubre cualquier instrumento, incluso uno que aparezca en
-            // un futuro upgrade del exporter.
+            // UseAzureMonitorExporter() activa las metricas sin opt-out por senal (~76.000/dia que
+            // nadie consulta, CA-ADR-0009). El wildcard cubre tambien instrumentos de futuros
+            // upgrades del exporter.
             .WithMetrics(metrics => metrics.AddView(instrumentName: "*", MetricStreamConfiguration.Drop));
 
-        // El View de arriba filtra MEDICIONES, no evita que UseAzureMonitorExporter() construya su
-        // reader de metricas: a diferencia del de trazas (diferido a un hosted service), ese se
-        // construye de forma SINCRONICA al resolver MeterProvider y su ctor exige una connection
-        // string o lanza (decompilado de Azure.Monitor.OpenTelemetry.Exporter 1.8.1). Sin este
-        // fallback, un arranque en frio con la Key Vault reference aun sin resolver tumbaria el
-        // Function App entero -- el mismo escenario que el TracerProvider ya tolera (CA-ADR-0009,
-        // actualizacion 2026-06-18). El valor es inerte: con todas las metricas dropeadas, el reader
-        // nunca tiene nada que exportar. Que nunca pise una connection string real no es una promesa
-        // de este comentario sino de AgregarServicios*_ConservaLaConnectionStringReal.
+        // El View no evita que se construya el reader de metricas: se construye SINCRONICO al
+        // resolver MeterProvider y su ctor lanza sin connection string (decompilado del exporter
+        // 1.8.1). Sin este fallback, un arranque en frio con la Key Vault reference sin resolver
+        // tumba el Function App. El valor es inerte (todo se dropea); que no pise una connection
+        // string real lo fija AgregarServicios*_ConservaLaConnectionStringReal.
         services.PostConfigure<AzureMonitorExporterOptions>(options =>
         {
             if (string.IsNullOrWhiteSpace(options.ConnectionString))
@@ -204,18 +135,15 @@ public static class ComposicionServicios
                     "IngestionEndpoint=https://dummy.in.applicationinsights.azure.com/";
         });
 
-        // Serializacion JSON global: camelCase hacia el cliente, case-insensitive en lectura
         services.Configure<JsonSerializerOptions>(options =>
         {
             options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.PropertyNameCaseInsensitive = true;
         });
 
-        // Validacion de requests
         services.AddScoped<IRequestValidator, RequestValidator>();
         services.AddValidatorsFromAssemblyContaining<IColaboradoresAssemblyMarker>();
 
-        // Issue #399: readiness gate del event store, consumido por ReadyCheck (GET /api/ready).
         services.AddScoped<IEventStoreReadinessProbe, EventStoreReadinessProbe>();
 
         return services;

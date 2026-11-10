@@ -33,7 +33,6 @@ public class DiaCalculadoAusenciaTests
         return dia;
     }
 
-    // CA-1
     [Fact]
     public void GenerarDepuracionDelDia_ClasificaAusenciaConMotivoYMarcacionesNoUsadas_CuandoLaFotoTraeMotivo()
     {
@@ -47,7 +46,7 @@ public class DiaCalculadoAusenciaTests
         vista.Marcaciones.Should().ContainSingle().Which.Usada.Should().BeFalse();
     }
 
-    // CA-1: el motivo tiene precedencia sobre la senal estructural (nombre + cero franjas = Descanso).
+    // El motivo tiene precedencia sobre la senal estructural (nombre + cero franjas = Descanso).
     [Fact]
     public void GenerarDepuracionDelDia_ClasificaAusencia_CuandoHayMotivoYElTurnoEraDescanso()
     {
@@ -59,7 +58,6 @@ public class DiaCalculadoAusenciaTests
         vista.MotivoAusencia.Should().Be("IncapacidadMedica");
     }
 
-    // CA-2
     [Fact]
     public void GenerarDepuracionDelDia_ConservaElPlanDelTurnoYMotivoNulo_CuandoLaFotoNoTraeMotivo()
     {
@@ -72,7 +70,6 @@ public class DiaCalculadoAusenciaTests
         vista.MotivoAusencia.Should().BeNull();
     }
 
-    // CA-4
     [Fact]
     public void GenerarDepuracionDelDia_VuelveAlPlanDelTurno_CuandoUnaFotoSinMotivoSigueAlDiaDeAusencia()
     {
@@ -86,7 +83,6 @@ public class DiaCalculadoAusenciaTests
         vista.MotivoAusencia.Should().BeNull();
     }
 
-    // CA-5
     [Fact]
     public void GenerarDepuracionDelDia_ConservaAusenciaYMotivo_CuandoElDiaDeAusenciaEstaAprobado()
     {

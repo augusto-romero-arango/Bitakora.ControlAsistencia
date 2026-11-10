@@ -21,8 +21,7 @@ public class QuitarSubFranjaToolTests
 
     private sealed record Fakes(QuitarSubFranjaTool Tool, HandlerPorRuta Programacion);
 
-    // Composicion por defecto del camino feliz (ficha vigente CON la sub-franja) -- cada test
-    // sobreescribe unicamente el fixture que le interesa via argumentos nombrados.
+    // Por defecto la ficha vigente trae la sub-franja.
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
@@ -129,8 +128,6 @@ public class QuitarSubFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-3: el detalle por identidad responde 404 -> frase con el id que remite a buscar_turnos,
-    // sin lista de nombres y sin invocar el comando.
     [Fact]
     public async Task QuitarSubFranja_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
@@ -165,7 +162,6 @@ public class QuitarSubFranjaToolTests
         resultado.Should().Be(string.Format(QuitarSubFranjaTool.Mensajes.RechazoDelDominio, fixture));
     }
 
-    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
     public async Task QuitarSubFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidConNombre()
     {
@@ -190,7 +186,6 @@ public class QuitarSubFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-5: la tool lee el detalle por identidad, nunca el catalogo completo.
     [Fact]
     public async Task QuitarSubFranja_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
     {

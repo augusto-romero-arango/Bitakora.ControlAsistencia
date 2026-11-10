@@ -1,4 +1,3 @@
-// Issue #2: Modelar value objects de franja temporal para turnos
 using AwesomeAssertions;
 
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -6,15 +5,10 @@ using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ValueObjects;
 
 /// <summary>
-/// Tests de FranjaOrdinaria - franja principal que define el horario de trabajo.
-/// Interfaz publica: Crear(...), DuracionEnMinutos(), DuracionEnHorasDecimales(), ToString().
-/// Contencion y solapamiento se validan dentro del factory (CA-14 a CA-19).
-/// El exito del factory se verifica con ToString() que expone la estructura de hijos.
+/// El exito del factory se verifica con ToString(), que expone la estructura de hijos.
 /// </summary>
 public class FranjaOrdinariaTests
 {
-    // ---------- CA-8: factory estatico - camino feliz ----------
-
     [Fact]
     public void Crear_RetornaFranjaOrdinariaSinHijos_CuandoDatosValidosSinHijos()
     {
@@ -61,9 +55,7 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be("06:00-12:00, descanso 10:00-10:15, extra 06:00-08:00");
     }
 
-    // ---------- CA-7: inicio == fin es rechazado ----------
-
-    // Issue #598 CA-6: InicioYFinIguales se retira; la duracion no positiva la absorbe DuracionNoPositiva.
+    // Inicio == fin no tiene error propio: lo absorbe DuracionNoPositiva.
     [Fact]
     public void Crear_LanzaExcepcion_CuandoInicioYFinSonIguales()
     {
@@ -73,8 +65,6 @@ public class FranjaOrdinariaTests
             .WithMessage($"*{FranjaTemporal.Mensajes.DuracionNoPositiva}*");
     }
 
-    // ---------- Issue #598 CA-6: offset explicito negativo tambien produce duracion no positiva ----------
-
     [Fact]
     public void Crear_LanzaExcepcion_CuandoOffsetExplicitoProduceDuracionNegativa()
     {
@@ -83,8 +73,6 @@ public class FranjaOrdinariaTests
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{FranjaTemporal.Mensajes.DuracionNoPositiva}*");
     }
-
-    // ---------- Issue #598 CA-4: tope de 24 horas ----------
 
     [Fact]
     public void Crear_LanzaExcepcion_CuandoDuracionExcedeUnDia()
@@ -106,8 +94,7 @@ public class FranjaOrdinariaTests
             .WithMessage($"*{FranjaOrdinaria.Mensajes.DuracionExcedeUnDia}*");
     }
 
-    // ---------- Issue #598 CA-5: 24 horas exactas se acepta (esquemas 24x24) ----------
-
+    // 24 h exactas se aceptan: esquemas 24x24.
     [Fact]
     public void Crear_AceptaFranjaDe24HorasExactas_CuandoOffsetExplicitoIgualaInicioYFin()
     {
@@ -117,8 +104,6 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be("08:00-08:00+1");
     }
 
-    // ---------- CA-10: duracion sin offset ----------
-
     [Fact]
     public void DuracionEnMinutos_Retorna180_CuandoFranja8A11()
     {
@@ -127,8 +112,7 @@ public class FranjaOrdinariaTests
         franja.DuracionEnMinutos().Should().Be(180);
     }
 
-    // ---------- CA-6: semantica inicio-inclusivo, fin-exclusivo ----------
-
+    // Inicio inclusivo, fin exclusivo.
     [Fact]
     public void DuracionEnMinutos_Retorna360_CuandoFranja6A12Exactos()
     {
@@ -136,8 +120,6 @@ public class FranjaOrdinariaTests
 
         franja.DuracionEnMinutos().Should().Be(360);
     }
-
-    // ---------- CA-11: duracion con offset de dia ----------
 
     [Fact]
     public void DuracionEnMinutos_Retorna480_CuandoFranjaNocturna22A6ConOffset()
@@ -147,8 +129,6 @@ public class FranjaOrdinariaTests
         franja.DuracionEnMinutos().Should().Be(480);
     }
 
-    // ---------- CA-12: conversores de duracion ----------
-
     [Fact]
     public void DuracionEnHorasDecimales_Retorna3Punto5_CuandoFranjaDe210Minutos()
     {
@@ -156,8 +136,6 @@ public class FranjaOrdinariaTests
 
         franja.DuracionEnHorasDecimales().Should().Be(3.5m);
     }
-
-    // ---------- CA-13: infiere offset +1 cuando fin < inicio ----------
 
     [Fact]
     public void Crear_InfiereOffsetMasUno_CuandoFinEsMenorQueInicio()
@@ -174,8 +152,6 @@ public class FranjaOrdinariaTests
 
         franja.DuracionEnMinutos().Should().Be(480);
     }
-
-    // ---------- CA-20, CA-21: ToString() ----------
 
     [Fact]
     public void ToString_MuestraFormatoConParentesis_SinOffset()
@@ -210,8 +186,6 @@ public class FranjaOrdinariaTests
             "06:00-14:00, descanso 10:00-10:15, descanso 11:00-11:15, extra 06:00-07:00, extra 07:00-08:00");
     }
 
-    // ---------- CA-14: contencion - descanso no contenido es rechazado ----------
-
     [Fact]
     public void Crear_LanzaExcepcion_CuandoDescansoExcedeFin()
     {
@@ -244,7 +218,7 @@ public class FranjaOrdinariaTests
     public void Crear_RetornaFranjaConExtra_CuandoExtraTerminaExactamenteEnElFinDeLaOrdinaria()
     {
         // Extremo coincidente: el fin de la hija es el fin de la ordinaria - SI esta contenida.
-        // Issue #285: guardrail del limite superior de EstaContenidaEn (el inferior ya lo cubre
+        // Guardrail del limite superior de EstaContenidaEn (el inferior ya lo cubre
         // Crear_RetornaFranjaOrdinariaConExtra_CuandoExtraEstaContenida).
         var extra = SubFranja.Crear(new TimeOnly(11, 0), new TimeOnly(12, 0));
 
@@ -269,8 +243,6 @@ public class FranjaOrdinariaTests
             .WithMessage($"*{FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor}*");
     }
 
-    // ---------- CA-15: contencion con cruce de medianoche ----------
-
     [Fact]
     public void Crear_RetornaFranjaConDescanso_CuandoDescansoEstaContenidoEnOrdinariaNocturna()
     {
@@ -285,8 +257,6 @@ public class FranjaOrdinariaTests
 
         franja.ToString().Should().Be("22:00-06:00+1, descanso 23:00-23:15");
     }
-
-    // ---------- CA-16: franja hija que excede ordinaria nocturna ----------
 
     [Fact]
     public void Crear_LanzaExcepcion_CuandoExtraExcedeLaOrdinariaNocturna()
@@ -303,8 +273,6 @@ public class FranjaOrdinariaTests
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor}*");
     }
-
-    // ---------- CA-17: solapamiento entre franjas hijas ----------
 
     [Fact]
     public void Crear_LanzaExcepcion_CuandoExtraYDescansoSeSolapan()
@@ -336,8 +304,6 @@ public class FranjaOrdinariaTests
             .WithMessage($"*{FranjaTemporal.Mensajes.FranjasHijasSeSuperponen}*");
     }
 
-    // ---------- CA-18: franjas contiguas NO se solapan (fin exclusivo) ----------
-
     [Fact]
     public void Crear_RetornaFranjaConHijosContiguos_CuandoFinDeUnoEsInicioDelOtro()
     {
@@ -352,8 +318,6 @@ public class FranjaOrdinariaTests
 
         franja.ToString().Should().Be("06:00-12:00, descanso 08:00-08:15, extra 06:00-08:00");
     }
-
-    // ---------- CA-19: solapamiento con offsets ----------
 
     [Fact]
     public void Crear_LanzaExcepcion_CuandoDosDescansosSeSolapanConOffsets()
@@ -391,8 +355,6 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be("22:00-06:00+1, descanso 23:00-23:15, extra 23:15-00:00+1");
     }
 
-    // ---------- Issue #335: sede prearmada por franja ----------
-
     [Fact]
     public void ToString_IncluyeLabelDeSede_CuandoFranjaTieneSedeAsignada()
     {
@@ -427,9 +389,6 @@ public class FranjaOrdinariaTests
             .WithMessage($"*{FranjaOrdinaria.Mensajes.SedeIncompleta}*");
     }
 
-    // ---------- Issue #600: ConDescanso/ConExtra infieren offsets relativos al contenedor ----------
-
-    // CA-1: hija antes de medianoche -- offsets 0/0
     [Fact]
     public void ConDescanso_InfiereOffsetsCero_CuandoHijaCaeAntesDeMedianoche()
     {
@@ -439,7 +398,6 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be("22:00-06:00+1, descanso 23:00-23:30");
     }
 
-    // CA-2: hija que cruza medianoche -- offsets 0/1
     [Fact]
     public void ConDescanso_InfiereOffsetInicioCeroYOffsetFinUno_CuandoHijaCruzaMedianoche()
     {
@@ -449,7 +407,6 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be("22:00-06:00+1, descanso 23:30-00:30+1");
     }
 
-    // CA-3: hija de madrugada -- offsets 1/1
     [Fact]
     public void ConDescanso_InfiereOffsetsUno_CuandoHijaCaeEnLaMadrugada()
     {
@@ -459,7 +416,6 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be("22:00-06:00+1, descanso 02:00+1-02:30+1");
     }
 
-    // CA-4: hija cuyo fin coincide con el borde final de la franja -- offsets 1/1
     [Fact]
     public void ConExtra_InfiereOffsetsUno_CuandoFinDeLaHijaCoincideConFinDeLaFranja()
     {
@@ -469,7 +425,6 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be("22:00-06:00+1, extra 05:30+1-06:00+1");
     }
 
-    // CA-5: la hija inferida cae fuera del contenedor -- rechazo por contencion
     [Fact]
     public void ConDescanso_LanzaExcepcion_CuandoOffsetInferidoDejaLaHijaFueraDelContenedor()
     {
@@ -481,7 +436,7 @@ public class FranjaOrdinariaTests
             .WithMessage($"*{FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor}*");
     }
 
-    // CA-6: duracion no positiva -- la franja original queda intacta (inmutabilidad)
+    // La franja original queda intacta (inmutabilidad).
     [Fact]
     public void ConDescanso_LanzaExcepcion_CuandoInicioYFinDeLaHijaSonIguales()
     {
@@ -494,7 +449,7 @@ public class FranjaOrdinariaTests
         franjaOriginal.ToString().Should().Be("22:00-06:00+1");
     }
 
-    // CA-6: hija nueva que solapa una hija ya presente -- la franja original queda intacta
+    // La franja original queda intacta (inmutabilidad).
     [Fact]
     public void ConDescanso_LanzaExcepcion_CuandoHijaNuevaSeSolapaConHijaExistente()
     {
@@ -523,9 +478,8 @@ public class FranjaOrdinariaTests
             "22:00-06:00+1, descanso 02:00+1-02:30+1, extra 05:00+1-05:30+1");
     }
 
-    // ---------- Issue #602: SeSolapaCon publico -- pregunta que CatalogoTurnos.AgregarFranja usa
-    // para decidir solape sin acceder a FranjaTemporal.SeSolapaCon (internal a este ensamblado) ----------
-
+    // SeSolapaCon es publico para que CatalogoTurnos.AgregarFranja decida el solape sin acceder a
+    // FranjaTemporal.SeSolapaCon (internal a este ensamblado).
     [Fact]
     public void SeSolapaCon_EsFalse_CuandoLasFranjasSonContiguas()
     {
@@ -552,8 +506,6 @@ public class FranjaOrdinariaTests
 
         segunda.SeSolapaCon(primera).Should().BeTrue();
     }
-
-    // ---------- Issue #603: EmpiezaA -- localizar la franja contenedora por hora de inicio ----------
 
     [Fact]
     public void EmpiezaA_EsTrue_CuandoLaHoraCoincideConElInicioDeLaFranja()
@@ -590,8 +542,6 @@ public class FranjaOrdinariaTests
 
         primera.EmpiezaALaMismaHoraQue(segunda).Should().BeFalse();
     }
-
-    // ---------- SinDescanso/SinExtra -- quitar una hija por su hora de inicio ----------
 
     [Fact]
     public void SinDescanso_RetornaFranjaSinLaHija_CuandoOtroDescansoQuedaEnLaFranja()
@@ -638,8 +588,6 @@ public class FranjaOrdinariaTests
         franja.ToString().Should().Be(
             "22:00-06:00+1, descanso 23:00-23:30, descanso 02:00+1-02:30+1");
     }
-
-    // ---------- Issue #606: ConSede cambia (o retira) la sede prearmada sin afectar hijas ----------
 
     [Fact]
     public void ConSede_AsignaLaSedeNueva_YConservaLasHijasExistentes()

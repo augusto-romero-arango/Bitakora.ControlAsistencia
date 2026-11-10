@@ -52,7 +52,6 @@ public class AusenciaDiariaProgramadaEventHandlerTests
     private static DiaDepurado DiaConAusencia(string motivo, long versionControlDiario, params MarcacionDelDia[] marcaciones) =>
         new(Colaborador.CodigoColaborador, Fecha, ColaboradorResumen, null, [], marcaciones, SinHoras(), motivo, versionControlDiario);
 
-    // CA-1
     [Fact]
     public async Task AusenciaDiariaProgramada_AsignaLaAusenciaSinTocarElTurno_CuandoElDiaTieneTurnoProgramado()
     {
@@ -66,7 +65,6 @@ public class AusenciaDiariaProgramadaEventHandlerTests
         ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo, versionControlDiario: 2));
     }
 
-    // CA-2
     [Fact]
     public async Task AusenciaDiariaProgramada_IniciaElStream_CuandoElDiaNoTieneStream()
     {
@@ -78,7 +76,7 @@ public class AusenciaDiariaProgramadaEventHandlerTests
         ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(Motivo, versionControlDiario: 1));
     }
 
-    // CA-3 (marcaciones previas a la ausencia, guardadas fuera de orden)
+    // Marcaciones previas a la ausencia, guardadas fuera de orden.
     [Fact]
     public async Task AusenciaDiariaProgramada_PublicaMarcacionesCrudasEnOrdenCronologico_CuandoElDiaYaTeniaMarcaciones()
     {
@@ -95,7 +93,6 @@ public class AusenciaDiariaProgramadaEventHandlerTests
             new MarcacionDelDia(salida, "SALIDA")));
     }
 
-    // CA-3 (marcacion posterior a una ausencia ya asignada, sin franjas ni horas)
     [Fact]
     public async Task AusenciaDiariaProgramada_ConservaMarcacionesPosterioresALaAusenciaAnterior_CuandoLaReemplaza()
     {
@@ -109,7 +106,6 @@ public class AusenciaDiariaProgramadaEventHandlerTests
         ThenIsPublishedPrivately(new PublishOptions { GroupId = Colaborador.CodigoColaborador }, DiaConAusencia(OtroMotivo, versionControlDiario: 4, new MarcacionDelDia(entrada, "ENTRADA")));
     }
 
-    // CA-5 (reentrega)
     [Fact]
     public async Task AusenciaDiariaProgramada_NoEmiteNada_CuandoLlegaLaMismaAusenciaId()
     {
@@ -123,7 +119,6 @@ public class AusenciaDiariaProgramadaEventHandlerTests
         PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
     }
 
-    // CA-5 (reemplazo)
     [Fact]
     public async Task AusenciaDiariaProgramada_ReemplazaLaAusenciaAnterior_CuandoLlegaOtraAusenciaId()
     {

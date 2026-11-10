@@ -33,9 +33,8 @@ public class ValidadorTokenAuthKitTests
         esValido.Should().BeFalse("el placeholder del Terraform no puede tumbar el arranque del worker");
     }
 
-    // CA-4: ValidarAsync es la version que el derivador de identidad (issue #572) necesita para leer
-    // org_id/sub del ClaimsPrincipal -- EsValidoAsync solo informa si-es-valido, sin exponer los
-    // claims. Mismo criterio fail-soft que EsValidoAsync: null en vez de lanzar.
+    // ValidarAsync expone los claims (org_id/sub) que EsValidoAsync no; mismo criterio fail-soft:
+    // null en vez de lanzar.
     [Fact]
     public async Task ValidarAsync_RetornaClaimsPrincipal_CuandoElTokenEsValido()
     {

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ListarAusenciasColaborador;
 
 // Guards del borde HTTP: el IDocumentStore es null! a proposito -- deben retornar ANTES de abrir
-// la QuerySession (CA-5: error de validacion sin leer el store).
+// la QuerySession.
 public class FunctionEndpointTests
 {
     private static HttpRequest Request(string? contentType, string body)

@@ -4,11 +4,6 @@ using System.Text.Json;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-// Extraido de solicitar_programacion_turno, agregar_franja y asignar_sede_franja (MEF-ADR-0018:
-// tercera aparicion del mismo remodelado, propuesta en el issue #611). Encapsula
-// GET sedes/fichas/{codigo} + 404 + sede inactiva + traduccion a SedeProgramada, igual que
-// ResolutorTurnoPorNombre hace con el catalogo de turnos; cada tool consumidora sigue aportando
-// sus propios mensajes desde su .resx (MEF-ADR-0009).
 public sealed class ResolutorSedePorCodigo(SedesApi sedes)
 {
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
@@ -25,8 +20,8 @@ public sealed class ResolutorSedePorCodigo(SedesApi sedes)
         return new ResultadoResolucionSedeId(ficha.Codigo, null, false);
     }
 
-    // El boundary del sistema (5xx o cuerpo no JSON) se traduce como fallo de lectura crudo: la
-    // tool consumidora decide como formatearlo con su propia .resx RechazoDelDominio (CA-ADR-0030).
+    // 5xx o cuerpo no JSON vuelven como fallo de lectura crudo: la tool consumidora lo formatea con su
+    // RechazoDelDominio.
     public async Task<ResultadoResolucionSede> ResolverAsync(string codigo, CancellationToken ct)
     {
         var respuesta = await sedes.ObtenerFicha(codigo, ct);
@@ -45,16 +40,12 @@ public sealed class ResolutorSedePorCodigo(SedesApi sedes)
 }
 
 /// <summary>
-/// Resultado de resolver el SedeId por codigo, sin exigir que este activa: NoExiste o
-/// FalloDeLectura o SedeId. SedeId es el codigo canonico del maestro, el mismo SedeProgramada.Id
-/// que graban los escritores via ResolverAsync; nunca el stream key "s:{codigo}" (CA-ADR-0031).
+/// Resuelve sin exigir que la sede este activa. SedeId es el codigo canonico del maestro (el mismo
+/// SedeProgramada.Id que graba ResolverAsync), nunca el stream key "s:{codigo}" (CA-ADR-0031).
 /// </summary>
 public sealed record ResultadoResolucionSedeId(string? SedeId, string? FalloDeLectura, bool NoExiste);
 
-/// <summary>
-/// Resultado de resolver una sede por codigo: exactamente uno de Sede/FalloDeLectura/Motivo viene
-/// poblado, mismo contrato que ResultadoResolucionTurno.
-/// </summary>
+/// <summary>Exactamente uno de Sede/FalloDeLectura/Motivo viene poblado.</summary>
 public sealed record ResultadoResolucionSede(
     SedeProgramada? Sede,
     string? FalloDeLectura,

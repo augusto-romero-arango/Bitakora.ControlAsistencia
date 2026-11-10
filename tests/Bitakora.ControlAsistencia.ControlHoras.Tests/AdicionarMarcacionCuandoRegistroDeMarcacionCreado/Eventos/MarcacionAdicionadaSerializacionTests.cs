@@ -1,26 +1,15 @@
-// HU-106: Test de serializacion roundtrip para MarcacionAdicionada
-// Requerido por regla 16: todo evento persistido en Marten debe sobrevivir Serialize -> Deserialize
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.Eventos;
 
-/// <summary>
-/// Verifica que MarcacionAdicionada sobrevive un roundtrip de serializacion STJ.
-/// Requerido porque Marten usa STJ con PropertyNamingPolicy=null (PascalCase)
-/// y el evento tiene constructor privado y propiedades con private set.
-/// Ver ADR-0013 y patron canonico en TurnoCreadoSerializacionTests (Programacion).
-/// </summary>
 public class MarcacionAdicionadaSerializacionTests
 {
     private static readonly string StreamId = "cd:EMP-001:20260315";
     private static readonly string CodigoColaborador = "EMP-001";
     private static readonly DateTime Timestamp = new DateTime(2026, 3, 15, 8, 15, 0);
 
-    // Regla 16: usa CrearOpcionesMarten() que registra ConfigurarSerializacion de todos los tipos
-    // MarcacionAdicionada se registra en ConfiguracionSerializacionControlHoras.ConfigurarResolver
     [Fact]
     public void Deserializar_ReconstruyeEvento_ConTodosLosCampos()
     {
@@ -38,7 +27,6 @@ public class MarcacionAdicionadaSerializacionTests
         deserializado.DispositivoId.Should().Be("DEV-001");
     }
 
-    // Verifica que los campos opcionales null se preservan correctamente en el roundtrip
     [Fact]
     public void Deserializar_ReconstruyeEvento_CuandoCamposOpcionalesSonNulos()
     {

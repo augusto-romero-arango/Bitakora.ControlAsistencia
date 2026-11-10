@@ -1,11 +1,6 @@
-// Validacion del borde HTTP del endpoint QUERY ListarDirectorioColaboradores (MEF-ADR-0042, RFC
-// 10008). Estos casos cortocircuitan ANTES de abrir la QuerySession -- store y tenantContext se
-// pasan nulos a proposito: si un cambio futuro moviera la validacion DESPUES de tocar Marten, estos
-// tests se pondrian rojos por la razon correcta.
-//
-// La clasificacion completa-vs-numero de "identificaciones" y el containment por tokens de "nombre"
-// son privados del endpoint y exigen Marten real para observarse -- los cubre el smoke test (CA-6),
-// no este archivo.
+// Store y tenantContext nulos a proposito: estos casos cortocircuitan antes de abrir la QuerySession,
+// y si la validacion se moviera despues de tocar Marten se pondrian rojos. La clasificacion de
+// "identificaciones" y el containment de "nombre" exigen Marten real: los cubre el smoke test.
 
 using AwesomeAssertions;
 using System.Text;
@@ -38,8 +33,6 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // --- 415: Content-Type ausente o distinto de application/json (RFC 10008 seccion 2) ---
-
     [Fact]
     public async Task ListarDirectorioColaboradores_Retorna415_CuandoElContentTypeNoEsJson()
     {
@@ -62,8 +55,6 @@ public class FunctionEndpointTests
         var objectResult = resultado.Should().BeOfType<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status415UnsupportedMediaType);
     }
-
-    // --- 400: body ausente, JSON invalido o literal "null" (RFC 10008 seccion 2.1) ---
 
     [Fact]
     public async Task ListarDirectorioColaboradores_Retorna400_CuandoElBodyEstaAusente()
@@ -96,8 +87,6 @@ public class FunctionEndpointTests
         resultado.Should().BeOfType<BadRequestObjectResult>();
     }
 
-    // --- 422: JSON valido pero no procesable (CA-1) ---
-
     [Fact]
     public async Task ListarDirectorioColaboradores_Retorna422_CuandoFaltanIdentificacionesYNombreALaVez()
     {
@@ -126,8 +115,7 @@ public class FunctionEndpointTests
     [Fact]
     public async Task ListarDirectorioColaboradores_Retorna422_CuandoIdentificacionesTraeUnValorNulo()
     {
-        // El body es entrada del cliente: STJ acepta un elemento null dentro del array pese a la
-        // anotacion IReadOnlyList<string> -- mismo gotcha que FiltroEtiqueta en el hermano.
+        // STJ acepta un elemento null dentro del array pese a la anotacion IReadOnlyList<string>.
         var request = FakeHttpRequest(
             contentType: "application/json",
             body: """{"identificaciones":[null]}""");
@@ -211,8 +199,6 @@ public class FunctionEndpointTests
         unprocessable.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
-    // --- Forma de la respuesta (DTO puro, sin Marten -- CA-4) ---
-
     [Fact]
     public void DesdeVista_MapeaLosOchoCampos_CuandoLaVinculacionEstaTerminada()
     {
@@ -257,9 +243,8 @@ public class FunctionEndpointTests
 
         var respuesta = DirectorioColaboradorRespuesta.DesdeVista(vista);
 
-        // El centinela jamas sale por la API -- se lee de DirectorioColaborador
-        // .CentinelaVigenciaAbierta, nunca de un literal repetido aqui (mismo criterio que
-        // FichaColaboradorRespuesta.DesdeVista).
+        // El centinela jamas sale por la API; en la vista se toma de CentinelaVigenciaAbierta, no de un
+        // literal.
         respuesta.Should().Be(new DirectorioColaboradorRespuesta(
             Identificacion: "CE-12345678",
             TipoDocumento: "CE",
@@ -271,7 +256,7 @@ public class FunctionEndpointTests
             VigenteHasta: null));
     }
 
-    // Issue #860 CA-3: JornadaId viaja tal cual desde la vista, null incluido (sin centinela).
+    // JornadaId viaja tal cual desde la vista, null incluido (sin centinela).
     [Fact]
     public void DesdeVista_CopiaJornadaId_CuandoElColaboradorTieneJornadaAsignada()
     {
@@ -301,9 +286,6 @@ public class FunctionEndpointTests
         VigenteHasta: new DateOnly(2025, 6, 30),
         CodigoSede: "SEDE-BOG",
         JornadaId: jornadaId);
-
-
-    // --- CA-4: entrada invalida del sobre unico (CA-ADR-0039) -> 422 ---
 
     [Fact]
     public async Task ListarDirectorioColaboradores_Retorna422_CuandoTakeEsCero()
@@ -372,8 +354,6 @@ public class FunctionEndpointTests
         await act.Should().ThrowExactlyAsync<NullReferenceException>();
     }
 
-    // --- Cursor opaco ---
-
     [Fact]
     public void CursorDirectorio_RecuperaLasClavesKeyset_CuandoSeDecodificaLoCodificado()
     {
@@ -390,8 +370,6 @@ public class FunctionEndpointTests
         CursorDirectorio.TryDecodificar("esto no es base64url!", out var decodificado).Should().BeFalse();
         decodificado.Should().BeNull();
     }
-
-    // --- Sobre { elementos, siguienteCursor } (CA-3) ---
 
     private static DirectorioColaborador Vista(string id, string nombre) => new(
         Id: id, TipoDocumento: "CC", NumeroDocumento: id[3..], NombreCompleto: nombre,

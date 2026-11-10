@@ -5,16 +5,14 @@ using ModelContextProtocol.Protocol;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.QuitarFranja;
 
 // La invocacion real de quitar_franja sobre una franja existente (MEF-ADR-0048 seccion 6, pieza 3)
-// vive en AgregarFranja/AgregarFranjaSmokeTests.cs: quitar_franja deshace ahi lo que agregar_franja
-// acaba de agregar en el mismo turno, y separarlas dejaria el ciclo completo duplicado. Aqui quedan
-// los caminos de quitar_franja que no dependen de esa franja ya agregada.
+// vive en AgregarFranjaSmokeTests; aqui quedan los caminos que no la necesitan.
 public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
     private static string TextoDe(CallToolResult resultado) =>
         resultado.Content.OfType<TextContentBlock>().Single().Text;
 
-    // CA-3/CA-4: un turno recien creado no tiene franjas, asi que quitar una hora que no existe
-    // llega al 409 real del dominio (FranjaNoExiste), traducido a texto (CA-ADR-0030).
+    // Un turno recien creado no tiene franjas: quitar una hora llega al 409 real del dominio
+    // (FranjaNoExiste), traducido a texto (CA-ADR-0030).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarFranja_RespondeRechazoDelDominio_CuandoLaFranjaNoExisteEnElTurno()
@@ -71,7 +69,6 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
         TextoDe(resultado).Should().Be("'franja' es obligatorio.");
     }
 
-    // CA-3: hora no parseable corta antes de resolver el turno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarFranja_RespondeHoraInvalida_CuandoLaFranjaNoTieneFormatoHHmm()
@@ -86,7 +83,7 @@ public class QuitarFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture progr
         TextoDe(resultado).Should().Be("'franja' no es una hora valida en formato HH:mm: '3pm'.");
     }
 
-    // CA-3: turno_id inexistente -> TurnoNoExiste (404 del detalle real de Programacion), remite a buscar_turnos.
+    // 404 del detalle real de Programacion.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarFranja_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()

@@ -1,6 +1,5 @@
-// Issue #424: todos los campos de MarcacionDelDia son primitivos -- la igualdad por valor del record
-// por defecto ya es correcta y no necesita Equals/GetHashCode propios (MEF-ADR-0012). Este test
-// congela esa premisa.
+// Todos los campos de MarcacionDelDia son primitivos: la igualdad por valor del record por defecto
+// basta, sin Equals/GetHashCode propios. Este test congela esa premisa.
 
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 

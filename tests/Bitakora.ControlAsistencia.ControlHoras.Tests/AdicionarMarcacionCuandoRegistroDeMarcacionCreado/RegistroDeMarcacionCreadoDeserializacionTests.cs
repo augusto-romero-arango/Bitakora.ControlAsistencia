@@ -1,7 +1,3 @@
-// issue #270: guardrail de portabilidad por el bus para RegistroDeMarcacionCreado (reemplaza al
-// guardrail de MarcacionRegistrada del issue #213: el evento que cruza el ASB interno del BC ahora
-// es RegistroDeMarcacionCreado -- MarcacionRegistrada dejo de implementar IPrivateEvent, CA-3).
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Infraestructura;
@@ -10,18 +6,12 @@ using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuandoRegistroDeMarcacionCreado;
 
 /// <summary>
-/// Verifica que RegistroDeMarcacionCreado (IPrivateEvent) sobrevive el cruce fisico del ASB interno
-/// del BC (ADR-0024 decision #3): el productor lo serializa con Wolverine (camelCase) y el
-/// consumidor lo deserializa con ServiceBusDeserializador, que usa el serializador por defecto
-/// (PropertyNameCaseInsensitive, sin resolver custom). Este es el guardrail de portabilidad por el
-/// bus (seccion 6e del test-writer) via el helper de produccion real -- distinto del guardrail
-/// aislado en PrivateEvents.Tests (RegistroDeMarcacionCreadoTests, CA-2), que compila referenciando
-/// unicamente PrivateEvents. El payload plano (string, DateTime, string?) debe reconstruirse sin
-/// perdida via el constructor primario del record.
+/// El productor serializa con Wolverine (camelCase) y el consumidor deserializa con
+/// ServiceBusDeserializador (serializador por defecto, case-insensitive, sin resolver custom).
 /// </summary>
 public class RegistroDeMarcacionCreadoDeserializacionTests
 {
-    // JSON en formato camelCase - exactamente como Wolverine lo serializa al publicar al Service Bus.
+    // Exactamente como Wolverine lo serializa al publicar al Service Bus.
     private const string JsonFormatoWolverine = """
         {
           "codigoColaborador": "EMP-001",
@@ -31,7 +21,6 @@ public class RegistroDeMarcacionCreadoDeserializacionTests
         }
         """;
 
-    // CA-5: el evento cruza el ASB y se reconstruye sin perdida via el serializador por defecto del bus.
     [Fact]
     public void Deserializar_ReconstruyeEvento_CuandoJsonEsFormatoWolverine()
     {
@@ -46,7 +35,6 @@ public class RegistroDeMarcacionCreadoDeserializacionTests
         evento.DispositivoId.Should().Be("DEV-001");
     }
 
-    // CA-5: los campos opcionales (nullable) que hacen al payload portable se preservan cuando estan ausentes.
     [Fact]
     public void Deserializar_PreservaCamposOpcionalesNulos_CuandoTipoYDispositivoAusentes()
     {

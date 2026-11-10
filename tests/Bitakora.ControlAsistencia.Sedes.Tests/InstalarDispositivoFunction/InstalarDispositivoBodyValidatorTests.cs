@@ -19,7 +19,6 @@ public class InstalarDispositivoBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-5
     [Fact]
     public async Task Validar_RechazaDispositivoId_CuandoEstaVacio()
     {
@@ -30,8 +29,7 @@ public class InstalarDispositivoBodyValidatorTests
             e => e.PropertyName == nameof(InstalarDispositivoBody.DispositivoId));
     }
 
-    // CA-5: charset URL-safe (MEF-ADR-0043 seccion 1.3) -- este mismo dato se expone luego como
-    // segmento de ruta en el DELETE.
+    // El DispositivoId viaja luego como segmento de ruta en el DELETE (MEF-ADR-0043 seccion 1.3).
     [Fact]
     public async Task Validar_RechazaDispositivoId_CuandoTieneCaracteresFueraDelCharsetUrlSafe()
     {

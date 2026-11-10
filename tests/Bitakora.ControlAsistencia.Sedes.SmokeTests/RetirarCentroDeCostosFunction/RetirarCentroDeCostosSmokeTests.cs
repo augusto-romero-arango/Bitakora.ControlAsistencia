@@ -6,9 +6,7 @@ using Bitakora.ControlAsistencia.Sedes.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Sedes.SmokeTests.RetirarCentroDeCostosFunction;
 
-// CentroDeCostosRetirado no cruza el bus en este issue: la unica verificacion black-box de los
-// efectos del handler es leer mt_events via PostgresFixture -- no hay ServiceBusFixture que
-// consultar.
+// CentroDeCostosRetirado no cruza el bus: sus efectos se verifican leyendo mt_events.
 public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
@@ -39,8 +37,7 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         bool Activa,
         IReadOnlyList<string> Dispositivos);
 
-    // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y esta sujeto al charset URL-safe,
-    // del que "[", "]" y el espacio quedan fuera.
+    // "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y "[", "]" y el espacio no son URL-safe.
     private static string NuevoCodigo() => $"TEST-{Guid.CreateVersion7()}";
 
     // Recomputo local del streamId: oraculo independiente, sin referenciar ComputarStreamId.
@@ -164,9 +161,8 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
             "el no-op no debe alterar la ficha de la sede");
     }
 
-    // Secuencia canonica del no-op de un DELETE (MEF-ADR-0004, MEF-ADR-0043 punto 10):
-    // asignar -> retirar -> retirar de nuevo. El segundo DELETE repite verbo, ruta e identidad y
-    // vuelve a responder 204 sin agregar un evento nuevo al stream (conteo estable en 1).
+    // No-op de un DELETE (MEF-ADR-0043 punto 10): asignar -> retirar -> retirar de nuevo; el segundo
+    // DELETE responde 204 sin agregar evento (conteo estable en 1).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarCentroDeCostos_Retorna204SinEventoNuevo_CuandoSeRetiraDosVeces()
@@ -194,8 +190,7 @@ public class RetirarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
             "el segundo retiro es estado ya alcanzado: no agrega un evento nuevo (MEF-ADR-0004)");
     }
 
-    // El charset URL-safe del codigo tambien rige cuando viaja en la ruta: "!" queda fuera del set
-    // unreserved y se rechaza con 400, nunca con el 404 de un stream inexistente.
+    // "!" no es unreserved: 400, nunca el 404 de un stream inexistente.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarCentroDeCostos_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()

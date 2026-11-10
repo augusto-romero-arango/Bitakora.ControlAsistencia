@@ -39,7 +39,6 @@ public class FunctionEndpointTests
             .Which.Location.Should().BeNull();
     }
 
-    // CA-3: falla de validacion retorna 400 Bad Request
     [Fact]
     public async Task DebeRetornar400_CuandoFallaValidacion()
     {

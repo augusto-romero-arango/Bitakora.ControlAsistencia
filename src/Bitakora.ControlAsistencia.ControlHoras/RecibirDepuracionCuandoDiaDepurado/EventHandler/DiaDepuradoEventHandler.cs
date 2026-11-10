@@ -8,12 +8,8 @@ using ColaboradorBus = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.Re
 
 namespace Bitakora.ControlAsistencia.ControlHoras.RecibirDepuracionCuandoDiaDepurado.EventHandler;
 
-// Traduce cada foto de DiaDepurado (bus) a los tipos ricos de ControlHoras.DomainEvents antes de
-// entregarla al aggregate DiaCalculado: el mapeo vive aqui porque el Function App es el unico
-// ensamblado que ve las tres islas (CA-ADR-0029 decision #5). Se consume directo con
-// IPrivateEventHandlerAsync, sin comando espejo (MEF-ADR-0024 decision #8), y no publica ningun
-// evento.
-// MEF-ADR-0009: partial class para soportar clase Mensajes en archivo separado si se requiere.
+// El mapeo bus -> DomainEvents vive aqui porque el Function App es el unico ensamblado que ve las
+// islas de eventos (CA-ADR-0029 decision #5).
 public partial class DiaDepuradoEventHandler : IPrivateEventHandlerAsync<DiaDepurado>
 {
     private readonly IEventStore _eventStore;

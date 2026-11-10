@@ -1,6 +1,4 @@
-// HU-116: Consolidar DesgloseFranjas del dia con compensacion cronologica inversa.
-// Familia 5 - Los intervalos de concepto Descanso NUNCA son comidos por la compensacion. Solo las
-// extras (todos los Extra* y los DominicalFestiva* cuando son extras) compensan el retardo.
+// Los intervalos Descanso nunca los consume la compensacion: solo las extras compensan el retardo.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
@@ -14,10 +12,6 @@ public class ConsolidadorDesgloseHorasDescansoTests
     [Fact]
     public void Consolidar_NoTocaElDescanso_CuandoCompensaElRetardoConElExcedente()
     {
-        // CA-14: F1 con descanso 12:00-13:00 (Concepto.Descanso) y retardo 30min en la entrada (8:30);
-        // F2 con excedente 30min (20:00-20:30). La compensacion consume los 30min de excedente y NO
-        // toca el descanso: el TiempoCompensado contiene solo el intervalo del excedente, y el descanso
-        // sigue apareciendo intacto en TotalMinutosPorConcepto[Descanso] = 60.
         var franja1 = Desglose(
             Programada(8, 17),
             [
@@ -36,7 +30,6 @@ public class ConsolidadorDesgloseHorasDescansoTests
 
         var resultado = ConsolidadorDesgloseHoras.Consolidar([franja1, franja2], franjasAnomalas: 0);
 
-        // El compensado es exactamente el excedente; el descanso 12:00-13:00 jamas aparece aqui.
         resultado.RetardoTotal.Should().Be(CrearRetardo(
             retardado: [I(M(8), M(8, 30))],
             compensado: [I(M(20), M(20, 30))]));
@@ -47,7 +40,6 @@ public class ConsolidadorDesgloseHorasDescansoTests
             [Concepto.OrdinariaDiurna] = 570,
             [Concepto.Descanso] = 60,
         });
-        // El descanso sigue intacto entre los intervalos de F1 (no fue removido ni partido).
         resultado.DesglosePorFranja[0].Intervalos.Should().Equal(new[]
         {
             Clasif(M(8, 30), M(12), Concepto.OrdinariaDiurna),

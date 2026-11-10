@@ -1,13 +1,8 @@
-// Issue #112: Crear value objects MomentoDelDia e IntervaloTemporal
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
-/// <summary>
-/// Tests de IntervaloTemporal - rango entre dos MomentoDelDia con invariante Inicio menor que Fin.
-/// Interfaz publica: Crear(), DuracionEnMinutos, DuracionEnHorasDecimales, ResolverA(), ToString(), igualdad por valor.
-/// </summary>
 public class IntervaloTemporalTests
 {
     private static readonly MomentoDelDia Las8 = new(new TimeOnly(8, 0));
@@ -15,8 +10,6 @@ public class IntervaloTemporalTests
     private static readonly MomentoDelDia Las22 = new(new TimeOnly(22, 0));
     private static readonly MomentoDelDia Las6SiguienteDia = new(new TimeOnly(6, 0), 1);
     private static readonly DateOnly FechaBase = new(2026, 3, 15);
-
-    // ---------- CA-9: DuracionEnMinutos rango diurno ----------
 
     [Fact]
     public void DuracionEnMinutos_Retorna540_CuandoRango8A17()
@@ -26,8 +19,6 @@ public class IntervaloTemporalTests
         intervalo.DuracionEnMinutos.Should().Be(540);
     }
 
-    // ---------- CA-10: DuracionEnMinutos rango nocturno con offset ----------
-
     [Fact]
     public void DuracionEnMinutos_Retorna480_CuandoRangoNocturno22A6SiguienteDia()
     {
@@ -36,8 +27,6 @@ public class IntervaloTemporalTests
 
         intervalo.DuracionEnMinutos.Should().Be(480);
     }
-
-    // ---------- CA-11: DuracionEnHorasDecimales es decimal exacto ----------
 
     [Fact]
     public void DuracionEnHorasDecimales_Retorna0Punto25Decimal_CuandoFranjaDe15Minutos()
@@ -57,8 +46,6 @@ public class IntervaloTemporalTests
 
         intervalo.DuracionEnHorasDecimales.Should().Be(9m);
     }
-
-    // ---------- CA-12: Rechaza Inicio >= Fin ----------
 
     [Fact]
     public void Crear_LanzaExcepcion_CuandoInicioEsIgualAFin()
@@ -81,8 +68,6 @@ public class IntervaloTemporalTests
             .WithMessage($"*{IntervaloTemporal.Mensajes.InicioDebeSerMenorQueFin}*");
     }
 
-    // ---------- CA-13: ToString incluye duracion ----------
-
     [Fact]
     public void ToString_MuestraFormatoConDuracion_CuandoRangoDiurnoSinOffset()
     {
@@ -98,8 +83,6 @@ public class IntervaloTemporalTests
 
         intervalo.ToString().Should().Be("22:00-06:00+1 (480min)");
     }
-
-    // ---------- CA-14: ResolverA devuelve tupla de DateTimes ----------
 
     [Fact]
     public void ResolverA_RetornaTuplaDeDateTimesCorrectaParaRangoDiurno()
@@ -122,5 +105,4 @@ public class IntervaloTemporalTests
         inicio.Should().Be(new DateTime(2026, 3, 15, 22, 0, 0));
         fin.Should().Be(new DateTime(2026, 3, 16, 6, 0, 0));
     }
-
 }

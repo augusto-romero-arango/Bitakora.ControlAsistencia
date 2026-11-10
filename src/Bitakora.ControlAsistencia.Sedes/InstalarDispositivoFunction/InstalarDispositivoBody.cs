@@ -1,4 +1,4 @@
 namespace Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction;
 
-// Sin Codigo: viaja en la ruta (sedes/{codigo}/dispositivos), no en el body.
+// Sin Codigo: viaja en la ruta.
 public record InstalarDispositivoBody(string DispositivoId);

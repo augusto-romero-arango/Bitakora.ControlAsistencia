@@ -1,5 +1,3 @@
-// HU-12: Asignar turno diario al control cuando se solicita programacion
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -7,15 +5,9 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada.Eventos;
 
 /// <summary>
-/// Verifica que TurnoDiarioAsignado sobrevive un roundtrip de serializacion STJ.
-/// Requerido porque Marten usa STJ con PropertyNamingPolicy=null (PascalCase)
-/// y el evento tiene constructor privado y propiedades con private set.
-/// Ver ADR-0013 y feedback de memoria: ConfigurarSerializacion es obligatorio.
-///
-/// Los literales JSON de estos tests fijan la forma canonica HACIA ADELANTE, no compatibilidad con
-/// streams anteriores: cada vez que una clave persistida cambia, se reescriben y los streams viejos
-/// se purgan en el mismo despliegue (MEF-ADR-0036 seccion 5). Sin esa purga, el payload reducido se
-/// relee dejando campos en null SIN excepcion.
+/// Los literales JSON fijan la forma canonica HACIA ADELANTE, no compatibilidad con streams anteriores:
+/// si una clave persistida cambia, se reescriben y los streams viejos se purgan en el mismo despliegue
+/// (MEF-ADR-0036 seccion 5). Sin esa purga, el payload se relee con campos en null SIN excepcion.
 /// </summary>
 public class TurnoDiarioAsignadoSerializacionTests
 {
@@ -27,8 +19,7 @@ public class TurnoDiarioAsignadoSerializacionTests
 
     private static readonly DateOnly Fecha = new DateOnly(2026, 3, 15);
 
-    // Issue #288: Descripcion (dato derivado, texto del formato tecnico) es irrelevante para este
-    // round-trip -> placeholder no vacio para verificar tambien que sobrevive la serializacion.
+    // Descripcion no vacia para verificar que el dato derivado sobrevive la serializacion.
     private static readonly TurnoDiario TurnoDiarioDePrueba = new(
         "Turno Manana",
         [new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)")],
@@ -36,8 +27,6 @@ public class TurnoDiarioAsignadoSerializacionTests
 
     private static readonly string StreamId = $"cd:{ColaboradorDePrueba.CodigoColaborador}:{Fecha:yyyyMMdd}";
 
-    // Regla 16: todo evento persistido en Marten debe tener test de serializacion roundtrip
-    // Verifica con datos reales y completos (no listas vacias para VOs anidados)
     [Fact]
     public void Deserializar_ReconstruyeEvento_ConTodosLosCampos()
     {
@@ -57,25 +46,14 @@ public class TurnoDiarioAsignadoSerializacionTests
         deserializado.DetalleTurno.FranjasOrdinarias[0].HoraInicio
             .Should().Be(new TimeOnly(8, 0));
 
-        // Issue #288 CA-7: Descripcion (dato derivado persistido) sobrevive el round-trip,
-        // tanto a nivel turno como a nivel de cada franja ordinaria.
         deserializado.DetalleTurno.Descripcion.Should().Be(TurnoDiarioDePrueba.Descripcion);
         deserializado.DetalleTurno.FranjasOrdinarias[0].Descripcion
             .Should().Be(TurnoDiarioDePrueba.FranjasOrdinarias[0].Descripcion);
     }
 
-    // Nota de seguridad de datos (critica): JSON con la FORMA EXACTA que Marten escribe en
-    // mt_events desde #401 (PascalCase, PropertyNamingPolicy=null) -- claves InformacionColaborador
-    // (con CodigoColaborador anidado), Fecha, DetalleTurno y SolicitudId. En #322 este mismo test
-    // acreditaba que un cambio de TIPO no alteraba la forma del wire; en #401 las claves si cambian,
-    // asi que el literal se reescribio y lo que custodia ahora es la forma canonica hacia adelante.
-    // La compatibilidad hacia atras se resuelve con la purga del mismo despliegue, no con mapeo
-    // (MEF-ADR-0036 seccion 5). El alias del evento sigue intacto: la CLASE no se renombra.
-    //
-    // La comparacion es por igualdad estructural completa (.Should().Be() sobre el objeto
-    // compuesto, no solo sus campos escalares): asi el test tambien exige que TurnoDiario/
-    // FranjaProgramada repliquen la semantica de igualdad de los originales (CA-1), no solo su
-    // forma de campos.
+    // JSON con la forma exacta que Marten escribe en mt_events (PascalCase). La comparacion es por
+    // igualdad estructural completa: tambien exige que TurnoDiario/FranjaProgramada repliquen la
+    // igualdad de los originales, no solo su forma de campos.
     [Fact]
     public void Deserializar_ReconstruyeIdentico_DesdeElJsonConLaFormaYaPersistida()
     {
@@ -123,11 +101,8 @@ public class TurnoDiarioAsignadoSerializacionTests
         deserializado.DetalleTurno.Should().Be(turnoEsperado);
     }
 
-    // Issue #322 CA-2 (agregado en revision): el JSON de arriba lleva "Descansos": [] y
-    // "Extras": [], asi que SubFranjaProgramada no participaba de ningun round-trip contra la forma
-    // persistida. Los streams reales de dev si tienen turnos con sub-franjas: este test las incluye,
-    // con offsets distintos entre inicio y fin, para que un cruce de campos al releer el JSON
-    // ya escrito no pase inadvertido.
+    // Incluye sub-franjas con offsets distintos entre inicio y fin para que un cruce de campos al releer
+    // el JSON persistido no pase inadvertido.
     [Fact]
     public void Deserializar_ReconstruyeLasSubFranjasAnidadas_ConLaFormaPersistidaQueLlevaDescansosYExtras()
     {
@@ -188,18 +163,13 @@ public class TurnoDiarioAsignadoSerializacionTests
         franja.Descansos.Should().ContainSingle().Which.Should().Be(descansoEsperado);
         franja.Extras.Should().ContainSingle().Which.Should().Be(extraEsperada);
 
-        // Igualdad de SubFranjaProgramada excluye Descripcion (CA-1), asi que el assert de arriba
-        // no la cubre: se verifica aparte para que una perdida del dato derivado se vea.
+        // La igualdad de SubFranjaProgramada excluye Descripcion: se verifica aparte.
         franja.Descansos[0].Descripcion.Should().Be("(23:50-00:10+1)");
         franja.Extras[0].Descripcion.Should().Be("(06:00+1-08:00+1)");
     }
 
-    // Issue #322 CA-2 / Nota de seguridad de datos (agregado en revision): los eventos escritos
-    // ANTES del issue #288 no llevan "Descripcion" en ningun nivel. STJ deja null en el parametro
-    // posicional y los tres records lo normalizan a cadena vacia -- rama que ningun round-trip
-    // ejercitaba sobre el evento persistido. Espejo de
-    // ProgramacionTurnoSolicitadaSerializacionTests.Deserializar_NormalizaDescripcionACadenaVacia_*
-    // (Programacion.Tests, issue #319).
+    // JSON anterior a #288, sin "Descripcion": STJ deja null y los tres records lo normalizan a cadena
+    // vacia. Espejo en ProgramacionTurnoSolicitadaSerializacionTests (Programacion.Tests).
     [Fact]
     public void Deserializar_NormalizaDescripcionACadenaVaciaEnLosTresNiveles_CuandoElJsonPersistidoNoLlevaEseCampo()
     {
@@ -246,8 +216,6 @@ public class TurnoDiarioAsignadoSerializacionTests
         franja.Descripcion.Should().BeEmpty();
         franja.Descansos.Should().ContainSingle().Which.Descripcion.Should().BeEmpty();
 
-        // El resto del payload se relee intacto: la ausencia del campo derivado no degrada la
-        // identidad del turno (que lo excluye por diseno, CA-1).
         deserializado.DetalleTurno.Should().Be(new TurnoDiario(
             "Turno Manana",
             [
@@ -259,10 +227,8 @@ public class TurnoDiarioAsignadoSerializacionTests
             ""));
     }
 
-    // Issue #336 CA-4: JSON persistido antes de este issue no lleva la clave "Sede" en ninguna
-    // franja (ultimo parametro posicional, aditivo y opcional). A diferencia de Descripcion, aqui
-    // null ES el valor correcto de retrocompatibilidad -- no hay normalizacion especial, "sin sede
-    // asignada" es una franja real y valida (turno prearmado multi-sede sin resolver).
+    // JSON sin "Sede" (anterior a #336): aqui null es el valor correcto, sin normalizar; "sin sede
+    // asignada" es una franja valida.
     [Fact]
     public void Deserializar_DejaLaSedeEnNull_CuandoElJsonPersistidoNoLlevaLaClaveSede()
     {
@@ -301,8 +267,7 @@ public class TurnoDiarioAsignadoSerializacionTests
             .Which.Sede.Should().BeNull();
     }
 
-    // Issue #336 CA-5: round-trip Marten con sedes pobladas en las franjas de un turno partido --
-    // incluye igualdad por valor de FranjaProgramada con sede (Equals custom ahora la compara).
+    // La igualdad de FranjaProgramada incluye la sede.
     [Fact]
     public void Deserializar_ReconstruyeIdentico_ConSedesPobladasEnLasFranjas()
     {

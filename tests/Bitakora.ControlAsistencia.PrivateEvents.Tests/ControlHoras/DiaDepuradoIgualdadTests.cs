@@ -64,8 +64,6 @@ public class DiaDepuradoIgualdadTests : IgualdadTestBase<DiaDepurado>
             new DiaDepurado("EMP-001", Fecha, Colaborador, "Turno Manana", [Franja()], [MarcacionConSede()], Horas()));
     }
 
-    // Cobertura especifica del override: las colecciones se comparan por valor, no por referencia.
-
     [Fact]
     public void Equals_RetornaTrue_CuandoColeccionesSonInstanciasDiferentesConMismoContenido()
     {

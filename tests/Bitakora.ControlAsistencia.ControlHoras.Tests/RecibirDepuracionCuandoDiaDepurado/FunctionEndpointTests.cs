@@ -1,8 +1,5 @@
-// Issue #425: Tests del FunctionEndpoint del ServiceBus trigger RecibirDepuracionCuandoDiaDepurado.
-// MEF-ADR-0024 decision #3 + #8: DiaDepurado cruza fisicamente el ASB interno del BC, aun siendo
-// consumido dentro del mismo BC; el evento se despacha directo al IPrivateEventRouter (sin comando
-// espejo). Verifica orquestacion: deserializacion + despacho al private event router + manejo de
-// errores de Service Bus (patron identico a AdicionarMarcacionCuandoRegistroDeMarcacionCreado).
+// DiaDepurado cruza el ASB interno aun siendo consumido dentro del mismo BC y se despacha directo al
+// IPrivateEventRouter, sin comando espejo (MEF-ADR-0024 decisiones #3 y #8).
 
 using AwesomeAssertions;
 using Azure.Messaging.ServiceBus;
@@ -15,9 +12,9 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.RecibirDepuracionCuandoD
 
 public class FunctionEndpointTests
 {
-    // JSON en formato camelCase - Wolverine serializa con camelCase por defecto al publicar al
-    // Service Bus. Dia sin jornada valida (Colaborador/NombreTurno null, Franjas y
-    // HorasPorConcepto vacios): el caso minimo valido del contrato de DiaDepurado.
+    // camelCase: Wolverine serializa asi al publicar al Service Bus. Dia sin jornada valida
+    // (Colaborador/NombreTurno null, Franjas y HorasPorConcepto vacios): el caso minimo valido del
+    // contrato de DiaDepurado.
     private const string JsonFormatoWolverine = """
         {
           "codigoColaborador": "EMP-001",
@@ -33,7 +30,6 @@ public class FunctionEndpointTests
     private static ServiceBusReceivedMessage CrearMensaje()
         => ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromString(JsonFormatoWolverine));
 
-    // CA-1: camino feliz - deserializa el JSON, despacha al private event router, completa el mensaje
     [Fact]
     public async Task RecibirDepuracionCuandoDiaDepurado_CompletaMensaje_CuandoProcesamientoEsExitoso()
     {
@@ -48,8 +44,7 @@ public class FunctionEndpointTests
         messageActions.MensajeEnDeadLetter.Should().BeFalse();
     }
 
-    // Lock perdido al intentar completar -> log warning, NO dead-letter. El Service Bus re-entregara
-    // el mensaje automaticamente (regresion del issue #48, ya cubierta en los demas endpoints).
+    // NO dead-letter: el Service Bus re-entrega el mensaje automaticamente.
     [Fact]
     public async Task RecibirDepuracionCuandoDiaDepurado_LogueaWarning_CuandoSePierdeLockAlCompletar()
     {
@@ -67,7 +62,6 @@ public class FunctionEndpointTests
         logger.WarningLogueado.Should().BeTrue();
     }
 
-    // Error generico durante el procesamiento -> abandona el mensaje para que el bus lo reintente
     [Fact]
     public async Task RecibirDepuracionCuandoDiaDepurado_AbandonaMensaje_CuandoOcurreErrorGenerico()
     {
@@ -85,15 +79,9 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-// Duplicado deliberado del mismo patron que AdicionarMarcacionCuandoRegistroDeMarcacionCreado.
-// FunctionEndpointTests (MEF-ADR-0018 Rule of Three: sin ensamblado compartido de test doubles
-// entre feature folders todavia).
+// Duplicado deliberado de los fakes de AdicionarMarcacionCuandoRegistroDeMarcacionCreado: no hay
+// ensamblado compartido de test doubles entre feature folders (MEF-ADR-0018).
 
-/// <summary>
-/// Fake configurable de IPrivateEventRouter. Puede despachar exitosamente o lanzar
-/// una excepcion especifica para simular distintos escenarios de fallo.
-/// </summary>
 internal class FakePrivateEventRouter : IPrivateEventRouter
 {
     private readonly Exception? _excepcion;
@@ -112,10 +100,6 @@ internal class FakePrivateEventRouter : IPrivateEventRouter
     }
 }
 
-/// <summary>
-/// Fake de ServiceBusMessageActions. Registra si el mensaje fue completado, abandonado o enviado a dead-letter.
-/// Puede configurarse para lanzar una excepcion al completar (simulando lock perdido).
-/// </summary>
 internal class FakeServiceBusMessageActions : ServiceBusMessageActions
 {
     private readonly Exception? _excepcionAlCompletar;
@@ -171,10 +155,6 @@ internal class FakeServiceBusMessageActions : ServiceBusMessageActions
         => throw new NotImplementedException();
 }
 
-/// <summary>
-/// Fake de ILogger[FunctionEndpoint]. Registra si se loguo algun Warning
-/// para verificar el camino de lock perdido.
-/// </summary>
 internal class FakeLogger : ILogger<FunctionEndpoint>
 {
     public bool WarningLogueado { get; private set; }

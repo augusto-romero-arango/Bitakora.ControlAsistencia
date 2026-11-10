@@ -128,7 +128,6 @@ public static class DescarteDeResolucionPorCambioDePlanTests
         protected override IPrivateEventHandlerAsync<CancelacionTurnoDiarioSolicitada> Handler =>
             new CancelacionTurnoDiarioSolicitadaEventHandler(EventStore, PrivateEventSender);
 
-        // CA-4
         [Fact]
         public async Task CancelacionTurnoDiarioSolicitada_DescartaLaResolucion_CuandoCancelaElTurno()
         {
@@ -149,7 +148,6 @@ public static class DescarteDeResolucionPorCambioDePlanTests
         protected override IPrivateEventHandlerAsync<AusenciaDiariaProgramada> Handler =>
             new AusenciaDiariaProgramadaEventHandler(EventStore, PrivateEventSender);
 
-        // CA-4
         [Fact]
         public async Task AusenciaDiariaProgramada_DescartaLaResolucion_CuandoLaAusenciaEsNueva()
         {
@@ -193,7 +191,6 @@ public static class DescarteDeResolucionPorCambioDePlanTests
         protected override IPrivateEventHandlerAsync<AusenciaDiariaCancelada> Handler =>
             new AusenciaDiariaCanceladaEventHandler(EventStore, PrivateEventSender);
 
-        // CA-4
         [Fact]
         public async Task AusenciaDiariaCancelada_DescartaLaResolucion_CuandoLiberaLaAusenciaVigente()
         {

@@ -2,10 +2,6 @@ using AwesomeAssertions;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ValueObjects;
 
-/// <summary>
-/// Clase base generica para tests de contrato IEquatable en value objects.
-/// Subclases solo definen las instancias de prueba; los 8 tests se heredan.
-/// </summary>
 public abstract class IgualdadTestBase<T> where T : class, IEquatable<T>
 {
     protected abstract T CrearInstancia();

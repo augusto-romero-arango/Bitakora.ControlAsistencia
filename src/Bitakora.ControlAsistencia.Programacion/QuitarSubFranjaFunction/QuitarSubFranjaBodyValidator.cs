@@ -3,8 +3,7 @@ using FluentValidation;
 
 namespace Bitakora.ControlAsistencia.Programacion.QuitarSubFranjaFunction;
 
-// Se auto-registra via AddValidatorsFromAssemblyContaining (Program.cs). Reusa el .resx del
-// validator de AgregarSubFranja: misma regla sobre el mismo discriminador (MEF-ADR-0018).
+// Reusa el .resx del validator de AgregarSubFranja: misma regla sobre el mismo discriminador.
 public class QuitarSubFranjaBodyValidator : AbstractValidator<QuitarSubFranjaBody>
 {
     public QuitarSubFranjaBodyValidator() =>

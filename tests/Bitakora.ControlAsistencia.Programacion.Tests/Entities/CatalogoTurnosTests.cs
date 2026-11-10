@@ -1,8 +1,6 @@
-// Issue #288 CA-3: coherencia entre CatalogoTurnos.ObtenerDetalle().Descripcion y
-// CatalogoTurnos.ToString(). El formato de nivel turno (franjas unidas con ", ") vive en este
-// aggregate, en el Function App de Programacion (el worker de proyecciones no puede referenciarlo,
-// MEF-ADR-0034 seccion 5). ObtenerDetalle() e Iniciar() son internal (ADR-0015); accesibles en este
-// proyecto de tests via InternalsVisibleTo (Bitakora.ControlAsistencia.Programacion.csproj).
+// El formato de nivel turno (franjas unidas con ", ") vive en este aggregate, en el Function App de
+// Programacion: el worker de proyecciones no puede referenciarlo. ObtenerDetalle() e Iniciar() son
+// internal, accesibles aqui via InternalsVisibleTo (Bitakora.ControlAsistencia.Programacion.csproj).
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
@@ -47,10 +45,6 @@ public class CatalogoTurnosTests
         detalle.FranjasOrdinarias[0].Descansos[0].Descripcion.Should().Be("09:00-09:15");
     }
 
-    // ---------- Issue #335 CA-1/CA-2: sede prearmada por franja en el catalogo ----------
-
-    // CA-1: turno partido con sede diferente en cada franja (ej. "Vigilante partido": manana ->
-    // Suba, tarde -> Chapinero) -- el detalle del catalogo expone la sede de cada franja.
     [Fact]
     public void ObtenerDetalle_ExponeSedePorFranja_CuandoTurnoPrearmaSedesDiferentesEnCadaFranja()
     {
@@ -66,7 +60,6 @@ public class CatalogoTurnosTests
         detalle.FranjasOrdinarias[1].Sede.Should().Be(sedeTarde);
     }
 
-    // CA-2: regresion -- un turno sin sedes prearmadas conserva el comportamiento actual.
     [Fact]
     public void ObtenerDetalle_DejaSedeNull_CuandoTurnoNoPrearmaNingunaSede()
     {
@@ -76,8 +69,6 @@ public class CatalogoTurnosTests
 
         detalle.FranjasOrdinarias[0].Sede.Should().BeNull();
     }
-
-    // ---------- CA-4: EstaCompleto() y las tres formas de ToString() ----------
 
     private static CatalogoTurnos CrearCatalogoDescanso(string nombre) =>
         CatalogoTurnos.Iniciar(TurnoCreado.CrearDescanso(TurnoId, nombre));
@@ -108,8 +99,6 @@ public class CatalogoTurnosTests
         catalogo.EstaCompleto().Should().BeTrue();
         catalogo.ToString().Should().Be("06:00-14:00");
     }
-
-    // ---------- Issue #613 CA-4: EvaluarAsignabilidad() y su precedencia ----------
 
     [Fact]
     public void EvaluarAsignabilidad_EsRetirado_CuandoElTurnoFueRetirado()
@@ -144,7 +133,7 @@ public class CatalogoTurnosTests
         catalogo.EvaluarAsignabilidad().Should().Be(ResultadoAsignabilidadTurno.Asignable);
     }
 
-    // Precedencia (CA-4): un turno retirado con cero franjas y sin marca de descanso -- por
+    // Precedencia: un turno retirado con cero franjas y sin marca de descanso -- por
     // completitud seria Incompleto, pero Retirado gana la precedencia.
     [Fact]
     public void EvaluarAsignabilidad_EsRetirado_CuandoElTurnoEstaRetiradoYAdemasIncompleto()
@@ -155,9 +144,6 @@ public class CatalogoTurnosTests
         catalogo.EvaluarAsignabilidad().Should().Be(ResultadoAsignabilidadTurno.Retirado);
     }
 
-    // ---------- Issue #602 CA-2/CA-3/CA-4: AgregarFranja y su precedencia ----------
-
-    // CA-2: el turno pasa de incompleto a completo con la primera franja.
     [Fact]
     public void AgregarFranja_RetornaAgregada_CuandoElTurnoEstaIncompleto()
     {
@@ -173,7 +159,7 @@ public class CatalogoTurnosTests
         catalogo.ToString().Should().Be("22:00-06:00+1");
     }
 
-    // CA-3: fin exclusivo -- una franja contigua a la existente no se solapa y se agrega,
+    // Fin exclusivo: una franja contigua a la existente no se solapa y se agrega,
     // conservando el orden de insercion en ToString().
     [Fact]
     public void AgregarFranja_RetornaAgregada_CuandoLaNuevaFranjaEsContiguaALaExistente()
@@ -187,7 +173,6 @@ public class CatalogoTurnosTests
         catalogo.ToString().Should().Be("06:00-14:00, 14:00-22:00");
     }
 
-    // CA-3: una franja que se superpone parcialmente con la existente se rechaza sin emitir evento.
     [Fact]
     public void AgregarFranja_RetornaSeSolapaConOtraFranja_CuandoLaNuevaFranjaSeSuperponeConLaExistente()
     {
@@ -201,7 +186,6 @@ public class CatalogoTurnosTests
         catalogo.ObtenerDetalle().FranjasOrdinarias.Should().HaveCount(1);
     }
 
-    // CA-4: un turno de descanso no admite franjas ordinarias.
     [Fact]
     public void AgregarFranja_RetornaTurnoEsDescanso_CuandoElTurnoEsDeDescanso()
     {
@@ -214,7 +198,6 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<FranjaAgregada>().Should().BeEmpty();
     }
 
-    // CA-4: un turno retirado no admite nuevas franjas.
     [Fact]
     public void AgregarFranja_RetornaTurnoRetirado_CuandoElTurnoFueRetirado()
     {
@@ -228,7 +211,6 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<FranjaAgregada>().Should().BeEmpty();
     }
 
-    // CA-4: precedencia -- un turno de descanso retirado devuelve TurnoRetirado, no TurnoEsDescanso.
     [Fact]
     public void AgregarFranja_RetornaTurnoRetirado_CuandoElTurnoEsDescansoYAdemasFueRetirado()
     {
@@ -241,9 +223,6 @@ public class CatalogoTurnosTests
         resultado.Should().Be(ResultadoAgregarFranja.TurnoRetirado);
     }
 
-    // ---------- Issue #603: AgregarDescanso/AgregarExtra sobre una franja existente ----------
-
-    // CA-2: camino feliz -- localiza la franja por hora de inicio, delega en ConDescanso y emite.
     [Fact]
     public void AgregarDescanso_RetornaAgregada_CuandoLaFranjaExisteYElDescansoEsValido()
     {
@@ -258,7 +237,6 @@ public class CatalogoTurnosTests
         catalogo.ToString().Should().Be("22:00-06:00+1, descanso 02:00+1-02:30+1");
     }
 
-    // CA-2: AgregarExtra sobre la franja resultante conserva el descanso previo (inmutabilidad del VO).
     [Fact]
     public void AgregarExtra_ConservaElDescansoPrevio_CuandoSeAgregaSobreUnaFranjaConDescansoYaAgregado()
     {
@@ -276,7 +254,6 @@ public class CatalogoTurnosTests
             "22:00-06:00+1, descanso 02:00+1-02:30+1, extra 05:00+1-06:00+1");
     }
 
-    // CA-3: ninguna franja empieza a esa hora.
     [Fact]
     public void AgregarDescanso_RetornaFranjaNoExiste_CuandoNingunaFranjaEmpiezaAEsaHora()
     {
@@ -289,7 +266,6 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().BeEmpty();
     }
 
-    // CA-3: un turno de descanso no admite sub-franjas.
     [Fact]
     public void AgregarDescanso_RetornaTurnoEsDescanso_CuandoElTurnoEsDeDescanso()
     {
@@ -302,7 +278,6 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().BeEmpty();
     }
 
-    // CA-3: un turno retirado no admite nuevas sub-franjas.
     [Fact]
     public void AgregarDescanso_RetornaTurnoRetirado_CuandoElTurnoFueRetirado()
     {
@@ -316,7 +291,6 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().BeEmpty();
     }
 
-    // CA-3: precedencia -- retirado gana sobre descanso.
     [Fact]
     public void AgregarDescanso_RetornaTurnoRetirado_CuandoElTurnoEsDescansoYAdemasFueRetirado()
     {
@@ -329,8 +303,7 @@ public class CatalogoTurnosTests
         resultado.Should().Be(ResultadoAgregarSubFranja.TurnoRetirado);
     }
 
-    // CA-4: invariante estructural del VO (hija fuera del contenedor) sube sin capturarse -- la
-    // franja original queda intacta (inmutabilidad de FranjaOrdinaria.ConDescanso).
+    // La franja original queda intacta (inmutabilidad de FranjaOrdinaria.ConDescanso).
     [Fact]
     public void AgregarDescanso_DejaSubirArgumentException_CuandoLaHijaQuedaFueraDeLaFranjaContenedora()
     {
@@ -346,7 +319,7 @@ public class CatalogoTurnosTests
 
     // MEF-ADR-0004 capa 4: un Apply que lanza deja el aggregate roto para siempre -- si el stream
     // trae un DescansoAgregado cuya franja contenedora ya no esta (anomalia, o retirada por un
-    // evento posterior de #605), la rehidratacion lo ignora en vez de indexar con -1.
+    // evento posterior), la rehidratacion lo ignora en vez de indexar con -1.
     [Fact]
     public void Apply_NoLanzaYDejaLasFranjasIntactas_CuandoNingunaEmpiezaALaHoraDelEvento()
     {
@@ -360,7 +333,6 @@ public class CatalogoTurnosTests
         catalogo.ToString().Should().Be("22:00-06:00+1");
     }
 
-    // CA-4: solape con una hermana ya presente.
     [Fact]
     public void AgregarDescanso_DejaSubirArgumentException_CuandoSeSuperponeConUnaHermana()
     {
@@ -375,8 +347,6 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<DescansoAgregado>().Should().ContainSingle(
             "el descanso rechazado no emite un segundo evento");
     }
-
-    // ---------- QuitarFranja y su precedencia ----------
 
     [Fact]
     public void QuitarFranja_RetornaQuitada_CuandoLaFranjaExisteYQuedanOtras()
@@ -457,8 +427,6 @@ public class CatalogoTurnosTests
 
         resultado.Should().Be(ResultadoQuitarFranja.TurnoRetirado);
     }
-
-    // ---------- QuitarDescanso/QuitarExtra y su precedencia ----------
 
     private static CatalogoTurnos CrearCatalogoConFranjaYDosDescansos()
     {
@@ -541,8 +509,6 @@ public class CatalogoTurnosTests
         resultado.Should().Be(ResultadoQuitarSubFranja.TurnoRetirado);
     }
 
-    // ---------- Issue #606 CA-3: AsignarSedeAFranja asigna, retira, y su precedencia ----------
-
     private static readonly SedeProgramada Chapinero = new("SEDE-CHAPINERO", "Chapinero");
 
     [Fact]
@@ -572,9 +538,8 @@ public class CatalogoTurnosTests
         catalogo.ObtenerDetalle().FranjasOrdinarias[0].Sede.Should().BeNull();
     }
 
-    // CA-3 completo: la secuencia asignar -> retirar -> retirar. Cierra el hueco que dejan los
-    // casos sueltos: prueba que Apply(SedeDeFranjaRetirada) dejo la franja realmente sin sede, no
-    // solo que el retiro emitio su evento.
+    // La secuencia asignar -> retirar -> retirar prueba que Apply(SedeDeFranjaRetirada) dejo la
+    // franja realmente sin sede, no solo que el retiro emitio su evento.
     [Fact]
     public void AsignarSedeAFranja_RetornaFranjaSinSede_CuandoSeRetiraDosVecesSeguidas()
     {
@@ -629,8 +594,7 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.Should().ContainSingle().Which.Should().BeOfType<TurnoCreado>();
     }
 
-    // CA-3: un descanso no tiene franjas ordinarias -- cualquier hora cae en FranjaNoExiste (mismo
-    // criterio que QuitarFranja/QuitarDescanso).
+    // Un descanso no tiene franjas ordinarias: cualquier hora cae en FranjaNoExiste.
     [Fact]
     public void AsignarSedeAFranja_RetornaFranjaNoExiste_CuandoElTurnoEsDescanso()
     {
@@ -665,8 +629,6 @@ public class CatalogoTurnosTests
         resultado.Should().Be(ResultadoAsignarSedeAFranja.TurnoRetirado);
     }
 
-    // ---------- Issue #665 CA-1: Retirar() y el no-op cuando ya esta retirado ----------
-
     [Fact]
     public void Retirar_RetornaRetirado_CuandoElTurnoEstaActivo()
     {
@@ -678,8 +640,6 @@ public class CatalogoTurnosTests
         catalogo.UncommittedEvents.OfType<TurnoRetirado>().Should().ContainSingle();
     }
 
-    // MEF-ADR-0004 "Estado ya alcanzado: no-op exitoso": retirar dos veces no agrega un segundo
-    // TurnoRetirado al stream.
     [Fact]
     public void Retirar_RetornaSinCambios_CuandoElTurnoYaEstaRetirado()
     {
@@ -691,8 +651,6 @@ public class CatalogoTurnosTests
         resultado.Should().Be(ResultadoRetiroTurno.SinCambios);
         catalogo.UncommittedEvents.OfType<TurnoRetirado>().Should().ContainSingle();
     }
-
-    // ---------- ModificarVentanaDeEntrada: amplitud conservada y no-op ----------
 
     [Fact]
     public void ModificarVentanaDeEntrada_ConservaLaAmplitud_CuandoSeAgregaUnDescansoDespues()

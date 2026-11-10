@@ -56,7 +56,6 @@ public class CascadaDeSedeGrupoTests
             etiquetas: "area:cocina",
             ct: TestContext.Current.CancellationToken);
 
-    // CA-2 / CA-4
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_EnviaLaSedeDeCadaColaboradorResuelta_CuandoNoViajaSedeExplicita()
     {
@@ -78,7 +77,6 @@ public class CascadaDeSedeGrupoTests
         entorno.LecturasDelMaestro.Single().RequestUri!.Query.Should().NotContain("activa");
     }
 
-    // CA-3 / CA-4
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_ProgramaSinSedeYAvisaPorCadaCausa_CuandoLaSedeDelColaboradorNoEstaDisponible()
     {
@@ -107,7 +105,6 @@ public class CascadaDeSedeGrupoTests
         });
     }
 
-    // CA-1
     [Fact]
     public async Task SolicitarProgramacionTurnoPorGrupo_EnviaLaSedeExplicitaATodos_CuandoViajaSedeDeProgramacion()
     {

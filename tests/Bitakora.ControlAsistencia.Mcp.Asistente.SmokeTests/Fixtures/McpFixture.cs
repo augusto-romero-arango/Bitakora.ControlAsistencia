@@ -3,12 +3,9 @@ using ModelContextProtocol.Client;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.Fixtures;
 
-// Abre UNA sesion MCP contra el entorno desplegado via el SDK oficial de cliente (MEF-ADR-0048
-// seccion 1): el handshake initialize ocurre dentro de McpClient.CreateAsync, asi que si la
-// fixture construye, el host ya cargo la extension MCP y respondio con su identidad. La key
-// mcp_extension viaja por header en cada request del transporte (AdditionalHeaders); no se
-// versiona -- llega por env (Mcp__FunctionsKey) o por appsettings.local.json, nunca por
-// appsettings.json.
+// Una sesion MCP contra el entorno desplegado (SDK oficial, MEF-ADR-0048 seccion 1): si la fixture
+// construye, el handshake initialize ya ocurrio. La key mcp_extension viaja por header en cada
+// request; no se versiona: llega por env (Mcp__FunctionsKey) o por appsettings.local.json.
 public class McpFixture : IAsyncLifetime
 {
     public McpClient Cliente { get; private set; } = null!;

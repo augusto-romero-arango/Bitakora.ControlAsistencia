@@ -1,8 +1,5 @@
-// Issue #489: aprobar el dia de un colaborador -- transicion Provisional -> Aprobado. El aggregate
-// usa un stream ID compuesto (dc:{codigo}:{yyyyMMdd}), no el GuidAggregateId del harness --
-// overloads explicitos de Given/Then/And (regla 18 del test-writer, mismo criterio que
-// DiaDepuradoEventHandlerTests). CA-ADR-0030: el aggregate declina con resultado; el handler
-// traduce a ReglaDeNegocioDeclinadaException (-> 409 en el endpoint).
+// Stream ID compuesto (dc:{codigo}:{yyyyMMdd}), no GuidAggregateId: overloads explicitos de Given/Then/And.
+// CA-ADR-0030: el aggregate declina con resultado y el handler traduce a ReglaDeNegocioDeclinadaException.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.AprobarDiaFunction;
@@ -28,7 +25,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
     protected override ICommandHandlerAsync<AprobarDia> Handler =>
         new AprobarDiaCommandHandler(EventStore);
 
-    // ---- Precondicion: dia Provisional SIN conflictos de sede ----
     private static DepuracionDiaRecibida DepuracionSinConflicto()
     {
         var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
@@ -40,8 +36,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
             new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
     }
 
-    // ---- Precondicion: dia Provisional CON una franja en conflicto de sede (SEDE-01 programada
-    //      vs SEDE-02 marcada en la entrada) ----
+    // SEDE-01 programada vs SEDE-02 marcada en la entrada.
     private static DepuracionDiaRecibida DepuracionConFranjaEnConflicto()
     {
         var entrada = new DateTime(2026, 8, 24, 6, 0, 0);
@@ -59,7 +54,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
             new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
     }
 
-    // ---- Precondicion: dia Provisional con DOS franjas en conflicto de sede ----
     private static DepuracionDiaRecibida DepuracionConDosFranjasEnConflicto()
     {
         var entradaManana = new DateTime(2026, 8, 24, 6, 0, 0);
@@ -90,7 +84,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
     private static DecisionDeSede DecisionValida() =>
         new(HoraInicioFranjaEnConflicto, "SEDE-02");
 
-    // CA-1: dia Provisional sin conflictos, sin decisiones -> DiaAprobado con SedesDecididas vacia.
     [Fact]
     public async Task AprobarDia_EmiteDiaAprobado_CuandoElDiaNoTieneConflictosDeSede()
     {
@@ -102,8 +95,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-2: franja en conflicto con decision valida -> DiaAprobado carga la candidata completa
-    // (codigo + nombre + CC del estampado de su fuente, aqui la marcacion SEDE-02).
     [Fact]
     public async Task AprobarDia_EmiteDiaAprobadoConLaCandidataCompleta_CuandoLaDecisionEsValida()
     {
@@ -116,8 +107,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-3: conflicto de sede sin decidir (payload vacio) -> 409, sin evento persistido, estado
-    // sin cambios.
     [Fact]
     public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoHayConflictosSinDecidir()
     {
@@ -131,8 +120,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
-    // CA-3, variante "incompleto": el dia tiene DOS franjas en conflicto y el payload decide solo
-    // una -- el acto sigue exigiendo decision donde la maquina se abstuvo (409, sin evento).
     [Fact]
     public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoElPayloadDecideSoloUnaDeLasFranjasEnConflicto()
     {
@@ -146,7 +133,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
-    // CA-4: CodigoSede que no es candidata de esa franja -> 409, sin evento persistido.
     [Fact]
     public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoSedeNoEsCandidata()
     {
@@ -161,8 +147,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
-    // CA-5, primera variante: decision para una franja SIN conflicto -> 409 (el payload afirma
-    // algo que el expediente contradice).
     [Fact]
     public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoLaDecisionEsParaUnaFranjaSinConflicto()
     {
@@ -177,8 +161,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
-    // CA-5, segunda variante: HoraInicioProgramada que no corresponde a NINGUNA franja del dia ->
-    // 409.
     [Fact]
     public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoLaHoraInicioProgramadaNoCorrespondeAUnaFranja()
     {
@@ -193,8 +175,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
-    // CA-6: dia ya Aprobado -> 409, re-aprobar es error (las aprobaciones son definitivas), sin
-    // evento nuevo, el estado se conserva Aprobado.
+    // Las aprobaciones son definitivas: re-aprobar es error.
     [Fact]
     public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoElDiaYaEstaAprobado()
     {
@@ -208,27 +189,20 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-7 (aval del vacio, decision 2026-08-17): aprobar un dia SIN stream es valido -- atestigua
-    // "no vino y no debia venir". Crea el stream con DiaAprobado como primer evento.
+    // Aval del vacio: aprobar un dia sin stream atestigua "no vino y no debia venir".
     [Fact]
     public async Task AprobarDia_CreaElStreamConDiaAprobado_CuandoElDiaNoTieneStreamYNoHayDecisiones()
     {
-        // Sin Given - el stream dc:EMP-001:20260824 no existe
-
         await WhenAsync(new AprobarDia(CodigoColaborador, Fecha, []));
 
         Then(StreamId, DiaAprobado.Crear(StreamId, CodigoColaborador, Fecha, []));
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-7, contracara: dia sin stream + payload con decisiones -> 409 (caso CA-5, el expediente
-    // vacio no tiene ninguna franja que decidir). Sin And<>: el aggregate nunca llega a crearse
-    // (declina antes de StartStream), no hay estado que verificar.
+    // Sin And<>: el aggregate declina antes de StartStream, no hay estado que verificar.
     [Fact]
     public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoElDiaNoTieneStreamYElPayloadTraeDecisiones()
     {
-        // Sin Given - el stream dc:EMP-001:20260824 no existe
-
         var act = async () => await WhenAsync(new AprobarDia(
             CodigoColaborador, Fecha, [new DecisionDeSede(new TimeOnly(6, 0), "SEDE-01")]));
 
@@ -237,7 +211,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         Then(StreamId);
     }
 
-    // CA-5: las marcaciones de un dia de ausencia no bloquean la aprobacion.
     [Fact]
     public async Task AprobarDia_EmiteDiaAprobado_CuandoElDiaEsDeAusenciaConMarcaciones()
     {
@@ -252,7 +225,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-5
     [Fact]
     public async Task AprobarDia_EmiteDiaAprobado_CuandoElDiaEsDeAusenciaSinMarcaciones()
     {
@@ -267,7 +239,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
             StreamId, d => d.GenerarDepuracionDelDia().MotivoAusencia!, "Vacaciones");
     }
 
-    // ---- Precondicion: dia con una marcacion de pertenencia dada (null = foto anterior a #1139) ----
+    // pertenencia null = foto anterior a #1139.
     private static DepuracionDiaRecibida DepuracionConPertenencia(
         string? pertenencia, bool conConflictoDeSede = false)
     {
@@ -290,7 +262,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
             new HorasDiscriminadas(new Dictionary<string, decimal>(), []));
     }
 
-    // CA-1
     [Fact]
     public async Task AprobarDia_LanzaReglaDeNegocioDeclinadaException_CuandoHayMarcacionesAmbiguas()
     {
@@ -304,7 +275,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
-    // CA-2
     [Fact]
     public async Task AprobarDia_DeclinaConMarcacionesAmbiguas_CuandoTambienHayConflictosDeSedeSinDecidir()
     {
@@ -318,7 +288,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Provisional);
     }
 
-    // CA-3
     [Fact]
     public async Task AprobarDia_EmiteDiaAprobado_CuandoLasMarcacionesSonDelTurno()
     {
@@ -330,7 +299,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-3
     [Fact]
     public async Task AprobarDia_EmiteDiaAprobado_CuandoLasMarcacionesSonFueraDeCobertura()
     {
@@ -342,7 +310,7 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-3: lectura legada, foto anterior a #1139.
+    // Lectura legada: foto anterior a #1139.
     [Fact]
     public async Task AprobarDia_EmiteDiaAprobado_CuandoLasMarcacionesNoTraenPertenencia()
     {
@@ -354,7 +322,6 @@ public class AprobarDiaCommandHandlerTests : CommandHandlerAsyncTest<AprobarDia>
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamId, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-4
     [Fact]
     public async Task AprobarDia_EmiteDiaAprobado_CuandoUnaFotoNuevaYaNoTraeAmbiguas()
     {

@@ -5,9 +5,8 @@ using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.RecibirDepuracionCuandoDiaDepurado.Eventos;
 
 /// <summary>
-/// Verifica que DepuracionDiaRecibida sobrevive un roundtrip de serializacion STJ con las opciones
-/// reales de Marten (constructor privado + propiedades private set + tipos ricos anidados propios
-/// de esta isla). Ver MEF-ADR-0012 y patron canonico en MarcacionAdicionadaSerializacionTests.
+/// Roundtrip STJ con las opciones reales de Marten: constructor privado, private set y tipos ricos
+/// anidados propios de esta isla (MEF-ADR-0012).
 /// </summary>
 public class DepuracionDiaRecibidaSerializacionTests
 {

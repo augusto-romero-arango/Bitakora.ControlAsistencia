@@ -1,55 +1,3 @@
-// Issue #357: smoke tests de ListarCategoriasDeEtiquetas, GET colaboradores/etiquetas/categorias --
-// Function GET read-side (sin filtros; desde #1000, sobre { elementos, siguienteCursor } con keyset
-// por Id, take opcional y cursor opaco, CA-ADR-0039) sobre la proyeccion CategoriaDeEtiquetas (receta N2,
-// MultiStreamProjection<CategoriaDeEtiquetas, string>, MEF-ADR-0034/0035): la PRIMERA N2 de este BC
-// -- eventos EtiquetaAsignada de MUCHOS streams de ColaboradorAggregateRoot convergen en el MISMO
-// documento cuando comparten categoria normalizada.
-//
-// Arrange via API, nunca sembrando el event store por fuera de ella: cada colaborador se crea con
-// POST Colaboradores (#330) y se etiqueta/retira con PUT/DELETE colaboradores/{id}/etiquetas/
-// {categoria} (#355, migrado de POST Colaboradores/Etiquetas y Colaboradores/Etiquetas/Retiros a
-// esta ruta por el issue #376) -- los mismos comandos que la proyeccion consume.
-//
-// Sin ObtenerCategoriaDeEtiquetas por id en este issue (el documento ya tiene id direccionable,
-// pero se agrega solo si un caso real lo pide -- Rule of Three, MEF-ADR-0018): por eso este archivo
-// SOLO cubre el caso "Listado" de la doctrina read-side (skills/projections/read-apis.md), nunca
-// "recurso existente"/"recurso no encontrado" via id de ruta. La unica validacion de entrada que se
-// prueba aqui es el cursor indescifrable (400); los topes de take no van en smoke (CA-ADR-0041).
-//
-// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa/actualiza CategoriaDeEtiquetas
-// DESPUES de que Colaboradores persiste sus eventos. Los casos de exito envuelven la consulta en
-// Polling.WaitUntilAsync (timeout estandar 30s) -- unica excepcion documentada al "no usar Polling
-// directo en tests".
-//
-// Aislamiento SIN cleanup, en un entorno que ACUMULA categorias de corridas anteriores (el catalogo
-// es GLOBAL y ACUMULATIVO por diseno, decision de refinamiento 2026-08-13: nada sale nunca): un
-// listado completo sin filtros nunca es un oraculo confiable por si solo. Cada test aisla SU propia
-// categoria embebiendo un Guid en el texto de la categoria misma (formato "N": hexadecimal en
-// minusculas, sobrevive intacto a la normalizacion) -- nadie mas, en ninguna corrida pasada o
-// futura, puede tener esa categoria normalizada exacta. Se filtra siempre por Id (la categoria
-// normalizada), nunca por posicion/indice.
-//
-// Patron "checkpoint"/evento centinela (CA-2/CA-3/CA-5): para verificar una condicion NEGATIVA
-// ("no duplica", "colapsa a un solo valor", "el retiro no descuenta") contra una proyeccion
-// asincrona, no basta con esperar a que aparezca el primer efecto -- hace falta certeza de que
-// TODOS los eventos previos de la corrida ya fueron aplicados. Como el async daemon de Marten
-// aplica los eventos en el orden de su secuencia global (mt_events), y este smoke test emite sus
-// comandos secuencialmente (await cada POST antes del siguiente), un evento "centinela" (una
-// asignacion en una categoria discriminadora final, unica para el checkpoint) que ya aparece en el
-// catalogo GARANTIZA que todos los eventos anteriores de esta corrida ya se aplicaron. Es la unica
-// forma deterministica de probar una ausencia bajo consistencia eventual, sin recurrir a un
-// Task.Delay arbitrario.
-//
-// Formas discriminadoras SIN tildes (mayusculas vs minusculas simples, no diacriticos): el detalle
-// Unicode de la normalizacion (NonSpacingMark, ver el comentario de Etiqueta.Normalizar) ya lo
-// prueban el unit test del VO y AsignarEtiquetaSmokeTests (CA-2, "Área"/"area"); repetirlo aqui solo
-// arriesgaria un bug de replicacion en el propio smoke test sin agregar cobertura nueva sobre el
-// EFECTO end-to-end que este archivo verifica.
-//
-// No se repite aqui el detalle exhaustivo de Create/Apply (agrupacion, upsert por
-// ValorNormalizado, ausencia de metodo para EtiquetaRetirada): eso ya lo cubre el unit test de
-// CategoriaDeEtiquetasProjection (projection-test-writer). Este smoke test es black-box: solo
-// verifica que el endpoint desplegado expone la vista materializada real, contra el entorno real.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -75,12 +23,8 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         PropertyNameCaseInsensitive = true
     };
 
-    // Formas locales DESACOPLADAS del read model de produccion
-    // (Bitakora.ControlAsistencia.ReadModels.Colaboradores.CategoriaDeEtiquetas/ValorCategoria): el
-    // smoke test no referencia ReadModels (isla, MEF-ADR-0034 seccion 5) ni el worker de
-    // proyecciones. Replican solo el shape JSON de la respuesta HTTP -- la vista se serializa tal
-    // cual, sin DTO de respuesta (ver el comentario del propio FunctionEndpoint, MEF-ADR-0041
-    // decision 4).
+    // Formas locales desacopladas del read model: el smoke no referencia ReadModels (MEF-ADR-0034
+    // seccion 5); solo replican el shape JSON de la respuesta.
     private sealed record ValorCategoriaSmoke(string Valor, string ValorNormalizado);
 
     private sealed record CategoriaDeEtiquetasSmoke(
@@ -90,24 +34,20 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
 
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    // Formato "N": hexadecimal en minusculas -- sobrevive intacto a la normalizacion del VO Etiqueta
-    // (minusculas + sin tildes + trim). Lo unico que varia entre "formas" de una misma categoria
-    // discriminadora es el prefijo alrededor de este sufijo unico.
+    // El catalogo es global y acumulativo (nada sale nunca) y no hay cleanup: cada test aisla su categoria
+    // con este sufijo y la busca por Id, nunca por posicion. "N" (hex en minusculas) sobrevive a la
+    // normalizacion de Etiqueta. Las formas discriminadoras van sin tildes: la normalizacion Unicode ya la
+    // prueban el unit test del VO y AsignarEtiquetaSmokeTests.
     private static string NuevoSufijoUnico() => Guid.CreateVersion7().ToString("N");
 
-    // Mismo formato que ColaboradorAggregateRoot.ComputarStreamId (separador "-" desde #381),
-    // reconstruido localmente (oraculo independiente, MEF-ADR-0002): es el {id} de ruta del
-    // endpoint migrado por el issue #376.
+    // Oraculo independiente (MEF-ADR-0002), reconstruido a mano; es tambien el {id} de ruta.
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
-    // Ruta migrada por el issue #376 (mismo template que Asignar/RetirarEtiquetaSmokeTests): la
-    // categoria viaja cruda en la URL (puede traer tildes) y se URL-encodea al construir la ruta.
+    // La categoria puede traer tildes y se escapa.
     private static string RutaEtiqueta(string id, string categoria) =>
         $"/api/colaboradores/{id}/etiquetas/{Uri.EscapeDataString(categoria)}";
 
-    // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API.
     private async Task RegistrarColaboradorAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
@@ -127,9 +67,6 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
     }
 
-    // Arrange comun: asigna una etiqueta dinamica -- via el comando que la origina (#355), la MISMA
-    // fuente de eventos que alimenta CategoriaDeEtiquetasProjection. Migrado a PUT
-    // colaboradores/{id}/etiquetas/{categoria} por el issue #376.
     private async Task AsignarEtiquetaAsync(
         string numeroIdentificacion, string categoria, string valor, CancellationToken ct)
     {
@@ -140,8 +77,6 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que AsignarEtiqueta funcione");
     }
 
-    // Arrange comun (CA-5): retira una etiqueta dinamica -- via el comando que la origina (#355).
-    // Migrado a DELETE colaboradores/{id}/etiquetas/{categoria} por el issue #376.
     private async Task RetirarEtiquetaAsync(
         string numeroIdentificacion, string categoria, CancellationToken ct)
     {
@@ -168,11 +103,11 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         return lista.Elementos;
     }
 
-    // Reintenta el GET hasta que la proyeccion asincrona satisfaga la condicion -- unica excepcion
-    // documentada al "no usar Polling directo en tests" (lifecycle Async, MEF-ADR-0034 seccion 3).
-    // Si el timeout se agota es un fallo real (worker no desplegado, proyeccion sin registrar en el
-    // named store, lifecycle equivocado), nunca un caso para Assert.Skip -- Polling.WaitUntilAsync
-    // lanza TimeoutException.
+    // La proyeccion es Async (MEF-ADR-0034 seccion 3). Un timeout agotado es un fallo real (worker no
+    // desplegado, proyeccion sin registrar, lifecycle equivocado), nunca un Skip.
+    // Para afirmar una AUSENCIA se espera un centinela asignado al final: el daemon aplica en el orden de
+    // la secuencia global y los comandos van en serie, asi que si el centinela aparece, todo lo anterior
+    // ya se aplico. Es la forma deterministica de probarla, sin Task.Delay.
     private Task<List<CategoriaDeEtiquetasSmoke>> EsperarCatalogoAsync(
         Func<List<CategoriaDeEtiquetasSmoke>, bool> condicion, CancellationToken ct) =>
         Polling.WaitUntilAsync(async () =>
@@ -191,19 +126,8 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-6 (mitad observable black-box): el GET siempre responde 200 con una coleccion, nunca 404
-    // -- una lista vacia es una respuesta valida, no un recurso ausente. El catalogo COMPLETAMENTE
-    // vacio (cero categorias en todo el tenant) solo es observable en un entorno recien
-    // provisionado; en dev, compartido y acumulativo por diseno, este smoke test no puede forzar esa
-    // condicion sin borrar datos de otras corridas (fuera de alcance de un smoke test).
-    //
-    // La otra mitad de CA-6 -- que la respuesta sea una coleccion VACIA y no un 404 cuando el
-    // tenant todavia no tiene ninguna categoria -- no tiene test propio en ningun nivel, y es
-    // deliberado: session.Query<T>() sobre una tabla sin filas devuelve lista vacia por
-    // construccion, y un unit test del endpoint solo verificaria ese comportamiento de Marten con
-    // un doble. Su guardrail real es el test de composicion del contenedor
-    // (ComposicionServiciosTests.AgregarServiciosColaboradores_ResuelveElEndpointDeListarCategorias
-    // DeEtiquetas...) mas este smoke test, que si afirma el 200 contra el entorno real.
+    // Solo afirma el 200 con una coleccion: el catalogo vacio no se puede forzar en dev (compartido y
+    // acumulativo) sin borrar datos de otras corridas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCategoriasDeEtiquetas_Retorna200ConUnaColeccion_Siempre()
@@ -215,11 +139,6 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         catalogo.Should().NotBeNull();
     }
 
-    // CA-1: etiquetas asignadas en VARIOS colaboradores -> el GET devuelve las categorias
-    // DISTINTAS, cada una con sus valores DISTINTOS, en forma display. Dos categorias
-    // discriminadoras (Guid embebido) demuestran que la proyeccion agrupa por categoria
-    // NORMALIZADA a traves de streams distintos (receta N2, correlacion), sin mezclar los valores
-    // de una categoria con los de la otra.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCategoriasDeEtiquetas_DevuelveCategoriasDistintasConSusValores_CuandoVariosColaboradoresAsignanEtiquetasDistintas()
@@ -252,10 +171,6 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
             .Which.Valor.Should().Be(valorB);
     }
 
-    // CA-2: asignaciones repetidas del MISMO par (categoria, valor), en streams (colaboradores)
-    // distintos, no duplican ni la categoria ni el valor -- el checkpoint (categoria centinela,
-    // ver el comentario del encabezado) garantiza que ambas asignaciones ya fueron aplicadas antes
-    // de aseverar Count == 1.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCategoriasDeEtiquetas_NoDuplicaCategoriaNiValor_CuandoSeAsignaElMismoParDosVeces()
@@ -274,11 +189,9 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         await RegistrarColaboradorAsync(numeroCentinela, new DateOnly(2026, 1, 1), ct);
 
         await AsignarEtiquetaAsync(numero1, categoria, valor, ct);
-        await AsignarEtiquetaAsync(numero2, categoria, valor, ct); // mismo par, stream distinto
+        await AsignarEtiquetaAsync(numero2, categoria, valor, ct);
         await AsignarEtiquetaAsync(numeroCentinela, categoriaCentinela, "checkpoint", ct);
 
-        // El checkpoint (orden global del daemon Async, ver el comentario del encabezado) garantiza
-        // que las DOS asignaciones anteriores ya se aplicaron cuando la categoria centinela aparece.
         var catalogo = await EsperarCatalogoAsync(lista => lista.Any(c => c.Id == categoriaCentinela), ct);
 
         var vista = catalogo.Should().ContainSingle(c => c.Id == categoria).Subject;
@@ -286,9 +199,6 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
             "el mismo par (categoria, valor) asignado dos veces no deberia duplicar ni la categoria ni el valor");
     }
 
-    // CA-3: dos formas originales que normalizan igual (mayusculas vs minusculas) colapsan en UNA
-    // sola categoria -- el display de la categoria y el display del valor reflejan la ULTIMA
-    // asignacion que los toco (mismo espiritu que la sobrescritura de FichaColaborador, #356).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCategoriasDeEtiquetas_ColapsaEnUnaSolaCategoriaConDisplayDeLaUltima_CuandoDosFormasNormalizanIgual()
@@ -326,9 +236,6 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
                 "el display del valor tambien refleja la ultima asignacion");
     }
 
-    // CA-4: sobrescribir el valor de una categoria existente (mismo colaborador, mismo stream)
-    // AGREGA el valor nuevo al catalogo y CONSERVA el anterior -- catalogo acumulativo (decision de
-    // refinamiento 2026-08-13), nunca un reemplazo total de la lista de valores.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCategoriasDeEtiquetas_AgregaElValorNuevoYConservaElAnterior_CuandoSeSobrescribeUnaCategoriaExistente()
@@ -342,7 +249,7 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         await RegistrarColaboradorAsync(numero, new DateOnly(2026, 1, 1), ct);
 
         await AsignarEtiquetaAsync(numero, categoria, valorAnterior, ct);
-        await AsignarEtiquetaAsync(numero, categoria, valorNuevo, ct); // sobrescribe la categoria
+        await AsignarEtiquetaAsync(numero, categoria, valorNuevo, ct);
 
         var catalogo = await EsperarCatalogoAsync(
             lista => lista.Any(c => c.Id == categoria
@@ -357,10 +264,6 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
             "sobrescribir deberia agregar el valor nuevo al catalogo");
     }
 
-    // CA-5: EtiquetaRetirada NO altera el catalogo -- la proyeccion no declara ningun metodo para
-    // ese evento (garantia estructural). El checkpoint (categoria centinela asignada DESPUES del
-    // retiro) garantiza que el retiro ya fue considerado por el daemon antes de aseverar que el
-    // catalogo no cambio.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCategoriasDeEtiquetas_ConservaLaCategoriaYElValor_CuandoSeRetiraLaEtiqueta()
@@ -378,17 +281,12 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
 
         await AsignarEtiquetaAsync(numero, categoria, valor, ct);
 
-        // Esperar a que la categoria aparezca ANTES de retirarla -- confirma que el arrange base ya
-        // esta materializado (mismo criterio que ObtenerFichaColaboradorSmokeTests: no encadenar mas
-        // eventos sobre una vista que todavia no reflejo el primero).
+        // No encadenar eventos sobre una vista que todavia no reflejo el primero.
         await EsperarCatalogoAsync(lista => lista.Any(c => c.Id == categoria), ct);
 
         await RetirarEtiquetaAsync(numero, categoria, ct);
         await AsignarEtiquetaAsync(numeroCentinela, categoriaCentinela, "checkpoint", ct);
 
-        // El checkpoint garantiza que el retiro (emitido antes) ya fue procesado por el daemon --
-        // CategoriaDeEtiquetasProjection no declara Apply para EtiquetaRetirada, asi que el catalogo
-        // NO deberia cambiar.
         var catalogo = await EsperarCatalogoAsync(lista => lista.Any(c => c.Id == categoriaCentinela), ct);
 
         var vista = catalogo.Should().ContainSingle(c => c.Id == categoria,
@@ -396,9 +294,7 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
         vista.Valores.Should().ContainSingle(v => v.ValorNormalizado == valor);
     }
 
-    // #1000 CA-1/CA-6: recorrido de dos paginas con el siguienteCursor opaco que emite el servidor.
-    // Dos categorias propias garantizan que existe una segunda pagina; el catalogo es global, asi que
-    // se afirma sobre la continuidad del recorrido (sin repetir ni saltar) contra una pagina de 2.
+    // El catalogo es global: se afirma la continuidad del recorrido (sin repetir ni saltar), no su contenido.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCategoriasDeEtiquetas_PaginaConElSiguienteCursorSinRepetirNiSaltar_CuandoSeUsaTake()
@@ -424,7 +320,6 @@ public class ListarCategoriasDeEtiquetasSmokeTests(ApiFixture api)
             "el siguienteCursor de la pagina 1 continua exactamente en la categoria siguiente del orden por Id");
     }
 
-    // #1000 CA-4: un cursor que no salio del servidor -> 400 en el GET.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarCategoriasDeEtiquetas_Retorna400_CuandoElCursorNoEsValido()

@@ -10,18 +10,10 @@ namespace Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 /// colaboradores en reportes.
 /// </summary>
 /// <remarks>
-/// Issue #353: doble forma por campo -- la original (display, solo con trim; espacios internos se
-/// conservan) y la normalizada (minusculas, sin tildes -- identidad y busqueda). La normalizacion
-/// es invariante del VO, no truco de base de datos (MEF-ADR-0012).
-/// Igualdad por valor COMPLETA sobre las formas normalizadas (categoria Y valor): dos etiquetas de
-/// la misma categoria con valor distinto NO son iguales. <see cref="EsMismaCategoria"/> es la
-/// superficie separada para la salvaguarda de unicidad por categoria del aggregate (issue #355,
-/// Tell-don't-Ask: el VO decide que significa "misma categoria", no el llamador comparando strings).
-/// Este corte no introduce comando, evento ni aggregate -- <see cref="Etiqueta"/> sera payload rico
-/// de los eventos persistidos de Colaborador (#355+); por eso ya trae ConfigurarSerializacion.
-/// MEF-ADR-0012: sealed class, constructor privado real + constructor vacio para STJ/Marten,
-/// factory Crear() con validacion, ConfigurarSerializacion registrando campos privados (patron
-/// SubFranja) -- proscrito [JsonConstructor].
+/// Doble forma por campo: la original (display, solo con trim en los extremos) y la normalizada
+/// (minusculas, sin tildes: identidad y busqueda).
+/// Igualdad sobre las formas normalizadas de categoria Y valor: dos etiquetas de la misma categoria
+/// con valor distinto NO son iguales; para "misma categoria" esta <see cref="EsMismaCategoria"/>.
 /// </remarks>
 public sealed partial class Etiqueta : IEquatable<Etiqueta>
 {
@@ -30,7 +22,6 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
     private readonly string _valor;
     private readonly string _valorNormalizado;
 
-    // Constructor real: usado por el factory
     private Etiqueta(string categoria, string categoriaNormalizada, string valor, string valorNormalizado)
     {
         _categoria = categoria;
@@ -39,7 +30,7 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
         _valorNormalizado = valorNormalizado;
     }
 
-    // Constructor vacio para STJ/Marten
+    // Para STJ/Marten
     private Etiqueta()
     {
         _categoria = string.Empty;
@@ -48,17 +39,12 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
         _valorNormalizado = string.Empty;
     }
 
-    // Formas originales (display, con trim aplicado en los extremos).
     public string Categoria => _categoria;
     public string Valor => _valor;
 
-    // Formas normalizadas: claves del diccionario del aggregate y de la busqueda en reportes
-    // (MEF-ADR-0012: identidad observable, no dato intermedio de calculo).
     public string CategoriaNormalizada => _categoriaNormalizada;
     public string ValorNormalizado => _valorNormalizado;
 
-    // CA-1, CA-2, CA-5: valida no vacios/whitespace, trim en extremos (conserva espacios internos),
-    // calcula formas normalizadas (Normalize(FormD) + remover NonSpacingMark + ToLowerInvariant).
     public static Etiqueta Crear(string categoria, string valor)
     {
         if (string.IsNullOrWhiteSpace(categoria))
@@ -73,17 +59,11 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
             valorOriginal, Normalizar(valorOriginal));
     }
 
-    // CA-4: true si las categorias normalizadas coinciden, sin importar el valor.
     public bool EsMismaCategoria(Etiqueta otra) =>
         _categoriaNormalizada == otra._categoriaNormalizada;
 
-    // Issue #355: RetirarEtiqueta solo lleva la Categoria en su payload (sin Valor) --
-    // Etiqueta.Crear(categoria, valor) no es aplicable porque exige un valor no vacio.
-    // Tell-don't-Ask: la normalizacion de una
-    // categoria aislada sigue siendo decision de ESTE VO (mismo criterio que EsMismaCategoria decide
-    // que significa "misma categoria"), nunca del handler ni del aggregate comparando/transformando
-    // strings por su cuenta. Mismas reglas de rechazo que Crear (vacia/whitespace -> ArgumentException
-    // con el mismo mensaje .resx) y el mismo algoritmo de normalizacion (trim + Normalizar).
+    // Para quien solo tiene la categoria (RetirarEtiqueta no trae valor y Crear lo exige): mismas
+    // reglas de rechazo y misma normalizacion que Crear, que deben seguir alineadas.
     public static string NormalizarCategoria(string categoria)
     {
         if (string.IsNullOrWhiteSpace(categoria))
@@ -92,10 +72,9 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
         return Normalizar(categoria.Trim());
     }
 
-    // Display: "{Categoria}:{Valor}" con las formas originales, no las normalizadas.
+    // Con las formas originales, no las normalizadas.
     public override string ToString() => $"{_categoria}:{_valor}";
 
-    // Igualdad por valor COMPLETA: categoria normalizada + valor normalizado.
     public bool Equals(Etiqueta? other) =>
         other is not null
         && _categoriaNormalizada == other._categoriaNormalizada
@@ -106,14 +85,8 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
     public override int GetHashCode() =>
         HashCode.Combine(_categoriaNormalizada, _valorNormalizado);
 
-    // Patron documentado por Microsoft para remover diacriticos: descomponer en FormD, filtrar las
-    // marcas de combinacion (NonSpacingMark) y recomponer en FormC, todo en minusculas invariantes.
-    // Consecuencia deliberada: la enie tambien se descompone, asi que "Diseño" y "Diseno" son la
-    // MISMA etiqueta (en etiquetas libres tecleadas por el cliente eso evita fragmentar el reporte;
-    // fijado por Crear_NormalizaLaEnieComoN_CuandoValorLaContiene). La forma original si preserva la
-    // enie -- solo la forma normalizada la colapsa.
-    // Fuera de alcance (issue #353): errores de transposicion ("aera" vs "area") -- eso es fuzzy
-    // matching de UI, no un invariante del dominio.
+    // Deliberado: la enie tambien se descompone, asi que "Diseño" y "Diseno" son la MISMA etiqueta
+    // (evita fragmentar el reporte con etiquetas tecleadas a mano). La forma original la conserva.
     private static string Normalizar(string texto) =>
         new string(texto.Normalize(NormalizationForm.FormD)
                 .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
@@ -121,9 +94,8 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
             .Normalize(NormalizationForm.FormC)
             .ToLowerInvariant();
 
-    // Mapping de serializacion -- vive aqui porque cambia con la clase (patron SubFranja /
-    // NombreColaborador). Persiste las 4 formas (doble forma por campo, decision del planner): el
-    // evento es autocontenido y no recalcula la normalizacion al rehidratar.
+    // Persiste las 4 formas: el evento es autocontenido y no recalcula la normalizacion al
+    // rehidratar.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var tipoClase = typeof(Etiqueta);
@@ -150,8 +122,6 @@ public sealed partial class Etiqueta : IEquatable<Etiqueta>
     private static FieldInfo Campo(string nombre) =>
         typeof(Etiqueta).GetField(nombre, BindingFlags.NonPublic | BindingFlags.Instance)!;
 
-    // Los 4 campos son string, asi que el registro es identico salvo el nombre JSON. El Set necesita
-    // reflexion porque los campos son readonly y C# no permite asignarlos fuera del constructor.
     private static void RegistrarCampo(JsonTypeInfo typeInfo, FieldInfo campo, string nombreJson)
     {
         var prop = typeInfo.CreateJsonPropertyInfo(typeof(string), nombreJson);

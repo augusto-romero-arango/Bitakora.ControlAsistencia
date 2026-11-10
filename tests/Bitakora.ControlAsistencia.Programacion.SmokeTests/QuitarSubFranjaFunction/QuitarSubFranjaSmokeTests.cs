@@ -53,8 +53,7 @@ public class QuitarSubFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     }
 
     // descanso_quitado no cruza ningun bus: mt_events es la unica ventana black-box a lo que
-    // quedo grabado. El segundo :quitar-subfranja sobre la misma hija cierra la regla de negocio
-    // -> 409.
+    // quedo grabado.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarSubFranja_DebeRetornar204YPersistirLaFranjaSinElDescanso_CuandoElDescansoExiste()

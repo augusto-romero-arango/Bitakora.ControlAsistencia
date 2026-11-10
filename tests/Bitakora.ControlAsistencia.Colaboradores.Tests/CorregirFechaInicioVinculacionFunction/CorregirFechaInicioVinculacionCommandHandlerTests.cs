@@ -1,13 +1,3 @@
-// Issue #352: corregir la fecha de inicio de la ULTIMA vinculacion de un colaborador (tenga o no
-// terminacion registrada) -- quinto comando del ciclo de vida de ColaboradorAggregateRoot
-// (desglose #348-#357). CA-ADR-0030: el aggregate combina "declinar con resultado" (dos razones
-// 409: coherencia interna, no-solape hacia atras) con "declinar en silencio" (idempotencia,
-// precedente CorregirNombres #351). Depende de #350 (reingresar): la no-solape hacia atras solo es
-// ejercitable cuando existe una vinculacion anterior.
-// Issue #379 (MEF-ADR-0043 paso 4, CA-5): el comando gana el campo Codigo -- el {codigo} de la ruta
-// HTTP, comparado por el aggregate contra la vinculacion vigente ANTES que cualquier otra regla,
-// INCLUYENDO la idempotencia (SinCambios). CodigoNoCorresponde -> 409 (no 404).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction.CommandHandler;
@@ -18,17 +8,13 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.CorregirFechaInicioVinculacionFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
-// GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
-// test-writer, mismo criterio que TerminarVinculacionCommandHandlerTests/
-// IniciarVinculacionCommandHandlerTests/CorregirNombresCommandHandlerTests).
 public class CorregirFechaInicioVinculacionCommandHandlerTests
     : CommandHandlerAsyncTest<CorregirFechaInicioVinculacion>
 {
     private const string NumeroValido = "79543210";
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
-    // derivado de ColaboradorAggregateRoot.ComputarStreamId.
+    // Oraculo independiente: literal, nunca derivado de ComputarStreamId -- si se derivara, un cambio
+    // de formato de la clave se auto-validaria.
     private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionOriginal = "COL-001";
@@ -63,22 +49,17 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
     private static VinculacionIniciada VinculacionIniciadaOriginal() =>
         new(CodigoVinculacionOriginal, FechaInicioOriginal);
 
-    // Precondicion: colaborador registrado con una vinculacion abierta (sin terminacion) -- base
-    // de CA-1 y CA-4.
     private void DadoUnColaboradorConVinculacionAbierta() =>
         Given(StreamIdEsperado, ColaboradorRegistradoValido(), VinculacionIniciadaOriginal());
 
-    // Precondicion: colaborador registrado con la vinculacion original ya terminada -- base de
-    // CA-2.
     private void DadoUnColaboradorConVinculacionTerminada() =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
             VinculacionIniciadaOriginal(),
             new VinculacionTerminada(FechaEfectivaTerminacionOriginal));
 
-    // Precondicion (CA-3): colaborador con la vinculacion original terminada y un reingreso
-    // posterior sin terminar -- la ULTIMA vinculacion (la del reingreso) es la que se corrige; la
-    // original es la "vinculacion anterior" contra la que se ejerce la no-solape hacia atras.
+    // La ultima vinculacion (el reingreso) es la que se corrige; la original es la anterior contra la
+    // que se ejerce la no-solape.
     private void DadoUnColaboradorConVinculacionAnteriorYReingresoAbierto() =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -86,9 +67,8 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             new VinculacionTerminada(FechaEfectivaTerminacionOriginal),
             new VinculacionIniciada(CodigoReingreso, FechaInicioReingreso));
 
-    // Precondicion: la ULTIMA vinculacion es un reingreso que ya tiene su propia terminacion
-    // registrada -- unico estado en que las DOS reglas de estado acotan la fecha a la vez
-    // (ventana abierta-cerrada: FechaEfectivaTerminacionOriginal < fecha <= FechaEfectivaTerminacionReingreso).
+    // Unico estado en que las dos reglas acotan la fecha a la vez:
+    // FechaEfectivaTerminacionOriginal < fecha <= FechaEfectivaTerminacionReingreso.
     private void DadoUnColaboradorConReingresoYaTerminado() =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -97,8 +77,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             new VinculacionIniciada(CodigoReingreso, FechaInicioReingreso),
             new VinculacionTerminada(FechaEfectivaTerminacionReingreso));
 
-    // Precondicion: dos reingresos encadenados -- la "vinculacion anterior" a la ultima es la del
-    // PRIMER reingreso (terminada en FechaEfectivaTerminacionReingreso), no la original.
+    // La vinculacion anterior a la ultima es la del primer reingreso, no la original.
     private void DadoUnColaboradorConDosReingresos() =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -108,8 +87,6 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             new VinculacionTerminada(FechaEfectivaTerminacionReingreso),
             new VinculacionIniciada(CodigoSegundoReingreso, FechaInicioSegundoReingreso));
 
-    // CA-1: la ultima vinculacion esta ABIERTA + FechaCorregida distinta valida -> el stream
-    // recibe FechaInicioVinculacionCorregida; el aggregate rehidratado refleja la fecha nueva.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_EmiteFechaInicioVinculacionCorregida_CuandoLaUltimaVinculacionEstaAbierta()
     {
@@ -123,11 +100,6 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, fechaCorregida);
     }
 
-    // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> la correccion alcanza el MISMO stream ("CC-79543210") y emite
-    // el evento. La normalizacion del numero la garantiza Identificacion.Crear (#348); la del
-    // codigo de tipo ("cc" -> "CC") la garantiza TipoIdentificacion.Desde, que normaliza
-    // internamente (issue #371 -- supersede el racional de #348, ver TipoIdentificacionTests).
     [Fact]
     public async Task CorregirFechaInicioVinculacion_EmiteFechaInicioVinculacionCorregida_CuandoTipoYNumeroLleganSinNormalizar()
     {
@@ -146,8 +118,6 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, fechaCorregida);
     }
 
-    // CA-5 (GATE, evaluada PRIMERO): el codigo del comando no corresponde al de la vinculacion
-    // vigente -> 409 con la razon CodigoNoCorresponde, ningun evento nuevo, el estado no cambia.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoNoCorrespondeALaVinculacionVigente()
     {
@@ -164,9 +134,8 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioOriginal);
     }
 
-    // CA-5 (orden de evaluacion, GATE mas estricto de la cadena): el codigo equivocado se rechaza
-    // AUNQUE la FechaCorregida sea IGUAL a la actual -- la idempotencia (SinCambios) NUNCA se
-    // evalua si el codigo no corresponde, ni siquiera para responder "no habia nada que corregir".
+    // El codigo se evalua antes que la idempotencia: con codigo equivocado se rechaza aunque la fecha
+    // sea igual a la actual.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaExceptionPorCodigo_CuandoElCodigoNoCorrespondeYLaFechaEsIgualALaActual()
     {
@@ -182,10 +151,6 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioOriginal);
     }
 
-    // CA-2 (primera direccion): la ultima vinculacion tiene terminacion registrada y
-    // FechaCorregida es estrictamente ANTERIOR a esa FechaEfectiva -> exito. La terminacion previa
-    // no se toca por esta correccion (Tell-don't-Ask: la correccion es ortogonal a la vigencia,
-    // MEF-ADR-0012).
     [Fact]
     public async Task CorregirFechaInicioVinculacion_EmiteFechaInicioVinculacionCorregida_CuandoFechaCorregidaEsAnteriorALaFechaEfectivaPropia()
     {
@@ -201,8 +166,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, FechaEfectivaTerminacionOriginal);
     }
 
-    // CA-2 (segunda direccion, borde valido): FechaCorregida IGUAL a la FechaEfectiva propia ->
-    // exito -- vinculacion de un solo dia, consistente con TerminarVinculacion (#349).
+    // Igual a la FechaEfectiva propia es valido: vinculacion de un solo dia, como en TerminarVinculacion.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_EmiteFechaInicioVinculacionCorregida_CuandoFechaCorregidaEsIgualALaFechaEfectivaPropia()
     {
@@ -215,8 +179,6 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaEfectivaTerminacionOriginal);
     }
 
-    // CA-2 (borde invalido): FechaCorregida POSTERIOR a la FechaEfectiva propia -> 409, ningun
-    // evento nuevo, el estado conserva la fecha de inicio original.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaCorregidaEsPosteriorALaFechaEfectivaPropia()
     {
@@ -233,10 +195,6 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioOriginal);
     }
 
-    // CA-1 (variante tras reingreso, dependencia #350): la ULTIMA vinculacion es la del reingreso
-    // y esta abierta; FechaCorregida estrictamente posterior a la FechaEfectiva de la vinculacion
-    // anterior y distinta de la actual -> exito. Ejercita el Apply(VinculacionIniciada)
-    // re-aplicado que #350 construyo. El codigo correcto ahora es el del REINGRESO.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_EmiteFechaInicioVinculacionCorregida_CuandoLaUltimaVinculacionEsUnReingresoAbierto()
     {
@@ -250,9 +208,8 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, fechaCorregida);
     }
 
-    // CA-3 (primera direccion, borde): tras un reingreso, FechaCorregida IGUAL a la FechaEfectiva
-    // de la vinculacion anterior -> 409 por no-solape (el mismo dia se rechaza -- el dia de la
-    // fecha efectiva pertenece a la vinculacion que termino, misma frontera que IniciarVinculacion #378).
+    // El dia de la fecha efectiva pertenece a la vinculacion que termino: el mismo dia se rechaza
+    // (misma frontera que IniciarVinculacion).
     [Fact]
     public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaCorregidaEsIgualALaFechaEfectivaDeLaVinculacionAnterior()
     {
@@ -269,8 +226,6 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioReingreso);
     }
 
-    // CA-3 (segunda direccion, mayor margen): FechaCorregida ANTERIOR a la FechaEfectiva de la
-    // vinculacion anterior -> 409 igual.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaCorregidaEsAnteriorALaFechaEfectivaDeLaVinculacionAnterior()
     {
@@ -287,11 +242,6 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioReingreso);
     }
 
-    // CA-2 + CA-3 combinados: la ULTIMA vinculacion es un reingreso que YA tiene terminacion
-    // propia, unico estado en que las dos reglas de estado acotan la fecha a la vez. Una fecha
-    // dentro de la ventana valida (posterior a la terminacion ANTERIOR, anterior o igual a la
-    // PROPIA) se acepta, y la terminacion propia sigue intacta -- la correccion es ortogonal a la
-    // vigencia (MEF-ADR-0012).
     [Fact]
     public async Task CorregirFechaInicioVinculacion_EmiteFechaInicioVinculacionCorregida_CuandoLaFechaCaeEntreLaTerminacionAnteriorYLaPropia()
     {
@@ -309,12 +259,8 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, FechaEfectivaTerminacionReingreso);
     }
 
-    // CA-3 (cadena larga): con DOS reingresos encadenados, la no-solape se evalua contra la
-    // terminacion de la vinculacion INMEDIATAMENTE anterior (la del primer reingreso,
-    // 2026-09-01), no contra la de la vinculacion original (2026-06-01). Una fecha posterior a la
-    // terminacion original pero anterior a la del primer reingreso debe rechazarse: si la
-    // terminacion anterior se congelara en la primera, este comando pasaria y dejaria dos
-    // vinculaciones solapadas en el stream.
+    // La no-solape se evalua contra la terminacion inmediatamente anterior (2026-09-01), no la original
+    // (2026-06-01): si se congelara en la primera, quedarian dos vinculaciones solapadas.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaCorregidaSolapaElReingresoPrevioYNoLaVinculacionOriginal()
     {
@@ -331,8 +277,6 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioSegundoReingreso);
     }
 
-    // CA-4: FechaCorregida IGUAL a la fecha de inicio actual (vinculacion abierta) -> idempotencia
-    // silenciosa: ningun evento nuevo en el stream, el estado conserva la fecha original.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_NoEmiteEvento_CuandoFechaCorregidaEsIgualALaActual()
     {
@@ -345,9 +289,7 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioOriginal);
     }
 
-    // CA-4 (variante con terminacion registrada): la idempotencia se evalua ANTES que las demas
-    // reglas -- una FechaCorregida igual a la actual no dispara la validacion de coherencia
-    // interna aunque la ultima vinculacion ya este terminada.
+    // La idempotencia se evalua antes que la coherencia interna, aunque la vinculacion ya este terminada.
     [Fact]
     public async Task CorregirFechaInicioVinculacion_NoEmiteEvento_CuandoFechaCorregidaEsIgualALaActualYLaVinculacionEstaTerminada()
     {
@@ -360,10 +302,6 @@ public class CorregirFechaInicioVinculacionCommandHandlerTests
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioOriginal);
     }
 
-    // CA-6: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
-    // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
-    // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-6 /
-    // IniciarVinculacionCommandHandlerTests CA-3 / CorregirNombresCommandHandlerTests CA-4).
     [Fact]
     public async Task CorregirFechaInicioVinculacion_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {

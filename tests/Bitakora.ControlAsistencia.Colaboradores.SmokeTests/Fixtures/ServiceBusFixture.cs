@@ -142,9 +142,7 @@ public class ServiceBusFixture : IAsyncLifetime
 
     private const int TamanoPaginaDeadLetter = 100;
 
-    // Recorre el DLQ completo con peek iterativo (patron oficial de Microsoft Learn,
-    // "message-browsing#maximum-number-of-messages"). El peek no completa mensajes, asi que
-    // iterar el DLQ entero es no destructivo.
+    // Peek por paginas: no completa mensajes, asi que recorrer el DLQ entero es no destructivo.
     public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekDeadLetterMessagesAsync(
         string topicName,
         string subscriptionName)
@@ -169,9 +167,8 @@ public class ServiceBusFixture : IAsyncLifetime
         return mensajes;
     }
 
-    // Acota el assert a "hay un dead letter de ESTA corrida" en vez de "el DLQ esta globalmente
-    // vacio". T es una forma minima plana que solo declara el identificador de correlacion, sin
-    // depender de la deserializacion custom de los value objects ricos del contrato.
+    // Busca un dead letter de ESTA corrida, no exige el DLQ vacio. T es una forma plana con solo el
+    // identificador de correlacion, para no depender de la deserializacion de los VO del contrato.
     public async Task<bool> ExisteDeadLetterDeEstaCorridaAsync<T>(
         string topicName,
         string subscriptionName,

@@ -1,6 +1,6 @@
-// CA-4: el evento cruza el bus, donde el destino deserializa SIN el resolver del productor -- de ahi
-// el serializador por defecto. Vive en PrivateEvents.Tests porque este proyecto solo referencia
-// PrivateEvents (MEF-ADR-0039 decision 7): replica lo que vera cualquier consumidor futuro.
+// El evento cruza el bus, donde el destino deserializa SIN el resolver del productor -- de ahi el
+// serializador por defecto. Vive en PrivateEvents.Tests porque este proyecto solo referencia
+// PrivateEvents: replica lo que vera cualquier consumidor futuro.
 
 using System.Text.Json;
 using AwesomeAssertions;

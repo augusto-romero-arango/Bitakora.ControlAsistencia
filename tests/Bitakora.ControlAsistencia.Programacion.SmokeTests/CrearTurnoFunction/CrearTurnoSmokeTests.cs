@@ -47,9 +47,9 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-2: el header Location apunta a la ruta canonica de lectura del turno (ObtenerFichaTurno).
-    // No se dereferencia aqui -- esa vista es una proyeccion Async y puede responder 404 mientras
-    // materializa (MEF-ADR-0004, MEF-ADR-0034); solo se verifica el contrato del header.
+    // Location apunta a la ruta canonica de lectura del turno (ObtenerFichaTurno). No se dereferencia:
+    // esa vista es una proyeccion Async y puede responder 404 mientras materializa; solo se verifica el
+    // contrato del header.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_DebeRetornar201ConLocation_CuandoPayloadEsValido()
@@ -78,8 +78,8 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // Issue #497: espera a que FichaTurno materialice el turno antes del POST duplicado -- sin
-    // esto, un 202/409 inmediato no distingue "la comparacion contra el catalogo funciono" de "la
+    // Espera a que FichaTurno materialice el turno antes del POST duplicado -- sin
+    // esto, la respuesta inmediata no distingue "la comparacion contra el catalogo funciono" de "la
     // proyeccion Async (MEF-ADR-0034 seccion 3) aun no vio nada" (best-effort, CA-ADR-0030).
     private async Task EsperarTurnoMaterializadoAsync(Guid turnoId, CancellationToken ct) =>
         await Polling.WaitUntilTrueAsync(async () =>
@@ -88,7 +88,6 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
             return response.StatusCode == HttpStatusCode.OK;
         }, Timeout);
 
-    // CA-1: nombre coincide EXACTAMENTE con uno existente en el catalogo -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_DebeRetornar409_CuandoNombreCoincideExactamenteConUnoDelCatalogo()
@@ -110,8 +109,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-2: nombre difiere solo en mayusculas/espacios (trim + colapso + case-insensitive) de uno
-    // existente -> 409.
+    // Normalizacion del nombre: trim + colapso de espacios + case-insensitive.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_DebeRetornar409_CuandoNombreDifiereSoloEnMayusculasYEspaciosDeUnoDelCatalogo()
@@ -134,8 +132,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-3: nombre difiere solo en acentos de uno existente -> se crea normalmente (decision del
-    // experto: normalizar acentos abre falsos positivos, los acentos SON significativos).
+    // Decision del experto: normalizar acentos abre falsos positivos, los acentos SON significativos.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_DebeRetornar201_CuandoNombreDifiereSoloEnAcentosDeUnoDelCatalogo()
@@ -158,7 +155,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         // El 201 solo dice que la transaccion confirmo: el efecto secundario real de este handler
-        // (StartStream -> turno visible en el catalogo) es lo que cierra MEF-ADR-0013.
+        // (StartStream -> turno visible en el catalogo) es lo que se verifica.
         await EsperarTurnoMaterializadoAsync(turnoSinAcentoId, ct);
     }
 
@@ -179,13 +176,9 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #335 CA-1/CA-2: turno "partido" con sede prearmada por franja (narrativa del issue:
-    // "Vigilante partido" -> manana en Suba, tarde en Chapinero) mas una tercera franja SIN sede.
-    // Verifica los dos efectos del handler: el 201 del endpoint y la persistencia en el event store
-    // (CrearTurnoCommandHandler -> IEventStore.StartStream). turno_creado no cruza ningun bus, asi
-    // que mt_events es la unica ventana black-box a lo que quedo grabado -- y es la que cierra el
-    // riesgo real de este issue: que el resolver de serializacion del Function App desplegado no
-    // registre la clave "sede" y el dato se pierda en silencio con un 201 igual de verde.
+    // turno_creado no cruza ningun bus: mt_events es la unica ventana black-box a lo que quedo
+    // grabado, y cierra el riesgo real: que el resolver de serializacion del Function App desplegado
+    // no registre la clave "sede" y el dato se pierda en silencio con un 201 igual de verde.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_PersisteLaSedePrearmadaDeCadaFranja_CuandoAlgunasFranjasTraenSede()
@@ -248,17 +241,17 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         var franjas = eventoPersistido.GetProperty("FranjasOrdinarias").EnumerateArray().ToList();
         franjas.Should().HaveCount(3);
 
-        // CA-1: cada franja prearmada conserva SU sede (no la del vecino).
+        // Cada franja prearmada conserva SU sede (no la del vecino).
         EventoPersistido.SedeDe(franjas[0]).Should().Be(new SedeMinima("SEDE-SUBA", "[TEST] Suba"));
         EventoPersistido.SedeDe(franjas[1]).Should().Be(new SedeMinima("SEDE-CHAPINERO", "[TEST] Chapinero"));
 
-        // CA-2/CA-4: la franja sin sede no agrega la clave al JSON persistido -- misma forma que
-        // los streams escritos antes de este issue (ShouldSerialize omite el campo cuando es null).
+        // La franja sin sede no agrega la clave al JSON persistido (ShouldSerialize omite el campo
+        // cuando es null).
         franjas[2].TryGetProperty("sede", out _).Should().BeFalse(
             "una franja sin sede prearmada no debe escribir la clave 'sede' en el evento persistido");
     }
 
-    // Issue #335 CA-3: sede presente pero con Id vacio se rechaza junto a las demas invariantes
+    // Sede presente pero con Id vacio se rechaza junto a las demas invariantes
     // de la franja (error acumulado en TurnoCreado.Crear -> AggregateException -> 400).
     [Fact]
     [Trait("Category", "Smoke")]
@@ -288,7 +281,7 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // Issue #335 CA-3: sede presente pero con Nombre en blanco se rechaza igual que Id vacio.
+    // Sede presente pero con Nombre en blanco se rechaza igual que Id vacio.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CrearTurno_Retorna400_CuandoSedeDeFranjaTieneNombreEnBlanco()
@@ -348,14 +341,13 @@ public class CrearTurnoSmokeTests(ApiFixture api, PostgresFixture postgres)
         eventoPersistido.GetProperty("FranjasOrdinarias").EnumerateArray().Should().BeEmpty(
             "TurnoCreado.CrearDescanso construye el evento con FranjasOrdinarias vacia");
 
-        // Issue #599 CA-7: el evento persistido debe distinguir "descanso" de "incompleto" por
-        // el campo EsDescanso, ya no por la ausencia de franjas (ver test de turno incompleto).
+        // El evento persistido distingue "descanso" de "incompleto" por el campo EsDescanso, no por
+        // la ausencia de franjas (ver test de turno incompleto).
         eventoPersistido.GetProperty("EsDescanso").GetBoolean().Should().BeTrue(
             "TurnoCreado.CrearDescanso debe marcar EsDescanso = true en el evento persistido");
     }
 
-    // Issue #599 CA-7: un turno sin ordinarias y sin marca de descanso ya no es 400 (se retira
-    // la regla NotEmpty del validator) -- nace como turno incompleto, con EsDescanso = false y
+    // Un turno sin ordinarias y sin marca de descanso nace incompleto, con EsDescanso = false y
     // FranjasOrdinarias vacia. mt_events es la unica ventana black-box para distinguirlo del
     // descanso, que persiste la misma lista vacia pero con EsDescanso = true.
     [Fact]

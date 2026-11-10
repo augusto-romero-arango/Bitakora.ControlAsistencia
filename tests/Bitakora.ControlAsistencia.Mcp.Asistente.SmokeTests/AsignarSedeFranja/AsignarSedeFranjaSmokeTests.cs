@@ -6,10 +6,9 @@ using ModelContextProtocol.Protocol;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.AsignarSedeFranja;
 
-// Recorre la cadena completa del diseno de turno conversacional -- registrar_sede ->
-// crear_turno -> agregar_franja (sin sede) -> asignar_sede_franja (asigna) -> asignar_sede_franja
-// (retira) -> retirar_turno. La invocacion real de asignar_sede_franja (MEF-ADR-0048 seccion 6,
-// pieza 3) vive aqui, mismo criterio que agregar_franja/quitar_franja.
+// Recorre registrar_sede -> crear_turno -> agregar_franja (sin sede) -> asignar_sede_franja (asigna
+// y retira) -> retirar_turno: la invocacion real de asignar_sede_franja (MEF-ADR-0048 seccion 6,
+// pieza 3) vive aqui.
 public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture programacion)
 {
     private async Task<object?> EfectoVisibleEnFichaAsync(
@@ -79,8 +78,7 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
             ["codigo_sede"] = codigoSede
         };
 
-        // SedeNoExiste llega como texto plano mientras la sede recien registrada no se materializa;
-        // Polling reintenta la tool completa hasta el exito (mismo patron que agregar_franja).
+        // SedeNoExiste llega como texto mientras la sede recien registrada no se materializa.
         using var ecoAsignado = await Polling.WaitUntilAsync(
             async () =>
             {
@@ -126,7 +124,6 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
         TextoDe(resultado).Should().StartWith("turno_id debe ser el id del turno");
     }
 
-    // Hora no parseable corta antes de resolver el turno.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSedeFranja_RespondeHoraInvalida_CuandoFranjaNoTieneFormatoHHmm()
@@ -141,7 +138,7 @@ public class AsignarSedeFranjaSmokeTests(McpFixture mcp, ProgramacionApiFixture 
         TextoDe(resultado).Should().Be("'franja' no es una hora valida en formato HH:mm: '2pm'.");
     }
 
-    // turno_id inexistente -> TurnoNoExiste (404 del detalle real de Programacion), remite a buscar_turnos.
+    // 404 del detalle real de Programacion.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSedeFranja_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()

@@ -100,7 +100,6 @@ public class ListarFichasTurnoSmokeTests(ApiFixture api)
         return lista!;
     }
 
-    // Reintenta el listado hasta que la proyeccion asincrona satisfaga la condicion.
     private Task<List<FichaTurnoRespuestaSmoke>> ListarHastaQueAsync(
         Func<List<FichaTurnoRespuestaSmoke>, bool> condicion, CancellationToken ct) =>
         Polling.WaitUntilAsync(async () =>

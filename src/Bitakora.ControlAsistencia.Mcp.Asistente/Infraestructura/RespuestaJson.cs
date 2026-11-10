@@ -5,11 +5,9 @@ using System.Text.Json.Serialization;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 /// <summary>
-/// Serializador unico de las respuestas de las tools (MEF-ADR-0047 decision 4). Las tools
-/// devuelven string para que la forma token-eficiente sea contrato propio, no el ObjectSerializer
-/// del worker. El encoder relajado no escapa los caracteres sensibles para HTML (+, &lt;, &gt;, &amp;);
-/// es aceptable solo porque la salida es JSON UTF-8 para un cliente MCP: nunca se debe incrustar
-/// cruda en HTML.
+/// Las tools devuelven string para que la forma token-eficiente sea contrato propio y no la del
+/// ObjectSerializer del worker. El encoder relajado no escapa los caracteres sensibles para HTML:
+/// aceptable solo porque la salida es JSON para un cliente MCP; nunca incrustarla cruda en HTML.
 /// </summary>
 public static class RespuestaJson
 {

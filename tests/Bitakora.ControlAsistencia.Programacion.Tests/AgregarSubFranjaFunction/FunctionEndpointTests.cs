@@ -1,5 +1,3 @@
-// Issue #603: tests del endpoint HTTP POST /programacion/turnos/{id}:agregar-subfranja
-
 using System.Reflection;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
@@ -30,9 +28,7 @@ public class FunctionEndpointTests
             .Select(parametro => parametro.GetCustomAttribute<HttpTriggerAttribute>())
             .Single(trigger => trigger is not null)!;
 
-    // CA-6 (ultimo enunciado): la ruta declarada es exactamente esta, con verbo post -- congelada
-    // por reflexion (mismo criterio que AgregarFranjaFunction/FunctionEndpointTests), porque
-    // ningun otro test local ejercita el HttpTriggerAttribute.
+    // Congela verbo y ruta por reflexion: ningun otro test local ejercita el HttpTriggerAttribute.
     [Fact]
     public void AgregarSubFranja_ExponeElVerboYLaRutaPactadosEnElIssue()
     {
@@ -157,7 +153,7 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
+// Fakes manuales - NO NSubstitute.
 
 internal class FakeRequestValidator<TComando> : IRequestValidator
 {

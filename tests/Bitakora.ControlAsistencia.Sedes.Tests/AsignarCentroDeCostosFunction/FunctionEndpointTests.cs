@@ -17,7 +17,6 @@ public class FunctionEndpointTests
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
 
-    // CA-1
     [Fact]
     public async Task AsignarCentroDeCostos_Retorna204SinCuerpo_CuandoComandoEsValido()
     {
@@ -32,7 +31,6 @@ public class FunctionEndpointTests
         result.Should().NotBeAssignableTo<ObjectResult>();
     }
 
-    // CA-5: sede inexistente -> 404
     [Fact]
     public async Task AsignarCentroDeCostos_Retorna404_CuandoSedeNoExiste()
     {
@@ -45,7 +43,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<NotFoundObjectResult>();
     }
 
-    // CA-5: CC vacio -> 400
     [Fact]
     public async Task AsignarCentroDeCostos_Retorna400_CuandoRequestEsInvalido()
     {

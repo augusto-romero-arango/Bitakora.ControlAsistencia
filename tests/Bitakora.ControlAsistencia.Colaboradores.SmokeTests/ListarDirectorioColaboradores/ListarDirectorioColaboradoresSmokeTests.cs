@@ -1,20 +1,5 @@
-// Smoke tests de ListarDirectorioColaboradores (verbo QUERY, RFC 10008 / MEF-ADR-0042) sobre
-// colaboradores/directorio. Consulta la vista DirectorioColaborador que el worker ya materializa:
-// no hay proyeccion ni read model nuevos.
-//
-// Arrange via API, nunca sembrando el event store por fuera de ella: cada colaborador se crea con
-// POST Colaboradores y se termina con POST colaboradores/{id}/vinculaciones/{codigo}:terminar --
-// los mismos comandos que la proyeccion consume.
-//
-// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa DESPUES de que Colaboradores
-// persiste. Los casos de exito envuelven la consulta en Polling.WaitUntilAsync -- unica excepcion
-// documentada al "no usar Polling directo en tests".
-//
-// Aislamiento SIN cleanup en un entorno que ACUMULA entradas de corridas anteriores: un token
-// generico ("juan") o un numero corto podrian coincidir con historial ajeno. Cada test que busca
-// por nombre embebe un Guid en el APELLIDO mismo, sin separador ("Bermudez{guidHex}"), formando un
-// token unico en toda corrida pasada y futura; el AND de tokens exige ese token, asi que ningun
-// ruido historico se cuela. La busqueda por numero usa un numero fresco por el mismo motivo.
+// colaboradores/directorio se consulta con el verbo QUERY (RFC 10008, MEF-ADR-0042) sobre la vista
+// DirectorioColaborador, que el worker materializa de forma asincrona.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -41,9 +26,8 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         PropertyNameCaseInsensitive = true
     };
 
-    // Forma local DESACOPLADA de la vista de produccion (ReadModels.Colaboradores) y del DTO de
-    // respuesta del Function App: replica solo el shape JSON de la respuesta HTTP de ESTE endpoint.
-    // Sin TokensNombre -- el endpoint no debe exponerlo (CA-4).
+    // Forma local desacoplada de la vista y del DTO de produccion: solo el shape JSON. Sin TokensNombre,
+    // que el endpoint no debe exponer.
     private sealed record DirectorioColaboradorRespuestaSmoke(
         string Identificacion,
         string TipoDocumento,
@@ -62,17 +46,15 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
     // localmente (oraculo independiente, MEF-ADR-0002): el smoke test no referencia el Function App.
     private static string ComputarStreamId(string tipo, string numero) => $"{tipo}-{numero}";
 
-    // Apellido con un Guid embebido SIN separador -- tras tokenizar (quitar diacriticos, minusculas,
-    // partir por todo caracter no alfanumerico) queda como UN solo token unico en cualquier corrida,
-    // pasada o futura, de cualquier archivo de este dominio.
+    // Sin cleanup el entorno acumula historial y un token generico ("juan") podria coincidir. El Guid va
+    // SIN separador para que, tras tokenizar (sin diacriticos, minusculas, partido por no alfanumericos),
+    // quede como UN solo token unico en cualquier corrida.
     private static string NuevoApellidoUnico(string prefijo) => $"{prefijo}{Guid.CreateVersion7():N}";
 
     private static object Filtro(
         IReadOnlyList<string>? identificaciones = null, string? nombre = null,
         string? cursor = null, int? take = null) => new { identificaciones, nombre, cursor, take };
 
-    // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API.
     private async Task RegistrarColaboradorAsync(
         string tipoIdentificacion, string numeroIdentificacion, DateOnly fechaInicio,
         string primerNombre, string? segundoNombre, string primerApellido, string? segundoApellido,
@@ -95,7 +77,6 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
     }
 
-    // Arrange comun: cierra la vinculacion vigente -- via el comando que la origina (#349/#379).
     private async Task TerminarVinculacionAsync(
         string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
@@ -129,10 +110,8 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
     private async Task<List<DirectorioColaboradorRespuestaSmoke>> ConsultarListaAsync(
         object filtro, CancellationToken ct) => (await ConsultarSobreAsync(filtro, ct)).Elementos;
 
-    // Reintenta la consulta hasta que la proyeccion asincrona satisfaga la condicion -- unica
-    // excepcion documentada al "no usar Polling directo en tests" (lifecycle Async, MEF-ADR-0034
-    // seccion 3). Si el timeout se agota es un fallo real (worker no desplegado, o el efecto del
-    // arrange nunca se materializo), Polling.WaitUntilAsync lanza TimeoutException.
+    // La proyeccion es Async (MEF-ADR-0034 seccion 3): un timeout agotado es un fallo real (worker no
+    // desplegado, o el arrange nunca se materializo).
     private Task<List<DirectorioColaboradorRespuestaSmoke>> ConsultarHastaQueAsync(
         object filtro, Func<List<DirectorioColaboradorRespuestaSmoke>, bool> condicion, CancellationToken ct) =>
         Polling.WaitUntilAsync(async () =>
@@ -151,19 +130,16 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-6 (gate): dos colaboradores comparten el MISMO numero de documento con tipos distintos
-    // (CC/CE) -- la colision que CA-2 exige resolver por numero suelto. Cada uno lleva un token de
-    // apellido unico para que la busqueda por nombre los distinga sin ambiguedad. Se termina la
-    // vinculacion de uno para ejercer CA-4 (vigenteHasta no nulo en la terminada, nulo en la
-    // abierta) sobre el MISMO dataset.
+    // Mismo numero con tipos distintos (CC/CE): la colision que la busqueda por numero suelto debe
+    // resolver. Se termina uno para comparar VigenteHasta sobre el mismo dataset.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_EncuentraPorNumeroSinTipoPorNombreYPorIdentificacionesCompletas_CuandoDosColaboradoresComparteNumeroConTiposDistintos()
     {
         var ct = TestContext.Current.CancellationToken;
         var numeroCompartido = NuevoNumeroIdentificacion();
-        // Apellido CON acentos (issue #590 CA-6): ejercita que la tokenizacion quita diacriticos por
-        // igual al escribir (proyeccion) y al buscar (endpoint).
+        // Con acentos: la tokenizacion debe quitar diacriticos por igual al escribir (proyeccion) y al
+        // buscar (endpoint).
         var apellidoUno = NuevoApellidoUnico("Bérmúdez590");
         var apellidoDos = NuevoApellidoUnico("Rodríguez590");
         var idUno = ComputarStreamId("CC", numeroCompartido);
@@ -179,8 +155,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
             "CE", numeroCompartido, fechaInicio, "[TEST]", "Juana", apellidoDos, null, codigoDos, ct);
         await TerminarVinculacionAsync(idDos, codigoDos, fechaEfectiva, ct);
 
-        // Punto de sincronizacion: espera a que la proyeccion asiente AMBOS registros y la
-        // terminacion de idDos, buscando por el numero compartido SIN tipo (CA-2).
+        // Punto de sincronizacion: espera a que la proyeccion asiente ambos registros y la terminacion.
         var porNumero = await ConsultarHastaQueAsync(
             Filtro(identificaciones: [numeroCompartido]),
             lista => lista.Any(f => f.Identificacion == idUno)
@@ -194,8 +169,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
 
         // Deterministico desde aqui: la proyeccion ya confirmo estar al dia en el assert anterior.
 
-        // CA-3: nombre parcial sin acentos, con formas distintas a las registradas (mayusculas,
-        // sin tilde) -- normalizacion simetrica. Solo el token de apellido de UNO esta presente.
+        // Formas distintas a las registradas (mayusculas, sin tilde): normalizacion simetrica.
         var busquedaSinAcento = apellidoUno.Replace("Bérmúdez590", "BERMUDEZ590");
         var porNombre = await ConsultarListaAsync(
             Filtro(nombre: $"juan {busquedaSinAcento}"), ct);
@@ -205,26 +179,19 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         porNombre.Should().NotContain(f => f.Identificacion == idDos,
             "el token de apellido de UNO no aparece en el nombre de DOS");
 
-        // CA-3: token completo, no prefijo -- "juana" NO matchea el token "juan" de UNO, aunque el
-        // apellido buscado (unico) SI pertenece a UNO. Prueba deterministica: el apellido es unico
-        // en toda corrida, asi que solo UNO podria matchear, y "juana" se lo impide.
+        // Token completo, no prefijo: el apellido unico solo puede ser de UNO y "juana" se lo impide.
         var conTokenIncompleto = await ConsultarListaAsync(
             Filtro(nombre: $"juana {apellidoUno}"), ct);
 
         conTokenIncompleto.Should().NotContain(f => f.Identificacion == idUno,
             "'juana' es un token completo distinto de 'juan' -- no deberia matchear por prefijo (CA-3)");
 
-        // CA-3: identificaciones + nombre combinan en AND -- identificacion correcta (idUno) con un
-        // nombre que no calza (el token de apellido de DOS) devuelve vacio.
         var conAndSinCoincidencia = await ConsultarListaAsync(
             Filtro(identificaciones: [idUno], nombre: apellidoDos), ct);
 
         conAndSinCoincidencia.Should().BeEmpty(
             "el AND entre identificaciones y nombre no deberia encontrar nada si el nombre no calza con esa identificacion");
 
-        // CA-2/CA-4: lista de identificaciones completas trae a AMBOS -- la terminada con
-        // VigenteHasta no nulo, la abierta con VigenteHasta nulo (el centinela jamas sale por la
-        // API). El directorio NO filtra por vigencia: la terminada sigue apareciendo.
         var porIdentificacionesCompletas = await ConsultarListaAsync(
             Filtro(identificaciones: [idUno, idDos]), ct);
 
@@ -237,15 +204,14 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         entradaDos.VigenteHasta.Should().Be(fechaEfectiva,
             "la vinculacion de DOS fue terminada -- el directorio no filtra por vigencia y sigue apareciendo");
 
-        // CA-4: la respuesta no expone TokensNombre -- estructura interna de busqueda.
         var respuestaCruda = await ConsultarAsync(Filtro(identificaciones: [idUno, idDos]), ct);
         var json = await respuestaCruda.Content.ReadAsStringAsync(ct);
         json.Should().NotContainEquivalentOf("tokensNombre",
             "TokensNombre es estructura interna de indexacion, nunca contrato de respuesta (CA-4)");
     }
 
-    // CA-2: un valor SIN "-" o con tipo desconocido cae al camino de numero de documento, limpiando
-    // caracteres no alfanumericos -- " ab-123.456 " y "ab123456" deberian encontrar el mismo PA.
+    // Un valor SIN "-" o con tipo desconocido cae al camino de numero de documento, que limpia los
+    // caracteres no alfanumericos.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_EncuentraPorNumeroLimpiado_CuandoElValorNoEsUnaIdentificacionCompleta()
@@ -276,7 +242,6 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
             "espacios y puntuacion se limpian antes de comparar el numero de documento (CA-2)");
     }
 
-    // CA-2: un valor que no corresponde a nadie no produce error -- solo no aporta filas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_Retorna200ConListaVacia_CuandoNingunaIdentificacionExiste()
@@ -292,9 +257,8 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         lista.SiguienteCursor.Should().BeNull();
     }
 
-    // #1000 CA-3/CA-6: recorrido de dos paginas con el siguienteCursor opaco del servidor. El token
-    // unico de apellido acota el filtro a A y B (el sufijo "-A"/"-B" tokeniza aparte), asi que con
-    // take 1 la pagina 1 es A con cursor y la pagina 2 es B sin cursor: ni salta ni repite.
+    // El token unico de apellido acota el filtro a A y B (el sufijo "-A"/"-B" tokeniza aparte), asi que
+    // con take 1 la pagina 1 es A con cursor y la pagina 2 es B sin cursor.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_PaginaSinSaltarNiRepetir_CuandoSeUsaElSiguienteCursor()
@@ -333,7 +297,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         pagina2.SiguienteCursor.Should().BeNull("B es la ultima coincidencia");
     }
 
-    // CA-1: sin Content-Type: application/json -> 415, verificado ANTES de leer el body.
+    // El 415 se decide ANTES de leer el body.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_Retorna415_CuandoContentTypeNoEsJson()
@@ -350,7 +314,6 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.UnsupportedMediaType);
     }
 
-    // CA-1: body con Content-Type json pero sintacticamente invalido -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_Retorna400_CuandoElBodyEsJsonInvalido()
@@ -367,7 +330,6 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-1: body ausente (Content-Type json, cero bytes) -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_Retorna400_CuandoElBodyEstaVacio()
@@ -384,7 +346,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-1: JSON valido pero sin Identificaciones ni Nombre -> 422 (al menos uno es obligatorio).
+    // Al menos uno de los dos es obligatorio.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_Retorna422_CuandoFaltanIdentificacionesYNombre()
@@ -396,7 +358,6 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // CA-1: Identificaciones presente pero vacia -> 422.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_Retorna422_CuandoIdentificacionesVieneVacia()
@@ -408,7 +369,6 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // CA-1: un valor en blanco dentro de Identificaciones -> 422.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_Retorna422_CuandoIdentificacionesTraeUnValorEnBlanco()
@@ -420,7 +380,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // CA-1: Nombre presente pero en blanco -> 422 (omitir el campo, no enviarlo vacio).
+    // Si no se filtra por nombre, el campo se omite; no se envia vacio.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_Retorna422_CuandoNombreVieneEnBlanco()
@@ -432,7 +392,7 @@ public class ListarDirectorioColaboradoresSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // #1000 CA-4: un cursor que no salio del servidor, tambien el objeto de la forma vieja -> 422.
+    // Un cursor que no salio del servidor -> 422; el siguiente test cubre el objeto de la forma vieja.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarDirectorioColaboradores_Retorna422_CuandoElCursorNoEsValido()

@@ -1,12 +1,7 @@
-// Issue #129: Tests de contrato IEquatable para DetalleFranjaOrdinaria.
-// DetalleFranjaOrdinaria es record con override manual de Equals/GetHashCode que compara
-// las colecciones Descansos y Extras con SequenceEqual (en lugar de la igualdad por
-// referencia que el record genera por defecto - ADR-0015).
-// Issue #288: se agrego Descripcion (dato derivado, texto del formato tecnico) al constructor
-// primario. NO participa en Equals/GetHashCode (ver DetalleFranjaOrdinaria.cs); los construction
-// sites de este archivo pasan "" porque el valor es irrelevante para estos tests de igualdad.
-// Issue #341: se agrego Sede (dato de IDENTIDAD, la sede efectiva ya resuelta por la cascada) --
-// SI participa en Equals/GetHashCode, a diferencia de Descripcion.
+// DetalleFranjaOrdinaria sobreescribe Equals/GetHashCode para comparar Descansos y Extras con
+// SequenceEqual: el record por defecto compararia por referencia.
+// Descripcion (dato derivado) NO participa en la igualdad: aqui se pasa "" porque es irrelevante.
+// Sede (dato de IDENTIDAD, la sede efectiva ya resuelta por la cascada) SI participa.
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 
@@ -43,8 +38,6 @@ public class DetalleFranjaOrdinariaIgualdadTests : IgualdadTestBase<DetalleFranj
         yield return ("Sede",
             new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "", Sede: null));
     }
-
-    // Cobertura especifica del override: las listas se comparan por valor, no por referencia.
 
     [Fact]
     public void Equals_RetornaTrue_CuandoListasSonInstanciasDiferentesConMismoContenido()

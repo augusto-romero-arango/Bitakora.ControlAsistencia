@@ -7,9 +7,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Sedes.ListarFichasSede;
 
-// Comparte el segmento "sedes/fichas" con ObtenerFichaSede. GET y no QUERY: el filtro Activa es un
-// unico par campo=valor en igualdad (MEF-ADR-0042 seccion 1). Keyset por (Codigo, Id), take opcional
-// (max 200), sobre { elementos, siguienteCursor } sin total (CA-ADR-0039).
+// GET y no QUERY: el filtro Activa es un unico par campo=valor en igualdad (MEF-ADR-0042 seccion 1).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     private const int TakeMaximo = 200;
@@ -46,16 +44,13 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
                 return new BadRequestObjectResult("El cursor no es valido");
         }
 
-        // MEF-ADR-0028: QuerySession acotada al tenant de ITenantContext, nunca a uno del request.
+        // Tenant de ITenantContext, nunca uno del request (MEF-ADR-0028).
         await using var session = store.QuerySession(tenantContext.TenantId);
 
         IQueryable<FichaSede> query = session.Query<FichaSede>();
 
-        // El predicado captura un bool NO nullable: comparar contra el bool? cerrado
-        // (f.Activa == filtroActiva) arma una igualdad lifted -- Convert(f.Activa, bool?) -- que
-        // el proveedor LINQ de Marten no declara traducible, y su modo de falla seria un 500 en
-        // runtime que ningun test unitario ve (mismo tipo de trampa que MEF-ADR-0042 seccion 6
-        // registra para CompareTo sobre string).
+        // Capturar el bool no nullable: comparar contra el bool? arma una igualdad lifted que el LINQ
+        // de Marten no traduce, y falla con 500 en runtime sin que ningun test unitario lo vea.
         if (filtroActiva is { } activa)
             query = query.Where(f => f.Activa == activa);
 

@@ -5,10 +5,6 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.RegistrarSede;
 
-// Cliente HTTP puro del comando RegistrarSede (POST /api/sedes): esta tool no decide ninguna
-// regla de negocio -- traduce el contrato HTTP vigente (MEF-ADR-0043) al remodelado
-// token-eficiente de MEF-ADR-0047 decision 4, y devuelve el rechazo del dominio como texto en vez
-// de excepcion (CA-ADR-0030).
 public partial class RegistrarSedeTool(SedesApi api)
 {
     internal const string NombreTool = "registrar_sede";
@@ -63,9 +59,8 @@ public partial class RegistrarSedeTool(SedesApi api)
 }
 
 /// <summary>
-/// Eco compacto de registrar_sede hacia el asistente: el 202 del dominio no trae body y la
-/// ficha se materializa asincronicamente, asi que el hecho registrado se reconstruye con lo
-/// que entro a la tool.
+/// El 202 del dominio no trae body y la ficha se materializa asincronicamente: el eco se reconstruye
+/// con lo que entro a la tool.
 /// </summary>
 public sealed record SedeRegistradaResumen(
     string Resultado,

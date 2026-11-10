@@ -3,9 +3,7 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Una franja ordinaria se suma a un turno del catalogo, una a la vez (CA-ADR-0033, diseno de
-// turno por pasos). No cruza ningun bus: solo se persiste en el event store de Programacion --
-// sumarle IPrivateEvent/IPublicEvent exigiria antes aplanar Franja (MEF-ADR-0012).
+// No cruza ningun bus: sumarle IPrivateEvent/IPublicEvent exigiria antes aplanar Franja (MEF-ADR-0012).
 public sealed class FranjaAgregada
 {
     public Guid TurnoId { get; private set; }

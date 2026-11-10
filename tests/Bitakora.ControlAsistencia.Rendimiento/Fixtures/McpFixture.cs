@@ -4,10 +4,9 @@ using ModelContextProtocol.Protocol;
 
 namespace Bitakora.ControlAsistencia.Rendimiento.Fixtures;
 
-// Adaptada de Mcp.Asistente.SmokeTests/Fixtures/McpFixture.cs (MEF-ADR-0048): una sesion MCP con la
-// key mcp_extension por header. Sin Bearer, el servidor opera con su identidad interina
-// (tenant-smoke, mcp-asistente.tf). La diferencia es el HttpClient propio: las tools por grupo
-// hacen todos sus POST dentro de una sola llamada y el timeout por defecto (100 s) la cortaria.
+// Sin Bearer, el servidor MCP opera con su identidad interina (tenant-smoke, mcp-asistente.tf).
+// HttpClient propio: las tools por grupo hacen todos sus POST dentro de una sola llamada y el
+// timeout por defecto (100 s) la cortaria.
 public sealed class McpFixture : IAsyncLifetime
 {
     public McpClient Cliente { get; private set; } = null!;

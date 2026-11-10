@@ -10,17 +10,9 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ObtenerTurnoVigente;
 
-// Issue #328: Function GET del read model TurnoVigente (via (a) proyeccion materializada,
-// skills/projections/naming.md, MEF-ADR-0006 enmienda #363). Feature folder sin sufijo Function, un
-// namespace por query (skills/projections/read-apis.md): esta clase FunctionEndpoint no colisiona
-// con ListarTurnosVigentes/RegistrarMarcacionFunction/... porque cada una vive en su propio
-// namespace.
-//
-// La ruta recibe codigoColaborador y fecha como los componentes tipados de la clave natural compuesta
-// -- la clave se reconstruye con ControlDiarioAggregateRoot.ComputarStreamId, nunca con una
-// concatenacion propia del endpoint (MEF-ADR-0037). CA-4: fecha invalida -> 400 explicito; 200 con
-// la vista completa (Id incluido -- la UI lo necesita como ancla de comandos, ver issue "Notas
-// tecnicas") o 404 sin body cuando no hay turno vigente.
+// La clave se reconstruye con ControlDiarioAggregateRoot.ComputarStreamId, nunca con una
+// concatenacion propia del endpoint (MEF-ADR-0037). La respuesta incluye Id: la UI lo necesita como
+// ancla de comandos.
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     private const string FormatoFecha = "yyyy-MM-dd";
@@ -33,9 +25,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         string fecha,
         CancellationToken ct)
     {
-        // Fecha no liga directo a DateOnly en el modelo aislado de Functions: se recibe como
-        // string y se parsea con formato explicito, devolviendo 400 ante formato invalido
-        // (borde HTTP con parseo tipado, MEF-ADR-0037).
+        // Fecha no liga directo a DateOnly en el modelo aislado de Functions: se recibe como string.
         if (!DateOnly.TryParseExact(
                 fecha, FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaParseada))
             return new BadRequestObjectResult(
@@ -43,15 +33,12 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         var streamKey = ControlDiarioAggregateRoot.ComputarStreamId(codigoColaborador, fechaParseada);
 
-        // CA-4: la QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantContext --
-        // nunca a un tenant id que llegara por ruta o query string (mitigacion estructural contra
-        // BOLA/IDOR, MEF-ADR-0028/skills/projections/read-apis.md). codigoColaborador y fecha SI vienen de
-        // la ruta: son el recurso, no el tenant.
+        // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request
+        // (MEF-ADR-0028). codigoColaborador y fecha si vienen de la ruta: son el recurso, no el tenant.
         await using var session = store.QuerySession(tenantContext.TenantId);
         var vista = await session.LoadAsync<TurnoVigente>(streamKey, ct);
 
-        // CA-4: 404 sin body cuando no hay turno vigente para ese (colaborador, fecha) -- no es un
-        // error, significa que ese dia no tiene turno asignado.
+        // 404 sin body: ese dia no tiene turno asignado, no es un error.
         if (vista is null)
             return new NotFoundResult();
 

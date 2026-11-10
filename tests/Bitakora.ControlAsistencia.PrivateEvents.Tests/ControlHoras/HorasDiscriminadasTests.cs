@@ -1,8 +1,6 @@
-// HorasDiscriminadas - payload plano (100% primitivo) que viaja en DiaDepurado por el bus interno
-// del BC: serializa y deserializa con STJ POR DEFECTO, sin el resolver custom de Marten. Esa es la
-// cura del payload lossy -- ningun consumidor depende de nuestra serializacion interna.
-//
-// Issue #424: HorasPorConcepto (ex MinutosPorConcepto) habla horas liquidables (decimal), no minutos.
+// HorasDiscriminadas es un payload plano (100% primitivo) que viaja en DiaDepurado por el bus: serializa
+// con STJ POR DEFECTO, sin el resolver custom de Marten, para que ningun consumidor dependa de nuestra
+// serializacion interna. HorasPorConcepto son horas liquidables (decimal), no minutos.
 
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -22,8 +20,6 @@ public class HorasDiscriminadasTests
         },
         ["entro 06:15, retardo 15min"]);
 
-    // CA-1/CA-2: round-trip con el serializador POR DEFECTO (sin TypeInfoResolver custom). No lanza
-    // NotSupportedException y preserva HorasPorConcepto (decimal) y Trazabilidad sin perdida.
     [Fact]
     public void RoundTrip_PreservaHorasPorConceptoYTrazabilidad_ConSerializadorPorDefecto()
     {
@@ -38,7 +34,7 @@ public class HorasDiscriminadasTests
         restaurado.Trazabilidad.Should().BeEquivalentTo(original.Trazabilidad);
     }
 
-    // CA-1 (barrera anti-regresion): con el resolver POR DEFECTO sin ningun ConfigurarSerializacion,
+    // Barrera anti-regresion: con el resolver POR DEFECTO sin ningun ConfigurarSerializacion,
     // la deserializacion DEBE tener exito porque el payload es 100% primitivo. Si alguien reintroduce
     // un tipo de dominio rico (ctor/campos privados), fallaria con NotSupportedException.
     [Fact]
@@ -56,8 +52,7 @@ public class HorasDiscriminadasTests
         act()!.HorasPorConcepto["OrdinariaDiurna"].Should().Be(7.00m);
     }
 
-    // CA-2: el diccionario vacio (dia sin horas calculables) round-trip a un diccionario vacio,
-    // no a null. La trazabilidad vacia se preserva igual.
+    // El diccionario vacio (dia sin horas calculables) vuelve como diccionario vacio, no como null.
     [Fact]
     public void RoundTrip_PreservaColeccionesVacias_CuandoDiaSinHorasCalculables()
     {

@@ -11,7 +11,6 @@ public class ObtenerTurnoToolTests
 {
     private const string IdInexistente = "019fdaab-0000-7b57-8408-cef0e48e1a99";
 
-    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
     public async Task ObtenerTurno_RechazaSinLlamarAlBackend_CuandoTurnoIdNoEsUnGuidConNombre()
     {
@@ -60,8 +59,8 @@ public class ObtenerTurnoToolTests
             .Equal("08:00-16:00, sede: [TEST] Centro");
     }
 
-    // CA-2 (issue #612): un turno incompleto (sin franjas, CA-ADR-0033) expone completo: false tal
-    // como viene de la ficha; horario y franjas viajan sin remodelar ("Sin franjas" y []).
+    // Un turno incompleto (sin franjas, CA-ADR-0033) expone completo: false tal como viene de la
+    // ficha; horario y franjas viajan sin remodelar ("Sin franjas" y []).
     [Fact]
     public async Task ObtenerTurno_ExponeCompletoFalso_CuandoElTurnoNoTieneFranjas()
     {
@@ -77,10 +76,9 @@ public class ObtenerTurnoToolTests
         json["franjas"]!.AsArray().Should().BeEmpty();
     }
 
-    // CA-3 (issue #612): la notacion compacta unifica el offset de inicio y de fin de cada franja e
-    // hija (descanso/extra), reemplazando la vieja forma "(+1)" que solo mostraba el offset del fin
-    // y ocultaba el de las hijas (un descanso de madrugada 02:00+1-02:30+1 se veia ambiguo como
-    // 02:00-02:30(+1)). Formato replicado del eco de las tools de Comandos (#609-#611).
+    // La notacion compacta muestra el offset de inicio y de fin de cada franja e hija: un descanso de
+    // madrugada 02:00+1-02:30+1 no se confunde con 02:00-02:30. Mismo formato que el eco de las tools
+    // de diseno de turno.
     [Fact]
     public async Task ObtenerTurno_MuestraOffsetDeInicioYFin_CuandoLaFranjaNocturnaTieneDescansoDeMadrugada()
     {

@@ -1,16 +1,5 @@
-// HU-139: Integrar consolidador DesgloseHoras al flujo reactivo del ControlDiario
-// Issue #270: el evento privado que dispara el flujo cambia de MarcacionRegistrada a
-// RegistroDeMarcacionCreado (CA-3, CA-5); el comportamiento verificado aqui no cambia.
-// Familia 1: verifica que Apply(MarcacionAdicionada) recalcula DesgloseHoras al final
-// (despues de Depurar), consolidando los ControlesDeFranja no anomalos del dia.
-// Cubre CA-1 (consolidacion con marcaciones que completan el turno partido) y
-// CA-2 (sin turno -> DesgloseHoras.Vacio porque no hay ControlesDeFranja que consolidar).
-//
-// La matematica de compensacion cross-franja esta testeada exhaustivamente en #116; aqui se
-// verifica la INTEGRACION: que el hook se dispara y que el valor consolidado es coherente.
-// El valor esperado se construye como oraculo independiente con las mismas primitivas del
-// dominio que el hook reactivo invoca (#136 ControlFranja.CalcularDesglose, #116
-// ConsolidadorDesgloseHoras.Consolidar). And<>() compara estructuralmente (BeEquivalentTo).
+// Verifica la integracion: Apply(MarcacionAdicionada) recalcula DesgloseHoras despues de Depurar. La
+// matematica de compensacion entre franjas la cubren los tests de ConsolidadorDesgloseHoras.
 
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
@@ -24,24 +13,21 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AdicionarMarcacionCuando
 
 public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsyncTest<RegistroDeMarcacionCreado>
 {
-    // Datos de prueba fijos - mismo ancla de fecha y stream ID compuesto que los tests del handler
     private const string CodigoColaborador = "EMP-001";
     private static readonly DateOnly Fecha = new(2026, 3, 15);
     private static readonly string StreamId = $"cd:{CodigoColaborador}:{Fecha:yyyyMMdd}";
 
-    // ColaboradorProgramado (ControlHoras.DomainEvents) es el tipo que persiste TurnoDiarioAsignado.
     private static readonly ColaboradorProgramado Colaborador = new(
         "CC-1234567890", CodigoColaborador, "Luis Augusto Barreto");
     private static readonly Guid SolicitudId = Guid.Parse("019600c0-0000-7000-8000-000000000003");
 
-    // CA-1: turno partido con dos franjas ordinarias 08:00-12:00 y 14:00-18:00
-    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
+    // Descripcion (dato derivado) no interviene en estos tests: placeholder "".
     private static readonly FranjaProgramada Franja08_12 =
         new(new TimeOnly(8, 0), new TimeOnly(12, 0), 0, [], [], "");
     private static readonly FranjaProgramada Franja14_18 =
         new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
-    // Timestamps de marcaciones (fuera de ventana nocturna: >= 04:00)
+    // Fuera de ventana nocturna (>= 04:00).
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
     private static readonly DateTime Timestamp08_00 = new(2026, 3, 15, 8, 0, 0);
     private static readonly DateTime Timestamp12_05 = new(2026, 3, 15, 12, 5, 0);
@@ -60,10 +46,6 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     private static TurnoDiarioAsignado CrearTurnoDiarioAsignado(TurnoDiario detalleTurno) =>
         new(StreamId, Colaborador, Fecha, detalleTurno, SolicitudId);
 
-    // CA-1: con TurnoDiarioAsignado (turno partido 08:00-12:00 y 14:00-18:00) previo y
-    //       MarcacionAdicionada previas (08:00, 12:05, 14:10), el RegistroDeMarcacionCreado a las 18:30
-    //       completa la ultima franja y dispara el recalculo. DesgloseHoras refleja la consolidacion
-    //       del dia con las dos franjas no anomalas (extras ajustadas por compensacion si aplica).
     [Fact]
     public async Task RegistroDeMarcacionCreado_RecalculaDesgloseHoras_CuandoMarcacionCompletaUltimaFranja()
     {
@@ -78,8 +60,6 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
 
         Then(StreamId, CrearMarcacionAdicionada(Timestamp18_30));
 
-        // Depuracion esperada: F1(08:00, 12:05) y F2(14:10, 18:30), ambas con entrada y salida.
-        // Anclar los ControlesDeFranja documenta los insumos exactos del oraculo de DesgloseHoras.
         var controlFranja1 = new ControlFranja(Franja08_12, Timestamp08_00, Timestamp12_05);
         var controlFranja2 = new ControlFranja(Franja14_18, Timestamp14_10, Timestamp18_30);
         And<ControlDiarioAggregateRoot, IReadOnlyList<ControlFranja>>(
@@ -87,16 +67,10 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
             c => c.ControlesDeFranja,
             new ControlFranja[] { controlFranja1, controlFranja2 });
 
-        // Esperado registrado A MANO con las primitivas del dominio (sin ejecutar Consolidar ni
-        // CalcularDesglose, la logica bajo prueba), para que un bug en esa logica no se filtre al
-        // esperado y el test si detecte regresiones. Escenario en domingo 2026-03-15:
-        //   F1 08:00-12:00 trabajada 08:00-12:05: ordinaria 08:00-12:00 DominicalFestivaDiurna +
-        //     excedente 12:00-12:05 ExtraDiurnaDominicalFestiva (5min, sin retardo). Retardo vacio.
-        //   F2 14:00-18:00 trabajada 14:10-18:30: retardo 10min (14:00-14:10) compensado por 10min del
-        //     excedente; ordinaria 14:10-18:00 DominicalFestivaDiurna + excedente visible 18:00-18:20
-        //     ExtraDiurnaDominicalFestiva (20min de 30min; los ultimos 10min compensan el retardo).
-        // RetardoTotal del dia = el de F2 (F1 no aporta retardo; el retardo neto del dia es 0, asi que
-        // no hay compensacion cross-franja). FranjasAnomalas = 0.
+        // Esperado a mano, sin ejecutar Consolidar ni CalcularDesglose (domingo 2026-03-15):
+        //   F1 trabajada 08:00-12:05: ordinaria 08:00-12:00 + excedente 12:00-12:05, sin retardo.
+        //   F2 trabajada 14:10-18:30: el retardo 14:00-14:10 se compensa con los ultimos 10 min del
+        //   excedente; ordinaria 14:10-18:00 + excedente visible 18:00-18:20.
         var f1Ordinaria = new IntervaloClasificado(
             IntervaloTemporal.Crear(
                 new MomentoDelDia(new TimeOnly(8, 0)),
@@ -132,13 +106,9 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
             esperado);
     }
 
-    // CA-2: sin turno previo (ningun Given), el RegistroDeMarcacionCreado crea el aggregate sin DetalleTurno.
-    //       Depurar() retorna lista vacia -> RecalcularDesgloseHoras no tiene franjas que consolidar
-    //       y DesgloseHoras queda en DesgloseHoras.Vacio.
     [Fact]
     public async Task RegistroDeMarcacionCreado_DejaDesgloseHorasVacio_CuandoNoHayTurnoPrevio()
     {
-        // Sin Given - el aggregate nace solo con la marcacion (DetalleTurno queda null)
         await WhenAsync(CrearRegistroDeMarcacionCreado(Timestamp07_00));
 
         Then(StreamId, CrearMarcacionAdicionada(Timestamp07_00));

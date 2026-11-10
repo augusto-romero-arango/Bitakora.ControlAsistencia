@@ -8,9 +8,7 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.ListarColaboradore
 
 public class ListarColaboradoresSmokeTests(McpFixture mcp)
 {
-    // Recorre la cadena completa: host MCP -> worker -> HttpClient tipado -> dominio Colaboradores
-    // -> Marten. Los datos son los reales de dev, asi que se afirma la forma del remodelado, no
-    // valores puntuales.
+    // Datos reales de dev: se afirma la forma del remodelado, no valores puntuales.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarColaboradores_DevuelveElCatalogoCompactoConDatosReales_CuandoSeInvocaSinFiltro()
@@ -70,8 +68,8 @@ public class ListarColaboradoresSmokeTests(McpFixture mcp)
         raiz.GetProperty("colaboradores").EnumerateArray().ToList().Should().HaveCount(mostrando);
     }
 
-    // Error path que NO toca el dominio: la validacion de fecha corta en el worker y responde el
-    // mensaje del .resx en produccion, igual que ConsultarProgramacion_RespondeElMensajeDeValidacion.
+    // Error path que NO toca el dominio: el texto exacto del .resx prueba que los recursos embebidos
+    // viajaron en el publish.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarColaboradores_RespondeElMensajeDeValidacion_CuandoLaFechaReferenciaEsInvalida()

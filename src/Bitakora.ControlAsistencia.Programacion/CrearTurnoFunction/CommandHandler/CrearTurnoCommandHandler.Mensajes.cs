@@ -2,7 +2,6 @@ using System.Resources;
 
 namespace Bitakora.ControlAsistencia.Programacion.CrearTurnoFunction.CommandHandler;
 
-// Mensajes internal, no private: los tests los leen via InternalsVisibleTo del .csproj.
 public partial class CrearTurnoCommandHandler
 {
     private static readonly ResourceManager ResourceManager = new(

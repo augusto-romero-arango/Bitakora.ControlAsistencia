@@ -4,12 +4,11 @@ using System.Text.Json.Serialization.Metadata;
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 /// <summary>
-/// Registra la cancelacion del turno diario asignado a un ControlDiario. Se persiste en el stream
-/// de ControlDiarioAggregateRoot y no cruza el bus. Simetrico de TurnoDiarioAsignado.
+/// Cancelacion del turno diario asignado a un ControlDiario. Se persiste en el stream de
+/// ControlDiarioAggregateRoot y no cruza el bus.
 /// </summary>
-// Forma canonica de MEF-ADR-0012: ctor parametrizado privado + ctor vacio privado + factory Crear.
-// Que ningun ctor sea publico es lo que hace fallar a STJ vanilla sin ConfigurarSerializacion --
-// la regresion que vigila Deserializar_Falla_CuandoResolverNoTieneRegistroDeTurnoDiarioCancelado.
+// Ningun ctor es publico (MEF-ADR-0012): por eso STJ vanilla falla sin ConfigurarSerializacion, la
+// regresion que vigila Deserializar_Falla_CuandoResolverNoTieneRegistroDeTurnoDiarioCancelado.
 public sealed class TurnoDiarioCancelado
 {
     public string Id { get; private set; } = null!;
@@ -29,15 +28,13 @@ public sealed class TurnoDiarioCancelado
         SolicitudCancelacionId = solicitudCancelacionId;
     }
 
-    // Constructor para Marten/serializacion
+    // Solo para Marten/STJ: ConfigurarSerializacion lo invoca por reflexion.
     private TurnoDiarioCancelado() { }
 
     public static TurnoDiarioCancelado Crear(
         string id, ColaboradorProgramado colaborador, DateOnly fecha, Guid solicitudCancelacionId) =>
         new(id, colaborador, fecha, solicitudCancelacionId);
 
-    // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
-    // y propiedades con private set. Simetrico de TurnoDiarioAsignado.ConfigurarSerializacion.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(TurnoDiarioCancelado)

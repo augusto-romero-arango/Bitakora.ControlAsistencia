@@ -20,7 +20,7 @@ public class DepuradorDeMarcacionesCoberturaVecinaTests
 
     private static DateTime En(DateOnly fecha, int h, int m) => fecha.ToDateTime(new TimeOnly(h, m));
 
-    // CA-1: la 04:30 cae en el solape (vispera hasta 05:00, dia desde 04:00): ninguno la usa.
+    // La 04:30 cae en el solape (vispera hasta 05:00, dia desde 04:00): ninguno la usa.
     [Fact]
     public void Depurar_DejaLaVisperaSinSalida_CuandoLaMarcacionEsAmbigua()
     {
@@ -51,7 +51,7 @@ public class DepuradorDeMarcacionesCoberturaVecinaTests
         resultado[0].EsAnomala.Should().BeTrue();
     }
 
-    // Issue #1130: la resolucion del Aprobador decide a que dia pertenece la marcacion del solape.
+    // La resolucion del Aprobador decide a que dia pertenece la marcacion del solape.
     private static CoberturasVecinas ConResolucion(
         DateTime? finDeLaVispera, DateTime? inicioDelDiaSiguiente, DateOnly dia, DateTime marcacion, DateOnly ganador) =>
         new(finDeLaVispera, inicioDelDiaSiguiente, dia, new Dictionary<DateTime, DateOnly> { [marcacion] = ganador });
@@ -88,7 +88,7 @@ public class DepuradorDeMarcacionesCoberturaVecinaTests
             .Should().Be(PertenenciaMarcacion.FueraDeCobertura);
     }
 
-    // Decision 6 del issue #1130: fuera del solape la resolucion no pesa y rige la regla normal.
+    // Fuera del solape la resolucion no pesa y rige la regla normal.
     [Fact]
     public void Depurar_AplicaLaReglaNormal_CuandoLaMarcacionResueltaYaNoEstaEnElSolape()
     {
@@ -105,7 +105,7 @@ public class DepuradorDeMarcacionesCoberturaVecinaTests
             .Should().Be(PertenenciaMarcacion.DelTurno);
     }
 
-    // CA-2 (lado depurador): con el inicio del dia siguiente en 06:00 la vispera toma la 04:30.
+    // Con el inicio del dia siguiente en 06:00 la vispera toma la 04:30.
     [Fact]
     public void Depurar_TomaLa0430ComoSalida_CuandoElDiaSiguienteEmpiezaSuCoberturaAlas0600()
     {
@@ -121,7 +121,7 @@ public class DepuradorDeMarcacionesCoberturaVecinaTests
         resultado[0].EsAnomala.Should().BeFalse();
     }
 
-    // CA-3: sin solape (dia desde 05:00) la 04:30 es salida de la vispera.
+    // Sin solape (dia desde 05:00) la 04:30 es salida de la vispera.
     [Fact]
     public void Depurar_TomaLa0430ComoSalidaDeLaVispera_CuandoNoHaySolape()
     {
@@ -152,7 +152,7 @@ public class DepuradorDeMarcacionesCoberturaVecinaTests
         resultado[0].EsAnomala.Should().BeTrue();
     }
 
-    // CA-4: la vispera entro a las 23:00 (cobertura hasta 11:00): la 08:55 es ambigua.
+    // La vispera entro a las 23:00 (cobertura hasta 11:00): la 08:55 es ambigua.
     [Fact]
     public void Depurar_DejaLaFranjaDelDiaSinMarcaciones_CuandoLa0855EsAmbigua()
     {
@@ -181,7 +181,7 @@ public class DepuradorDeMarcacionesCoberturaVecinaTests
         resultado[0].Salida.Should().BeNull();
     }
 
-    // CA-4: la vispera entro a las 20:00 (cobertura hasta 08:00): la 08:55 es la entrada del dia.
+    // La vispera entro a las 20:00 (cobertura hasta 08:00): la 08:55 es la entrada del dia.
     [Fact]
     public void Depurar_TomaLa0855ComoEntradaDelDia_CuandoLaCoberturaDeLaVisperaTerminaAlas0800()
     {

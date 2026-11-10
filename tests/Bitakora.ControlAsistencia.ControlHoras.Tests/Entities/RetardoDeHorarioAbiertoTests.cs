@@ -51,7 +51,7 @@ public class RetardoDeHorarioAbiertoTests
             .Where(h => h.Key != "Retardo")
             .Sum(h => h.Value);
 
-    // CA-1: franja efectiva 18:00-24:00, entrada 19:00 -> retardo 60 sin excedente que lo compense.
+    // Franja efectiva 18:00-24:00, entrada 19:00 -> retardo 60 sin excedente que lo compense.
     // En un abierto no se castiga: sin clave "Retardo"; las 5 h trabajadas se liquidan igual.
     [Fact]
     public async Task CrearDiaDepurado_NoLlevaRetardo_CuandoAbiertoEntraTardeSinExcedente()
@@ -70,7 +70,7 @@ public class RetardoDeHorarioAbiertoTests
         And<ControlDiarioAggregateRoot, decimal>(StreamId, HorasSinRetardo, 5.00m);
     }
 
-    // CA-2: entrada 19:00, salida 01:00 -> retardo 60 compensado con 00:00-01:00: sin retardo y sin extra.
+    // Entrada 19:00, salida 01:00 -> retardo 60 compensado con 00:00-01:00: sin retardo y sin extra.
     [Fact]
     public async Task CrearDiaDepurado_ConservaCompensacionIntraFranja_CuandoAbiertoSaleDespuesDelCierre()
     {
@@ -88,7 +88,7 @@ public class RetardoDeHorarioAbiertoTests
         And<ControlDiarioAggregateRoot, decimal>(StreamId, HorasSinRetardo, 5.00m);
     }
 
-    // CA-3: un turno fijo con ventana limitada conserva su retardo: franja efectiva 10:00-19:00,
+    // Un turno fijo con ventana limitada conserva su retardo: franja efectiva 10:00-19:00,
     // entrada 10:30 -> retardo neto 30 (0.50 h); trabajadas 10:30-19:00 = 8.5 h.
     [Fact]
     public async Task CrearDiaDepurado_ConservaElRetardo_CuandoTurnoFijoEntraTarde()

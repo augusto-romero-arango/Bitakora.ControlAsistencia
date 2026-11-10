@@ -34,8 +34,8 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
     private static VentanaDeEntradaModificada CrearEventoVentanaDeEntrada(int horas) =>
         VentanaDeEntradaModificada.Crear(TurnoId, HorasYMinutos.Crear(horas, 0));
 
-    // CA-6: camino feliz -- la sede prearmada viaja en el comando y queda en la franja persistida;
-    // el turno pasa de incompleto a completo con la primera franja.
+    // La sede prearmada viaja en el comando y queda en la franja persistida; el turno pasa de
+    // incompleto a completo con la primera franja.
     [Fact]
     public async Task AgregarFranja_EmiteFranjaAgregada_CuandoElTurnoEstaIncompleto()
     {
@@ -52,9 +52,8 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
             c => c.ObtenerDetalle().FranjasOrdinarias[0].Sede, sede);
     }
 
-    // CA-5: turno inexistente -> 404. Sin And<>: el aggregate no existe (ningun Given), y
-    // reconstruirlo lanzaria ArgumentNullException -- mismo criterio que
-    // RetirarTurnoCommandHandlerTests para el mismo escenario.
+    // Sin And<>: el aggregate no existe (ningun Given) y reconstruirlo lanzaria
+    // ArgumentNullException.
     [Fact]
     public async Task AgregarFranja_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExisteEnElCatalogo()
     {
@@ -66,7 +65,7 @@ public class AgregarFranjaCommandHandlerTests : CommandHandlerAsyncTest<AgregarF
         Then(TurnoId.ToString());
     }
 
-    // CA-5/CA-4: retirado gana la precedencia sobre solape/descanso.
+    // Retirado gana la precedencia sobre solape/descanso.
     [Fact]
     public async Task AgregarFranja_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoFueRetirado()
     {

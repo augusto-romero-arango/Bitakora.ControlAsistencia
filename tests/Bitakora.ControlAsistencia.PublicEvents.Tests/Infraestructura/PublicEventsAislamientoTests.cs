@@ -1,13 +1,7 @@
-// Issue #436: PublicEvents quedo SIN TIPOS -- InformacionColaborador, su ultimo habitante, murio al
-// reducirse el body de SolicitarProgramacionTurno a la terna de identidad. Estos son los unicos
-// tests que le quedan al proyecto, y no es un relleno para evitar el ZeroTestsRan de
-// Microsoft.Testing.Platform: custodian las dos condiciones estructurales que hacen de este
-// ensamblado la isla del Published Language (CA-ADR-0029 decision #2 / MEF-ADR-0039 decision 2),
-// justo mientras esta vacio y ningun tipo las sostiene por compilacion.
-//
-// Verificado por lectura directa del .csproj (no por reflexion del assembly compilado): es la
-// unica forma de detectar una referencia declarada pero no usada por ningun tipo -- y hoy ningun
-// tipo usa nada. Mismo patron que ControlHorasDomainEventsAislamientoTests (#322).
+// PublicEvents esta sin tipos: estos tests custodian las dos condiciones estructurales que lo hacen
+// la isla del Published Language (CA-ADR-0029 decision #2) mientras ningun tipo las sostiene por
+// compilacion. Se lee el .csproj y no el assembly compilado: es la unica forma de detectar una
+// referencia declarada que ningun tipo usa.
 
 using System.Runtime.CompilerServices;
 using AwesomeAssertions;
@@ -37,9 +31,9 @@ public class PublicEventsAislamientoTests
         contenido.Should().NotContain("<ProjectReference");
     }
 
-    // El paquete que expone IPublicEvent es lo que distingue a esta isla de un {Dominio}.DomainEvents
-    // (que debe NO tenerlo, #322). Con el ensamblado vacio ningun tipo lo usa, asi que una limpieza
-    // de "dependencias sin uso" lo retiraria y el proximo evento publico naceria sin marker de bus.
+    // El paquete que expone IPublicEvent distingue a esta isla de un {Dominio}.DomainEvents (que no
+    // debe tenerlo). Sin tipos que lo usen, una limpieza de "dependencias sin uso" lo retiraria y el
+    // proximo evento publico naceria sin marker de bus.
     [Fact]
     public void Csproj_ConservaElPaqueteQueExponeElMarkerDeBusPublico()
     {

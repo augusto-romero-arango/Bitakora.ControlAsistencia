@@ -3,10 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Una franja ordinaria se retira de un turno del catalogo. El payload es la franja COMPLETA que
-// se fue (con sus descansos, extras y sede), no solo su hora de inicio: el stream es la unica
-// memoria de lo que se quito. No cruza ningun bus: solo se persiste en el event store de
-// Programacion -- sumarle IPrivateEvent/IPublicEvent exigiria antes aplanar Franja (MEF-ADR-0012).
+// El payload es la franja COMPLETA que se fue (con descansos, extras y sede), no solo su hora de
+// inicio: el stream es la unica memoria de lo que se quito.
 public sealed class FranjaQuitada
 {
     public Guid TurnoId { get; private set; }

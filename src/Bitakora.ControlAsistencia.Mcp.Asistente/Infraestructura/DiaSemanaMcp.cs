@@ -3,9 +3,7 @@ using System.Text;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-// Traduce el dia de una entrada de plantilla semanal (lunes..domingo, sin distinguir mayusculas ni
-// acentos, o 1..7) al numero ISO 8601 que el PUT AsignarTurnoADia espera en la ruta (1 = lunes,
-// MEF-ADR-0043). #628 reutiliza este helper (MEF-ADR-0018: segunda aparicion del mismo parseo).
+// El PUT AsignarTurnoADia espera en la ruta el numero ISO 8601 del dia (1 = lunes).
 public static class DiaSemanaMcp
 {
     private static readonly IReadOnlyDictionary<string, int> NombresIso = new Dictionary<string, int>

@@ -4,9 +4,6 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.QuitarSubFranja;
 
-// Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno + ficha vigente
-// para el eco) + POST programacion/turnos/{id}:quitar-subfranja (paso 4 MEF-ADR-0043). El
-// 400/404/409 del POST se traduce a texto, nunca a excepcion (CA-ADR-0030).
 public partial class QuitarSubFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
 {
     internal const string NombreTool = "quitar_subfranja";
@@ -70,9 +67,8 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion, Resolutor
             Mensajes.NotaVisibilidadEventual));
     }
 
-    // El eco usa lo que la ficha vigente mostraba al momento de la llamada (visibilidad eventual):
-    // si aun no mostraba la sub-franja, solo tipo + hora -- el POST ya se envio igual y el dominio
-    // decide con 409 si en verdad no existia.
+    // El eco usa la ficha vigente al momento de la llamada (visibilidad eventual): si aun no mostraba la
+    // sub-franja va solo tipo + hora; el POST se envia igual y el dominio decide con 409 si no existia.
     private static string ComponerEco(FichaTurno ficha, TimeOnly horaFranja, string tipo, TimeOnly horaInicio)
     {
         var franjaFicha = ficha.Franjas.FirstOrDefault(f => f.HoraInicio == horaFranja);
@@ -88,9 +84,5 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion, Resolutor
     }
 }
 
-/// <summary>
-/// Eco compacto de quitar_subfranja hacia el asistente: la sub-franja quitada se compone con lo
-/// que mostraba la ficha vigente al momento de la llamada, en notacion compacta.
-/// </summary>
 public sealed record SubFranjaQuitadaResumen(
     string Resultado, string Turno, string Franja, string SubFranjaQuitada, string Nota);

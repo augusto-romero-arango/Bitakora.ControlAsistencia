@@ -1,7 +1,6 @@
-// Issue #424: todos los campos de FranjaDepurada son primitivos -- la igualdad por valor del record
-// por defecto ya es correcta y no necesita Equals/GetHashCode propios (MEF-ADR-0012). Este test
-// congela esa premisa: si el record gana una coleccion, la compararia por referencia y el test rojo
-// lo delata.
+// Todos los campos de FranjaDepurada son primitivos: la igualdad por valor del record por defecto
+// basta, sin Equals/GetHashCode propios. Este test congela esa premisa: si el record gana una
+// coleccion, la compararia por referencia y el test rojo lo delata.
 
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 

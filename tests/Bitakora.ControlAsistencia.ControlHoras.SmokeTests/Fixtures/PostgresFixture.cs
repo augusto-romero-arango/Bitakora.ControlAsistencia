@@ -117,7 +117,7 @@ public class PostgresFixture : IAsyncLifetime
 
     private static string EscaparSchema(string schema)
     {
-        // Solo permitir caracteres alfanumericos y guion bajo para prevenir SQL injection
+        // El schema se interpola en el SQL: solo se admiten identificadores validos.
         if (!System.Text.RegularExpressions.Regex.IsMatch(schema, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
             throw new ArgumentException($"Nombre de schema invalido: {schema}");
         return schema;

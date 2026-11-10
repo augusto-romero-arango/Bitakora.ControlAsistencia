@@ -1,12 +1,5 @@
-// Issue #322: paridad de campos e igualdad de FranjaProgramada (ControlHoras.DomainEvents) con
-// DetalleFranjaOrdinaria (PrivateEvents.Programacion) -- payload por rol, CA-ADR-0029 decision #5.
-// CA-1: FranjaProgramada replica la semantica de igualdad del original: Descansos/Extras
-// (IReadOnlyList) se comparan POR VALOR (SequenceEqual), no por referencia (MEF-ADR-0012). Mismo
-// patron que DetalleFranjaOrdinariaIgualdadTests (PrivateEvents.Tests), del cual este archivo es
-// espejo deliberado.
-//
-// Issue #336: Sede se agrega al caso "instancias diferentes" -- a diferencia de Descripcion, SI
-// entra en la identidad de la franja (Equals/GetHashCode custom).
+// Descansos/Extras se comparan por valor, no por referencia (MEF-ADR-0012). Sede entra en la
+// identidad de la franja; Descripcion no.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -44,8 +37,6 @@ public class FranjaProgramadaIgualdadTests : IgualdadTestBase<FranjaProgramada>
             new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [Descanso()], [Extra()], "",
                 new SedeProgramada("SEDE-SUBA", "Suba")));
     }
-
-    // Cobertura especifica del override: las listas se comparan por valor, no por referencia.
 
     [Fact]
     public void Equals_RetornaTrue_CuandoListasSonInstanciasDiferentesConMismoContenido()

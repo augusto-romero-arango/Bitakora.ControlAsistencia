@@ -1,17 +1,10 @@
-// HU-348: Value object NombreColaborador -- dueno unico de la composicion del nombre completo.
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ValueObjects;
 
-/// <summary>
-/// Interfaz publica: Crear(primerNombre, segundoNombre?, primerApellido, segundoApellido?),
-/// NombreCompleto, ToString(). Los 4 componentes NO son publicos (Tell-don't-Ask, MEF-ADR-0012).
-/// </summary>
 public class NombreColaboradorTests
 {
-    // ---------- CA-3: primer nombre obligatorio ----------
-
     [Fact]
     public void Crear_LanzaArgumentException_CuandoPrimerNombreEsNull()
     {
@@ -39,8 +32,6 @@ public class NombreColaboradorTests
             .WithMessage($"*{NombreColaborador.Mensajes.PrimerNombreRequerido}*");
     }
 
-    // ---------- CA-3: primer apellido obligatorio ----------
-
     [Fact]
     public void Crear_LanzaArgumentException_CuandoPrimerApellidoEsNull()
     {
@@ -67,8 +58,6 @@ public class NombreColaboradorTests
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{NombreColaborador.Mensajes.PrimerApellidoRequerido}*");
     }
-
-    // ---------- CA-4: NombreCompleto compone con espacios simples ----------
 
     [Fact]
     public void NombreCompleto_ComponeLos4Componentes_CuandoTodosPresentes()
@@ -126,8 +115,6 @@ public class NombreColaboradorTests
         nombre.ToString().Should().Be("Luis Augusto Barreto Gomez");
     }
 
-    // El issue declara ToString() como identico a NombreCompleto (contrato de diseno explicito,
-    // no coincidencia derivada de la logica bajo prueba): ambos deben mostrar el mismo texto.
     [Fact]
     public void ToString_EsIgualANombreCompleto_CuandoNombreValido()
     {

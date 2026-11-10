@@ -1,13 +1,3 @@
-// Issue #378 (MEF-ADR-0043 paso 1, absorbe #350): iniciar una vinculacion nueva sobre un
-// colaborador existente -- create disfrazado, verificado contra la historia del stream: el evento
-// de exito es VinculacionIniciada, EL MISMO del registro (#330) y del reingreso original (#350) --
-// cero tipos nuevos (CA-ADR-0029: un evento no conoce su comando). CA-ADR-0030: el aggregate
-// declina con resultado (nunca lanza, nunca emite evento de fallo); el handler traduce la razon a
-// ReglaDeNegocioDeclinadaException (409) o RecursoNoEncontradoException (404). Reemplaza a
-// ReingresarColaboradorCommandHandlerTests (issue #350) -- mismos escenarios, comando/handler/
-// aggregate/enum renombrados en terminos de iniciar vinculacion (CA-4); "reingreso" sigue nombrando
-// el escenario de negocio en nombres de test y comentarios (no la operacion).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Entities;
@@ -18,15 +8,12 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.IniciarVinculacionFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
-// GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
-// test-writer, mismo criterio que TerminarVinculacionCommandHandlerTests).
 public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<IniciarVinculacion>
 {
     private const string NumeroValido = "79543210";
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
-    // derivado de ColaboradorAggregateRoot.ComputarStreamId.
+    // Oraculo independiente: literal, nunca derivado de ComputarStreamId -- si se derivara, un cambio
+    // de formato de la clave se auto-validaria.
     private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionOriginal = "COL-001";
@@ -60,22 +47,16 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
     private static VinculacionIniciada VinculacionIniciadaOriginal() =>
         new(CodigoVinculacionOriginal, FechaInicioOriginal);
 
-    // Precondicion: colaborador registrado con una vinculacion abierta (sin terminacion) -- CA-2
-    // (vinculacion abierta desde el registro, nunca terminada).
     private void DadoUnColaboradorConVinculacionAbierta() =>
         Given(StreamIdEsperado, ColaboradorRegistradoValido(), VinculacionIniciadaOriginal());
 
-    // Precondicion: colaborador registrado con la vinculacion original ya terminada en la fecha
-    // dada -- base de CA-1 y CA-2 (la fecha puede ser un registro tardio o un preaviso).
     private void DadoUnColaboradorConVinculacionTerminada(DateOnly fechaEfectiva) =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
             VinculacionIniciadaOriginal(),
             new VinculacionTerminada(fechaEfectiva));
 
-    // Precondicion de CA-3/CA-4: la vinculacion anterior tenia una sede asignada -- distinta de la
-    // que trae el reingreso, para que el And posterior distinga "sede nueva asentada" de "sede
-    // heredada por accidente".
+    // Sede anterior distinta de la del reingreso, para que el And distinga sede nueva de sede heredada.
     private void DadoUnColaboradorConVinculacionTerminadaYSedeAsignada(
         DateOnly fechaEfectiva, string codigoSedeAnterior) =>
         Given(StreamIdEsperado,
@@ -84,9 +65,6 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             new SedeAsignada(codigoSedeAnterior),
             new VinculacionTerminada(fechaEfectiva));
 
-    // CA-1: colaborador con la ultima vinculacion terminada + FechaInicio estrictamente posterior
-    // a la FechaEfectiva -> el stream recibe VinculacionIniciada con el codigo nuevo; el aggregate
-    // rehidratado refleja vinculacion abierta (codigo nuevo, sin terminacion registrada).
     [Fact]
     public async Task IniciarVinculacion_EmiteVinculacionIniciada_CuandoFechaInicioEsPosteriorALaTerminacion()
     {
@@ -103,11 +81,8 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> alcanza el MISMO stream ("CC-79543210") y tiene exito. La
-    // normalizacion del numero la garantiza Identificacion.Crear (#348); la del codigo de tipo
-    // ("cc" -> "CC") la garantiza TipoIdentificacion.Desde (#371). Sin esa normalizacion el handler
-    // computaria otra clave y responderia 404 sobre un colaborador que si existe.
+    // Sin normalizar tipo y numero, el handler computaria otra clave y responderia 404 sobre un
+    // colaborador que si existe.
     [Fact]
     public async Task IniciarVinculacion_EmiteVinculacionIniciada_CuandoTipoYNumeroLleganSinNormalizar()
     {
@@ -125,8 +100,6 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoReingreso);
     }
 
-    // CA-2: la vinculacion vigente esta abierta (recien registrada, nunca terminada) -> 409,
-    // ningun evento nuevo en el stream, el estado conserva el codigo original.
     [Fact]
     public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaVinculacionVigenteEstaAbierta()
     {
@@ -141,9 +114,6 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionOriginal);
     }
 
-    // CA-2 (segunda variante): un reingreso previo sigue abierto (ciclo completo
-    // registro-terminacion-reingreso) -> 409 igual, la invariante de no-solape aplica sobre
-    // CUALQUIER vinculacion vigente sin terminar, no solo la primera.
     [Fact]
     public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoElReingresoPrevioSigueAbierto()
     {
@@ -163,8 +133,7 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoReingreso);
     }
 
-    // CA-2: FechaInicio igual a la FechaEfectiva de la ultima terminacion -> 409 por no-solape (el
-    // mismo dia se rechaza -- el dia de la fecha efectiva pertenece a la vinculacion que termina).
+    // El dia de la fecha efectiva pertenece a la vinculacion que termina: el mismo dia se rechaza.
     [Fact]
     public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaInicioEsIgualALaFechaEfectivaDeTerminacion()
     {
@@ -180,8 +149,6 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionOriginal);
     }
 
-    // CA-2 (segunda direccion): FechaInicio anterior a la FechaEfectiva de terminacion -> 409
-    // igual, con mayor margen de solape.
     [Fact]
     public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaInicioEsAnteriorALaFechaEfectivaDeTerminacion()
     {
@@ -197,9 +164,7 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionOriginal);
     }
 
-    // CA-2 (preaviso no vencido): un preaviso con fecha futura ya registrado bloquea el reingreso
-    // si su FechaInicio no supera la fecha del preaviso -- la regla de no-solape se compone sin
-    // reloj (decision de refinamiento 2026-08-11, heredada de #350).
+    // La no-solape se compone sin reloj: un preaviso con fecha futura bloquea igual.
     [Fact]
     public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaInicioNoSuperaElPreavisoRegistrado()
     {
@@ -215,9 +180,6 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionOriginal);
     }
 
-    // CA-1 (preaviso vencido): un reingreso con FechaInicio posterior a la fecha del preaviso
-    // registrado procede sin ninguna consulta al reloj del servidor -- el preaviso se resuelve
-    // componiendo CA-2 (no abierta) + no-solape, sin regla nueva.
     [Fact]
     public async Task IniciarVinculacion_EmiteVinculacionIniciada_CuandoFechaInicioEsPosteriorAlPreavisoRegistrado()
     {
@@ -234,9 +196,6 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-3: reingreso CON CodigoSede emite VinculacionIniciada con la sede DENTRO del evento;
-    // rehidratado, el colaborador queda con la sede nueva aunque la vinculacion anterior tuviera
-    // otra.
     [Fact]
     public async Task IniciarVinculacion_EmiteVinculacionIniciadaConSede_CuandoCodigoSedeLlegaEnElComando()
     {
@@ -250,8 +209,6 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeNueva);
     }
 
-    // CA-4: reingreso SIN CodigoSede deja la vinculacion nueva sin sede -- "reingreso nace limpio"
-    // sigue siendo el default, aunque la vinculacion anterior tuviera una sede asignada.
     [Fact]
     public async Task IniciarVinculacion_EmiteVinculacionIniciadaSinSede_CuandoCodigoSedeNoLlegaAunqueLaAnteriorTeniaSede()
     {
@@ -264,8 +221,6 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, null);
     }
 
-    // CA-7: la sede en el comando no agrega ni quita razones de rechazo -- vinculacion abierta
-    // sigue en 409 sin eventos nuevos, y la sede vigente NO absorbe la del comando rechazado.
     [Fact]
     public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaVinculacionVigenteEstaAbiertaYElComandoTraeSede()
     {
@@ -282,8 +237,6 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeAnterior);
     }
 
-    // CA-7 (segunda razon de rechazo): el solape con la vinculacion anterior sigue en 409 aunque el
-    // comando traiga sede, y la sede vigente queda intacta.
     [Fact]
     public async Task IniciarVinculacion_LanzaReglaDeNegocioDeclinadaException_CuandoFechaSolapaYElComandoTraeSede()
     {
@@ -302,10 +255,7 @@ public class IniciarVinculacionCommandHandlerTests : CommandHandlerAsyncTest<Ini
         And<ColaboradorAggregateRoot, string?>(StreamIdEsperado, c => c.CodigoSede, CodigoSedeAnterior);
     }
 
-    // CA-3: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
-    // store. Sin Given: el stream no existe. Sin And<>: el aggregate no existe en el TestStore
-    // (GetAggregateRoot retorna null) -- Then sin eventos esperados ya demuestra "sin escribir
-    // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-5).
+    // Sin And<>: el aggregate no existe en el TestStore.
     [Fact]
     public async Task IniciarVinculacion_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {

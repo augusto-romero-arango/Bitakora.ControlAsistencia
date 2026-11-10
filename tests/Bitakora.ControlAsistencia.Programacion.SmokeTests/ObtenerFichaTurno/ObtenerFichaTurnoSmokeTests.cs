@@ -132,7 +132,6 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerFichaTurno_Retorna200ConElShapeBasico_CuandoElTurnoTieneFranjas()
@@ -222,7 +221,6 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         await RetirarTurnoAsync(turnoId, ct);
     }
 
-    // CA-2
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerFichaTurno_RetornaEsDescansoTrueYSinFranjas_CuandoElTurnoEsUnDescanso()
@@ -259,7 +257,6 @@ public class ObtenerFichaTurnoSmokeTests(ApiFixture api)
         ficha.Franjas.Should().BeEmpty();
     }
 
-    // CA-3
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ObtenerFichaTurno_Retorna404SinBody_CuandoLaFichaNoExiste()

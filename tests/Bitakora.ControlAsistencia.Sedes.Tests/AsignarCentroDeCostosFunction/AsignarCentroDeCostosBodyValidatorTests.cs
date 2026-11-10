@@ -19,7 +19,6 @@ public class AsignarCentroDeCostosBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-5
     [Fact]
     public async Task Validar_RechazaCentroDeCostos_CuandoEstaVacio()
     {

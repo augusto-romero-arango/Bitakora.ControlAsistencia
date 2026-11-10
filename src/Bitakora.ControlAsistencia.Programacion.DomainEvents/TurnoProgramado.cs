@@ -1,19 +1,11 @@
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 /// <summary>
-/// Representacion plana del turno programado, propia del dominio Programacion.
+/// Mismos nombres de campo que DetalleTurno (PrivateEvents) y TurnoDiario (ControlHoras.DomainEvents),
+/// pero FranjasOrdinarias tipa con FranjaProgramada; el FA lo mapea campo a campo a DetalleTurno para
+/// el bus. Equals/GetHashCode comparan FranjasOrdinarias por valor, incluyen la amplitud y
+/// EsHorarioAbierto y excluyen Descripcion (derivado).
 /// </summary>
-/// <remarks>
-/// Payload por rol (tres islas, MEF-ADR-0039 decisiones 2 y 6): mismos nombres de campo que
-/// DetalleTurno (PrivateEvents) y TurnoDiario (ControlHoras.DomainEvents), pero FranjasOrdinarias
-/// tipa con FranjaProgramada, no con DetalleFranjaOrdinaria. Lo persiste
-/// ProgramacionTurnoSolicitada; el FA lo mapea campo a campo a DetalleTurno para el bus.
-///
-/// Equals/GetHashCode comparan FranjasOrdinarias POR VALOR (SequenceEqual), incluyen
-/// AmplitudVentanaEntradaEnMinutos y EsHorarioAbierto (identidad del turno) y EXCLUYEN Descripcion
-/// (dato derivado) --
-/// mismo criterio que DetalleTurno y TurnoDiario.
-/// </remarks>
 public record TurnoProgramado(
     string Nombre,
     IReadOnlyList<FranjaProgramada> FranjasOrdinarias,
@@ -21,11 +13,7 @@ public record TurnoProgramado(
     int AmplitudVentanaEntradaEnMinutos = 0,
     bool EsHorarioAbierto = false)
 {
-    /// <summary>
-    /// Los eventos anteriores a este record no llevan el campo: STJ deja null en el parametro
-    /// posicional y la propiedad declarada como string no anulable mentiria. Se normaliza a
-    /// cadena vacia -- mismo criterio que DetalleTurno (issue #288).
-    /// </summary>
+    /// <summary>Los eventos persistidos antes de existir el campo lo traen null: se normaliza a cadena vacia.</summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
 
     public virtual bool Equals(TurnoProgramado? other)
@@ -49,18 +37,10 @@ public record TurnoProgramado(
     }
 
     /// <summary>
-    /// Cascada de sede al copiar el turno del catalogo en la solicitud de
-    /// programacion. Cada franja resuelve su sede efectiva con
-    /// <c>franja.Sede ?? sedePorDefecto</c> -- el catalogo (intencion explicita de diseno) le gana
-    /// al default de la solicitud. Funcion pura sobre records (<c>with</c>): no muta esta
-    /// instancia, retorna un turno nuevo. Con <paramref name="sedePorDefecto"/> null la cascada es
-    /// identidad (permite invocacion incondicional desde el handler, sin ramificar por si la
-    /// solicitud trae sede).
+    /// Cascada de sede: cada franja toma <c>franja.Sede ?? sedePorDefecto</c>, asi que la sede del
+    /// catalogo le gana al default de la solicitud. No muta esta instancia. Con
+    /// <paramref name="sedePorDefecto"/> null es identidad: el handler la invoca sin ramificar.
     /// </summary>
-    /// <remarks>
-    /// Tell-don't-Ask (MEF-ADR-0012): la cascada vive en el dueno de las franjas, no en el
-    /// handler -- mismo precedente que TurnoDiario.Segmentar (#327).
-    /// </remarks>
     public TurnoProgramado ConSedePorDefecto(SedeProgramada? sedePorDefecto) => this with
     {
         FranjasOrdinarias = FranjasOrdinarias
@@ -70,9 +50,8 @@ public record TurnoProgramado(
     };
 
     /// <summary>
-    /// Bloques del turno en <paramref name="fecha"/>: cada franja recortada por sus descansos y
-    /// extras, con su sede (Tell-don't-Ask, MEF-ADR-0012: la aritmetica vive en el dueno de las
-    /// franjas, no en quien proyecta).
+    /// Bloques del turno en <paramref name="fecha"/>: cada franja recortada por sus descansos y extras,
+    /// con su sede.
     /// </summary>
     public IReadOnlyList<BloqueProgramado> Segmentar(DateOnly fecha) =>
         FranjasOrdinarias.SelectMany(franja => franja.Segmentar(fecha)).ToList();

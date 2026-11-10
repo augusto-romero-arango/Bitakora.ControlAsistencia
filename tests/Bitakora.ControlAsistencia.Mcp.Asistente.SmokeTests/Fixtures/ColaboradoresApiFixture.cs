@@ -5,10 +5,9 @@ using Microsoft.Extensions.Configuration;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.Fixtures;
 
-// Hermano de ProgramacionApiFixture (misma excepcion documentada, MEF-ADR-0048 seccion 6): asignar
-// la Jornada a un colaborador todavia no tiene tool, asi que el arrange llama directo al Function App
-// de Colaboradores con la MISMA identidad interina que usa el servidor MCP en sus HttpClients
-// tipados. Es un atajo de arrange, no la cadena que el smoke test ejercita.
+// Atajo de arrange, no la cadena que el smoke ejercita (misma excepcion que ProgramacionApiFixture,
+// MEF-ADR-0048 seccion 6): llama directo al Function App de Colaboradores con la MISMA identidad
+// interina que usa el servidor MCP en sus HttpClients tipados.
 public class ColaboradoresApiFixture : IAsyncLifetime
 {
     private const string HeaderTenantId = "X-Tenant-Id";

@@ -133,7 +133,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         Given(StreamDcD, foto, DiaAprobado.Crear(StreamDcD, CodigoColaborador, Dia21, []));
     }
 
-    // CA-1: la 04:30 a favor de la vispera: la vispera cierra con salida 04:30 y el dia la cede.
+    // La 04:30 a favor de la vispera: la vispera cierra con salida 04:30 y el dia la cede.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_DaLaMarcacionALaVispera_CuandoElRepartoLaAsignaAEsaFecha()
     {
@@ -161,7 +161,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         FechasPublicadas().Should().Equal(Dia20, Dia21);
     }
 
-    // CA-2: un solo acto reparte 04:00 a la vispera y 04:50 al dia.
+    // Un solo acto reparte 04:00 a la vispera y 04:50 al dia.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_RepartePorMarcacion_CuandoHayDosEnElSolape()
     {
@@ -182,7 +182,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:00=FueraDeCobertura 04:50=DelTurno");
     }
 
-    // CA-3: el reparto omite una marcacion ambigua.
+    // El reparto omite una marcacion ambigua.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_Declina_CuandoElRepartoOmiteUnaAmbigua()
     {
@@ -200,7 +200,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:00=Ambigua 04:50=Ambigua");
     }
 
-    // CA-3: incluye una marcacion que no es ambigua (06:20 es DelTurno).
+    // Incluye una marcacion que no es ambigua (06:20 es DelTurno).
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_Declina_CuandoElRepartoIncluyeUnaMarcacionNoAmbigua()
     {
@@ -219,7 +219,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:30=Ambigua 06:20=DelTurno 14:05=DelTurno");
     }
 
-    // CA-3: la fecha no es el dia abierto ni el vecino en disputa.
+    // La fecha no es el dia abierto ni el vecino en disputa.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_Declina_CuandoLaFechaNoEsElDiaAbiertoNiElVecinoEnDisputa()
     {
@@ -238,7 +238,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:30=Ambigua 06:20=DelTurno 14:05=DelTurno");
     }
 
-    // CA-4: sin stream cd: del dia abierto.
+    // Sin stream cd: del dia abierto.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_LanzaRecursoNoEncontradoException_CuandoElDiaNoTieneDepuracion()
     {
@@ -248,7 +248,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
             .WithMessage($"*{ResolverAmbiguedadDeMarcacionesCommandHandler.Mensajes.DiaSinDepuracion}*");
     }
 
-    // CA-5: repetir el mismo reparto no emite eventos ni publica.
+    // Repetir el mismo reparto no emite eventos ni publica.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_NoEmiteEventosNiPublica_CuandoSeRepiteElMismoReparto()
     {
@@ -266,7 +266,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
             c => PertenenciasPorHora(c.CrearDiaDepurado()), "04:30=FueraDeCobertura 06:20=DelTurno 14:05=DelTurno");
     }
 
-    // CA-5: un reparto distinto con los dos dias provisionales es una decision nueva.
+    // Un reparto distinto con los dos dias provisionales es una decision nueva.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_AceptaLaDecisionNueva_CuandoElRepartoCambiaYLosDiasSonProvisionales()
     {
@@ -284,7 +284,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         FechasPublicadas().Should().Equal(Dia20, Dia21);
     }
 
-    // CA-6: la vispera aprobada uso la 04:30; resolver a su favor no cambia su uso.
+    // La vispera aprobada uso la 04:30; resolver a su favor no cambia su uso.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_Acepta_CuandoLaVisperaAprobadaUsoLaMarcacionYSeResuelveASuFavor()
     {
@@ -300,7 +300,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamDcV, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-6: la vispera aprobada uso la 04:30; resolver a favor del dia cambiaria su uso.
+    // La vispera aprobada uso la 04:30; resolver a favor del dia cambiaria su uso.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_Declina_CuandoLaVisperaAprobadaUsoLaMarcacionYSeResuelveAFavorDelDia()
     {
@@ -318,7 +318,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamDcV, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-6: la foto aprobada de la vispera no uso la 04:30; resolver a favor del dia lo respeta.
+    // La foto aprobada de la vispera no uso la 04:30; resolver a favor del dia lo respeta.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_Acepta_CuandoLaVisperaAprobadaNoUsoLaMarcacionYSeResuelveAFavorDelDia()
     {
@@ -334,7 +334,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamDcV, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-6: la foto aprobada de la vispera no uso la 04:30; resolver a su favor le cambiaria el uso.
+    // La foto aprobada de la vispera no uso la 04:30; resolver a su favor le cambiaria el uso.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_Declina_CuandoLaVisperaAprobadaNoUsoLaMarcacionYSeResuelveASuFavor()
     {
@@ -352,7 +352,7 @@ public class ResolverAmbiguedadDeMarcacionesCommandHandlerTests : CommandHandler
         And<DiaCalculadoAggregateRoot, EstadoDiaCalculado>(StreamDcV, d => d.Estado, EstadoDiaCalculado.Aprobado);
     }
 
-    // CA-6: con los dos dias aprobados siempre declina, aunque el reparto respete la foto de la vispera.
+    // Con los dos dias aprobados siempre declina, aunque el reparto respete la foto de la vispera.
     [Fact]
     public async Task ResolverAmbiguedadDeMarcaciones_Declina_CuandoLosDosDiasEstanAprobados()
     {

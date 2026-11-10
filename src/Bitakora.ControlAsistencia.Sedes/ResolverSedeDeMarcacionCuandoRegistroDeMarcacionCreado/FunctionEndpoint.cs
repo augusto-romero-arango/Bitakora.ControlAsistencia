@@ -7,9 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Bitakora.ControlAsistencia.Sedes.ResolverSedeDeMarcacionCuandoRegistroDeMarcacionCreado;
 
-// Suscripcion propia de Sedes sobre el topic que ControlHoras tambien consume -- una subscription
-// por consumidor (MEF-ADR-0001). El despacho al IPrivateEventHandlerAsync lo hace la clase base via
-// IPrivateEventRouter, sin comando espejo (MEF-ADR-0024 decision #8).
+// Subscription propia de Sedes: ControlHoras tambien consume este topic (una por consumidor, MEF-ADR-0001).
 public class FunctionEndpoint(IPrivateEventRouter privateEventRouter, ILogger<FunctionEndpoint> logger)
     : PrivateEventEndpointBase<RegistroDeMarcacionCreado>(privateEventRouter, logger)
 {

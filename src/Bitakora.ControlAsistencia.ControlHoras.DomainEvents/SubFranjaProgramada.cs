@@ -1,15 +1,13 @@
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 /// <summary>
-/// Representacion plana de una sub-franja (descanso o extra) propia de este ensamblado
-/// (issue #322, payload por rol -- CA-ADR-0029 decision #5 / MEF-ADR-0039 decision #6). Duplica
-/// con paridad exacta de campos a DetalleSubFranja (PrivateEvents.Programacion) en vez de
-/// importarlo: los tres ensamblados de eventos son tres islas sin referencias entre si.
+/// Sub-franja (descanso o extra) propia de este ensamblado. Duplica con paridad exacta de campos
+/// a DetalleSubFranja (PrivateEvents.Programacion) en vez de importarlo: los tres ensamblados de
+/// eventos son islas sin referencias entre si (CA-ADR-0029 decision #5).
 /// </summary>
 /// <remarks>
-/// Equals/GetHashCode propios EXCLUYEN Descripcion (dato derivado, no identidad de la
-/// sub-franja) -- mismo criterio que DetalleSubFranja (issue #288) y SubFranjaProgramada
-/// (Programacion.DomainEvents, issue #319).
+/// Equals/GetHashCode excluyen Descripcion (dato derivado, no identidad de la sub-franja), igual
+/// que DetalleSubFranja y SubFranjaProgramada de Programacion.DomainEvents.
 /// </remarks>
 public record SubFranjaProgramada(
     TimeOnly HoraInicio,
@@ -19,9 +17,8 @@ public record SubFranjaProgramada(
     string Descripcion)
 {
     /// <summary>
-    /// Los eventos anteriores a este record no llevan el campo: STJ deja null en el parametro
-    /// posicional y la propiedad declarada como string no anulable mentiria. Se normaliza a
-    /// cadena vacia -- mismo criterio que DetalleSubFranja (issue #288).
+    /// Los eventos anteriores a este record no llevan el campo y STJ deja null: se normaliza a
+    /// cadena vacia para no mentir en un string no anulable.
     /// </summary>
     public string Descripcion { get; init; } = Descripcion ?? string.Empty;
 
@@ -51,9 +48,8 @@ public record SubFranjaProgramada(
         HashCode.Combine(HoraInicio, HoraFin, DiaOffsetInicio, DiaOffsetFin);
 
     /// <summary>
-    /// Traduce la sub-franja al tramo en minutos absolutos que le corresponde dentro de la
-    /// segmentacion del turno (issue #327). Cada extremo resuelve su propio offset de dia contra la
-    /// fecha de asignacion -- no contra el inicio de la franja que la contiene.
+    /// Cada extremo resuelve su propio offset de dia contra la fecha de asignacion, no contra el
+    /// inicio de la franja que la contiene.
     /// </summary>
     internal Tramo ATramo(TipoBloque tipo) => new(
         tipo,

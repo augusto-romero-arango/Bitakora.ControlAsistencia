@@ -4,9 +4,6 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.QuitarFranja;
 
-// Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno + ficha vigente
-// para el eco) + POST programacion/turnos/{id}:quitar-franja (paso 4 MEF-ADR-0043). El 404/409 del
-// POST se traduce a texto, nunca a excepcion (CA-ADR-0030).
 public partial class QuitarFranjaTool(ProgramacionApi programacion, ResolutorTurnoPorId resolutor)
 {
     internal const string NombreTool = "quitar_franja";
@@ -53,9 +50,8 @@ public partial class QuitarFranjaTool(ProgramacionApi programacion, ResolutorTur
             Mensajes.NotaVisibilidadEventual));
     }
 
-    // El eco usa lo que la ficha vigente mostraba al momento de la llamada (visibilidad eventual):
-    // si aun no mostraba la franja, solo la hora -- el POST ya se envio igual y el dominio decide
-    // con 409 si en verdad no existia.
+    // El eco usa la ficha vigente al momento de la llamada (visibilidad eventual): si aun no mostraba la
+    // franja va solo la hora; el POST se envia igual y el dominio decide con 409 si no existia.
     private static string ComponerEco(FichaTurno ficha, TimeOnly hora) =>
         ficha.Franjas.FirstOrDefault(f => f.HoraInicio == hora) is { } franja
             ? NotacionFranja.Compactar(
@@ -68,8 +64,4 @@ public partial class QuitarFranjaTool(ProgramacionApi programacion, ResolutorTur
             : NotacionFranja.Hora(hora);
 }
 
-/// <summary>
-/// Eco compacto de quitar_franja hacia el asistente: la franja quitada se compone con lo que
-/// mostraba la ficha vigente al momento de la llamada, en notacion compacta.
-/// </summary>
 public sealed record FranjaQuitadaResumen(string Resultado, string Turno, string FranjaQuitada, string Nota);

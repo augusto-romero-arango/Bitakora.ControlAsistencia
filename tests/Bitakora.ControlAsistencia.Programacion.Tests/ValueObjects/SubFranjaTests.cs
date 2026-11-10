@@ -1,18 +1,11 @@
-// Issue #2: Modelar value objects de franja temporal para turnos
 using AwesomeAssertions;
 
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ValueObjects;
 
-/// <summary>
-/// Tests de SubFranja - segmento temporal dentro de una franja ordinaria.
-/// Interfaz publica: Crear(...), DuracionEnMinutos(), DuracionEnHorasDecimales(), ToString().
-/// </summary>
 public class SubFranjaTests
 {
-    // ---------- CA-2, CA-8: hereda de la abstraccion base, factory estatico ----------
-
     [Fact]
     public void Crear_RetornaSubFranja_CuandoDatosValidos()
     {
@@ -29,9 +22,7 @@ public class SubFranjaTests
         franja.Should().BeAssignableTo<FranjaTemporal>();
     }
 
-    // ---------- CA-7: inicio == fin es rechazado ----------
-
-    // Issue #598 CA-2: InicioYFinIguales se retira; la duracion no positiva la absorbe DuracionNoPositiva.
+    // Inicio == fin no tiene error propio: lo absorbe DuracionNoPositiva.
     [Fact]
     public void Crear_LanzaExcepcion_CuandoInicioYFinSonIguales()
     {
@@ -40,8 +31,6 @@ public class SubFranjaTests
         act.Should().ThrowExactly<ArgumentException>()
             .WithMessage($"*{FranjaTemporal.Mensajes.DuracionNoPositiva}*");
     }
-
-    // ---------- Issue #598 CA-1: duracion negativa con offsets iguales (bug real: -1380 min) ----------
 
     [Fact]
     public void Crear_LanzaExcepcion_CuandoFinEsAnteriorAInicioConOffsetsIguales()
@@ -52,8 +41,6 @@ public class SubFranjaTests
             .WithMessage($"*{FranjaTemporal.Mensajes.DuracionNoPositiva}*");
     }
 
-    // ---------- Issue #598 CA-3: cruce de medianoche explicito sigue siendo valido ----------
-
     [Fact]
     public void Crear_AceptaFranja_CuandoCruzaMedianocheConOffsetExplicito()
     {
@@ -62,8 +49,6 @@ public class SubFranjaTests
 
         franja.DuracionEnMinutos().Should().Be(60);
     }
-
-    // ---------- CA-5: tiene DiaOffsetInicio y DiaOffsetFin ----------
 
     [Fact]
     public void Crear_RetornaFranjaConOffset_CuandoDiaOffsetInicioYFinSonEspecificados()
@@ -83,8 +68,6 @@ public class SubFranjaTests
         franja.ToString().Should().Be("23:50-00:10+1");
     }
 
-    // ---------- CA-10: duracion sin offset ----------
-
     [Fact]
     public void DuracionEnMinutos_Retorna15_CuandoFranjaCorta()
     {
@@ -92,8 +75,6 @@ public class SubFranjaTests
 
         franja.DuracionEnMinutos().Should().Be(15);
     }
-
-    // ---------- CA-11: duracion con offset ----------
 
     [Fact]
     public void DuracionEnMinutos_Retorna60_CuandoFranjaConOffsetEnAmbosLados()
@@ -122,8 +103,6 @@ public class SubFranjaTests
         franja.DuracionEnMinutos().Should().Be(120);
     }
 
-    // ---------- CA-12: conversores de duracion ----------
-
     [Fact]
     public void DuracionEnHorasDecimales_Retorna0Punto25_CuandoFranja15Minutos()
     {
@@ -131,8 +110,6 @@ public class SubFranjaTests
 
         franja.DuracionEnHorasDecimales().Should().Be(0.25m);
     }
-
-    // ---------- CA-20, CA-21: ToString() ----------
 
     [Fact]
     public void ToString_MuestraFormatoSinOffset_CuandoAmbosSonDia0()

@@ -1,7 +1,3 @@
-// Anatomia de la clave de stream de ControlDiario (CA-ADR-0031 seccion 2). Tests directos sobre el
-// metodo estatico puro ComputarStreamId -- sin harness de event sourcing, porque no requiere stream
-// ni evento.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
 
@@ -17,9 +13,8 @@ public class ControlDiarioAggregateRootTests
         streamId.Should().Be("cd:ABC123:20260819");
     }
 
-    // CA-ADR-0031 seccion 2 paso 5: ningun componente puede aportar el separador. Sin el prefijo el
-    // split devolveria 2 partes, y una fecha en ISO extendido tampoco alcanzaria para 3 -- este test
-    // es lo que impide "simplificar" cualquiera de las dos piezas.
+    // Ningun componente puede aportar el separador (CA-ADR-0031 seccion 2): este test impide quitar el
+    // prefijo o pasar la fecha a ISO extendido.
     [Fact]
     public void ComputarStreamId_ProduceClaveDivisibleEnTresPartes_AlHacerSplitPorElSeparador()
     {

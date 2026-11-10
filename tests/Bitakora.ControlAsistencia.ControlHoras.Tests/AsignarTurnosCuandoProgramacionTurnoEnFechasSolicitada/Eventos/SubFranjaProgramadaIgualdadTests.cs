@@ -1,8 +1,5 @@
-// Issue #322: paridad de campos e igualdad de SubFranjaProgramada (ControlHoras.DomainEvents) con
-// DetalleSubFranja (PrivateEvents.Programacion) -- payload por rol, CA-ADR-0029 decision #5.
-// CA-1: SubFranjaProgramada replica la semantica de igualdad del original: Descripcion (dato
-// derivado, texto del formato tecnico) EXCLUIDA de Equals/GetHashCode. Mismo patron que
-// DetalleSubFranjaIgualdadTests (PrivateEvents.Tests), del cual este archivo es espejo deliberado.
+// Espejo de DetalleSubFranjaIgualdadTests (PrivateEvents.Tests): Descripcion (dato derivado) queda
+// fuera de Equals/GetHashCode.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -29,8 +26,6 @@ public class SubFranjaProgramadaIgualdadTests : IgualdadTestBase<SubFranjaProgra
         yield return ("DiaOffsetFin",
             new SubFranjaProgramada(new TimeOnly(23, 50), new TimeOnly(0, 10), 0, 1, "(23:50-00:10+1)"));
     }
-
-    // CA-1: dos instancias que difieren SOLO en Descripcion son iguales (dato derivado, no identidad).
 
     [Fact]
     public void Equals_RetornaTrue_CuandoSoloDescripcionEsDiferente()

@@ -6,9 +6,7 @@ using Bitakora.ControlAsistencia.Sedes.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Sedes.SmokeTests.AsignarCentroDeCostosFunction;
 
-// CentroDeCostosAsignado no cruza el bus en este issue: la unica verificacion black-box de los
-// efectos del handler es leer mt_events via PostgresFixture -- no hay ServiceBusFixture que
-// consultar.
+// CentroDeCostosAsignado no cruza el bus: sus efectos se verifican leyendo mt_events.
 public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
@@ -22,8 +20,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
     // Espacios y minusculas deliberados: el CC es opaco y debe persistirse tal cual llego.
     private const string CentroDeCostosSinNormalizar = "  cc-001 / bodega  ";
 
-    // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y esta sujeto al charset URL-safe,
-    // del que "[", "]" y el espacio quedan fuera.
+    // "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y "[", "]" y el espacio no son URL-safe.
     private static string NuevoCodigo() => $"TEST-{Guid.CreateVersion7()}";
 
     // Recomputo local del streamId: oraculo independiente, sin referenciar ComputarStreamId.
@@ -59,7 +56,6 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarCentroDeCostos_Retorna204YPersisteCentroDeCostosAsignado_CuandoCentroDeCostosEsValido()
@@ -82,15 +78,14 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         existe.Should().BeTrue(
             $"el evento {TipoEventoCentroDeCostosAsignado} deberia existir en el stream {streamId}");
 
-        // Sin filtrar por valor: filtrar por el mismo string que luego se afirma volveria la
-        // asercion tautologica -- y es justo el valor lo que CA-1 pone a prueba.
+        // Sin filtrar por valor: filtrar por el mismo string que luego se afirma volveria
+        // tautologica la asercion.
         var evento = await postgres.ObtenerEventoAsync<JsonElement>(
             SchemaSedes, streamId, TipoEventoCentroDeCostosAsignado, TimeSpan.FromSeconds(5));
 
         evento.GetProperty("CentroDeCostos").GetString().Should().Be(CentroDeCostosSinNormalizar);
     }
 
-    // CA-2
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarCentroDeCostos_Retorna204YPersisteSegundoEvento_CuandoYaTieneCentroDeCostosVigente()
@@ -130,7 +125,6 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
             "asignar por primera vez y reemplazar son el mismo comando: cada PUT agrega su propio evento");
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarCentroDeCostos_Retorna400_CuandoCentroDeCostosEsVacio()
@@ -143,8 +137,7 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // El charset URL-safe del codigo tambien rige cuando viaja en la ruta: "!" queda fuera del set
-    // unreserved y se rechaza con 400, nunca con el 404 de un stream inexistente.
+    // "!" no es unreserved: 400, nunca el 404 de un stream inexistente.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarCentroDeCostos_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()
@@ -158,7 +151,6 @@ public class AsignarCentroDeCostosSmokeTests(ApiFixture api, PostgresFixture pos
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarCentroDeCostos_Retorna404_CuandoSedeNoExiste()

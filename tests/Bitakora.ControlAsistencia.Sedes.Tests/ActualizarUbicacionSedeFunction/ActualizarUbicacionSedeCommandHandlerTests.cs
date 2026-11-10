@@ -29,7 +29,6 @@ public class ActualizarUbicacionSedeCommandHandlerTests : CommandHandlerAsyncTes
     private static SedeRegistrada CrearSedeRegistrada() =>
         new(Codigo, Nombre, CiudadOriginal, DireccionOriginal);
 
-    // CA-3
     [Fact]
     public async Task ActualizarUbicacionSede_EmiteUbicacionActualizada_CuandoAmbosCamposLlegan()
     {
@@ -42,7 +41,7 @@ public class ActualizarUbicacionSedeCommandHandlerTests : CommandHandlerAsyncTes
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.Direccion, DireccionNueva);
     }
 
-    // CA-3: los nulos se persisten como reemplazo completo, no como merge parcial que conserva la
+    // Los nulos se persisten como reemplazo completo, no como merge parcial que conserva la
     // ubicacion anterior.
     [Fact]
     public async Task ActualizarUbicacionSede_EmiteUbicacionActualizadaConNulos_CuandoAmbosCamposLleganNulos()
@@ -56,7 +55,7 @@ public class ActualizarUbicacionSedeCommandHandlerTests : CommandHandlerAsyncTes
         And<SedeAggregateRoot, string?>(StreamIdEsperado, s => s.Direccion, null);
     }
 
-    // CA-4: sin Given -- el stream no existe. El Then sin eventos esperados es la asercion de que
+    // Sin Given: el stream no existe. El Then sin eventos esperados es la asercion de que
     // nada se escribio al event store.
     [Fact]
     public async Task ActualizarUbicacionSede_LanzaRecursoNoEncontradoException_CuandoSedeNoExiste()

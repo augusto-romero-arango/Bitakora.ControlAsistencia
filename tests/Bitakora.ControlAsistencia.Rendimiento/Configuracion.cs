@@ -2,9 +2,8 @@ using Microsoft.Extensions.Configuration;
 
 namespace Bitakora.ControlAsistencia.Rendimiento;
 
-// Mismo orden que los SmokeTests: appsettings.json versionado, appsettings.local.json ignorado por
-// Git y variables de entorno (las que pone el workflow rendimiento.yml). Una sola raiz para todo el
-// ensamblado porque varias fixtures y benchmarks leen las mismas secciones.
+// appsettings.local.json esta ignorado por Git; las variables de entorno las pone el workflow
+// rendimiento.yml.
 public static class Configuracion
 {
     private static readonly Lazy<IConfigurationRoot> Raiz = new(() => new ConfigurationBuilder()

@@ -1,11 +1,9 @@
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 /// <summary>
-/// Contrato upstream de GET/QUERY colaboradores/fichas, redeclarado aqui (cero referencias a los
-/// ensamblados del BC, CA-ADR-0029). Solo los campos que la tool consume: EtiquetasNormalizadas
-/// (estructura interna de filtrado del read model) ni siquiera se declara -- STJ ignora lo que
-/// sobra en el JSON. VigenteHasta llega null cuando la vinculacion esta abierta: el backend ya
-/// oculta el centinela de vigencia. CodigoSede es el codigo tal cual, sin nombre resuelto.
+/// Contrato upstream de GET/QUERY colaboradores/fichas, redeclarado aqui (cero referencias al BC,
+/// CA-ADR-0029) con solo los campos que la tool consume. VigenteHasta null = vinculacion abierta.
+/// CodigoSede es el codigo tal cual, sin nombre resuelto.
 /// </summary>
 public sealed record FichaColaborador(
     string Id,

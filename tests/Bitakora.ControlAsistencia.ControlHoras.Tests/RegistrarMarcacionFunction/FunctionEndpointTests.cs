@@ -9,8 +9,8 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.RegistrarMarcacionFunction;
 
 /// <summary>
-/// Tests del endpoint HTTP POST control-horas/marcaciones: 201 sin Location -- la marcacion no
-/// tiene GET canonico ni id en el comando.
+/// POST control-horas/marcaciones responde 201 sin Location: la marcacion no tiene GET canonico ni id
+/// en el comando.
 /// </summary>
 public class FunctionEndpointTests
 {
@@ -53,8 +53,6 @@ public class FunctionEndpointTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 }
-
-// ---- Fakes manuales - NO NSubstitute ----
 
 internal class FakeRequestValidatorMarcacion : IRequestValidator
 {

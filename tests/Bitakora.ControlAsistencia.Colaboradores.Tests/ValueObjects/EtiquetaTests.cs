@@ -1,20 +1,10 @@
-// HU-353: Value object Etiqueta -- par categoria:valor libre con doble forma (original y
-// normalizada) por campo. Este corte solo entrega el VO; la operacion de negocio
-// (asignar/retirar con salvaguarda de unicidad por categoria) es el issue #355.
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ValueObjects;
 
-/// <summary>
-/// Interfaz publica: Crear(categoria, valor), Categoria, Valor, CategoriaNormalizada,
-/// ValorNormalizado, EsMismaCategoria(otra), ToString(), NormalizarCategoria(categoria) (issue
-/// #355, ver seccion "NormalizarCategoria" abajo).
-/// </summary>
 public class EtiquetaTests
 {
-    // ---------- CA-1: doble forma por campo (original con trim + normalizada sin tildes/mayus) ----------
-
     [Fact]
     public void Crear_ProduceFormaOriginalYNormalizada_CuandoCategoriaYValorTienenTildesMayusculasYEspaciosExtremos()
     {
@@ -26,8 +16,6 @@ public class EtiquetaTests
         etiqueta.ValorNormalizado.Should().Be("tecnologia");
     }
 
-    // ---------- CA-5: espacios internos se conservan (solo se recorta en los extremos) ----------
-
     [Fact]
     public void Crear_ConservaEspaciosInternos_CuandoValorTieneVariasPalabras()
     {
@@ -37,13 +25,9 @@ public class EtiquetaTests
         etiqueta.ValorNormalizado.Should().Be("recursos humanos");
     }
 
-    // La enie NO es un acento: es una letra propia del espanol. El patron de normalizacion que el
-    // issue prescribe (FormD + remover NonSpacingMark) la descompone en "n" + tilde combinante y la
-    // colapsa a "n", asi que "Diseno" y "Diseño" son la MISMA etiqueta. Es consecuencia inevitable
-    // del patron elegido, no un descuido: en etiquetas libres tecleadas por el cliente evita
-    // fragmentar el reporte cuando alguien escribe sin enie. Este test lo fija como decision
-    // observable en vez de dejarlo tacito -- si el dominio necesitara preservar la enie, este test
-    // es el que debe fallar primero (agregado en revision, issue #353).
+    // La enie se normaliza a "n" (FormD + quitar NonSpacingMark): "Diseno" y "Diseño" son la misma
+    // etiqueta, decision deliberada para no fragmentar reportes. Si el dominio necesitara preservar la
+    // enie, este test debe fallar primero.
     [Fact]
     public void Crear_NormalizaLaEnieComoN_CuandoValorLaContiene()
     {
@@ -54,8 +38,6 @@ public class EtiquetaTests
         conEnie.ValorNormalizado.Should().Be("diseno");
         conEnie.Should().Be(sinEnie);
     }
-
-    // ---------- CA-2: categoria/valor vacios o whitespace -> rechazo con mensaje .resx ----------
 
     [Fact]
     public void Crear_LanzaArgumentException_CuandoCategoriaEsVacia()
@@ -75,10 +57,8 @@ public class EtiquetaTests
             .WithMessage($"*{Etiqueta.Mensajes.CategoriaVacia}*");
     }
 
-    // Los parametros son string no anulable, pero el boundary recibe datos de fuera del dominio
-    // (deserializacion, payload HTTP) donde el null sobrevive al compilador: el rechazo debe ser el
-    // mismo ArgumentException con mensaje .resx, no una NullReferenceException opaca. Paridad con
-    // NombreColaboradorTests (issue #348), que ya cubre null! en sus campos requeridos.
+    // El boundary recibe datos de fuera del dominio donde el null sobrevive al compilador: el rechazo
+    // debe ser el mismo ArgumentException con mensaje .resx, no una NullReferenceException.
     [Fact]
     public void Crear_LanzaArgumentException_CuandoCategoriaEsNull()
     {
@@ -115,8 +95,6 @@ public class EtiquetaTests
             .WithMessage($"*{Etiqueta.Mensajes.ValorVacio}*");
     }
 
-    // ---------- ToString: formas originales (display), no las normalizadas ----------
-
     [Fact]
     public void ToString_ComponeCategoriaYValorConDosPuntosUsandoFormasOriginales_CuandoEtiquetaValida()
     {
@@ -124,8 +102,6 @@ public class EtiquetaTests
 
         etiqueta.ToString().Should().Be("Área:Tecnología");
     }
-
-    // ---------- CA-4: EsMismaCategoria -- superficie para la salvaguarda de unicidad de #355 ----------
 
     [Fact]
     public void EsMismaCategoria_RetornaTrue_CuandoCategoriasNormalizadasCoincidenConValoresDistintos()
@@ -145,13 +121,8 @@ public class EtiquetaTests
         sede.EsMismaCategoria(area).Should().BeFalse();
     }
 
-    // ---------- NormalizarCategoria (issue #355, desviacion documentada en el resumen del pipeline) ----------
-    //
-    // RetirarEtiqueta solo lleva la Categoria en su payload (sin Valor) -- Etiqueta.Crear(categoria,
-    // valor) exige un valor no vacio y por tanto no es aplicable para obtener la forma normalizada
-    // de una categoria aislada. Tell-don't-Ask: esa normalizacion sigue siendo decision de este VO
-    // (mismo criterio que EsMismaCategoria), nunca del handler ni del aggregate.
-
+    // RetirarEtiqueta solo trae la categoria y Crear exige un valor: por eso el VO expone
+    // NormalizarCategoria, y esa normalizacion sigue siendo suya, nunca del handler ni del aggregate.
     [Fact]
     public void NormalizarCategoria_RetornaFormaNormalizada_CuandoCategoriaTieneTildesMayusculasYEspaciosExtremos()
     {

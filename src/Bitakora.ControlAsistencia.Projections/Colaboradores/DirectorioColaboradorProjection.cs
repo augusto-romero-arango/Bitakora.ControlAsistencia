@@ -6,19 +6,15 @@ using Marten.Events.Aggregation; // SingleStreamProjection<,> vive aqui, NO en M
 namespace Bitakora.ControlAsistencia.Projections.Colaboradores;
 
 /// <summary>
-/// Clase de proyeccion companion de DirectorioColaborador (receta N1 -- un solo stream, el mismo
-/// del colaborador que proyecta FichaColaboradorProjection; MEF-ADR-0035).
+/// Proyeccion N1 sobre el stream del colaborador, el mismo que proyecta FichaColaboradorProjection.
 /// </summary>
 /// <remarks>
-/// partial es obligatorio: el source generator descubre Create/Apply por convencion y emite el
-/// dispatcher [GeneratedEvolver]. Sin partial el build queda limpio y falla en RUNTIME al registrar
-/// la proyeccion (skills/projections/modelos-marten.md).
+/// partial es obligatorio: el source generator emite el dispatcher [GeneratedEvolver]; sin partial el
+/// build queda limpio y falla en RUNTIME al registrar la proyeccion.
 ///
-/// Create toma IEvent&lt;ColaboradorRegistrado&gt; y no el payload a secas porque la identidad del
-/// documento es exactamente el StreamKey del stream, sin recomponerla a mano desde el payload.
-///
-/// Solo declara Apply para los 7 eventos del directorio: sin Apply de EtiquetaAsignada/
-/// EtiquetaRetirada (el directorio no lleva etiquetas) y sin ShouldDelete (nunca borra).
+/// Create toma IEvent&lt;ColaboradorRegistrado&gt; porque la identidad del documento es exactamente el
+/// StreamKey, sin recomponerla desde el payload. Sin Apply de etiquetas (el directorio no las lleva) y
+/// sin ShouldDelete (nunca borra).
 /// </remarks>
 public sealed partial class DirectorioColaboradorProjection
     : SingleStreamProjection<DirectorioColaborador, string>
@@ -55,9 +51,8 @@ public sealed partial class DirectorioColaboradorProjection
     public static DirectorioColaborador Apply(TerminacionAnulada e, DirectorioColaborador vista) =>
         vista with { VigenteHasta = DirectorioColaborador.CentinelaVigenciaAbierta };
 
-    // Corregir el nombre obliga a recalcular los tokens, o la entrada deja de encontrarse por su
-    // nombre nuevo. La regla la aporta la vista (Tell-don't-Ask, MEF-ADR-0012), nunca un algoritmo
-    // propio de la proyeccion.
+    // Corregir el nombre obliga a recalcular los tokens, o la entrada deja de encontrarse por su nombre
+    // nuevo. La regla la aporta la vista, nunca un algoritmo propio de la proyeccion.
     public static DirectorioColaborador Apply(NombresCorregidos e, DirectorioColaborador vista) =>
         vista with
         {

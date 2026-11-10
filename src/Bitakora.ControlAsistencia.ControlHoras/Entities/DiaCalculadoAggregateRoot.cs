@@ -15,9 +15,8 @@ using SedeDeFranja = Bitakora.ControlAsistencia.ReadModels.ControlHoras.SedeDeFr
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
 // Expediente de aprobacion de un dia de trabajo: recibe cada foto de DiaDepurado (ya traducida a
-// tipos de dominio por el handler) y mantiene los valores provisionales del dia. Vive separado de
-// ControlDiario a proposito -- el juicio humano del Aprobador no comparte aggregate con el calculo
-// automatico. El ciclo Provisional -> Aprobado llega con el issue de acciones del Aprobador.
+// tipos de dominio por el handler). Vive separado de ControlDiario a proposito: el juicio humano
+// del Aprobador no comparte aggregate con el calculo automatico.
 public partial class DiaCalculadoAggregateRoot : AggregateRoot
 {
     public EstadoDiaCalculado Estado { get; private set; }
@@ -27,8 +26,7 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     public bool TieneConflictoDeSedePendiente =>
         _franjas.Any(franja => DerivarSedeDeFranja(franja, _marcaciones).EnConflicto);
 
-    // Valores provisionales de la ultima foto recibida: nunca se exponen como propiedades sueltas
-    // (MEF-ADR-0012, Tell-don't-Ask). Solo Apply los reemplaza.
+    // Valores de la ultima foto recibida: no se exponen como propiedades sueltas (MEF-ADR-0012).
     private string _codigoColaborador = string.Empty;
     private DateOnly _fecha;
     private ResumenColaborador? _colaborador;
@@ -48,17 +46,14 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     private const char SeparadorStreamId = ':';
     private const string FormatoFechaStreamId = "yyyyMMdd";
 
-    // Punto unico de conversion de la identidad (MEF-ADR-0037): dos mensajes del mismo
-    // colaborador+fecha convergen sobre el mismo stream. InvariantCulture: una culture con
-    // calendario no gregoriano (ar-SA) rendiria otro anio en la clave.
+    // InvariantCulture: una culture con calendario no gregoriano (ar-SA) rendiria otro anio en la clave.
     public static string ComputarStreamId(string codigoColaborador, DateOnly fecha)
     {
         var fechaBasica = fecha.ToString(FormatoFechaStreamId, CultureInfo.InvariantCulture);
         return $"{PrefijoStreamId}{SeparadorStreamId}{codigoColaborador}{SeparadorStreamId}{fechaBasica}";
     }
 
-    // MEF-ADR-0004: Apply no lanza. Reemplaza la foto completa sin comparar contra el estado previo
-    // -- sin deduplicacion de ningun tipo (CA-4).
+    // Reemplaza la foto completa sin comparar contra el estado previo: sin deduplicacion.
     // public: requerido para que TestStore.ApplyEvent lo encuentre via GetMethods()
     public void Apply(DepuracionDiaRecibida e)
     {
@@ -85,12 +80,11 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         return dia;
     }
 
-    // CA-2/CA-4: toda foto que llega a un dia ya existente se agrega al mismo stream, siempre.
-    // Un dia ya Aprobado no incorpora la foto tardia -- Apply(DepuracionDiaRecibida) lo regresaria
-    // a Provisional -- pero tampoco la ignora: queda como evidencia auditable en el mismo stream.
+    // Un dia ya Aprobado no incorpora la foto tardia (Apply(DepuracionDiaRecibida) lo regresaria a
+    // Provisional), pero tampoco la ignora: queda como evidencia auditable en el mismo stream.
     // Una foto sin version se aplica siempre; una con version solo si supera a la ultima aplicada
     // (la igual es la misma foto, p. ej. un lote reintentado). Se evalua antes que el dia aprobado:
-    // una foto vieja no aporta ni como evidencia. CA-ADR-0030: declina con resultado, sin evento.
+    // una foto vieja no aporta ni como evidencia.
     internal ResultadoRecepcionDepuracion RecibirDepuracion(DepuracionDiaRecibida evento)
     {
         if (evento.VersionControlDiario is { } nueva && _versionControlDiario is { } ultima && nueva <= ultima)
@@ -109,15 +103,11 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         return ResultadoRecepcionDepuracion.Recibida;
     }
 
-    // MEF-ADR-0004: Apply no lanza ni muta -- rehidratar un stream con este evento reproduce
-    // exactamente el mismo dia Aprobado. public: requerido para que TestStore.ApplyEvent lo
-    // encuentre via GetMethods().
+    // No muta: rehidratar un stream con este evento reproduce exactamente el mismo dia Aprobado.
     public void Apply(DepuracionPosAprobacionRecibida e) { }
 
-    // MEF-ADR-0004: Apply no lanza -- reemplaza la foto completa sin comparar contra
-    // el estado previo. public: requerido para que TestStore.ApplyEvent lo encuentre via
-    // GetMethods(). Es tambien el primer evento del aval del vacio (CA-7): fija Id, colaborador y
-    // fecha aunque nunca haya llegado una DepuracionDiaRecibida.
+    // Es tambien el primer evento del aval del vacio: fija Id, colaborador y fecha aunque nunca haya
+    // llegado una DepuracionDiaRecibida.
     public void Apply(DiaAprobado e)
     {
         Id = e.Id;
@@ -177,10 +167,9 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         return ResultadoAprobacion.Aprobado;
     }
 
-    // Tell-don't-Ask (MEF-ADR-0012): el aggregate produce la vista de lectura desde su estado
-    // privado -- ninguna propiedad nueva se expone. El motivo de ausencia manda sobre la senal
-    // estructural del contrato de DiaDepurado (NombreTurno null -> SinProgramar; nombre + cero
-    // franjas -> Descanso), que sigue decidiendo el plan cuando no hay motivo (CA-ADR-0036).
+    // El motivo de ausencia manda sobre la senal estructural del contrato de DiaDepurado
+    // (NombreTurno null -> SinProgramar; nombre + cero franjas -> Descanso), que sigue decidiendo el
+    // plan cuando no hay motivo (CA-ADR-0036).
     public DepuracionDelDia GenerarDepuracionDelDia()
     {
         var plan = ClasificarPlan(_nombreTurno, _franjas, _motivoAusencia);
@@ -280,9 +269,9 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
     private static bool EsUsada(MarcacionDelDia marcacion, IReadOnlyList<FranjaDepurada> franjas) =>
         franjas.Any(franja => PerteneceA(marcacion, franja));
 
-    // Politica en firme (glosario "Conflicto de sede"): SIN DEFAULT -- dos o mas codigos de sede
-    // distintos entre las fuentes de una franja dejan la decision al Aprobador (#483); la maquina
-    // no elige por el, expone las candidatas y se abstiene de sede efectiva.
+    // Politica en firme (glosario "Conflicto de sede"), sin default: dos o mas codigos de sede
+    // distintos entre las fuentes de una franja dejan la decision al Aprobador; la maquina no elige
+    // por el, expone las candidatas y se abstiene de sede efectiva.
     //
     // Duplicada a proposito (MEF-ADR-0018): se re-deriva, reducida al booleano, en
     // Projections.ControlHoras.AsistenciaDiariaProjection.EsConflictoDeSedePendiente. Si cambia

@@ -1,5 +1,3 @@
-// Issue #270 CA-2: guardrail de portabilidad por el bus para RegistroDeMarcacionCreado.
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
@@ -7,17 +5,11 @@ using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
 namespace Bitakora.ControlAsistencia.PrivateEvents.Tests.ControlHoras;
 
 /// <summary>
-/// Verifica que RegistroDeMarcacionCreado (IPrivateEvent) sobrevive el cruce fisico del ASB interno
-/// del BC (MEF-ADR-0024 decision #3): el productor (RegistrarMarcacionCommandHandler, via Wolverine)
-/// serializa en camelCase; el consumidor (ServiceBusDeserializador, en el Function App de
-/// ControlHoras) deserializa con PropertyNameCaseInsensitive=true y SIN resolver custom. Distinto de
-/// un round-trip de Marten (seccion 6d del test-writer): aqui la expectativa es que el payload
-/// SOBREVIVA sin resolver -- si no sobreviviera, el tipo no seria portable (MEF-ADR-0023).
-///
-/// Este test compila referenciando UNICAMENTE PrivateEvents (CA-ADR-0029 seccion 3: si necesitara
-/// mas, el tipo no seria portable). Replica las opciones manualmente (camelCase al serializar,
-/// case-insensitive al leer) porque ServiceBusDeserializador vive en el Function App de ControlHoras,
-/// fuera del alcance de este proyecto de test.
+/// Guardrail de portabilidad por el bus: el productor (Wolverine) serializa en camelCase y el
+/// consumidor (ServiceBusDeserializador, en el Function App de ControlHoras) deserializa con
+/// PropertyNameCaseInsensitive=true y SIN resolver custom; si el payload no sobreviviera, el tipo no
+/// seria portable. Compila referenciando UNICAMENTE PrivateEvents, por eso replica a mano las
+/// opciones de ServiceBusDeserializador.
 /// </summary>
 public class RegistroDeMarcacionCreadoTests
 {
@@ -39,7 +31,7 @@ public class RegistroDeMarcacionCreadoTests
         var restaurado = JsonSerializer.Deserialize<RegistroDeMarcacionCreado>(json, CrearOpcionesConsumidor());
 
         // La igualdad por valor del record cubre los cuatro campos: no hay coleccion en el payload,
-        // asi que no promete una comparacion estructural que no cumpla (MEF-ADR-0012).
+        // asi que no promete una comparacion estructural que no cumpla.
         restaurado.Should().Be(evento);
     }
 

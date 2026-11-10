@@ -9,11 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Tests.Infraestructura;
 
-// Nucleo testable de IdentidadTenantMcpMiddleware: DerivarIdentidadAsync opera sobre el encabezado
-// Authorization ya extraido, porque FunctionContext/ToolInvocationContext no son instanciables en un
-// unit test (MEF-ADR-0048 seccion 1). El validador y el derivador se fakean para aislar la
-// orquestacion de la criptografia (ValidadorTokenAuthKitTests) y de la traduccion de claims
-// (DerivadorIdentidadTenantMcpTests).
+// DerivarIdentidadAsync opera sobre el Authorization ya extraido porque FunctionContext y
+// ToolInvocationContext no son instanciables en un unit test (MEF-ADR-0048 seccion 1).
 public class IdentidadTenantMcpMiddlewareTests
 {
     private static readonly IdentidadTenant IdentidadDeEjemplo = new("org_acme", "usuario_123", "om_123");

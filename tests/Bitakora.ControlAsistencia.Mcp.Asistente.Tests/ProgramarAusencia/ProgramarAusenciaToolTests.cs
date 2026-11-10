@@ -55,7 +55,6 @@ public class ProgramarAusenciaToolTests
         fakes.Colaboradores.UltimaRequest.Should().BeNull();
     }
 
-    // CA-1
     [Fact]
     public async Task ProgramarAusencia_RegistraElPeriodoCompleto_CuandoLaVinculacionLoCubre()
     {
@@ -85,7 +84,7 @@ public class ProgramarAusenciaToolTests
         json.AsObject().ContainsKey("diasFuera").Should().BeFalse("la vinculacion cubre todo el periodo");
     }
 
-    // CA-2: el periodo pasa el fin de la vinculacion (Beto termina el 2026-09-20).
+    // Beto termina su vinculacion el 2026-09-20.
     [Fact]
     public async Task ProgramarAusencia_RecortaAlFinDeLaVinculacion_CuandoElPeriodoLaSupera()
     {
@@ -105,7 +104,7 @@ public class ProgramarAusenciaToolTests
             "2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25");
     }
 
-    // CA-2: el periodo empieza antes del inicio de la vinculacion (Dario empieza el 2026-09-10).
+    // Dario empieza su vinculacion el 2026-09-10.
     [Fact]
     public async Task ProgramarAusencia_RecortaAlInicioDeLaVinculacion_CuandoElPeriodoEmpiezaAntes()
     {
@@ -125,7 +124,7 @@ public class ProgramarAusenciaToolTests
             "2026-09-05", "2026-09-06", "2026-09-07", "2026-09-08", "2026-09-09");
     }
 
-    // CA-2: Caro termino su vinculacion el 2026-08-30; ningun dia del periodo cae en ella.
+    // Caro termino su vinculacion el 2026-08-30.
     [Fact]
     public async Task ProgramarAusencia_ExplicaYNoRegistra_CuandoNingunDiaCaeEnLaVinculacion()
     {
@@ -138,7 +137,6 @@ public class ProgramarAusenciaToolTests
         fakes.Programacion.Requests.Should().BeEmpty();
     }
 
-    // CA-3
     [Fact]
     public async Task ProgramarAusencia_RechazaSinEscribir_CuandoElColaboradorNoEstaEnElDirectorio()
     {

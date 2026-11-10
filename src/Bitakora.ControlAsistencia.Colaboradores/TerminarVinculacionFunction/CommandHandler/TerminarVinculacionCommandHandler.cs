@@ -14,8 +14,6 @@ public partial class TerminarVinculacionCommandHandler : ICommandHandlerAsync<Te
 
     public async Task HandleAsync(TerminarVinculacion command, CancellationToken ct = default)
     {
-        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
-        // IniciarVinculacionCommandHandler/RegistrarColaboradorCommandHandler.
         var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion);
         var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
 

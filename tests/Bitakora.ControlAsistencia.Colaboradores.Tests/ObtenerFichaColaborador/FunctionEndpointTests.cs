@@ -1,30 +1,4 @@
-// Issue #386: tests del endpoint HTTP GET colaboradores/fichas/{id} -- alinea la consulta puntual
-// a la forma unica de identidad en la ruta que ya usan los comandos del ciclo de vida del
-// colaborador (#376/#377): {id} = Identificacion.ToString() ("CC-79543210"), la misma llave que
-// devuelve FichaColaborador.Id (round-trip completo del cliente, MEF-ADR-0037). Reemplaza la ruta
-// de dos segmentos {tipoIdentificacion}/{numero} (issue #356): la ruta vieja deja de existir (CA-5,
-// verificado por la ausencia de esa firma en este archivo).
-//
-// CA-3: id de ruta invalido (sin guion, tipo fuera de la lista cerrada PILA, numero vacio tras el
-// guion) -> 400 -- parseo tipado unico (Identificacion.Parsear), mismo mecanismo que
-// CorregirNombresFunction.FunctionEndpoint (precedente post-#376/#377). Los tres casos se
-// cortocircuitan ANTES de tocar Marten -- store y tenantContext se pasan nulos a proposito, mismo
-// patron que ListarFichasColaborador/FunctionEndpointTests.cs: si un cambio futuro moviera la
-// validacion DESPUES de abrir la QuerySession, estos tests se pondrian rojos por la razon correcta
-// (NullReferenceException en vez de 400), nunca en verde por accidente.
-//
-// CA-1/CA-2/CA-4 (200 con ficha existente, 404 sin ficha, normalizacion "cc-79543210" resuelve la
-// misma ficha que "CC-79543210") dependen de session.LoadAsync contra Marten real -- black-box del
-// smoke test, mismo precedente que el propio test-writer de #356 dejo documentado en
-// FichaColaboradorRespuestaTests.cs ("el resto de Run... es black-box del smoke test"): IDocumentStore/
-// IQuerySession de Marten no se fake-ean a mano (violaria "NUNCA NSubstitute" sin aportar cobertura
-// real) y este dominio no usa Testcontainers para unit tests (ADR de smoke tests del proyecto).
-//
-// El 400 se verifica como BadRequestObjectResult CON MENSAJE, no solo por su status: MEF-ADR-0037
-// seccion 2 (y la documentacion oficial de ASP.NET Core que ese ADR cita, "Invalid input should
-// produce a 400 Bad Request with an appropriate error message") proscribe el BadRequestResult
-// pelado -- deja al cliente sin saber que componente de la ruta se rechazo. Sin esta asercion,
-// "simplificar" el endpoint a un BadRequestResult pasaria estos tests en verde.
+// El 200/404 depende de session.LoadAsync contra Marten real: lo cubre el smoke test.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.ObtenerFichaColaborador;
@@ -35,8 +9,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ObtenerFichaColaborador
 
 public class FunctionEndpointTests
 {
-    // store/tenantContext nulos a proposito: los tres casos de este archivo deben resolverse
-    // ANTES de que el endpoint toque Marten (ver comentario de archivo).
+    // Store y tenantContext nulos a proposito: los casos deben resolverse antes de tocar Marten.
     private static FunctionEndpoint Endpoint() => new(store: null!, tenantContext: null!);
 
     private static HttpRequest FakeHttpRequest() => new DefaultHttpContext().Request;
@@ -44,13 +17,13 @@ public class FunctionEndpointTests
     private static Task<IActionResult> ObtenerAsync(string id) =>
         Endpoint().Run(FakeHttpRequest(), id, CancellationToken.None);
 
-    // El 400 debe llevar mensaje (ver cabecera): se afirma el tipo Y que el cuerpo trae texto.
+    // El 400 lleva mensaje (MEF-ADR-0037 seccion 2): un BadRequestResult pelado deja al cliente sin
+    // saber que componente de la ruta se rechazo, y sin esta asercion pasaria en verde.
     private static void DebeSer400ConMensaje(IActionResult resultado) =>
         resultado.Should().BeOfType<BadRequestObjectResult>()
             .Which.Value.Should().BeOfType<string>()
             .Which.Should().NotBeNullOrWhiteSpace();
 
-    // CA-3: id de ruta sin guion -> 400, sin llegar a tocar Marten.
     [Fact]
     public async Task ObtenerFichaColaborador_Retorna400_CuandoIdDeRutaNoTraeGuion()
     {
@@ -59,7 +32,6 @@ public class FunctionEndpointTests
         DebeSer400ConMensaje(resultado);
     }
 
-    // CA-3: tipo de identificacion fuera de la lista cerrada PILA -> 400.
     [Fact]
     public async Task ObtenerFichaColaborador_Retorna400_CuandoElTipoDeLaIdentificacionNoEstaEnLaListaCerrada()
     {
@@ -68,7 +40,6 @@ public class FunctionEndpointTests
         DebeSer400ConMensaje(resultado);
     }
 
-    // CA-3: numero vacio tras el guion del {id} de ruta -> 400.
     [Fact]
     public async Task ObtenerFichaColaborador_Retorna400_CuandoElNumeroDeLaIdentificacionQuedaVacio()
     {

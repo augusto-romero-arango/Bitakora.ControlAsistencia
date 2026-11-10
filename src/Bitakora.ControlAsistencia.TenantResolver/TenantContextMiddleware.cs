@@ -6,22 +6,13 @@ using Microsoft.Azure.Functions.Worker.Middleware;
 namespace Bitakora.ControlAsistencia.TenantResolver;
 
 /// <summary>
-/// Puebla el <see cref="TenantExecutionContext"/> de la invocacion, leyendo la identidad del contexto
-/// de ejecucion del trigger:
-/// <list type="bullet">
-///   <item>HTTP: headers confiables X-Tenant-Id/X-User-Id/X-Organization-Membership-Id (via <c>FunctionContext.GetHttpContext()</c>).</item>
-///   <item>Service Bus: ApplicationProperties tenant-id/user_id/organization_membership_id del mensaje, obtenido tipado con
-///     <c>BindInputAsync</c> (la maquinaria de binding cachea el resultado, no re-convierte ni
-///     settlea el mensaje).</item>
-/// </list>
-/// Se puebla via <see cref="TenantExecutionContext.Set"/> (estatico, respaldado por AsyncLocal), sin
-/// resolver nada del contenedor: el estado es ambiente, no depende del scope de DI de la invocacion.
-///
-/// Es el unico punto de poblacion para los triggers que reciben la identidad del gateway o del
-/// mensaje. Los que no la reciben -- webhooks de un proveedor externo, que no pueden presentar un JWT
-/// -- la derivan de su payload ya verificado y la pueblan con
-/// <see cref="TenantExecutionContext.SetDerivedIdentity"/>.
+/// Puebla el <see cref="TenantExecutionContext"/> de la invocacion desde los headers HTTP del gateway o
+/// las ApplicationProperties del mensaje de Service Bus. Los triggers que no reciben esa identidad
+/// usan <see cref="TenantExecutionContext.SetDerivedIdentity"/>.
 /// </summary>
+/// <remarks>
+/// <c>BindInputAsync</c> cachea el mensaje enlazado: no lo re-convierte ni lo settlea.
+/// </remarks>
 public sealed class TenantContextMiddleware : IFunctionsWorkerMiddleware
 {
     // Headers confiables que estampa el gateway APIM (MEF-ADR-0032).
@@ -29,9 +20,8 @@ public sealed class TenantContextMiddleware : IFunctionsWorkerMiddleware
     private const string UserHeaderHttp = "X-User-Id";
     private const string MembershipHeaderHttp = "X-Organization-Membership-Id";
 
-    // Llave con que Wolverine serializa el TenantId del envelope a ApplicationProperties
-    // (Wolverine.EnvelopeConstants.TenantIdKey). user_id y organization_membership_id viajan bajo las llaves de
-    // Cosmos.MultiTenancy.TenancyHeaders.
+    // Debe casar con Wolverine.EnvelopeConstants.TenantIdKey, la llave con que Wolverine serializa el
+    // TenantId del envelope a ApplicationProperties.
     private const string TenantPropertyAsb = "tenant-id";
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)

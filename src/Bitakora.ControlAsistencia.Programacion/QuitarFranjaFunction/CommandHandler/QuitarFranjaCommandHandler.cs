@@ -5,8 +5,7 @@ using Cosmos.EventSourcing.Abstractions.Commands;
 
 namespace Bitakora.ControlAsistencia.Programacion.QuitarFranjaFunction.CommandHandler;
 
-// Este comando no construye ningun VO, asi que no hay canal de ArgumentException que mezclar con
-// el de las reglas de negocio (CA-ADR-0030) -- a diferencia de AgregarFranjaCommandHandler.
+// No construye ningun VO: no hay ArgumentException que mezclar con las reglas de negocio (CA-ADR-0030).
 public partial class QuitarFranjaCommandHandler : ICommandHandlerAsync<QuitarFranja>
 {
     private readonly IEventStore _eventStore;

@@ -118,7 +118,7 @@ public sealed partial class AdvertenciasProgramacionSemanalProjection
         return Recalcular(vista with { NombreCompleto = evento.Colaborador.NombreCompleto }, indice, casilla);
     }
 
-    // Una cancelacion como primer evento (#747) no crea documento.
+    // Una cancelacion como primer evento no crea documento.
     public static AdvertenciasProgramacionSemanal? Create(TurnoDiarioCancelado evento) => null;
 
     public static AdvertenciasProgramacionSemanal? Apply(TurnoDiarioCancelado evento, AdvertenciasProgramacionSemanal vista)

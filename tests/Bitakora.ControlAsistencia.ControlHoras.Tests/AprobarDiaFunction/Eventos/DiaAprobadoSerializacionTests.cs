@@ -1,7 +1,3 @@
-// Issue #489: round-trip de serializacion Marten para DiaAprobado (regla 16 / seccion 6d del
-// test-writer) -- ctor privado, ConfigurarSerializacion requerido, mismo patron que
-// DepuracionDiaRecibida/SedeDeMarcacionIdentificada.
-
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -15,9 +11,8 @@ public class DiaAprobadoSerializacionTests
     private const string CodigoColaborador = "EMP-001";
     private static readonly DateOnly Fecha = new(2026, 8, 24);
 
-    // Usa las opciones REALES de Marten del dominio (regla 6d) -- no un resolver armado inline que
-    // solo registre este tipo. Sin la linea de registro en ConfigurarResolver, este test es la
-    // barrera que lo detecta.
+    // Opciones reales de Marten, no un resolver inline: sin el registro en ConfigurarResolver este test
+    // lo detecta.
     private static JsonSerializerOptions CrearOpcionesMarten() =>
         ConfiguracionSerializacionControlHoras.CrearOpcionesMarten();
 
@@ -39,8 +34,6 @@ public class DiaAprobadoSerializacionTests
             [new SedeDecidida(new TimeOnly(6, 0), "SEDE-02", "Sede Norte", "CC-200")]);
     }
 
-    // CA-1: el dia sin conflictos de sede aprueba con SedesDecididas vacia -- caso legitimo del
-    // acto, no una trampa de cobertura.
     [Fact]
     public void RoundTrip_ReconstruyeEvento_CuandoSedesDecididasEstaVacia()
     {
@@ -55,8 +48,7 @@ public class DiaAprobadoSerializacionTests
         deserializado.SedesDecididas.Should().BeEmpty();
     }
 
-    // Barrera anti-regresion (regla 16): sin el registro en ConfigurarResolver, el ctor privado es
-    // inalcanzable para STJ.
+    // Sin el registro en ConfigurarResolver el ctor privado es inalcanzable para STJ.
     [Fact]
     public void Deserializar_LanzaNotSupportedException_CuandoElResolverNoRegistraElTipo()
     {

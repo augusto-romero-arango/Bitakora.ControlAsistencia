@@ -1,7 +1,5 @@
-// Issue #319: Tests de contrato IEquatable para ColaboradorProgramado (record propio de
-// Programacion.DomainEvents, tres islas). Todos los campos son string: la igualdad por valor del
-// record por defecto ya es correcta, sin Equals/GetHashCode custom.
-// Issue #436: la terna de identidad reemplaza al quinteto -- tres ejes de diferencia, no cinco.
+// Todos los campos son string: la igualdad por valor del record por defecto basta, sin
+// Equals/GetHashCode custom.
 
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 

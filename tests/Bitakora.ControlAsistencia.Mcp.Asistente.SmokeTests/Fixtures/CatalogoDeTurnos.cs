@@ -2,10 +2,8 @@ using System.Text.Json;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.Fixtures;
 
-// Tercera aparicion del mismo arrange -- crear_turno, agregar_franja y quitar_franja necesitan
-// las tres la ficha del catalogo por nombre, y las tres esperan a que la proyeccion la
-// materialice (MEF-ADR-0018, Rule of Three). Va sobre ProgramacionApiFixture.Client, el atajo de
-// arrange directo al Function App de Programacion, no sobre el cliente MCP.
+// Atajo de arrange sobre ProgramacionApiFixture.Client (directo al Function App de Programacion),
+// no sobre el cliente MCP.
 public static class CatalogoDeTurnos
 {
     public static readonly TimeSpan TimeoutPolling = TimeSpan.FromSeconds(30);

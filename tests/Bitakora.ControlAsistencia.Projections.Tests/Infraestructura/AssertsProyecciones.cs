@@ -12,17 +12,14 @@ using Microsoft.Extensions.Hosting;
 namespace Bitakora.ControlAsistencia.Projections.Tests.Infraestructura;
 
 /// <summary>
-/// Helpers reutilizables del config-test del worker (MEF-ADR-0034 seccion 6): encapsulan la
-/// superficie exacta de Marten 9.12.0 que hay que interrogar para cada guarda, de modo que el
-/// archivo de tests exprese que se verifica y no como. Invocar sobre cada named store que el
+/// Helpers del config-test del worker (MEF-ADR-0034 seccion 6). Invocar sobre cada named store que el
 /// config-test resuelva del contenedor.
 /// </summary>
 public static class AssertsProyecciones
 {
     /// <summary>
-    /// Guarda 3: el named store replica exactamente la configuracion de metadata de evento que
-    /// exige el write-side de ese mismo dominio (MEF-ADR-0034 seccion 7). Una divergencia entre
-    /// ambos lados rompe la proyeccion en runtime, no en el build.
+    /// El named store replica la metadata de evento que exige el write-side de su dominio (MEF-ADR-0034
+    /// seccion 7): una divergencia rompe la proyeccion en runtime, no en el build.
     /// </summary>
     public static void AssertOpcionesDeEvento(this IDocumentStore store)
     {
@@ -45,26 +42,19 @@ public static class AssertsProyecciones
     }
 
     /// <summary>
-    /// Guarda 2: ninguna proyeccion del named store quedo con lifecycle Inline -- Async es el
-    /// ciclo de vida canonico del worker y una Inline aqui esta mal ubicada (MEF-ADR-0034
-    /// seccion 3). La lista se enumera con IReadOnlyStoreOptions.Events.Projections() (metodo,
-    /// IReadOnlyList de ISubscriptionSource); store.Options.Projections.All no existe en la
-    /// superficie de solo lectura que expone IDocumentStore.Options.
+    /// Ninguna proyeccion del named store es Inline: Async es el ciclo de vida del worker (MEF-ADR-0034
+    /// seccion 3). store.Options.Projections.All no existe en la superficie de solo lectura; se
+    /// enumera con Events.Projections().
     /// </summary>
     public static void AssertSinProyeccionesInline(this IDocumentStore store) =>
         store.Options.Events.Projections()
             .Should().NotContain(proyeccion => proyeccion.Lifecycle == ProjectionLifecycle.Inline);
 
     /// <summary>
-    /// Issue #289 CA-4: la proyeccion concreta quedo registrada en el named store con lifecycle
-    /// Async -- complementa AssertSinProyeccionesInline (que solo prueba que NADA quedo Inline; una
-    /// lista de proyecciones vacia pasaria esa guarda sin decir nada sobre si la proyeccion
-    /// concreta llego a registrarse). <paramref name="nombreVista"/> es el nombre de la VISTA
-    /// (p. ej. "TurnoVigente"), no el de la clase de proyeccion -- verificado por decompilacion
-    /// con ilspycmd contra JasperFx.Events 2.18.1 (investigacion del planner, issue #289):
-    /// ISubscriptionSource.Name es la propiedad real (no "ProjectionName", que no existe en la
-    /// interfaz), y Marten la deriva del tipo de documento agregado, nunca del nombre de la clase
-    /// companion (p. ej. TurnoVigenteProjection).
+    /// La proyeccion quedo registrada como Async; complementa AssertSinProyeccionesInline, que pasa con
+    /// una lista vacia. <paramref name="nombreVista"/> es el nombre de la vista (p. ej. "TurnoVigente"),
+    /// no el de la clase de proyeccion: Marten deriva ISubscriptionSource.Name del tipo de documento
+    /// (verificado por decompilacion contra JasperFx.Events 2.18.1).
     /// </summary>
     public static void AssertProyeccionAsyncRegistrada(this IDocumentStore store, string nombreVista) =>
         store.Options.Events.Projections()
@@ -73,12 +63,10 @@ public static class AssertsProyecciones
                 && proyeccion.Lifecycle == ProjectionLifecycle.Async);
 
     /// <summary>
-    /// El daemon del named store quedo encendido y en modo HotCold (MEF-ADR-0034 seccion 2):
-    /// registrar el store no basta -- sin AddAsyncDaemon encadenado el worker arranca y nunca
-    /// materializa nada, y con DaemonMode.Solo dos replicas simultaneas procesarian los mismos
-    /// eventos por duplicado. Marten registra un ProjectionCoordinator tipado por el marker del
-    /// store; el modo elegido solo se expone en la superficie mutable (StoreOptions), de ahi la
-    /// conversion.
+    /// El daemon del named store quedo encendido y en modo HotCold (MEF-ADR-0034 seccion 2): sin
+    /// AddAsyncDaemon el worker arranca y nunca materializa nada, y con DaemonMode.Solo dos replicas
+    /// procesarian los mismos eventos por duplicado. El modo solo se expone en StoreOptions (mutable),
+    /// de ahi la conversion.
     /// </summary>
     public static void AssertDaemonHotCold<TStore>(this IServiceProvider provider)
         where TStore : class, IDocumentStore
@@ -104,79 +92,48 @@ public static class AssertsProyecciones
     }
 
     /// <summary>
-    /// El named store lee el event store con la misma identidad de stream que el write-side ya
-    /// declara (Cosmos.EventSourcing.CritterStack 2.1.0: Events.StreamIdentity = AsString): los
-    /// stream keys de este BC son siempre strings -- e.Id.ToString() en la raiz de solicitud,
-    /// ComputarStreamId -> "cd:{CodigoColaborador}:{Fecha:yyyyMMdd}" en control diario --, nunca el
-    /// Guid crudo. Con el default de Marten (AsGuid cuando nadie lo configura, docs "Event Store
-    /// Configuration" -> "Stream Identity": https://martendb.io/events/configuration.html#stream-identity)
-    /// el daemon leeria stream_id varchar como si fuera uuid y no encontraria ningun stream.
-    ///
-    /// A diferencia de AsyncMode (AssertDaemonHotCold), que solo existe en la superficie mutable,
-    /// StreamIdentity si esta declarada en la de solo lectura que devuelve IDocumentStore.Options
-    /// (Marten.Events.IReadOnlyEventStoreOptions.StreamIdentity, get-only -- verificado por
-    /// decompilacion contra Marten 9.12.0 / JasperFx.Events 2.18.1), asi que aqui no hace falta
-    /// castear a StoreOptions.
-    ///
-    /// MEF-ADR-0034 seccion 6 todavia no enumera esta guarda junto a las otras tres: candidata a
-    /// enmienda de esa seccion en el harness (issue #253).
+    /// El named store lee con la identidad de stream del write-side (StreamIdentity = AsString): los
+    /// stream keys del BC son strings, nunca el Guid crudo. Con el default de Marten (AsGuid,
+    /// https://martendb.io/events/configuration.html#stream-identity) el daemon leeria stream_id varchar
+    /// como uuid y no encontraria ningun stream. StreamIdentity esta en la superficie de solo lectura
+    /// (verificado contra Marten 9.12.0), asi que no hace falta castear a StoreOptions.
     /// </summary>
     public static void AssertStreamIdentityAsString(this IDocumentStore store) =>
         store.Options.Events.StreamIdentity.Should().Be(StreamIdentity.AsString);
 
     /// <summary>
-    /// Issue #268 CA-1: el named store lee el event store con el mismo modelo de tenancy con el
-    /// que el write-side lo escribio (AgregarConfiguracionMartenComandos, Cosmos.EventSourcing.
-    /// CritterStack 2.3.1: Events.TenancyStyle = Conjoined). Marten documenta TenancyStyle.
-    /// Conjoined como un modelo opt-in que captura los eventos por tenant ("Event Store
-    /// Multi-Tenancy": https://martendb.io/events/multitenancy.html) -- el lado que lee tiene que
-    /// declarar el mismo modelo que el que escribio. Sin esta linea el named store queda con el
-    /// default Single, un par 1 (eventos, ver contexto del issue) desalineado con el write-side.
-    ///
-    /// Igual que StreamIdentity, TenancyStyle esta declarada en la superficie de solo lectura
-    /// (Marten.Events.IReadOnlyEventStoreOptions.TenancyStyle, get-only), asi que no hace falta
-    /// castear a StoreOptions.
+    /// El named store lee con el modelo de tenancy con que el write-side escribio (TenancyStyle =
+    /// Conjoined, opt-in en Marten: https://martendb.io/events/multitenancy.html); sin esto queda el
+    /// default Single. Como StreamIdentity, esta en la superficie de solo lectura.
     /// </summary>
     public static void AssertTenancyDeEventosConjoined(this IDocumentStore store) =>
         store.Options.Events.TenancyStyle.Should().Be(TenancyStyle.Conjoined);
 
     /// <summary>
-    /// Issue #268 CA-1: replica de Events.EventNamingStyle = SmarterTypeName (el write-side lo
-    /// declara via AgregarConfiguracionMartenComandos). Hoy es inocua -- los eventos persistidos de
-    /// este BC son tipos top-level, y SmarterTypeName solo desambigua tipos anidados prefijando
-    /// "[tipo externo].[tipo interno]" (doc XML de JasperFx.Events) -- pero sin esta linea el named
-    /// store calcularia el alias de un futuro evento anidado distinto de como lo calcula el
-    /// write-side, sin ninguna senal en el build.
+    /// Replica EventNamingStyle = SmarterTypeName del write-side. Hoy es inocua (solo desambigua tipos
+    /// anidados y los eventos del BC son top-level), pero sin ella el named store calcularia el alias
+    /// de un futuro evento anidado distinto que el write-side, sin senal en el build.
     /// </summary>
     public static void AssertEventNamingStyleSmarterTypeName(this IDocumentStore store) =>
         store.Options.Events.EventNamingStyle.Should().Be(EventNamingStyle.SmarterTypeName);
 
     /// <summary>
-    /// Issue #268 CA-1: Policies.AllDocumentsAreMultiTenanted() gobierna el "par 2" (worker -> query-
-    /// side, ver contexto del issue): la forma de la tabla de cualquier read model que el worker
-    /// llegue a materializar. Es una politica que se aplica al registrar un documento, no una
-    /// propiedad expuesta directamente -- se observa por su efecto en el mapping que Marten resuelve
-    /// para un tipo cualquiera (FindOrResolveDocumentType), la unica superficie que la deja visible
-    /// sin Postgres y sin que el worker tenga todavia ningun read model real registrado. TCanario es
-    /// un tipo declarado en este proyecto de tests, sin relacion con ningun dominio.
+    /// Policies.AllDocumentsAreMultiTenanted() se aplica al registrar un documento, no es una propiedad
+    /// expuesta: se observa en el mapping que Marten resuelve para un tipo (FindOrResolveDocumentType),
+    /// sin Postgres. TCanario es un tipo de este proyecto de tests sin relacion con ningun dominio.
     /// </summary>
     public static void AssertDocumentosMultiTenant<TCanario>(this IDocumentStore store) =>
         store.Options.FindOrResolveDocumentType(typeof(TCanario)).TenancyStyle
             .Should().Be(TenancyStyle.Conjoined);
 
     /// <summary>
-    /// Issue #268 CA-2: deserializa <paramref name="original"/> contra el ISerializer real que este
-    /// named store compuso -- el mismo objeto que Marten usaria para leer un evento persistido.
-    /// Devuelve el objeto restaurado para que el llamador lo compare campo a campo contra un
-    /// oraculo construido a mano (MEF-ADR-0002, no-tautologia): este helper no decide que
-    /// verificar, solo ejecuta el round-trip.
+    /// Deserializa <paramref name="original"/> con el ISerializer real del named store y devuelve el
+    /// objeto restaurado para compararlo contra un oraculo armado a mano (MEF-ADR-0002).
     ///
-    /// El eslabon que hace fallar esto si el seam esta mal armado: los eventos con AMBOS
-    /// constructores privados (TurnoCreado, MarcacionRegistrada) solo se reconstruyen via el
-    /// TypeInfoResolver custom que ConfiguracionSerializacion{Dominio}.ConfigurarResolver registra.
-    /// Sin ese resolver -- o si UseSystemTextJsonForSerialization se invoca DESPUES de engancharlo,
-    /// la "trampa del orden" que describe el issue -- STJ no tiene forma de instanciar el tipo y
-    /// esto lanza NotSupportedException en vez de fallar en silencio.
+    /// Los eventos con ambos constructores privados (TurnoCreado, MarcacionRegistrada) solo se
+    /// reconstruyen via el TypeInfoResolver de ConfiguracionSerializacion{Dominio}.ConfigurarResolver.
+    /// Sin el, o si UseSystemTextJsonForSerialization se invoca despues de engancharlo, esto lanza
+    /// NotSupportedException.
     /// </summary>
     public static TEvento DeserializarConResolverDeSerializacionCustom<TEvento>(
         this IDocumentStore store, TEvento original)

@@ -24,10 +24,8 @@ public class PropagadorIdentidadTenantHandlerTests
         requestCapturado.Headers.GetValues("X-User-Id").Should().ContainSingle().Which.Should().Be("usuario-456");
     }
 
-    // CA-1/CA-3 (issue #572): IdentidadTenantMcpMiddleware puebla el ambiente cuando la tool call
-    // trae un Bearer con org_id/sub; el propagador debe preferir esa identidad sobre el tenant fijo
-    // interino inyectado por constructor. El fallback al tenant fijo (sin Bearer: smoke, local) lo
-    // cubre el test de arriba, que no puebla el ambiente.
+    // Con Bearer, IdentidadTenantMcpMiddleware puebla el ambiente y el propagador prefiere esa
+    // identidad sobre el tenant fijo interino; el fallback sin Bearer lo cubre el test de arriba.
     [Fact]
     public async Task Send_PrefiereLaIdentidadAmbiente_CuandoElMiddlewareMcpLaPoblo()
     {

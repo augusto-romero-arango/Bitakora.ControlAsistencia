@@ -6,11 +6,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Sedes.AsignarCentroDeCostosFunction;
 
-// PUT que reemplaza completo el centro de costos -- VO atomico direccionable por {codigo}
-// (MEF-ADR-0043 paso 2), exito 204 siempre: el slot existe por construccion (opcional dentro del
-// aggregate) y PUT lo reemplaza, nunca lo crea. El {codigo} de ruta se valida aqui porque
-// IRequestValidator solo cubre el body (MEF-ADR-0037 seccion 2: un unico chequeo del componente,
-// con 400 explicito).
+// Siempre 204, nunca 201: el slot del CC existe por construccion en el aggregate y PUT lo reemplaza.
 // Comparte segmento con RetirarCentroDeCostos (DELETE): ambos deben declarar su verbo o uno
 // capturaria al otro (MEF-ADR-0006).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)

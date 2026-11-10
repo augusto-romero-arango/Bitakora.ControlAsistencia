@@ -7,12 +7,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 
-// Cliente HTTP puro que envuelve N veces el comando SolicitarProgramacionTurno (POST
-// programacion/solicitudes): un lote no es concepto del dominio (glosario: Ventana de
-// trabajo es efimera, nunca se persiste) y el marco no ofrece atomicidad entre streams -- por eso esta tool
-// re-verifica sede/turno/directorio por su cuenta y arma una solicitud por colaborador (MEF-ADR-0047
-// decision 4). Los rechazos del dominio en cada POST se traducen a texto (CA-ADR-0030) y no
-// detienen al resto del lote: el resto ya pudo haberse programado.
+// Un lote no es concepto del dominio (la Ventana de trabajo nunca se persiste) y no hay atomicidad
+// entre streams: por eso la tool re-verifica sede/turno/directorio y arma una solicitud por
+// colaborador. Un rechazo no detiene al resto del lote: el resto ya pudo haberse programado.
 public partial class SolicitarProgramacionTurnoTool(
     ProgramacionApi programacion, SedesApi sedes,
     ResolutorTurnoPorId resolutor, ResolutorSedePorCodigo resolutorSedes, ResolutorCandidatosPorLista resolutorCandidatos,
@@ -97,7 +94,7 @@ public partial class SolicitarProgramacionTurnoTool(
             hasta, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaHasta))
             return string.Format(Mensajes.FechaInvalida, "hasta", hasta);
 
-        // El mensaje de la tool incluye el conteo; el VO solo valida su invariante (MEF-ADR-0012).
+        // Se valida antes que el VO porque el mensaje de la tool incluye el conteo de dias.
         if (fechaDesde > fechaHasta)
             return Mensajes.VentanaInvertida;
 
@@ -175,8 +172,7 @@ internal sealed record RespuestaSolicitudCreada(
 internal sealed record FechaRespetadaPorAusencia(DateOnly Fecha, string Motivo);
 
 /// <summary>
-/// Eco compacto de solicitar_programacion_turno hacia el asistente: cada solicitud del dominio
-/// responde 201 con solo las fechas respetadas por ausencia, asi que el hecho programado se
+/// Cada solicitud responde 201 solo con fechas (respetadas por ausencia y en borrador): el eco se
 /// reconstruye con lo que entro a la tool, lo que devolvio el directorio y esas fechas.
 /// </summary>
 public sealed record ProgramacionSolicitadaResumen(

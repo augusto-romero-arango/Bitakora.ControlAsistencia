@@ -8,8 +8,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarMallaSemanalTurnos;
 
-// Function QUERY (RFC 10008, MEF-ADR-0042) que compone al leer sobre TurnoVigente (via (a') de MEF-ADR-0035).
-// Keyset por CodigoColaborador, Take opcional (CA-ADR-0039).
+// Compone al leer sobre TurnoVigente. Keyset por CodigoColaborador, Take opcional (CA-ADR-0039).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarMallaSemanalTurnos")]

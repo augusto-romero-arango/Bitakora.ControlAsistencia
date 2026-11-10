@@ -3,9 +3,6 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
-// Issue #606: se asigna (o cambia) la sede prearmada de una franja ya existente del catalogo
-// (CA-ADR-0033, diseno de turno por pasos). No cruza ningun bus: solo se persiste en el event
-// store de Programacion -- misma razon que FranjaAgregada (MEF-ADR-0012).
 public sealed class SedeDeFranjaAsignada
 {
     public Guid TurnoId { get; private set; }

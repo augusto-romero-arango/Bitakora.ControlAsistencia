@@ -9,9 +9,7 @@ public class AusenciasSmokeTests(McpFixture mcp)
 {
     private static readonly TimeSpan TimeoutPolling = TimeSpan.FromSeconds(30);
 
-    // CA-7: tool call real de programar_ausencia y cancelar_ausencia contra dev. El colaborador se
-    // siembra con vinculacion desde 2026-09-01; el assert vive dentro del polling por el lifecycle
-    // Async del directorio (ver Fixtures/Polling.cs).
+    // El assert vive dentro del polling por el lifecycle Async del directorio (ver Fixtures/Polling.cs).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task Ausencia_SeProgramaYSeCancela_CuandoLosDiasEstanEnLaVinculacion()

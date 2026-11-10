@@ -4,10 +4,6 @@ using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction.Eventos;
 
-/// <summary>
-/// Verifica que TurnoCreado (con FranjaOrdinaria y SubFranja) sobrevive
-/// un roundtrip de serializacion STJ — requerido por Marten.
-/// </summary>
 public class TurnoCreadoSerializacionTests
 {
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000001");
@@ -40,7 +36,6 @@ public class TurnoCreadoSerializacionTests
             .Should().Be("06:00-16:00, descanso 10:00-10:15, extra 06:00-08:00");
     }
 
-    // Issue #335 CA-5: round-trip con sedes diferentes en cada franja ordinaria.
     [Fact]
     public void Deserializar_PreservaSedePorFranja_CuandoOrdinariasTraenSedesDiferentes()
     {
@@ -62,9 +57,8 @@ public class TurnoCreadoSerializacionTests
         deserializado.FranjasOrdinarias[1].ToDetalle().Sede.Should().Be(sedeTarde);
     }
 
-    // Issue #335 CA-4: retrocompatibilidad -- una franja sin sede prearmada no agrega la clave
-    // "sede" al JSON persistido (equivalente al JSON escrito antes de este issue), y deserializa
-    // con Sede null.
+    // Retrocompatibilidad: una franja sin sede prearmada no agrega la clave "sede" al JSON
+    // persistido y deserializa con Sede null.
     [Fact]
     public void Deserializar_DejaSedeNull_CuandoFranjaNoTraeSede()
     {
@@ -95,8 +89,6 @@ public class TurnoCreadoSerializacionTests
         deserializado.Nombre.Should().Be("Descanso Compensatorio");
         deserializado.FranjasOrdinarias.Should().BeEmpty();
     }
-
-    // ---------- CA-3: EsDescanso sobrevive el roundtrip en las dos variantes ----------
 
     [Fact]
     public void RoundTrip_PreservaEsDescansoTrue_CuandoEventoEsDescanso()
@@ -141,8 +133,6 @@ public class TurnoCreadoSerializacionTests
         deserializado.Should().NotBeNull();
         deserializado!.EsDescanso.Should().BeFalse();
     }
-
-    // ---------- EsHorarioAbierto sobrevive el roundtrip y el legado deserializa false ----------
 
     [Fact]
     public void RoundTrip_PreservaEsHorarioAbiertoTrue_CuandoEventoEsDeHorarioAbierto()

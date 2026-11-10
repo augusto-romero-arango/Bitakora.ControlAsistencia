@@ -15,9 +15,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.ListarLimitesDeJornada;
 
-// Listado de la vista LimitesDeJornada: keyset por (HorasSemanalesEnMinutos, TopeDiarioEnMinutos,
-// Id), take opcional (max 200), sobre { elementos, siguienteCursor } con cursor opaco, sin total
-// (CA-ADR-0039). Comparte la ruta con CrearJornada (POST); cada uno declara su verbo.
+// Comparte la ruta con CrearJornada (POST); cada uno declara su verbo.
 public class FunctionEndpoint(
     IDocumentStore store, ITenantContext tenantContext, IAseguradorJornadaPredeterminada asegurador)
 {

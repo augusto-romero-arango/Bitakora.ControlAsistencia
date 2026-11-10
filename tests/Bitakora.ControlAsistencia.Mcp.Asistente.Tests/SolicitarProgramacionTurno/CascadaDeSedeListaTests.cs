@@ -61,7 +61,6 @@ public class CascadaDeSedeListaTests
             identificaciones: identificaciones,
             ct: TestContext.Current.CancellationToken);
 
-    // CA-2
     [Fact]
     public async Task SolicitarProgramacionTurno_EnviaLaSedeDelColaboradorResuelta_CuandoNoViajaSedeExplicita()
     {
@@ -99,7 +98,6 @@ public class CascadaDeSedeListaTests
             "nunca N lecturas de sedes/fichas/{codigo}");
     }
 
-    // CA-3 / CA-4
     [Fact]
     public async Task SolicitarProgramacionTurno_ProgramaSinSedeYAvisaSinSedeAsignada_CuandoElColaboradorNoTieneSede()
     {
@@ -166,7 +164,6 @@ public class CascadaDeSedeListaTests
             .Which!["identificacion"]!.GetValue<string>().Should().Be("CC-2222");
     }
 
-    // CA-1
     [Fact]
     public async Task SolicitarProgramacionTurno_EnviaLaSedeExplicitaATodos_CuandoViajaSedeDeProgramacion()
     {
@@ -256,7 +253,6 @@ public class CascadaDeSedeListaTests
         entorno.Posts.Should().BeEmpty();
     }
 
-    // CA-6
     [Fact]
     public async Task SolicitarProgramacionTurno_EmiteElIndicadorSinSedeDeProgramacion_CuandoNoViajaSedeExplicita()
     {

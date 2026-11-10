@@ -1,16 +1,13 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
-// Alias de tipo: ResumenColaborador existe homonimo en ControlHoras.DomainEvents (payload por
-// rol, MEF-ADR-0039 decision #6); este archivo publica por el bus, asi que usa el de PrivateEvents.
+// ResumenColaborador tiene homonimo en ControlHoras.DomainEvents; por el bus va el de PrivateEvents.
 using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.AsignarAusenciaCuandoAusenciaDiariaProgramada;
 
-// Consumidor puro (ServiceBusTrigger, sin comando espejo): el Act publica en
-// ausencia-diaria-programada el mismo payload plano que emite Programacion, como el precedente
-// CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada. Se verifican los dos efectos del handler:
-// persistencia de AusenciaDiariaAsignada y publicacion de DiaDepurado con el motivo.
+// Consumidor puro, sin comando espejo: el smoke publica en el topic de entrada el payload plano
+// que emite Programacion.
 public class AsignarAusenciaCuandoAusenciaDiariaProgramadaSmokeTests(
     ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
@@ -26,8 +23,6 @@ public class AsignarAusenciaCuandoAusenciaDiariaProgramadaSmokeTests(
     private static string ComputarStreamId(string codigoColaborador, DateOnly fecha) =>
         $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
 
-    // CA-2 + CA-6: dia sin stream -> la ausencia lo inicia y el DiaDepurado lleva el motivo, sin
-    // turno, franjas ni horas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AusenciaDiariaProgramada_AsignaLaAusenciaYPublicaDiaDepuradoConElMotivo_CuandoElDiaNoTieneStream()

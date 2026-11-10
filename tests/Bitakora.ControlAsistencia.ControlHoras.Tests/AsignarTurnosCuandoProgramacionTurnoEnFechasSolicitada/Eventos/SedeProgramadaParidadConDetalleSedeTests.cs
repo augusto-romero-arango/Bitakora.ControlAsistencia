@@ -1,15 +1,5 @@
-// Issue #336: guardrail de la duplicacion deliberada de payload por rol (tres islas,
-// CA-ADR-0029 decisiones #2 y #5): SedeProgramada (ControlHoras.DomainEvents) y DetalleSede
-// (PrivateEvents.Programacion) declaran el mismo dato en dos ensamblados que no se referencian
-// entre si. Sin este guardrail, agregar un campo a uno de los dos no rompe nada y el dato se
-// pierde en silencio en MapearFranja -- el mismo modo de fallo que cubre el gemelo equivalente del
-// lado de Programacion (SedeProgramadaParidadConDetalleSedeTests, Programacion.Tests, issue #331).
-//
-// Su par contenedor lo cubre FranjaProgramadaParidadConDetalleFranjaOrdinariaTests (agregado en la
-// revision de este issue), y el del colaborador lo cubre
-// ColaboradorProgramadoParidadConResumenColaboradorTests (issue #433). Los gemelos restantes de esta
-// isla -- TurnoDiario/DetalleTurno y SubFranjaProgramada/DetalleSubFranja (issue #322) -- todavia NO
-// tienen guardrail de paridad de este lado, a diferencia de Programacion.Tests.
+// Payload por rol (CA-ADR-0029 #5): sin esta paridad, un campo nuevo en uno de los dos tipos se pierde
+// en silencio en MapearFranja. TurnoDiario y SubFranjaProgramada aun no tienen este guardrail aqui.
 
 using System.Reflection;
 using AwesomeAssertions;

@@ -1,14 +1,7 @@
-// Issue #279: Validar el comando RegistrarMarcacion en el borde
-// RegistrarMarcacion es el unico comando HTTP del repo sin validator y su endpoint es
-// publico y anonimo (sin APIM, sin restriccion de red). Este archivo cubre las reglas de
-// forma que deben rechazar un request antes de que llegue al command handler.
+// El endpoint de RegistrarMarcacion es publico y anonimo (sin APIM ni restriccion de red): estas
+// reglas de forma rechazan el request antes del command handler.
 //
-// Patron de referencia: SolicitarProgramacionTurnoValidatorTests (mismo estilo de
-// ValidateAsync + verificacion de PropertyName en resultado.Errors).
-//
-// El contrato que consume el endpoint es doble: IsValid decide el 400 (ver RequestValidator)
-// y Errors define el ValidationProblemDetails que viaja al cliente. Por eso cada rechazo
-// afirma ambos: el resultado global invalido y la propiedad culpable.
+// IsValid decide el 400 y Errors arma el ValidationProblemDetails: cada rechazo afirma ambos.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.RegistrarMarcacionFunction;
@@ -27,7 +20,6 @@ public class RegistrarMarcacionValidatorTests
     private Task<ValidationResult> Validar(RegistrarMarcacion comando) =>
         _validator.ValidateAsync(comando, TestContext.Current.CancellationToken);
 
-    // Camino feliz - todos los campos correctos
     [Fact]
     public async Task Validar_Aprueba_CuandoTodosLosCamposSonCorrectos()
     {
@@ -36,7 +28,6 @@ public class RegistrarMarcacionValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-2: CodigoColaborador nulo produce 400
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoEsNull()
     {
@@ -47,7 +38,6 @@ public class RegistrarMarcacionValidatorTests
             e.PropertyName == nameof(RegistrarMarcacion.CodigoColaborador));
     }
 
-    // CA-2: CodigoColaborador vacio produce 400
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoEstaVacio()
     {
@@ -58,7 +48,6 @@ public class RegistrarMarcacionValidatorTests
             e.PropertyName == nameof(RegistrarMarcacion.CodigoColaborador));
     }
 
-    // CA-2: CodigoColaborador con solo espacios en blanco produce 400
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoSonSoloEspacios()
     {
@@ -69,11 +58,9 @@ public class RegistrarMarcacionValidatorTests
             e.PropertyName == nameof(RegistrarMarcacion.CodigoColaborador));
     }
 
-    // CA-3: CodigoColaborador que contiene ':' produce 400 - cierra la colision de stream ID descrita
-    // en el Contexto del issue (ComputarStreamId usa ':' como separador entre el prefijo "rdm", el
-    // CodigoColaborador y el Timestamp, issue #419; un CodigoColaborador con ':' puede fabricar el
-    // mismo stream ID que otra combinacion legitima). El valor no esta vacio, asi que el unico error
-    // posible proviene de la regla del separador y no de NotEmpty.
+    // ComputarStreamId usa ':' como separador ("rdm:{codigo}:{timestamp}"): un codigo con ':' podria
+    // fabricar el stream ID de otra combinacion legitima. El valor no esta vacio, asi que el unico error
+    // posible es el del separador.
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoContieneDosPuntos()
     {
@@ -84,7 +71,6 @@ public class RegistrarMarcacionValidatorTests
             e.PropertyName == nameof(RegistrarMarcacion.CodigoColaborador));
     }
 
-    // CA-4: Timestamp con el valor default de DateTime produce 400
     [Fact]
     public async Task Validar_RechazaTimestamp_CuandoEsDefault()
     {
@@ -95,7 +81,6 @@ public class RegistrarMarcacionValidatorTests
             e.PropertyName == nameof(RegistrarMarcacion.Timestamp));
     }
 
-    // Regresion de #105 CA-3: TipoMarcacion sigue siendo opcional - null no debe generar error
     [Fact]
     public async Task Validar_Aprueba_CuandoTipoMarcacionEsNull()
     {
@@ -104,7 +89,6 @@ public class RegistrarMarcacionValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // Regresion de #105 CA-3: DispositivoId sigue siendo opcional - null no debe generar error
     [Fact]
     public async Task Validar_Aprueba_CuandoDispositivoIdEsNull()
     {

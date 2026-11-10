@@ -22,7 +22,7 @@ internal sealed record ResultadoDeActoPorGrupo(
     public static ResultadoDeActoPorGrupo Rechazar(string rechazo) => new(rechazo, "", "", 0, null);
 }
 
-// Parte comun de publicar y descartar por grupo (MEF-ADR-0018): difieren solo en el acto por colaborador.
+// Parte comun de publicar y descartar por grupo: difieren solo en el acto por colaborador.
 internal static class EjecutorDeActoPorGrupo
 {
     internal const int MaximoDiasDelRango = 366;

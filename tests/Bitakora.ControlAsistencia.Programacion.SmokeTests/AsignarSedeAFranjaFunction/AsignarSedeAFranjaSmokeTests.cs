@@ -40,10 +40,9 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
             "el arrange de este smoke test depende de que AgregarFranja funcione");
     }
 
-    // CA-6: cuarto paso del diseno de turno por pasos -- crear el turno, agregarle una franja sin
-    // sede, asignarle una sede prearmada (204 + sede_de_franja_asignada en mt_events), retirarla
-    // (204 + sede_de_franja_retirada sin la clave "sede") y un tercer retiro -> 409 (nada que
-    // retirar, FranjaSinSede).
+    // Asigna una sede prearmada (204 + sede_de_franja_asignada en mt_events), la retira (204 +
+    // sede_de_franja_retirada sin la clave "sede") y un tercer retiro -> 409 (nada que retirar,
+    // FranjaSinSede).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSedeAFranja_DebeRetornar204YPersistirLaSede_CuandoLaFranjaNoTeniaSede()
@@ -136,7 +135,7 @@ public class AsignarSedeAFranjaSmokeTests(ApiFixture api, PostgresFixture postgr
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-3: sobre un turno sin franjas, cualquier hora cae en FranjaNoExiste -> 409.
+    // Sobre un turno sin franjas, cualquier hora cae en FranjaNoExiste -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AsignarSedeAFranja_DebeRetornar409_CuandoLaFranjaNoExiste()

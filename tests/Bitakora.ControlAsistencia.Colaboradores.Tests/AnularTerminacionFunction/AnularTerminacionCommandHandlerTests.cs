@@ -1,14 +1,5 @@
-// Issue #354: anular la terminacion de una vinculacion -- sexto comando del ciclo de vida de
-// ColaboradorAggregateRoot (desglose #348-#357) y el mas simple de la cadena: una sola regla, cero
-// fechas en el payload. CA-ADR-0030: el aggregate declina con resultado (nunca lanza, nunca emite
-// evento de fallo); el handler traduce la razon a ReglaDeNegocioDeclinadaException (409) o
-// RecursoNoEncontradoException (404). Resuelve el arrepentimiento del preaviso (Maria anuncio su salida al
-// 30 y el 27 decide quedarse) y compone con TerminarVinculacion (#349) la correccion de una fecha
-// de terminacion errada -- ver ComposicionAnularYTerminarVinculacionTests para el segundo tramo de
-// esa composicion (CA-2).
-// Issue #379 (MEF-ADR-0043 paso 4, CA-5): el comando gana el campo Codigo -- el {codigo} de la ruta
-// HTTP, comparado por el aggregate contra la vinculacion vigente ANTES que la regla de estado.
-// CodigoNoCorresponde -> 409 (no 404: es conflicto con el estado vigente, no un recurso inexistente).
+// La correccion de una fecha de terminacion errada compone este comando con TerminarVinculacion: ver
+// ComposicionAnularYTerminarVinculacionTests.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AnularTerminacionFunction;
@@ -20,15 +11,13 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AnularTerminacionFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
-// GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
-// test-writer, mismo criterio que el resto de la cadena #349-#352).
+// Stream ID compuesto (Identificacion.ToString()), no el GuidAggregateId del harness: de ahi los
+// overloads explicitos de Given/Then/And.
 public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<AnularTerminacion>
 {
     private const string NumeroValido = "79543210";
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
-    // derivado de ColaboradorAggregateRoot.ComputarStreamId.
+    // Oraculo independiente (MEF-ADR-0002): literal, no derivado de ColaboradorAggregateRoot.ComputarStreamId.
     private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionVigente = "COL-001";
@@ -56,23 +45,16 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
     private static VinculacionIniciada VinculacionIniciadaVigente() =>
         new(CodigoVinculacionVigente, FechaInicioVinculacionVigente);
 
-    // Precondicion: colaborador registrado con una vinculacion abierta (sin terminacion) -- base
-    // de CA-4.
     private void DadoUnColaboradorConVinculacionAbierta() =>
         Given(StreamIdEsperado, ColaboradorRegistradoValido(), VinculacionIniciadaVigente());
 
-    // Precondicion: colaborador con la vinculacion vigente ya terminada en la fecha dada -- base de
-    // CA-2 (incluye el caso de un preaviso con fecha futura, que bloquea igual sin distincion de
-    // estado).
+    // Incluye el preaviso con fecha futura, que bloquea igual.
     private void DadoUnColaboradorConTerminacionRegistrada(DateOnly fechaEfectiva) =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
             VinculacionIniciadaVigente(),
             new VinculacionTerminada(fechaEfectiva));
 
-    // Precondicion (CA-4, decision #4 del issue): la terminacion ya fue anulada antes -- una
-    // segunda anulacion encuentra la vinculacion abierta, sin distincion respecto de "nunca
-    // terminada".
     private void DadoUnColaboradorConTerminacionYaAnulada(DateOnly fechaEfectivaOriginal) =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
@@ -80,11 +62,6 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             new VinculacionTerminada(fechaEfectivaOriginal),
             new TerminacionAnulada());
 
-    // CA-2: la ultima vinculacion tiene terminacion registrada + POST valido -> el stream recibe
-    // TerminacionAnulada; el aggregate rehidratado refleja la vinculacion abierta con su codigo y
-    // fecha de inicio ORIGINALES intactos. (El registro en
-    // IdentidadEventosColaboradores.TiposPersistidos lo cubren AliasEventosColaboradoresTests/
-    // ComposicionServiciosTests, no este handler.)
     [Fact]
     public async Task AnularTerminacion_EmiteTerminacionAnulada_CuandoLaUltimaVinculacionTieneTerminacionRegistrada()
     {
@@ -101,9 +78,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioVinculacionVigente);
     }
 
-    // CA-2 (el arrepentimiento del preaviso, decision #2 del issue): un preaviso con fecha futura
-    // ya registrado se anula igual que uno vencido -- "tiene terminacion registrada" se evalua sin
-    // reloj, sin importar si la fecha efectiva ya paso.
+    // Se evalua sin reloj: un preaviso futuro se anula igual que uno vencido.
     [Fact]
     public async Task AnularTerminacion_EmiteTerminacionAnulada_CuandoLaTerminacionEsUnPreavisoConFechaFutura()
     {
@@ -117,11 +92,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-2 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> la anulacion alcanza el MISMO stream ("CC-79543210") y tiene
-    // exito. La normalizacion del numero la garantiza Identificacion.Crear (#348); la del codigo de
-    // tipo ("cc" -> "CC") la garantiza TipoIdentificacion.Desde, que normaliza internamente (issue
-    // #371 -- supersede el racional de #348, ver TipoIdentificacionTests).
+    // Normalizan Identificacion.Crear (el numero) y TipoIdentificacion.Desde (el tipo).
     [Fact]
     public async Task AnularTerminacion_EmiteTerminacionAnulada_CuandoTipoYNumeroLleganSinNormalizar()
     {
@@ -139,12 +110,8 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-2 + CA-3 (cara de exito de la misma regla): la ULTIMA vinculacion nacio de un reingreso y
-    // SI tiene terminacion registrada -> se anula esa, no la anterior. Unico estado del stream
-    // donde conviven las dos terminaciones (la congelada de la vinculacion anterior, #350/#352, y
-    // la de la vigente), asi que es el que demuestra que Apply(TerminacionAnulada) reabre solo la
-    // ULTIMA y deja intacto su codigo y su fecha de inicio (los del reingreso, no los originales).
-    // El codigo correcto ahora es el del REINGRESO -- CA-5 exige direccionar la ULTIMA vinculacion.
+    // Unico estado donde conviven dos terminaciones: demuestra que Apply(TerminacionAnulada) reabre solo la
+    // ULTIMA y conserva su codigo y fecha de inicio (los del reingreso).
     [Fact]
     public async Task AnularTerminacion_EmiteTerminacionAnulada_CuandoLaUltimaVinculacionNacioDeUnReingresoYaTerminado()
     {
@@ -169,8 +136,6 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, fechaInicioReingreso);
     }
 
-    // CA-5 (GATE, evaluada PRIMERO): el codigo del comando no corresponde al de la vinculacion
-    // vigente -> 409 con la razon CodigoNoCorresponde, ningun evento nuevo, el estado no cambia.
     [Fact]
     public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaException_CuandoElCodigoNoCorrespondeALaVinculacionVigente()
     {
@@ -185,9 +150,8 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, FechaEfectivaTerminacion);
     }
 
-    // CA-5 (orden de evaluacion): el codigo equivocado se rechaza AUNQUE la vinculacion vigente
-    // este abierta -- el direccionamiento precede a las reglas de estado; un comando dirigido a la
-    // vinculacion equivocada no debe filtrar que la vigente esta abierta.
+    // El direccionamiento precede a las reglas de estado: un comando a la vinculacion equivocada no debe
+    // filtrar que la vigente esta abierta.
     [Fact]
     public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaExceptionPorCodigo_CuandoElCodigoNoCorrespondeYLaVinculacionEstaAbierta()
     {
@@ -202,11 +166,8 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // MEF-ADR-0004 capa 4 (ADR aplicable declarado en el issue): rehidratar un stream con orden
-    // anomalo -- una TerminacionAnulada sin VinculacionTerminada previa -- no lanza. Si Apply
-    // lanzara, el aggregate quedaria permanentemente roto y ningun evento posterior podria
-    // repararlo; aqui simplemente vuelve a dejar la vinculacion abierta, y el comando se rechaza
-    // por la unica regla, como cualquier otra vinculacion abierta.
+    // Un stream con orden anomalo no debe hacer lanzar a Apply (MEF-ADR-0004): el aggregate quedaria roto
+    // para siempre. La vinculacion queda abierta y el comando se rechaza como cualquier otra abierta.
     [Fact]
     public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaException_CuandoElStreamTraeUnaAnulacionSinTerminacionPrevia()
     {
@@ -226,8 +187,6 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.FechaInicioVinculacionVigente, FechaInicioVinculacionVigente);
     }
 
-    // CA-4: la ultima vinculacion nunca ha sido terminada (recien registrada) -> 409, ningun evento
-    // nuevo en el stream, el estado conserva la vinculacion abierta.
     [Fact]
     public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaVinculacionNuncaHaSidoTerminada()
     {
@@ -242,9 +201,8 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-4 (decision #4 del issue, idempotencia por rechazo): anular dos veces -> la segunda
-    // encuentra la vinculacion abierta (por la primera anulacion) -> 409 igual, sin distincion
-    // respecto de "nunca terminada".
+    // Sin idempotencia silenciosa (decision #4 del issue #354): la segunda anulacion encuentra la
+    // vinculacion abierta y se rechaza igual que "nunca terminada".
     [Fact]
     public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaTerminacionYaFueAnuladaAntes()
     {
@@ -259,10 +217,8 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.FechaTerminacionVinculacionVigente, null);
     }
 
-    // CA-3 (decision #3 del issue, aprobada explicitamente): tras un reingreso, la terminacion de
-    // la vinculacion ANTERIOR queda CONGELADA -- la ULTIMA vinculacion (la del reingreso) es la que
-    // cuenta, y esta abierta -> 409. Anularla reabriria una vinculacion teniendo otra abierta, lo
-    // que la invariante de no-solape prohibe.
+    // Tras un reingreso, la terminacion ANTERIOR queda congelada: anularla reabriria una vinculacion
+    // teniendo otra abierta (no-solape).
     [Fact]
     public async Task AnularTerminacion_LanzaReglaDeNegocioDeclinadaException_CuandoLaUltimaVinculacionNacioDeUnReingresoSinTerminar()
     {
@@ -285,10 +241,7 @@ public class AnularTerminacionCommandHandlerTests : CommandHandlerAsyncTest<Anul
             StreamIdEsperado, c => c.CodigoVinculacionVigente, CodigoVinculacionReingreso);
     }
 
-    // CA-6: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
-    // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
-    // nada al event store" (mismo precedente que TerminarVinculacionCommandHandlerTests CA-6 /
-    // IniciarVinculacionCommandHandlerTests CA-3).
+    // Sin Given: el stream no existe. Then sin eventos demuestra que no se escribio nada.
     [Fact]
     public async Task AnularTerminacion_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {

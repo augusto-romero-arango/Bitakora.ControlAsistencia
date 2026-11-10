@@ -1,48 +1,3 @@
-// Issue #379 (MEF-ADR-0043 paso 4, gate empirico de la seccion 8 verificado POSITIVO -- ver
-// comentario en FunctionEndpoint.cs y harness#621): smoke tests de POST
-// colaboradores/{id}/vinculaciones/{codigo}:corregir-fecha-inicio (corregir la fecha de inicio de
-// la ULTIMA vinculacion de un colaborador, tenga o no terminacion registrada, ahora direccionada
-// por su codigo). Reemplaza el POST Colaboradores/FechasInicio (issue #352, identificacion en el
-// body): {id} es Identificacion.ToString() ("CC-79543210"), parseado UNA sola vez con
-// Identificacion.Parsear (mismo mecanismo que TerminarVinculacion/IniciarVinculacion post-#378/
-// #379). El body se reduce a FechaCorregida -- TipoIdentificacion/NumeroIdentificacion ya no
-// viajan alli. Molde: TerminarVinculacionSmokeTests/AnularTerminacionSmokeTests (#379) -- mismo
-// comando event-sourcing puro sin consumidores downstream (CA-ADR-0030): sin ServiceBusFixture, la
-// unica verificacion black-box de los efectos del handler es leer mt_events via PostgresFixture.
-//
-// Arrange: CorregirFechaInicioVinculacion exige un ColaboradorAggregateRoot existente -- el
-// arrange de cada test registra el colaborador y, cuando aplica, termina su vinculacion y/o inicia
-// una vinculacion nueva (escenario de reingreso, issue #378) via los mismos comandos que los
-// originan (#330, #349, #378, #379), nunca sembrando datos por fuera del API. El codigo vigente de
-// la vinculacion inicial es exactamente el CodigoColaborador que RegistrarColaborador recibio
-// (ColaboradorAggregateRoot.Registrar reusa VinculacionIniciada(codigo, fechaInicio) -- verificado
-// en el aggregate), asi que RegistrarColaboradorAsync devuelve ese codigo para que cada test lo
-// use como {codigo} de ruta.
-//
-// Estos tests dependen de que el deploy publique la ruta nueva en dev: mientras la revision
-// anterior siga corriendo, la ruta vieja (POST Colaboradores/FechasInicio) es la unica que existe
-// y este archivo -- que solo referencia la ruta nueva -- fallaria por completo (404 del host, no
-// el 409/404 de dominio). Mismo precedente que IniciarVinculacionSmokeTests post-#378.
-//
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849): CorregirFechaInicioVinculacion
-// confirma el evento (o declina en silencio, SinCambios) antes de responder -- 204, nunca 202.
-//
-// CA-1 (camino feliz, vinculacion abierta): 204 + el stream recibe FechaInicioVinculacionCorregida
-// con la FechaInicio exacta del request.
-// CA-2 (coherencia interna, ultima vinculacion con terminacion registrada): FechaCorregida ==
-// FechaEfectiva propia -> 204 (vinculacion de un solo dia, valida); FechaCorregida > FechaEfectiva
-// -> 409 con .resx, sin evento.
-// CA-3 (no-solape hacia atras, tras un reingreso): FechaCorregida igual a la FechaEfectiva de la
-// vinculacion anterior -> 409, sin evento.
-// CA-4 (idempotencia silenciosa): FechaCorregida igual a la fecha de inicio actual -> 204 sin
-// evento nuevo (mecanismo "declinar en silencio", precedente CorregirNombres #351).
-// CA-5: {codigo} de ruta distinto al vigente -> 409 (CodigoNoCorresponde, evaluada PRIMERA por el
-// aggregate, ANTES incluso de la idempotencia SinCambios) -- salvaguarda tipo concurrencia
-// optimista, nunca 404.
-// CA-6: colaborador inexistente -> 404, sin escribir nada al event store; {id} de ruta malformado
-// -> 400; FechaCorregida vacia en el body -> 400.
-// CA-7: la ruta vieja Colaboradores/FechasInicio deja de existir -> 404 del host (verificacion
-// AFIRMATIVA, mismo criterio que IniciarVinculacionSmokeTests CA-6).
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -63,27 +18,19 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
     private const string TipoIdentificacionCc = "CC";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // CA-4: la ausencia de evento es sincrona (sin proyeccion downstream) -- un timeout corto
-    // alcanza para probarla sin alargar la suite esperando los 30s estandar sin ganar senal.
+    // La escritura es sincrona (sin proyeccion downstream): un timeout corto basta para probar la ausencia.
     private static readonly TimeSpan TimeoutAusencia = TimeSpan.FromSeconds(3);
 
-    // Numero unico por test -- evita colisiones entre ejecuciones repetidas del smoke test: la
-    // identidad del stream es Identificacion.ToString() ("CC-<numero>"), no un Guid nuevo por
-    // llamada, asi que reusar un numero fijo haria que el arrange (RegistrarColaborador) choque con
-    // 409 en la segunda corrida. El formato "N" en MAYUSCULAS ya es alfanumerico ASCII, asi que
-    // sobrevive intacto a la limpieza del numero (#381) y la llave esperada de abajo coincide con
-    // la que arma el backend.
+    // Unico por test: el stream se llama por la identificacion, asi que repetir un numero choca con 409
+    // en la segunda corrida. "N" en mayusculas sobrevive a la limpieza del numero y la llave coincide.
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002): se recompone aqui a mano, no se
-    // deriva de Identificacion.ToString(), para que un cambio de formato en el VO no se auto-valide.
-    // Separador "-" desde el issue #381.
+    // Oraculo independiente (MEF-ADR-0002): se recompone a mano, no se deriva de Identificacion.ToString(),
+    // para que un cambio de formato en el VO no se auto-valide.
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
-    // El {id} que un cliente real pone en la URL. Deliberadamente separado de ComputarStreamId: uno
-    // es la ENTRADA de la request, el otro el ORACULO contra el que se verifica mt_events (mismo
-    // criterio que IniciarVinculacionSmokeTests/TerminarVinculacionSmokeTests).
+    // Separado de ComputarStreamId a proposito: este es la entrada de la request, aquel el oraculo.
     private static string IdDeRuta(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
@@ -102,18 +49,14 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         fechaInicio
     };
 
-    // Body reducido a los 2 campos que no se derivan de la ruta (issue #378): CodigoColaborador +
-    // FechaInicio.
     private static object PayloadIniciarVinculacion(string codigoColaborador, DateOnly fechaInicio) => new
     {
         codigoColaborador,
         fechaInicio
     };
 
-    // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API. Devuelve el codigo de la
-    // vinculacion inicial (== CodigoColaborador del comando, verificado en
-    // ColaboradorAggregateRoot.Registrar) para que el test lo use como {codigo} de ruta.
+    // Devuelve el codigo de la vinculacion inicial (== CodigoColaborador, ver
+    // ColaboradorAggregateRoot.Registrar), que cada test usa como {codigo} de ruta.
     private async Task<string> RegistrarColaboradorAsync(
         string numeroIdentificacion, DateOnly fechaInicio, CancellationToken ct)
     {
@@ -128,8 +71,6 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         return codigo;
     }
 
-    // Arrange comun: cierra la vinculacion vigente -- via el comando que la origina (#349/#379),
-    // nunca sembrando el event store por fuera del API.
     private async Task TerminarVinculacionAsync(
         string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
@@ -142,9 +83,6 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Arrange comun (CA-3): inicia una vinculacion nueva sobre el colaborador tras una terminacion
-    // -- escenario de negocio de reingreso -- via el comando que lo origina (issue #378), nunca
-    // sembrando el event store por fuera del API. Devuelve el codigo de la vinculacion nueva.
     private async Task<string> IniciarVinculacionAsync(string id, DateOnly fechaInicio, CancellationToken ct)
     {
         var codigoNuevo = NuevoCodigoColaborador();
@@ -177,10 +115,6 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: camino feliz -- colaborador con vinculacion abierta + FechaCorregida distinta valida +
-    // {codigo} correcto -> 204 y el stream recibe FechaInicioVinculacionCorregida con la
-    // FechaInicio exacta del request. Sin Service Bus (event-sourcing puro): mt_events es la unica
-    // ventana black-box a lo que quedo grabado.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna204YPersisteFechaInicioVinculacionCorregida_CuandoUltimaVinculacionEstaAbierta()
@@ -202,9 +136,7 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
 
         var streamId = ComputarStreamId(numeroIdentificacion);
 
-        // El filtro (campoJson, valorJson) de ExisteEventoAsync ya compara el valor persistido de
-        // FechaInicio contra el esperado -- releerlo con ObtenerEventoAsync usando el MISMO filtro
-        // solo repetiria la consulta para afirmar lo que el filtro ya garantizo.
+        // El filtro (campoJson, valorJson) ya compara FechaInicio: releer el evento no agrega nada.
         var existe = await postgres.ExisteEventoAsync(
             SchemaColaboradores, streamId, TipoEventoFechaInicioVinculacionCorregida, Timeout,
             campoJson: "FechaInicio", valorJson: FormatearFecha(fechaCorregida));
@@ -213,8 +145,6 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
             $"el evento {TipoEventoFechaInicioVinculacionCorregida} deberia existir en el stream {streamId} con FechaInicio {FormatearFecha(fechaCorregida)}");
     }
 
-    // CA-2 (borde valido): la ultima vinculacion esta TERMINADA y FechaCorregida == FechaEfectiva
-    // propia -> 204 (vinculacion de un solo dia, consistente con TerminarVinculacion #349/#379).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna204YPersisteFechaInicioVinculacionCorregida_CuandoFechaCorregidaEsIgualALaFechaEfectivaPropia()
@@ -244,9 +174,6 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
             "una FechaCorregida igual a la FechaEfectiva propia deberia aceptarse (vinculacion de un solo dia)");
     }
 
-    // CA-2 (borde invalido): FechaCorregida POSTERIOR a la FechaEfectiva propia de la ultima
-    // vinculacion (ya terminada) -> 409. No requiere Postgres: el status code ya prueba que el
-    // aggregate declino con resultado y el handler lo tradujo (CA-ADR-0030).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna409_CuandoFechaCorregidaEsPosteriorALaFechaEfectivaPropia()
@@ -266,10 +193,8 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-3: tras un reingreso, FechaCorregida IGUAL a la FechaEfectiva de la vinculacion anterior ->
-    // 409 por no-solape (el mismo dia se rechaza -- el dia de la fecha efectiva pertenece a la
-    // vinculacion que termino, misma frontera que IniciarVinculacion #378). Se usa el codigo NUEVO
-    // del reingreso -- el {codigo} sigue apuntando a la vinculacion vigente, la unica direccionable.
+    // El dia de la FechaEfectiva pertenece a la vinculacion que termino (misma frontera que
+    // IniciarVinculacion). Solo la vigente es direccionable, de ahi el codigo del reingreso.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna409_CuandoFechaCorregidaSolapaLaVinculacionAnteriorTrasUnReingreso()
@@ -290,9 +215,6 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-4: FechaCorregida igual a la fecha de inicio actual -> 204 sin evento nuevo en el stream
-    // (idempotencia silenciosa). Verificacion de ausencia con timeout corto -- ver el porque en el
-    // comentario de TimeoutAusencia (arriba).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna204SinNuevoEvento_CuandoFechaCorregidaEsIgualALaActual()
@@ -318,11 +240,8 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
             "una FechaCorregida igual a la actual no deberia persistir un evento nuevo (idempotencia silenciosa)");
     }
 
-    // CA-5: {codigo} de ruta distinto al vigente -> 409 (CodigoNoCorresponde), evaluada ANTES
-    // incluso que la idempotencia (SinCambios) -- un comando dirigido a la vinculacion equivocada no
-    // debe filtrar informacion sobre el estado de la vigente, ni siquiera "no habia nada que
-    // corregir". Se usa deliberadamente la MISMA fecha de inicio actual (que en solitario
-    // declinaria en silencio con 204) para probar que el codigo equivocado gana la evaluacion.
+    // El codigo equivocado se evalua ANTES que la idempotencia: un comando a la vinculacion equivocada no
+    // debe filtrar el estado de la vigente. Por eso la fecha es la actual, que sola daria 204.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna409_CuandoCodigoDeRutaNoCorrespondeAlVigente()
@@ -339,15 +258,12 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-6: colaborador inexistente -> 404, sin escribir nada al event store (no hay stream para
-    // consultar: la ausencia de escritura la garantiza el propio 404 -- el handler lanza antes de
-    // llegar al aggregate).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna404_CuandoColaboradorNoExiste()
     {
         var ct = TestContext.Current.CancellationToken;
-        var numeroIdentificacion = NuevoNumeroIdentificacion(); // nunca registrado
+        var numeroIdentificacion = NuevoNumeroIdentificacion();
 
         var response = await CorregirFechaInicioAsync(
             IdDeRuta(numeroIdentificacion), NuevoCodigoColaborador(), new DateOnly(2026, 5, 1), ct);
@@ -355,8 +271,6 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    // CA-6: {id} de ruta sin guion -> 400, sin invocar el comando (parseo tipado unico,
-    // Identificacion.Parsear).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna400_CuandoIdDeRutaNoTraeGuion()
@@ -370,8 +284,6 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-6: tipo de identificacion del {id} de ruta fuera de la lista cerrada (PILA: CC, CE, TI,
-    // PA, PT) -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna400_CuandoTipoDeLaIdentificacionDeRutaNoEsReconocido()
@@ -384,8 +296,7 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-6: FechaCorregida vacia en el body (default de DateOnly, "no llego" segun la doctrina
-    // bitemporal del BC) -> 400.
+    // default(DateOnly) es "no llego" segun la doctrina bitemporal del BC.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna400_CuandoFechaCorregidaEsVacia()
@@ -398,23 +309,16 @@ public class CorregirFechaInicioVinculacionSmokeTests(ApiFixture api, PostgresFi
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-7 (ruta vieja eliminada): verificado AFIRMATIVAMENTE contra el entorno real -- la ruta
-    // vieja (POST Colaboradores/FechasInicio) debe responder 404 del host. El resto de la suite lo
-    // cubre solo por ausencia de referencias, que no distingue "la ruta se elimino" de "sigue viva
-    // y nadie la llama". Mismo criterio que IniciarVinculacionSmokeTests CA-6.
+    // Afirmativo contra el entorno: la ausencia de referencias en la suite no distingue "la ruta se
+    // elimino" de "sigue viva y nadie la llama".
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task CorregirFechaInicioVinculacion_Retorna404DelHost_CuandoSeLlamaLaRutaViejaPost()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // NumeroIdentificacion va DELIBERADAMENTE vacio: es lo que vuelve discriminante al oraculo.
-        // Con un body valido sobre una identificacion nunca registrada, el endpoint viejo -- si
-        // siguiera vivo -- responderia 404 de DOMINIO ("colaborador no encontrado"), indistinguible
-        // del 404 del host que este test quiere afirmar. Con NumeroIdentificacion vacio el endpoint
-        // viejo corta antes en su IRequestValidator y responde 400
-        // (CorregirFechaInicioVinculacionValidator pre-#379 exigia NumeroIdentificacion no vacio),
-        // asi que un 404 aqui solo puede significar que la ruta ya no existe.
+        // NumeroIdentificacion vacio a proposito: la ruta vieja, si siguiera viva, responderia 400 de su
+        // validador y no un 404 de dominio indistinguible del 404 del host.
         var response = await _client.PostAsJsonAsync(
             RutaFechasInicioVieja,
             new

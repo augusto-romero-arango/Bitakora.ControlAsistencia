@@ -1,6 +1,5 @@
 // IdentidadEventosControlHoras.TiposPersistidos debe incluir todo tipo que se persiste en el event
-// store de ControlHoras. No usa el harness Given/When/Then: verifica un dato estatico de
-// configuracion, no el comportamiento de un command handler.
+// store de ControlHoras. Sin harness Given/When/Then: verifica configuracion estatica.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
@@ -22,10 +21,8 @@ public class IdentidadEventosControlHorasTests
         IdentidadEventosControlHoras.TiposPersistidos.Should().Contain(eventosAplicados);
     }
 
-    // Un aggregate root aplica un evento persistido con la firma convencional de Marten
-    // "public void Apply(TEvento)", y ese evento vive en el ensamblado DomainEvents del dominio
-    // (CA-ADR-0029). Los eventos que solo cruzan el bus llegan por un endpoint, no por un Apply,
-    // asi que quedan fuera por construccion.
+    // Firma convencional de Marten "public void Apply(TEvento)", filtrada al ensamblado DomainEvents:
+    // los eventos que solo cruzan el bus llegan por un endpoint, no por un Apply.
     private static IReadOnlyList<Type> EventosAplicadosPorLosAggregateRoots() =>
         typeof(ControlDiarioAggregateRoot).Assembly.GetTypes()
             .Where(tipo => typeof(AggregateRoot).IsAssignableFrom(tipo))

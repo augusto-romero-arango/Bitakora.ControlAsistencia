@@ -8,11 +8,9 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.ConsultarProgramac
 
 public class ConsultarProgramacionSmokeTests(McpFixture mcp)
 {
-    // Primera tool call valida de consultar_programacion (MEF-ADR-0048 seccion 2
-    // verificacion 3). Antes del fix, desde/hasta con forma de fecha llegaban coercionados a
-    // DateTimeOffset reformateado y el worker respondia siempre FechaInvalida -- la tool principal
-    // de Consultas no podia responder ninguna consulta con fechas. Se afirma forma, no datos
-    // puntuales: los datos de dev cambian entre corridas.
+    // Tool call valida de consultar_programacion (MEF-ADR-0048 seccion 2 verificacion 3): desde/hasta
+    // con forma de fecha no deben llegar coercionados al worker (responderia FechaInvalida). Se afirma
+    // forma, no datos puntuales: los datos de dev cambian entre corridas.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ConsultarProgramacion_DevuelveLaProgramacionRemodelada_CuandoDesdeYHastaSonValidos()
@@ -158,9 +156,8 @@ public class ConsultarProgramacionSmokeTests(McpFixture mcp)
             .Should().StartWith("El dominio rechazo la consulta:").And.Contain("cursor");
     }
 
-    // Error path que NO toca los dominios: la validacion de fecha corta en el worker y responde
-    // el mensaje del .resx en produccion. Afirmar el texto exacto prueba que los recursos
-    // embebidos viajaron en el publish (un GetString nulo o un resx ausente daria otro texto).
+    // Error path que NO toca los dominios: el texto exacto del .resx prueba que los recursos embebidos
+    // viajaron en el publish (un GetString nulo o un resx ausente daria otro texto).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ConsultarProgramacion_RespondeElMensajeDeValidacion_CuandoLaFechaEsInvalida()

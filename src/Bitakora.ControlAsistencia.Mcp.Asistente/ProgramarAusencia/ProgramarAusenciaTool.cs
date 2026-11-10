@@ -8,8 +8,8 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ProgramarAusencia;
 
 // El recorte a la vinculacion vive aqui y no en el dominio, que no consulta el maestro de
-// colaboradores (CA-ADR-0036, #330). A diferencia de la ventana de programacion, la ausencia no
-// tiene tope de dias.
+// colaboradores (CA-ADR-0036). A diferencia de la ventana de programacion, la ausencia no tiene tope
+// de dias.
 public partial class ProgramarAusenciaTool(ProgramacionApi programacion, ColaboradoresApi colaboradores)
 {
     internal const string NombreTool = "programar_ausencia";

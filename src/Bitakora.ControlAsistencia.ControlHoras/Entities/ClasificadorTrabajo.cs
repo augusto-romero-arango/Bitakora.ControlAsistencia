@@ -1,8 +1,4 @@
-// Issue #135: Clasificar intervalos trabajados segun programacion de la franja.
-// Capa 3 (Parte C) del calculo de desglose de horas: integra la segmentacion (#115) y
-// la clasificacion banda+tipo (#134) con la programacion del turno (DetalleFranjaOrdinaria):
-// descansos, extras programadas y excedente (salida mas alla del fin programado).
-// Trabaja siempre en MomentoDelDia - no construye ningun DateTime en este nivel.
+// Trabaja siempre en MomentoDelDia: no construye ningun DateTime en este nivel.
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
@@ -15,19 +11,17 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 /// </summary>
 public static class ClasificadorTrabajo
 {
-    // Fronteras de segmentacion previas a la programacion. Cada segmento producido es homogeneo en
-    // banda horaria (cortes en 6AM/7PM) y en tipo de dia (corte en medianoche, donde puede cambiar
-    // de habil a dominical/festivo). IntervaloTemporal.Segmentar expande cada hora a sus ocurrencias
-    // diarias dentro del intervalo, asi que basta con declarar las horas-del-dia una sola vez.
+    // Cada segmento queda homogeneo en banda horaria (6AM/7PM) y en tipo de dia (medianoche).
+    // IntervaloTemporal.Segmentar expande cada hora a sus ocurrencias diarias dentro del intervalo,
+    // asi que basta declarar las horas del dia una sola vez.
     private static readonly TimeOnly[] FronterasDeSegmentacion =
     [
-        new(0, 0), // medianoche: separa segmentos con distinto tipo de dia
+        new(0, 0),
         FronterasHorariasLegales.InicioDiurna,
         FronterasHorariasLegales.InicioNocturna,
     ];
 
-    // Posicion del segmento respecto a la programacion. Determina si el concepto es ordinario,
-    // extra (programada o excedente) o descanso. Independiente de banda y tipo de dia.
+    // Extra incluye la programada y el excedente.
     private enum Posicion
     {
         Ordinaria,
@@ -38,7 +32,7 @@ public static class ClasificadorTrabajo
     /// <summary>
     /// Clasifica el intervalo trabajado contra la programacion de la franja.
     /// fechaAncla se usa solo para consultar esFestivo al clasificar el tipo de dia de cada segmento.
-    /// Precondicion: trabajado es un intervalo valido (no vacio); la franja anomala se maneja en #136.
+    /// Precondicion: trabajado es un intervalo valido (no vacio).
     /// </summary>
     public static IReadOnlyList<IntervaloClasificado> Clasificar(
         FranjaProgramada programada,
@@ -46,29 +40,24 @@ public static class ClasificadorTrabajo
         DateOnly fechaAncla,
         Func<DateOnly, bool> esFestivo)
     {
-        // 1. Resolver las fronteras programadas a MomentoDelDia / minutos absolutos.
         var inicioFranja = new MomentoDelDia(programada.HoraInicio, 0);
         var finFranja = new MomentoDelDia(programada.HoraFin, programada.DiaOffsetFin);
         var descansos = programada.Descansos.Select(AMinutos).ToList();
         var extras = programada.Extras.Select(AMinutos).ToList();
 
-        // 2. Entrada efectiva = max(trabajado.Inicio, inicioFranja): recorta los minutos previos al
-        // inicio programado, que no se pagan y no aparecen en el desglose.
+        // Entrada efectiva = max(trabajado.Inicio, inicioFranja): los minutos previos al inicio
+        // programado no se pagan.
         var (trabajadoInicio, trabajadoFin) = Extremos(trabajado);
         var entradaEfectiva = trabajadoInicio.CompareTo(inicioFranja) < 0 ? inicioFranja : trabajadoInicio;
         // Todo el trabajo cae antes del inicio programado (marcaciones de cobertura anticipada): nada que pagar.
         if (trabajadoFin.CompareTo(entradaEfectiva) <= 0) return [];
         var trabajoRecortado = IntervaloTemporal.Crear(entradaEfectiva, trabajadoFin);
 
-        // 3. Segmentar por banda horaria y por medianoche (cambio de tipo de dia).
-        // 4. Subdividir cada segmento en los cortes propios de la programacion (fin de franja,
-        // inicios/fines de descansos y extras).
         var cortesPrograma = ConstruirCortesPrograma(finFranja, descansos, extras);
         var segmentos = trabajoRecortado
             .Segmentar(FronterasDeSegmentacion)
             .SelectMany(segmento => PartirEn(segmento, cortesPrograma));
 
-        // 5-6. Clasificar cada segmento (banda + tipo de dia + posicion) y mapear a Concepto.
         return segmentos
             .Select(segmento => new IntervaloClasificado(
                 segmento,
@@ -76,8 +65,6 @@ public static class ClasificadorTrabajo
             .ToList();
     }
 
-    // Concepto de un segmento homogeneo. El descanso ignora banda y tipo de dia; el resto combina
-    // posicion (ordinaria/extra), banda (diurna/nocturna) y tipo de dia (habil/dominical-festivo).
     private static Concepto ClasificarSegmento(
         IntervaloTemporal segmento,
         MomentoDelDia finFranja,
@@ -112,8 +99,7 @@ public static class ClasificadorTrabajo
         return Posicion.Ordinaria;
     }
 
-    // Mapeo (posicion, banda, tipoDia) -> Concepto segun la tabla del issue #135.
-    // El caso Descanso se resuelve antes de llegar aqui; quedan las 8 combinaciones ordinaria/extra.
+    // El caso Descanso se resuelve antes de llegar aqui.
     private static Concepto MapearConcepto(Posicion posicion, BandaHoraria banda, TipoDia tipoDia) =>
         (posicion, banda, tipoDia) switch
         {
@@ -128,8 +114,7 @@ public static class ClasificadorTrabajo
             _ => throw new InvalidOperationException($"Combinacion no mapeada: {posicion}/{banda}/{tipoDia}"),
         };
 
-    // Cortes que la programacion impone sobre los segmentos de banda: el fin de la franja (separa
-    // ordinaria de excedente) y las fronteras de cada descanso y extra.
+    // El fin de la franja separa la ordinaria del excedente.
     private static IReadOnlyList<int> ConstruirCortesPrograma(
         MomentoDelDia finFranja,
         IReadOnlyList<(int Inicio, int Fin)> descansos,
@@ -145,8 +130,6 @@ public static class ClasificadorTrabajo
         return cortes;
     }
 
-    // Parte un intervalo en cada punto (en minutos absolutos) estrictamente interior a el.
-    // Reutiliza IntervaloTemporal.Partir (#143); los puntos fuera del intervalo se ignoran.
     private static IReadOnlyList<IntervaloTemporal> PartirEn(IntervaloTemporal intervalo, IReadOnlyList<int> puntosAbsolutos)
     {
         var (inicio, fin) = Extremos(intervalo);
@@ -176,15 +159,12 @@ public static class ClasificadorTrabajo
         return resultado;
     }
 
-    // Convierte una sub-franja (descanso o extra) a su par de minutos absolutos [Inicio, Fin).
+    // [Inicio, Fin) en minutos absolutos.
     private static (int Inicio, int Fin) AMinutos(SubFranjaProgramada sub) =>
         (new MomentoDelDia(sub.HoraInicio, sub.DiaOffsetInicio).MinutosAbsolutos,
          new MomentoDelDia(sub.HoraFin, sub.DiaOffsetFin).MinutosAbsolutos);
 
-    // Recupera los extremos de un IntervaloTemporal como MomentoDelDia. El intervalo encapsula sus
-    // extremos (PR #148, Tell-don't-Ask): no expone Inicio/Fin. Se reconstruyen via el par
-    // ResolverA/MomentoDelDia.Desde anclado a una fecha arbitraria (no se construye ningun DateTime
-    // de dominio), igual que hace ClasificadorHorario para leer la hora del inicio.
+    // IntervaloTemporal no expone Inicio/Fin: se reconstruyen anclando a una fecha arbitraria.
     private static (MomentoDelDia Inicio, MomentoDelDia Fin) Extremos(IntervaloTemporal intervalo)
     {
         var (inicio, fin) = intervalo.ResolverA(default);

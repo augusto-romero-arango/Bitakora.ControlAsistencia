@@ -1,7 +1,6 @@
-// Tests de contrato IEquatable para ColaboradorSolicitado, el DTO del body de POST
-// programacion/solicitudes (issue #436). Todos los campos son string: la igualdad por valor del
-// record por defecto ya es correcta, sin Equals/GetHashCode custom. El dia que gane una coleccion,
-// esa igualdad pasa a comparar por referencia y estos tests lo delatan (MEF-ADR-0012).
+// Todos los campos son string: la igualdad por valor del record por defecto basta, sin
+// Equals/GetHashCode custom. El dia que gane una coleccion, esa igualdad pasa a comparar por
+// referencia y estos tests lo delatan.
 
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 

@@ -19,7 +19,6 @@ public class ModificarNombreSedeBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-2
     [Fact]
     public async Task Validar_RechazaNombre_CuandoEstaVacio()
     {

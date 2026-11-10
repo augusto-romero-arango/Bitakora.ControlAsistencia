@@ -1,24 +1,15 @@
-// HU-129: Crear estructuras agregadas DesgloseFranja y DesgloseHoras
-// CA-3: TotalMinutosPorConcepto es la suma elemento a elemento de MinutosPorConcepto de cada franja
-// CA-4: Vacio tiene DesglosePorFranja vacio, RetardoTotal=Retardo.Vacio, FranjasAnomalas=0
-//       y TotalMinutosPorConcepto vacio
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
-/// <summary>
-/// Tests de DesgloseHoras - estructura agregada del desglose del dia completo.
-/// Interfaz publica: constructor primario (DesglosePorFranja, RetardoTotal, FranjasAnomalas),
-/// TotalMinutosPorConcepto, Vacio.
-/// </summary>
 public class DesgloseHorasTests
 {
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
-    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
+    // Descripcion es un dato derivado, irrelevante aqui: placeholder "".
     private static FranjaProgramada CrearFranjaProgramada() =>
         new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
 
@@ -30,8 +21,6 @@ public class DesgloseHorasTests
             .ToList<IntervaloClasificado>();
         return new DesgloseFranja(CrearFranjaProgramada(), intervalos, Retardo.Vacio);
     }
-
-    // ---------- CA-3: TotalMinutosPorConcepto suma elemento a elemento ----------
 
     [Fact]
     public void TotalMinutosPorConcepto_EsLaSumaDeTodasLasFranjas_CuandoMismoConcepto()
@@ -80,8 +69,6 @@ public class DesgloseHorasTests
 
         desglose.TotalMinutosPorConcepto.Should().BeEmpty();
     }
-
-    // ---------- CA-4: Vacio ----------
 
     [Fact]
     public void Vacio_TieneDesglosePorFranjaVacio()

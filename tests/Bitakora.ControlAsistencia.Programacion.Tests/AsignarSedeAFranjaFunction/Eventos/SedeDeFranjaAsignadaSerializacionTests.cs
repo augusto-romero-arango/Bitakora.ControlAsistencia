@@ -1,6 +1,3 @@
-// Issue #606 CA-1: SedeDeFranjaAsignada sobrevive un roundtrip de serializacion STJ -- requerido
-// por Marten -- transportando FranjaOrdinaria (VO con sede prearmada) como payload rico.
-
 using System.Text.Json;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -33,8 +30,8 @@ public class SedeDeFranjaAsignadaSerializacionTests
         deserializado.Franja.ToString().Should().Be(franja.ToString());
     }
 
-    // Retrocompatibilidad con el formato de FranjaOrdinaria (CA-4 de #335): la clave "sede" se
-    // omite del JSON cuando es null.
+    // Retrocompatibilidad con el formato de FranjaOrdinaria: la clave "sede" se omite del JSON
+    // cuando es null.
     [Fact]
     public void Deserializar_ReconstruyeEvento_CuandoFranjaNoTraeSede()
     {

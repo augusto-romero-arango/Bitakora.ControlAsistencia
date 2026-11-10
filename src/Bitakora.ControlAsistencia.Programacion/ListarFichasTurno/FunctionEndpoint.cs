@@ -7,10 +7,8 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.ListarFichasTurno;
 
-// Catalogo paginado: keyset por (Nombre, Id), take opcional (max 200), sobre { elementos, siguienteCursor }
-// con cursor opaco, sin total (CA-ADR-0039). sedeId opcional filtra en AND con la paginacion: es el
-// SedeProgramada.Id grabado en la franja (hoy el codigo de sede, no el stream key). Comparte la ruta
-// con el POST de creacion; cada uno declara su verbo.
+// sedeId filtra en AND con la paginacion: es el SedeProgramada.Id grabado en la franja (hoy el codigo
+// de sede, no el stream key). Comparte la ruta con el POST de creacion; cada uno declara su verbo.
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     private const int TakeMaximo = 200;
@@ -39,8 +37,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         var sedeId = req.Query["sedeId"].FirstOrDefault();
 
-        // MEF-ADR-0028: la QuerySession se abre SIEMPRE acotada al tenant que resuelve
-        // ITenantContext -- nunca a un tenant id que llegara por query string.
+        // Siempre acotada al tenant de ITenantContext, nunca a un tenant id que llegue por query string.
         await using var session = store.QuerySession(tenantContext.TenantId);
 
         var catalogo = await session.Query<FichaTurno>().ToListAsync(ct);

@@ -6,8 +6,7 @@ using Bitakora.ControlAsistencia.Sedes.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.Sedes.SmokeTests.ActualizarUbicacionSedeFunction;
 
-// UbicacionActualizada no cruza el bus: la unica verificacion black-box de los efectos del handler
-// es leer mt_events via PostgresFixture -- no hay ServiceBusFixture que consultar.
+// UbicacionActualizada no cruza el bus: sus efectos se verifican leyendo mt_events.
 public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
 {
     private readonly HttpClient _client = api.Client;
@@ -18,8 +17,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
     private const string TipoEventoUbicacionActualizada = "ubicacion_actualizada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y esta sujeto al charset URL-safe,
-    // del que "[", "]" y el espacio quedan fuera.
+    // "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y "[", "]" y el espacio no son URL-safe.
     private static string NuevoCodigo() => $"TEST-{Guid.CreateVersion7()}";
 
     // Recomputo local del streamId: oraculo independiente, sin referenciar ComputarStreamId.
@@ -55,7 +53,6 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-3
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ActualizarUbicacionSede_Retorna204YPersisteUbicacionActualizada_CuandoAmbosCamposLlegan()
@@ -85,7 +82,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         evento.GetProperty("Direccion").GetString().Should().Be("Carrera 50 # 10-20");
     }
 
-    // CA-3: los opcionales ausentes se persisten como null, no se omiten del evento.
+    // Los opcionales ausentes se persisten como null, no se omiten del evento.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ActualizarUbicacionSede_Retorna204YPersisteCiudadYDireccionNulos_CuandoNoLlegan()
@@ -115,8 +112,7 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         evento.GetProperty("Direccion").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
-    // El charset URL-safe del codigo tambien rige cuando viaja en la ruta: "!" queda fuera del set
-    // unreserved y se rechaza con 400, nunca con el 404 de un stream inexistente.
+    // "!" no es unreserved: 400, nunca el 404 de un stream inexistente.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ActualizarUbicacionSede_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()
@@ -130,7 +126,6 @@ public class ActualizarUbicacionSedeSmokeTests(ApiFixture api, PostgresFixture p
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-4
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ActualizarUbicacionSede_Retorna404_CuandoSedeNoExiste()

@@ -1,15 +1,5 @@
-// Issue #378 (MEF-ADR-0043 paso 1): validacion de forma del body reducido (CodigoColaborador +
-// FechaInicio) en el borde (CA-3). Reemplaza a ReingresarColaboradorValidatorTests (eliminado junto
-// con ReingresarColaboradorValidator, que vivia en CommandHandler/ del comando absorbido, issue
-// #350): TipoIdentificacion/NumeroIdentificacion ya no llegan en el body -- se validan en el
-// FunctionEndpoint via Identificacion.Parsear (ver FunctionEndpointTests). Patron de referencia:
-// CorregirNombresBodyValidatorTests (issue #377).
-//
-// Issue #387 (heredado): CodigoColaborador debe ser URL-safe -- set permitido: unreserved
-// characters de RFC 3986 seccion 2.3 (A-Z a-z 0-9 - . _ ~), el mismo set que las Microsoft Azure
-// REST API Guidelines fijan para path segments (MEF-ADR-0043 seccion 1). El ":" queda
-// explicitamente fuera (reservado como separador de accion). Se RECHAZA (400), nunca se limpia ni
-// normaliza en silencio.
+// CodigoColaborador debe ser URL-safe: solo unreserved de RFC 3986 seccion 2.3 (A-Z a-z 0-9 - . _ ~).
+// ":" queda fuera porque es el separador de accion. Se rechaza (400), nunca se limpia en silencio.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.IniciarVinculacionFunction;
@@ -28,7 +18,6 @@ public class IniciarVinculacionBodyValidatorTests
     private Task<ValidationResult> Validar(IniciarVinculacionBody body) =>
         _validator.ValidateAsync(body, TestContext.Current.CancellationToken);
 
-    // Camino feliz -- todos los campos correctos
     [Fact]
     public async Task Validar_Aprueba_CuandoTodosLosCamposSonCorrectos()
     {
@@ -37,8 +26,6 @@ public class IniciarVinculacionBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-3: CodigoColaborador vacio produce 400 -- iniciar una vinculacion siempre trae su propio
-    // codigo transaccional.
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoEstaVacio()
     {
@@ -49,8 +36,7 @@ public class IniciarVinculacionBodyValidatorTests
             e.PropertyName == nameof(IniciarVinculacionBody.CodigoColaborador));
     }
 
-    // CA-3: FechaInicio con el valor default de DateOnly produce 400 -- REQUERIDA, sin default del
-    // servidor (doctrina bitemporal del BC: el tiempo de los hechos viene del cliente).
+    // Requerida, sin default del servidor: el tiempo de los hechos viene del cliente (doctrina bitemporal).
     [Fact]
     public async Task Validar_RechazaFechaInicio_CuandoEsDefault()
     {
@@ -61,8 +47,7 @@ public class IniciarVinculacionBodyValidatorTests
             e.PropertyName == nameof(IniciarVinculacionBody.FechaInicio));
     }
 
-    // FechaInicio futura DEBE seguir siendo valida en la capa de forma -- la regla de no-solape es
-    // del aggregate, nunca del validator.
+    // La regla de no-solape es del aggregate, nunca del validator.
     [Fact]
     public async Task Validar_Aprueba_CuandoFechaInicioEsFutura()
     {
@@ -71,8 +56,6 @@ public class IniciarVinculacionBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-4/CA-6: CodigoSede es opcional -- ausente (null) es valido, mismo default que antes de
-    // este issue ("reingreso nace limpio").
     [Fact]
     public async Task Validar_Aprueba_CuandoCodigoSedeEsNull()
     {
@@ -81,7 +64,6 @@ public class IniciarVinculacionBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-3: CodigoSede con un valor presente y no vacio es valido.
     [Fact]
     public async Task Validar_Aprueba_CuandoCodigoSedeTieneUnValorPresente()
     {
@@ -90,8 +72,7 @@ public class IniciarVinculacionBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-6: CodigoSede presente pero vacio produce 400 -- opcional = ausente valido; presente exige
-    // valor.
+    // Opcional: ausente es valido, pero presente exige valor.
     [Fact]
     public async Task Validar_RechazaCodigoSede_CuandoEstaVacio()
     {
@@ -102,7 +83,6 @@ public class IniciarVinculacionBodyValidatorTests
             e.PropertyName == nameof(IniciarVinculacionBody.CodigoSede));
     }
 
-    // CA-6: CodigoSede presente pero solo espacios produce 400 -- mismo criterio que el vacio.
     [Fact]
     public async Task Validar_RechazaCodigoSede_CuandoEsSoloEspacios()
     {
@@ -113,8 +93,6 @@ public class IniciarVinculacionBodyValidatorTests
             e.PropertyName == nameof(IniciarVinculacionBody.CodigoSede));
     }
 
-    // (#387): codigo con caracteres unreserved no alfanumericos (. _ ~ -) sigue siendo valido -- el
-    // set permitido no se limita a alfanumericos.
     [Fact]
     public async Task Validar_Aprueba_CuandoCodigoColaboradorTieneCaracteresUnreservedNoAlfanumericos()
     {
@@ -123,7 +101,6 @@ public class IniciarVinculacionBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // (#387): ejemplo explicito del issue original -- guion es unreserved.
     [Fact]
     public async Task Validar_Aprueba_CuandoCodigoColaboradorEsAlfanumericoConGuion()
     {
@@ -132,9 +109,6 @@ public class IniciarVinculacionBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // (#387): ":" esta explicitamente fuera del set permitido -- MEF-ADR-0043 seccion 1 lo reserva
-    // como separador de accion (vinculaciones/{codigo}:terminar, #379). Un codigo con ":" haria
-    // inparseable esa ruta.
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoContieneDosPuntos()
     {
@@ -145,7 +119,6 @@ public class IniciarVinculacionBodyValidatorTests
             e.PropertyName == nameof(IniciarVinculacionBody.CodigoColaborador));
     }
 
-    // (#387): espacio no es unreserved -> 400.
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoContieneEspacio()
     {
@@ -156,7 +129,6 @@ public class IniciarVinculacionBodyValidatorTests
             e.PropertyName == nameof(IniciarVinculacionBody.CodigoColaborador));
     }
 
-    // (#387): caracter acentuado no es unreserved -> 400.
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoContieneCaracterAcentuado()
     {
@@ -167,7 +139,6 @@ public class IniciarVinculacionBodyValidatorTests
             e.PropertyName == nameof(IniciarVinculacionBody.CodigoColaborador));
     }
 
-    // (#387): "/" no es unreserved -> 400.
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoContieneBarra()
     {
@@ -178,11 +149,8 @@ public class IniciarVinculacionBodyValidatorTests
             e.PropertyName == nameof(IniciarVinculacionBody.CodigoColaborador));
     }
 
-    // (#387), caso borde del ancla de fin de linea: un salto de linea final tampoco es unreserved
-    // -> 400. En .NET el ancla "$" hace match tambien ANTES de un "\n" final (a diferencia de
-    // "\z"), asi que un patron anclado con "$" aceptaria "COL-002\n" en silencio -- un valor que
-    // rompe la URL igual que un espacio, y ademas habilita CRLF injection en cualquier consumidor
-    // que lo reenvie en un header o lo escriba en un log.
+    // En .NET "$" tambien hace match antes de un "\n" final (a diferencia de "\z"): un patron anclado
+    // con "$" aceptaria "COL-002\n", que rompe la URL y habilita CRLF injection en quien lo reenvie.
     [Fact]
     public async Task Validar_RechazaCodigoColaborador_CuandoTerminaEnSaltoDeLinea()
     {

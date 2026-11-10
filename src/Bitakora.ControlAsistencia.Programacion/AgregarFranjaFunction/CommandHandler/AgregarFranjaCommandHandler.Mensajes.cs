@@ -8,7 +8,6 @@ public partial class AgregarFranjaCommandHandler
         "Bitakora.ControlAsistencia.Programacion.AgregarFranjaFunction.CommandHandler.AgregarFranjaCommandHandlerMensajes",
         typeof(AgregarFranjaCommandHandler).Assembly);
 
-    // internal, no private: los tests lo afirman via InternalsVisibleTo.
     internal static class Mensajes
     {
         public static string TurnoNoEncontrado =>

@@ -1,5 +1,3 @@
-// Issue #500: round-trip de serializacion de TurnoRetirado (seccion 6d del harness)
-
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -29,7 +27,7 @@ public class TurnoRetiradoSerializacionTests
         restaurado!.TurnoId.Should().Be(TurnoId);
     }
 
-    // CA-regresion: si nadie registra TurnoRetirado.ConfigurarSerializacion en
+    // Si nadie registra TurnoRetirado.ConfigurarSerializacion en
     // ConfiguracionSerializacionProgramacion.ConfigurarResolver, el ctor privado impide a STJ
     // reconstruirlo -- este test hace visible el olvido.
     [Fact]

@@ -1,4 +1,3 @@
-// Issue #2: Tests de round-trip JSON para FranjaOrdinaria
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -92,7 +91,6 @@ public class FranjaOrdinariaSerializacionTests
         restaurado.Should().Be(original);
     }
 
-    // Issue #335 CA-5: round-trip de una ordinaria con sede prearmada.
     [Fact]
     public void RoundTrip_PreservaLaSede_CuandoOrdinariaTieneSedeAsignada()
     {

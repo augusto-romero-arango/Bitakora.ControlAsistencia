@@ -1,15 +1,9 @@
-// Invocacion DIRECTA de los metodos estaticos de FichaTurnoProjection (N1, MEF-ADR-0035) -- no el
-// DSL Given/When/Then de CommandHandlerTestBase, que testea command handlers contra el event store:
-// aqui se prueba una funcion pura evento -> vista, sin abrir ningun stream.
+// Invocacion directa de los metodos estaticos de FichaTurnoProjection, sin el DSL de
+// CommandHandlerTestBase. Oraculo armado a mano (MEF-ADR-0002): la Descripcion esperada replica el
+// formato de FranjaOrdinaria/SubFranja.ToString() sin ejecutarlo, y FranjaFicha/SubFranjaFicha se
+// arman con su constructor, nunca con el mapeo privado del SUT.
 //
-// El oraculo se arma a mano (MEF-ADR-0002, no-tautologia): el texto esperado de Descripcion replica
-// el formato de FranjaOrdinaria.ToString()/SubFranja.ToString() verificado por lectura del codigo
-// fuente, nunca ejecutando ese ToString() desde el test. Las FranjaFicha/SubFranjaFicha esperadas se
-// arman con su constructor posicional, nunca reusando FichaTurnoProjection.MapearFranja/MapearSubFranja
-// (el mapeo privado del SUT).
-//
-// BeEquivalentTo, no Be: FichaTurno es un record plano sin igualdad por valor sobre sus colecciones
-// (MEF-ADR-0035) -- Be compararia Franjas por referencia y fallaria con valores identicos.
+// BeEquivalentTo, no Be: Be compararia las colecciones de FichaTurno por referencia.
 
 using System.Text.Json;
 using AwesomeAssertions;
@@ -63,9 +57,8 @@ public class FichaTurnoProjectionTests
             Completo: true));
     }
 
-    // HorarioResumido y Descripcion unen los rangos ordenados por HoraInicio, no en el orden en que
-    // el evento los trae (vista para leer el dia -- MEF-ADR-0041): el arrange llega desordenado a
-    // proposito.
+    // HorarioResumido y Descripcion unen los rangos ordenados por HoraInicio, no en el orden del
+    // evento (MEF-ADR-0041): el arrange llega desordenado a proposito.
     [Fact]
     public void Create_UneLosRangosOrdenadosPorHoraInicio_CuandoElTurnoTieneVariasFranjas()
     {
@@ -194,8 +187,7 @@ public class FichaTurnoProjectionTests
             Completo: true));
     }
 
-    // Vista para leer el dia, no el orden de diseno (MEF-ADR-0041): una franja agregada con
-    // inicio anterior a las que ya estaban queda PRIMERA.
+    // Vista para leer el dia, no el orden de diseno (MEF-ADR-0041).
     [Fact]
     public void Apply_OrdenaLasFranjasPorHoraInicio_CuandoSeAgregaUnaFranjaConInicioAnterior()
     {

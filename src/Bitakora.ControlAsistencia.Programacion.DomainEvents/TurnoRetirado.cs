@@ -11,7 +11,7 @@ public sealed class TurnoRetirado
 
     private TurnoRetirado(Guid turnoId) => TurnoId = turnoId;
 
-    // Constructor vacio privado para Marten/JSON (mismo patron que TurnoCreado).
+    // Constructor vacio privado para Marten/JSON.
     private TurnoRetirado() { }
 
     public static TurnoRetirado Crear(Guid turnoId) => new(turnoId);

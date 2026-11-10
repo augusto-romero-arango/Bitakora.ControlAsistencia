@@ -2,13 +2,9 @@ using Bitakora.ControlAsistencia.ReadModels.Sedes;
 
 namespace Bitakora.ControlAsistencia.Sedes.InstalarDispositivoFunction;
 
-// Puerto del unico lookup cross-sede que el comando necesita: rechazo barato antes de cargar el
-// aggregate destino.
-//
-// No inyectar IDocumentStore/ITenantContext directo en el CommandHandler, aunque ese SI sea el
-// patron de las Function GET de este dominio: la rama cross-sede es logica ramificada que necesita
-// cobertura unitaria con un fake manual, y el harness de comando no fakea Marten. Mismo criterio
-// que ILectorSedesParaMarcacion.
+// Lookup cross-sede: rechazo barato antes de cargar el aggregate destino. Es puerto, y no
+// IDocumentStore directo como en las Function GET, porque la rama cross-sede necesita cobertura
+// unitaria con un fake manual y el harness de comando no fakea Marten.
 public interface ILectorUbicacionDispositivo
 {
     Task<UbicacionDispositivo?> BuscarUbicacionAsync(string dispositivoId, CancellationToken ct = default);

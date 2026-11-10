@@ -3,11 +3,8 @@ using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.RecibirDepuracionCuandoDiaDepurado;
 
-// Verifica contra dev el efecto del consumidor nuevo: cada DiaDepurado que cruza el ASB interno
-// persiste depuracion_dia_recibida en el stream de DiaCalculado. Se publica el evento directo al
-// topic (no via POST de marcacion) para aislar este consumidor de la cadena que lo alimenta.
-// Queda rojo hasta que el deploy publique la suscripcion control-horas-escucha-dia-depurado; el CI
-// de PR no lo ejecuta (solo corre *.Tests).
+// Publica DiaDepurado directo al topic (no via POST de marcacion) para aislar este consumidor de la
+// cadena que lo alimenta.
 public class RecibirDepuracionViaSbSmokeTests(ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
     private const string TopicDiaDepurado = "dia-depurado";
@@ -62,10 +59,8 @@ public class RecibirDepuracionViaSbSmokeTests(ServiceBusFixture serviceBus, Post
             }
         };
 
-    // CA-1: un dia nuevo crea el stream dc:{codigo}:{yyyyMMdd} con la foto completa.
-    // CA-2/CA-4: una segunda entrega sobre el mismo dia agrega otra depuracion_dia_recibida al mismo
-    // stream -- sin deduplicacion. Las dos fotos se distinguen por NombreTurno para poder afirmar que
-    // ambas quedaron persistidas.
+    // Una segunda entrega sobre el mismo dia agrega otra depuracion_dia_recibida, sin deduplicar;
+    // NombreTurno distingue las dos fotos.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task DiaDepurado_PersisteCadaFotoEnElStreamDeDiaCalculado_CuandoLleganDosEntregasDelMismoDia()
@@ -113,8 +108,6 @@ public class RecibirDepuracionViaSbSmokeTests(ServiceBusFixture serviceBus, Post
             codigoColaborador, SuscripcionConsumidor, TopicDiaDepurado);
     }
 
-    // CA-3: el dia sin jornada valida (Colaborador/NombreTurno null, franjas y horas vacias,
-    // marcaciones crudas como unica evidencia) tambien crea su stream.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task DiaDepurado_PersisteLaFoto_CuandoElDiaNoTieneJornadaValida()

@@ -1,27 +1,19 @@
-// Issue #3: Implementar evento TurnoCreado con factory de construccion y validacion
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearTurnoFunction;
 
 /// <summary>
-/// Tests del factory TurnoCreado.Crear(Guid, string, IReadOnlyList&lt;DatosFranja&gt;).
-/// Interfaz publica: Crear(...), TurnoId, Nombre, FranjasOrdinarias.
-/// La construccion de VOs se delega a FranjaOrdinaria.Crear() -- sus errores se acumulan.
-/// Issue #237: el factory recibe DatosFranja y ya no el comando CrearTurno, que vive en la
-/// Function App. La traduccion desde el comando la prueba CrearTurnoCommandHandlerTests.
+/// La construccion de VOs se delega a FranjaOrdinaria.Crear() -- sus errores se acumulan. La
+/// traduccion desde el comando CrearTurno la prueba CrearTurnoCommandHandlerTests.
 /// </summary>
 public class TurnoCreadoTests
 {
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000000001");
     private const string NombreValido = "Turno Manana";
 
-    // Factory method de ayuda para una franja diurna simple sin hijos
     private static DatosFranja FranjaDiurnaSimple() =>
         new(new TimeOnly(8, 0), new TimeOnly(16, 0), [], []);
-
-    // ---------- CA-2: una sola ordinaria sin descansos ni extras ----------
 
     [Fact]
     public void Crear_RetornaTurnoCreado_CuandoUnaOrdinariaSimpleSinHijos()
@@ -33,8 +25,6 @@ public class TurnoCreadoTests
         evento.FranjasOrdinarias.Should().HaveCount(1);
         evento.FranjasOrdinarias[0].ToString().Should().Be("08:00-16:00");
     }
-
-    // ---------- CA-3: multiples ordinarias (jornada partida) ----------
 
     [Fact]
     public void Crear_RetornaTurnoCreadoConDosOrdinarias_CuandoJornadaPartida()
@@ -51,8 +41,6 @@ public class TurnoCreadoTests
         evento.FranjasOrdinarias[0].ToString().Should().Be("06:00-12:00");
         evento.FranjasOrdinarias[1].ToString().Should().Be("14:00-16:00");
     }
-
-    // ---------- CA-4: ordinaria con descansos y extras ----------
 
     [Fact]
     public void Crear_RetornaTurnoCreadoConDescansosYExtras_CuandoOrdinariaConHijos()
@@ -71,8 +59,6 @@ public class TurnoCreadoTests
         evento.FranjasOrdinarias[0].ToString()
             .Should().Be("06:00-12:00, descanso 10:00-10:15, extra 06:00-08:00");
     }
-
-    // ---------- CA-5: turno nocturno que cruza medianoche ----------
 
     [Fact]
     public void Crear_RetornaTurnoCreadoNocturno_CuandoOrdinariaCruzaMedianoche()
@@ -103,8 +89,6 @@ public class TurnoCreadoTests
             .Should().Be("22:00-06:00+1, descanso 23:00-23:15");
     }
 
-    // ---------- Turno vacio: sin franjas y sin marca de descanso ----------
-
     [Fact]
     public void Crear_RetornaTurnoCreadoConFranjasVaciasYEsDescansoFalso_CuandoListaDeOrdinariasEstaVacia()
     {
@@ -123,8 +107,6 @@ public class TurnoCreadoTests
 
         evento.EsDescanso.Should().BeFalse();
     }
-
-    // ---------- CA-7: nombre vacio o solo espacios ----------
 
     [Fact]
     public void Crear_LanzaAggregateException_CuandoNombreEstaVacio()
@@ -145,8 +127,6 @@ public class TurnoCreadoTests
         ex.InnerExceptions.OfType<ArgumentException>()
             .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
     }
-
-    // ---------- CA-8: solapamiento entre ordinarias ----------
 
     [Fact]
     public void Crear_LanzaAggregateException_CuandoFranjasOrdinariasSeSolapan()
@@ -182,8 +162,6 @@ public class TurnoCreadoTests
             .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.FranjasOrdinariasSeSolapan));
     }
 
-    // ---------- CA-9: errores de FranjaOrdinaria.Crear() se capturan y acumulan ----------
-
     [Fact]
     public void Crear_LanzaAggregateException_CuandoSubFranjaEstaFueraDelContenedor()
     {
@@ -203,12 +181,10 @@ public class TurnoCreadoTests
                 ae.Message.Contains(FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor));
     }
 
-    // ---------- CA-10: acumulacion de multiples errores sin fail-fast ----------
-
     [Fact]
     public void Crear_LanzaAggregateExceptionConUnSoloError_CuandoHayNombreVacioYSinOrdinarias()
     {
-        // La ausencia de franjas ya no es invalida -- solo queda el error de nombre.
+        // La ausencia de franjas no es invalida: solo queda el error de nombre.
         var act = () => TurnoCreado.Crear(TurnoId, "", []);
 
         var ex = act.Should().ThrowExactly<AggregateException>().Which;
@@ -237,8 +213,6 @@ public class TurnoCreadoTests
             e.Message.Contains(FranjaTemporal.Mensajes.FranjaHijaFueraDeContenedor));
     }
 
-    // ---------- CA-11: cada error individual es ArgumentException ----------
-
     [Fact]
     public void Crear_SoloLanzaArgumentExceptions_CuandoHayErroresDeValidacion()
     {
@@ -248,9 +222,6 @@ public class TurnoCreadoTests
         ex.InnerExceptions.Should().AllBeAssignableTo<ArgumentException>();
     }
 
-    // ---------- Issue #335: sede prearmada por franja ----------
-
-    // CA-1: la sede prearmada de una franja fluye hasta el evento persistido.
     [Fact]
     public void Crear_PropagaSedePorFranja_CuandoDatosFranjaTraeSedeValida()
     {
@@ -263,7 +234,7 @@ public class TurnoCreadoTests
         evento.FranjasOrdinarias[0].ToDetalle().Sede.Should().Be(sede);
     }
 
-    // CA-3: sede con Id vacio se acumula junto a las demas invariantes del factory.
+    // Sede con Id vacio se acumula junto a las demas invariantes del factory.
     [Fact]
     public void Crear_LanzaAggregateException_CuandoSedeDeFranjaTieneIdVacio()
     {
@@ -278,7 +249,7 @@ public class TurnoCreadoTests
             .Should().ContainSingle(ae => ae.Message.Contains(FranjaOrdinaria.Mensajes.SedeIncompleta));
     }
 
-    // CA-3: sede invalida se acumula junto a otros errores (no fail-fast).
+    // Sede invalida se acumula junto a otros errores (no fail-fast).
     [Fact]
     public void Crear_LanzaAggregateExceptionConErroresPropiosYDeSede_CuandoNombreVacioYSedeIncompleta()
     {
@@ -332,10 +303,8 @@ public class TurnoCreadoTests
             .Should().ContainSingle(ae => ae.Message.Contains(TurnoCreado.Mensajes.NombreVacio));
     }
 
-    // ---------- Issue #598 CA-7: descanso con duracion no positiva se acumula como error delegado ----------
     // Con offsets inferidos, el unico par (inicio, fin) que ninguna inferencia rescata es uno
     // identico: offsetFin solo supera a offsetInicio cuando fin es menor que inicio.
-
     [Fact]
     public void Crear_LanzaAggregateException_CuandoDescansoTieneDuracionNoPositiva()
     {
@@ -371,9 +340,7 @@ public class TurnoCreadoTests
         ex.InnerExceptions.Should().Contain(e => e.Message.Contains(FranjaTemporal.Mensajes.DuracionNoPositiva));
     }
 
-    // ---------- Issue #600: offsets de hijas inferidos relativos a su franja contenedora ----------
-
-    // CA-7: descanso y extra de madrugada, hoy rechazados sin la inferencia, quedan contenidos
+    // Los offsets de las hijas se infieren relativos a su franja contenedora.
     [Fact]
     public void Crear_InfiereOffsetsDeHijas_CuandoDescansoYExtraCaenEnLaMadrugada()
     {

@@ -6,20 +6,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.CorregirNombresFunction;
 
-// Issue #377 (MEF-ADR-0043 paso 2): endpoint HTTP PUT para corregir (reemplazar por completo) los
-// nombres de un colaborador existente -- reemplazo del VO atomico NombreColaborador, direccionable
-// por {id}. MEF-ADR-0006: [Function("CorregirNombres")]; carpeta CON sufijo "Function" -- mismo
-// criterio que los demas comandos del ciclo de vida: el record del comando es homonimo del feature
-// folder.
-// Route = "colaboradores/{id}/nombres" (kebab-case minusculo, MEF-ADR-0043 seccion 3): {id} es
-// Identificacion.ToString() ("CC-79543210", issue #381) -- se parsea UNA vez con
-// Identificacion.Parsear (unico punto de conversion string->Identificacion, MEF-ADR-0037 seccion 2)
-// y un ArgumentException se traduce a 400 explicito, mismo mecanismo que
-// AsignarEtiquetaFunction.FunctionEndpoint (issue #376) / ObtenerFichaColaborador.FunctionEndpoint.
-// El body se reduce a los 4 campos del nombre (CorregirNombresBody); el endpoint compone el comando
-// interno CorregirNombres (que conserva sus 6 campos primitivos, MEF-ADR-0039 decision 6) a partir
-// de {id} + los 4 campos del body.
-// Reemplaza el POST Colaboradores/Nombres (issue #351): la ruta vieja deja de existir (CA-5).
+// PUT: reemplazo completo del VO atomico NombreColaborador (MEF-ADR-0043 paso 2).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("CorregirNombres")]

@@ -2,17 +2,10 @@ using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Entities;
 
-// Issue #116: Consolida los DesgloseFranja de un dia operativo en un DesgloseHoras,
-// aplicando compensacion cronologica inversa cross-franja sobre las extras de todas
-// las franjas. Clase estatica pura: sin interaccion de aggregate ni event sourcing.
-//
-// Regla de producto: un retardo en cualquier franja se compensa con el excedente de
-// cualquier otra del mismo dia. Los ultimos minutos del excedente (cronologicamente)
-// compensan el retardo; los primeros minutos sobreviven como extras genuinas. La
-// compensacion aplica sobre TODAS las extras sin distincion de origen ni concepto;
-// nunca toca descansos ni ordinarias.
-//
-// La integracion reactiva al aggregate (ControlDiarioAggregateRoot) se hace en #139.
+// Regla de producto: un retardo en cualquier franja se compensa con el excedente de cualquier otra
+// del mismo dia. Los ultimos minutos del excedente (cronologicamente) compensan el retardo; los
+// primeros sobreviven como extras genuinas. Aplica sobre todas las extras sin distincion de origen
+// ni concepto; nunca toca descansos ni ordinarias.
 public static class ConsolidadorDesgloseHoras
 {
     public static DesgloseHoras Consolidar(
@@ -20,14 +13,12 @@ public static class ConsolidadorDesgloseHoras
         int franjasAnomalas,
         bool sinCastigoPorRetardo = false)
     {
-        // Copia mutable de los intervalos de cada franja: la compensacion cross-franja consume
-        // extras desde el final, removiendo o partiendo intervalos sin tocar el insumo original.
+        // Copia mutable: la compensacion remueve o parte extras sin tocar el insumo original.
         var intervalosPorFranja = desglosesFranja
             .Select(franja => franja.Intervalos.ToList())
             .ToList();
 
-        // Retardo pendiente del dia = suma de los retardos netos de cada franja (cada uno ya
-        // descontada su compensacion intra-franja, calculada por separado en #136).
+        // Cada retardo neto ya descuenta la compensacion intra-franja.
         var retardoPendiente = sinCastigoPorRetardo
             ? 0
             : desglosesFranja.Sum(franja => franja.Retardo.RetardoNeto);
@@ -36,8 +27,6 @@ public static class ConsolidadorDesgloseHoras
             ? ConsumirExtrasDesdeElFinal(intervalosPorFranja, retardoPendiente)
             : [];
 
-        // El retardo del dia acumula el retardado/compensado de cada franja mas el compensado
-        // cross-franja recien consumido. Retardo lo consolida sin exponer sus intervalos.
         var retardoTotal = Retardo.Consolidar(
             desglosesFranja.Select(franja => franja.Retardo),
             compensacionCrossFranja);
@@ -51,15 +40,10 @@ public static class ConsolidadorDesgloseHoras
         return new DesgloseHoras(desglosePorFranja, retardoTotal, franjasAnomalas);
     }
 
-    // Recolecta las extras de todas las franjas, las ordena cronologicamente de forma EXPLICITA
-    // (las franjas pueden llegar en cualquier orden) y consume `minutos` desde el final segun la
-    // regla cronologica inversa: los ultimos minutos del excedente compensan el retardo. Muta
-    // `intervalosPorFranja`: la extra consumida por completo se remueve de su franja; la atravesada
-    // parcialmente se reemplaza por su parte izquierda (la extra genuina visible). Devuelve los
-    // IntervaloTemporal consumidos en orden cronologico ascendente, para el TiempoCompensado del
-    // Retardo. Si `minutos` excede la suma de las extras del dia, consume todas las extras
-    // disponibles y el sobrante queda como retardo neto sin compensar (caso CA-3: retardo sin
-    // excedente que lo cubra). El metodo no exige `minutos` <= extras: tolera el deficit.
+    // Ordena explicitamente porque las franjas pueden llegar en cualquier orden. Muta
+    // `intervalosPorFranja`: la extra consumida entera se remueve; la atravesada se reemplaza por su
+    // parte izquierda (la extra genuina). Devuelve lo consumido en orden cronologico ascendente. Si
+    // `minutos` excede las extras del dia, el sobrante queda como retardo neto sin compensar.
     private static IReadOnlyList<IntervaloTemporal> ConsumirExtrasDesdeElFinal(
         List<List<IntervaloClasificado>> intervalosPorFranja, int minutos)
     {

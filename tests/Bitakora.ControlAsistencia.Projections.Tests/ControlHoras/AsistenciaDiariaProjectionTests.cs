@@ -1,22 +1,15 @@
-// Los metodos de AsistenciaDiariaProjection son funciones puras evento -> vista: se invocan
-// directamente, sin el DSL Given/When/Then de CommandHandlerTestBase (MEF-ADR-0002 lo reserva para
-// command handlers contra el event store) y sin abrir ningun stream.
+// Funciones puras evento -> vista: se invocan directo, sin el DSL de CommandHandlerTestBase
+// (MEF-ADR-0002 lo reserva para command handlers). Oraculos literales: nunca se reusa la
+// clasificacion de Plan ni la derivacion de banderas bajo prueba.
 //
-// Cada valor esperado se declara como literal (MEF-ADR-0002, no-tautologia): nunca se reusa la
-// clasificacion de Plan ni la derivacion de banderas bajo prueba para construir el oraculo.
-//
-// HorasPorConcepto se verifica con BeEquivalentTo, nunca comparando la vista entera con
-// Should().Be(...): IReadOnlyDictionary<string, decimal> no recibe equality estructural del
-// compilador de records, asi que esa comparacion caeria en igualdad por referencia y pasaria o
-// fallaria por casualidad (mismo motivo por el que HorasDiscriminadas escribe su Equals a mano).
+// HorasPorConcepto se verifica con BeEquivalentTo, nunca con Should().Be(...) sobre la vista: el
+// IReadOnlyDictionary del record compara por referencia y el test pasaria o fallaria por casualidad.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.Projections.ControlHoras;
 using Bitakora.ControlAsistencia.ReadModels.ControlHoras;
-// Alias, no nombre corto: issue #429 agrego ReadModels.ControlHoras.FranjaDepurada/MarcacionDelDia
-// (tercer espejo del mismo termino, MEF-ADR-0039 decision 6), que colisionan (CS0104) con los
-// homonimos de DomainEvents que este archivo ya usaba para construir DepuracionDiaRecibida.
+// Alias: ReadModels.ControlHoras tiene FranjaDepurada/MarcacionDelDia homonimos (CS0104).
 using EventoFranjaDepurada = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.FranjaDepurada;
 using EventoMarcacionDelDia = Bitakora.ControlAsistencia.ControlHoras.DomainEvents.MarcacionDelDia;
 
@@ -394,8 +387,6 @@ public class AsistenciaDiariaProjectionTests
         vista.HorasPorConcepto.Should().BeEquivalentTo(
             new Dictionary<string, decimal> { ["OrdinariaDiurna"] = 8.00m });
     }
-
-    // --- Ausencias (CA-ADR-0036, issue #749) ---
 
     private static DepuracionDiaRecibida CrearEventoDeAusencia(
         string? motivo, string? nombreTurno, IReadOnlyList<EventoFranjaDepurada> franjas,

@@ -4,7 +4,6 @@ using Bitakora.ControlAsistencia.ReadModels.Programacion;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ListarBorradoresDeProgramacion;
 
-// CA-4/CA-5/CA-6: composicion pura de la respuesta sobre las vistas ya leidas.
 public class ComponerListaBorradoresTests
 {
     private static DateOnly Oct(int dia) => new(2026, 10, dia);

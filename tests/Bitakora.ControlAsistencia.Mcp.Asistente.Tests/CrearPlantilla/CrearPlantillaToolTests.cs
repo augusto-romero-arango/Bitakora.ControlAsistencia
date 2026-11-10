@@ -64,7 +64,6 @@ public class CrearPlantillaToolTests
     private static string CatalogoCon(string nombre, string franjas) =>
         $$"""{"elementos":[{"id":"{{IdHomonimo}}","nombre":"{{nombre}}","esDescanso":false,"horarioResumido":"","franjas":[{{franjas}}],"descripcion":"","completo":true}]}""";
 
-    // CA-1
     [Fact]
     public async Task CrearPlantilla_HaceUnPostYUnPutPorDiaEnOrden_CuandoTodosLosTurnosExisten()
     {
@@ -136,7 +135,6 @@ public class CrearPlantillaToolTests
         JsonNode.Parse(resultado)!["jornada"]!["jornada_id"]!.GetValue<string>().Should().Be(JornadaId);
     }
 
-    // CA-2
     [Fact]
     public async Task CrearPlantilla_RechazaSinLlamarAlBackend_CuandoNombreEstaEnBlanco()
     {
@@ -364,7 +362,6 @@ public class CrearPlantillaToolTests
         NoEscribioNada(fakes);
     }
 
-    // CA-3
     [Fact]
     public async Task CrearPlantilla_CreaElTurnoInlineYAsignaElDia_CuandoLaFranjaNoTieneHomonimo()
     {
@@ -426,7 +423,6 @@ public class CrearPlantillaToolTests
         NoEscribioNada(fakes);
     }
 
-    // CA-4
     [Fact]
     public async Task CrearPlantilla_ListaElDiaRechazadoYSigueConLosDemas_CuandoUnPutRespondeConflicto()
     {

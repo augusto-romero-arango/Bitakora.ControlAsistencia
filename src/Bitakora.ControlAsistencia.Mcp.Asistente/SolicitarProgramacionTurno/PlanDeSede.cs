@@ -4,7 +4,6 @@ using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 
-/// <summary>Plantillas de motivo de aviso que cada tool aporta desde su .resx (MEF-ADR-0009).</summary>
 internal sealed record MotivosDeAviso(string SinSede, string SedeInactiva, string SedeNoExiste);
 
 public sealed record AvisoDeSede(string Identificacion, string Motivo);
@@ -12,9 +11,8 @@ public sealed record AvisoDeSede(string Identificacion, string Motivo);
 /// <summary>Sede que viaja con la solicitud de un candidato y, si quedo sin sede, el motivo del aviso.</summary>
 internal readonly record struct SedeDelCandidato(SedeProgramada? Sede, string? MotivoDeAviso);
 
-// Cascada de sede por candidato, compartida por ambas tools (MEF-ADR-0018). La precedencia efectiva
-// (sede prearmada de la franja primero) vive en TurnoProgramado.ConSedePorDefecto (MEF-ADR-0012);
-// aqui solo se elige que default enviar.
+// La precedencia efectiva (sede prearmada de la franja primero) vive en
+// TurnoProgramado.ConSedePorDefecto; aqui solo se elige que default enviar.
 internal sealed class PlanDeSede
 {
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);

@@ -1,8 +1,3 @@
-// Issue #330: tests del endpoint HTTP POST Colaboradores (registrar colaborador).
-// Issue #659 (MEF-ADR-0004 "Respuestas HTTP" enmendado por harness#849, MEF-ADR-0043 seccion 2 paso
-// 1): create -> 201 Created con Location a la ficha del colaborador registrado; 409 Conflict se
-// conserva sin cambios.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 using Bitakora.ControlAsistencia.Colaboradores.Infraestructura;
@@ -33,8 +28,7 @@ public class FunctionEndpointTests
         return context.Request;
     }
 
-    // CA-1: POST exitoso retorna 201 Created con Location a la ficha del colaborador -- compuesta
-    // via el VO Identificacion (unico punto de conversion, MEF-ADR-0037), no concatenando strings.
+    // Location se compone via el VO Identificacion, no concatenando strings.
     [Fact]
     public async Task RegistrarColaborador_Retorna201ConLocation_CuandoComandoEsValido()
     {
@@ -51,7 +45,6 @@ public class FunctionEndpointTests
         result.As<CreatedResult>().Location.Should().Be($"/api/colaboradores/fichas/{identificacion}");
     }
 
-    // CA-2: POST con identificacion ya registrada retorna 409 Conflict
     [Fact]
     public async Task RegistrarColaborador_Retorna409_CuandoIdentificacionYaExiste()
     {
@@ -77,7 +70,6 @@ public class FunctionEndpointTests
         await act.Should().ThrowExactlyAsync<InvalidOperationException>();
     }
 
-    // CA-3: POST con JSON invalido o campos faltantes retorna 400 Bad Request
     [Fact]
     public async Task RegistrarColaborador_Retorna400_CuandoRequestEsInvalido()
     {
@@ -92,12 +84,6 @@ public class FunctionEndpointTests
     }
 }
 
-// ---- Fakes manuales - NO NSubstitute ----
-
-/// <summary>
-/// Fake configurable de IRequestValidator. Retorna un comando pre-configurado o un error segun lo
-/// que se le pase en el constructor.
-/// </summary>
 internal class FakeRequestValidator<TComando> : IRequestValidator
 {
     private readonly TComando? _comando;
@@ -122,9 +108,6 @@ internal class FakeRequestValidator<TComando> : IRequestValidator
     }
 }
 
-/// <summary>
-/// Fake configurable de ICommandRouter.
-/// </summary>
 internal class FakeCommandRouter : ICommandRouter
 {
     private readonly Exception? _excepcion;

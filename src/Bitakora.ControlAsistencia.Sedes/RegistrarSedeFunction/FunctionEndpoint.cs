@@ -6,10 +6,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Sedes.RegistrarSedeFunction;
 
-// MEF-ADR-0006: [Function("RegistrarSede")] como convencion de nombrado; carpeta CON sufijo
-// "Function" porque el record del comando es homonimo del feature folder.
-// Route = "sedes" (kebab-case minusculo, MEF-ADR-0043 seccion 3): dominio y recurso son homonimos.
-// MEF-ADR-0043 paso 1 (create): exito -> 201 Created con Location a la ficha de la sede.
+// Carpeta con sufijo "Function" porque el record del comando es homonimo del feature folder.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("RegistrarSede")]

@@ -1,8 +1,5 @@
-// Issue #114: Tests de round-trip JSON para Retardo con las opciones reales de Marten.
-// CA-9: round-trip usando ConfiguracionSerializacionCalculoHoras.CrearOpcionesMarten().
-// CA-10: sin registro en el resolver, la deserializacion falla (barrera anti-regresion).
-// Retardo expone solo RetardoNeto y ToString() publicamente; los campos privados
-// se verifican a traves del contrato IEquatable y la representacion ToString().
+// Retardo solo expone RetardoNeto y ToString(): los campos privados se verifican por IEquatable y
+// ToString().
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using AwesomeAssertions;
@@ -69,8 +66,7 @@ public class RetardoSerializacionTests
     [Fact]
     public void RoundTrip_PreservaRetardoNetoCero_CuandoCompensacionExcedeRetardo()
     {
-        // Escenario del review: 20 min retardados, 30 min compensados.
-        // RetardoNeto debe viajar como 0 (saturado) y los minutos crudos preservarse.
+        // 20 min retardados y 30 compensados: los minutos crudos tambien deben preservarse.
         var original = Retardo.Crear(
             [CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(8, 20))],
             [CrearIntervalo(new TimeOnly(12, 0), new TimeOnly(12, 30))]);
@@ -98,7 +94,7 @@ public class RetardoSerializacionTests
         restaurado!.RetardoNeto.Should().Be(0);
     }
 
-    // CA-10: barrera contra regresiones que borren la linea de registro en ConfigurarResolver.
+    // Barrera contra regresiones que borren la linea de registro en ConfigurarResolver.
     [Fact]
     public void Deserializar_Falla_CuandoResolverNoTieneRegistroConfiguradoDeRetardo()
     {

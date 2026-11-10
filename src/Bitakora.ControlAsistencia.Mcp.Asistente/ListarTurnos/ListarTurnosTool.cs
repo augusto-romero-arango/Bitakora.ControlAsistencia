@@ -5,10 +5,7 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.ListarTurnos;
 
-// Catalogo (CA-ADR-0039): pagina con el cursor del backend y nunca descarta un elemento recibido.
-// sede se traduce a SedeId sin exigir que la sede este activa.
-// El catalogo solo contiene turnos activos: FichaTurnoProjection borra la ficha al TurnoRetirado,
-// asi que aqui no hay estado que filtrar.
+// El catalogo solo trae turnos activos: FichaTurnoProjection borra la ficha al TurnoRetirado.
 public partial class ListarTurnosTool(ProgramacionApi api, ResolutorSedePorCodigo resolutorSedes)
 {
     internal const string NombreTool = "listar_turnos";
@@ -83,10 +80,7 @@ public sealed record CatalogoDeTurnos(
     string? SiguienteCursor,
     string? Nota);
 
-/// <summary>
-/// EsDescanso, EnConstruccion y ConVentanaDeEntrada viajan solo cuando son true: null se omite en la serializacion
-/// (filtro de relevancia, MEF-ADR-0047 decision 4).
-/// </summary>
+/// <summary>EsDescanso, EnConstruccion y ConVentanaDeEntrada viajan solo cuando son true (null se omite).</summary>
 public sealed record TurnoResumido(
     string Id,
     string Nombre,

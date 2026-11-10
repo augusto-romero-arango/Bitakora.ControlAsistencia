@@ -3,11 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
-// Issue #489: cierre del ciclo Provisional -> Aprobado. Unico evento del acto de aprobar -- las
-// decisiones de sede viajan DENTRO de este evento (decision de sesion 2026-08-29: un evento
-// separado insinuaria una resolucion con vida propia, ya rechazada al cerrar #483). Persistido en
-// el mismo stream de DiaCalculadoAggregateRoot que DepuracionDiaRecibida; sin marker de bus --
-// consumidores: ninguno todavia (MEF-ADR-0039, nace con el primer consumidor real).
+// Cierre del ciclo Provisional -> Aprobado. Unico evento del acto de aprobar: las decisiones de
+// sede viajan DENTRO de el, porque un evento separado insinuaria una resolucion con vida propia.
 public sealed class DiaAprobado
 {
     // Id es el stream key de DiaCalculado, tal como lo computa DiaCalculadoAggregateRoot.ComputarStreamId.
@@ -19,10 +16,8 @@ public sealed class DiaAprobado
     // decisiones de sede son solo el insumo que el acto exige donde la maquina se abstuvo.
     public IReadOnlyList<SedeDecidida> SedesDecididas { get; private set; } = null!;
 
-    // Constructor real privado: solo el factory Crear lo invoca. Patron canonico de evento
-    // persistido (MEF-ADR-0012, precedente MarcacionRegistrada / issue #275). Con un ctor publico
-    // parametrizado, STJ lo resolveria solo y ConfigurarSerializacion quedaria como codigo muerto
-    // -- el guardrail "sin registro falla" pasaria en falso.
+    // Privado a proposito: con un ctor publico parametrizado STJ lo resolveria solo y
+    // ConfigurarSerializacion quedaria muerto (el guardrail "sin registro falla" pasaria en falso).
     private DiaAprobado(
         string id,
         string codigoColaborador,
@@ -35,11 +30,9 @@ public sealed class DiaAprobado
         SedesDecididas = sedesDecididas;
     }
 
-    // Constructor vacio privado, solo para Marten/STJ via ConfigurarSerializacion (repuebla los
-    // backing fields por reflexion). El dominio nunca lo invoca.
+    // Solo para Marten/STJ via ConfigurarSerializacion.
     private DiaAprobado() { }
 
-    // Unica via de construccion desde el dominio.
     public static DiaAprobado Crear(
         string id,
         string codigoColaborador,
@@ -47,8 +40,6 @@ public sealed class DiaAprobado
         IReadOnlyList<SedeDecidida> sedesDecididas) =>
         new(id, codigoColaborador, fecha, sedesDecididas);
 
-    // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
-    // y propiedades con private set. Ver MEF-ADR-0012 y DiaAprobadoSerializacionTests.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(DiaAprobado)

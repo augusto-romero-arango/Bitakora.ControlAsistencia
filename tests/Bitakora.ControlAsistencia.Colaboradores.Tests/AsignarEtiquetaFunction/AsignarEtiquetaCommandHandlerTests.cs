@@ -1,9 +1,3 @@
-// Issue #355: asignar una etiqueta dinamica -- septimo comando del ciclo de vida de
-// ColaboradorAggregateRoot (desglose #348-#357). CA-ADR-0030: no hay eventos de fallo -- el
-// aggregate declina CON RESULTADO la regla de apertura estricta (decision #1: la ULTIMA
-// vinculacion no puede tener terminacion registrada, incluido un preaviso sin vencer) y declina EN
-// SILENCIO la idempotencia (CA-2: etiqueta identica por valor, decision #3).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction;
 using Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction.CommandHandler;
@@ -14,15 +8,12 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.AsignarEtiquetaFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
-// GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
-// test-writer, mismo criterio que el resto de la cadena #349-#354).
 public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<AsignarEtiqueta>
 {
     private const string NumeroValido = "79543210";
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
-    // derivado de ColaboradorAggregateRoot.ComputarStreamId.
+    // Oraculo independiente: literal, nunca derivado de ComputarStreamId -- si se derivara, un cambio
+    // de formato de la clave se auto-validaria.
     private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionVigente = "COL-001";
@@ -52,28 +43,21 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
     private static VinculacionIniciada VinculacionIniciadaVigente() =>
         new(CodigoVinculacionVigente, FechaInicioVinculacionVigente);
 
-    // Precondicion: colaborador registrado con una vinculacion abierta (sin terminacion) -- base
-    // de CA-1.
     private void DadoUnColaboradorConVinculacionAbierta() =>
         Given(StreamIdEsperado, ColaboradorRegistradoValido(), VinculacionIniciadaVigente());
 
-    // Precondicion (CA-5): la vinculacion vigente ya tiene una terminacion registrada -- incluye un
-    // preaviso con fecha futura, que bloquea igual sin distincion de estado.
     private void DadoUnColaboradorConTerminacionRegistrada(DateOnly fechaEfectiva) =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
             VinculacionIniciadaVigente(),
             new VinculacionTerminada(fechaEfectiva));
 
-    // Precondicion (CA-2): la vinculacion vigente ya tiene una etiqueta asignada para esa categoria.
     private void DadoUnColaboradorConEtiquetaAsignada(Etiqueta etiqueta) =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
             VinculacionIniciadaVigente(),
             new EtiquetaAsignada(etiqueta));
 
-    // CA-1: categoria nueva + vinculacion abierta -> el stream recibe EtiquetaAsignada con la doble
-    // forma; el aggregate rehidratado refleja la etiqueta bajo su categoria normalizada.
     [Fact]
     public async Task AsignarEtiqueta_EmiteEtiquetaAsignada_CuandoLaCategoriaEsNueva()
     {
@@ -88,9 +72,6 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
             StreamIdEsperado, c => c.Etiquetas["area"], etiquetaEsperada);
     }
 
-    // CA-1 (borde de identidad, MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> la asignacion alcanza el MISMO stream ("CC-79543210") y emite el
-    // evento.
     [Fact]
     public async Task AsignarEtiqueta_EmiteEtiquetaAsignada_CuandoTipoYNumeroLleganSinNormalizar()
     {
@@ -107,8 +88,6 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 1);
     }
 
-    // CA-2: asignar sobre una categoria existente (via EsMismaCategoria: "Área" sobre "area") con
-    // un valor distinto sobrescribe -- un valor por categoria, nunca duplica.
     [Fact]
     public async Task AsignarEtiqueta_EmiteEtiquetaAsignada_CuandoLaCategoriaExisteConValorDistinto()
     {
@@ -123,9 +102,6 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
             StreamIdEsperado, c => c.Etiquetas["area"], etiquetaSobrescrita);
     }
 
-    // CA-2: la etiqueta del comando es IGUAL por valor (Etiqueta.Equals, #353) a la ya asignada
-    // para esa categoria -> idempotencia silenciosa: ningun evento nuevo, el estado conserva la
-    // etiqueta original.
     [Fact]
     public async Task AsignarEtiqueta_NoEmiteEvento_CuandoLaEtiquetaEsIgualPorValorALaExistente()
     {
@@ -141,8 +117,6 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
             StreamIdEsperado, c => c.Etiquetas["area"], etiquetaExistente);
     }
 
-    // CA-5 (decision #1, regla estricta de apertura): la ULTIMA vinculacion tiene terminacion
-    // registrada -> 409, ningun evento nuevo, el diccionario de etiquetas queda intacto.
     [Fact]
     public async Task AsignarEtiqueta_LanzaReglaDeNegocioDeclinadaException_CuandoLaUltimaVinculacionTieneTerminacionRegistrada()
     {
@@ -156,8 +130,7 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
     }
 
-    // CA-5 (preaviso no vencido): un preaviso con fecha futura ya registrado bloquea igual -- las
-    // etiquetas describen la relacion laboral ACTIVA, sin importar si la fecha efectiva ya paso.
+    // Las etiquetas describen la relacion laboral activa: un preaviso sin vencer bloquea igual.
     [Fact]
     public async Task AsignarEtiqueta_LanzaReglaDeNegocioDeclinadaException_CuandoLaTerminacionEsUnPreavisoConFechaFutura()
     {
@@ -172,11 +145,7 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
     }
 
-    // CA-2 (un valor por CATEGORIA, no una etiqueta por vinculacion): asignar una categoria nueva
-    // cuando ya existe otra distinta las hace convivir -- la sobrescritura es por categoria, no un
-    // reemplazo del diccionario completo. Agregado en revision: ningun test ejercia dos categorias
-    // simultaneas, asi que un Apply que reemplazara el diccionario en vez de indexarlo habria
-    // pasado en verde.
+    // Sin este test, un Apply que reemplazara el diccionario en vez de indexarlo pasaria en verde.
     [Fact]
     public async Task AsignarEtiqueta_ConservaLaCategoriaPrevia_CuandoLaCategoriaNuevaEsDistinta()
     {
@@ -194,13 +163,9 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
             StreamIdEsperado, c => c.Etiquetas["area"], etiquetaNueva);
     }
 
-    // CA-5 x CA-2 (cruce que ningun test cubria; agregado en revision): la vinculacion tiene
-    // terminacion registrada Y la etiqueta del comando es identica por valor a la ya asignada. CA-5
-    // es incondicional ("409 en AMBOS comandos"), asi que la regla de apertura gana sobre la
-    // idempotencia silenciosa -- orden deliberadamente INVERSO al de CorregirFechaInicio (#352),
-    // donde SinCambios se evalua primero porque alli la correccion de nombres/fechas es valida sobre
-    // una vinculacion cerrada. Aqui no: escribir etiquetas sobre una relacion laboral congelada se
-    // rechaza aunque el estado deseado coincida.
+    // La regla de apertura gana sobre la idempotencia: sobre una relacion laboral congelada se rechaza
+    // aunque el estado deseado coincida. Orden inverso al de CorregirFechaInicio, que si es valida sobre
+    // una vinculacion cerrada.
     [Fact]
     public async Task AsignarEtiqueta_LanzaReglaDeNegocioDeclinadaException_CuandoLaEtiquetaEsIgualPeroLaVinculacionTieneTerminacionRegistrada()
     {
@@ -220,9 +185,6 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
             StreamIdEsperado, c => c.Etiquetas["area"], etiquetaExistente);
     }
 
-    // CA-6 (reingreso nace limpio): tras un reingreso, la vinculacion nueva no hereda las etiquetas
-    // de la anterior -- asignar sobre la vinculacion vigente crea la categoria desde cero, sin
-    // colisionar con la etiqueta congelada de la vinculacion previa.
     [Fact]
     public async Task AsignarEtiqueta_EmiteEtiquetaAsignada_CuandoLaVinculacionEsUnReingresoTrasUnaTerminacionConEtiquetasPrevias()
     {
@@ -242,10 +204,7 @@ public class AsignarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Asigna
             StreamIdEsperado, c => c.Etiquetas["area"], etiquetaEsperada);
     }
 
-    // CA-7: colaborador inexistente -> 404 (RecursoNoEncontradoException), sin escribir nada al event
-    // store. Sin Given: el stream no existe. Then sin eventos esperados demuestra "sin escribir
-    // nada al event store" (mismo precedente que AnularTerminacionCommandHandlerTests CA-5). Sin
-    // And<>: el aggregate no existe en el TestStore (GetAggregateRoot lanzaria ArgumentNullException).
+    // Sin And<>: el aggregate no existe en el TestStore.
     [Fact]
     public async Task AsignarEtiqueta_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {

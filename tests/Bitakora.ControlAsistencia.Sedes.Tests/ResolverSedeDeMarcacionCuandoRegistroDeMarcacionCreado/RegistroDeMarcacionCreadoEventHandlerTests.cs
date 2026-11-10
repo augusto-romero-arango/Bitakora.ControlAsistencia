@@ -144,7 +144,7 @@ public class RegistroDeMarcacionCreadoEventHandlerTests
     }
 }
 
-// ---- Fakes manuales, nunca NSubstitute ----
+// Fakes manuales, nunca NSubstitute.
 
 internal sealed class FakeLectorSedesParaMarcacion : ILectorSedesParaMarcacion
 {

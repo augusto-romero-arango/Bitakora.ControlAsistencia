@@ -1,23 +1,13 @@
-// CrearDiaDepurado() empaqueta el payload plano via DesgloseHoras.Discriminar() sobre el desglose
-// real del aggregate (la propiedad DesgloseHoras que RecalcularDesgloseHoras() refresca en cada Apply).
+// Sin InternalsVisibleTo, los factory internal del aggregate no son accesibles: se conduce con los
+// handlers reales y se verifica via el selector de And<>() sobre el aggregate rehidratado
+// (BeEquivalentTo).
 //
-// Test directo sobre CrearDiaDepurado() (metodo publico del aggregate). Como ControlHoras NO expone
-// InternalsVisibleTo, los factory internal (Iniciar/AsignarTurno/AdicionarMarcacion) no son accesibles
-// desde el proyecto de tests: el aggregate se conduce al EventStore con los handlers reales (mismo
-// patron que DesgloseHorasTras*Tests) y se verifica via el selector de And<>() sobre el aggregate
-// rehidratado. And<>() compara estructuralmente (BeEquivalentTo).
+// Las nested classes comparten datos pero reaccionan a eventos privados distintos:
+// AsignarTurnoEnLote a ProgramacionTurnoEnFechasSolicitada y AdicionarMarcacion a
+// RegistroDeMarcacionCreado.
 //
-// Nested classes: CrearDiaDepurado() lo conducen ambos EventHandlers sobre el mismo aggregate, por lo
-// que comparten datos pero reaccionan a eventos privados distintos. Tras issue #209 y #210 ambos
-// consumen su evento privado directo con PrivateEventHandlerAsyncTest<TEvent> (ADR-0024 #8):
-// AsignarTurnoEnLote reacciona a ProgramacionTurnoEnFechasSolicitada; AdicionarMarcacion a
-// RegistroDeMarcacionCreado (issue #270: reemplaza a MarcacionRegistrada, que dejo de implementar
-// IPrivateEvent -- CA-3).
-//
-// El valor esperado se registra A MANO como oraculo independiente: el diccionario de horas por
-// concepto se calcula de la geometria del dia, sin ejecutar Discriminar ni Consolidar ni
-// HorasLiquidables.DesdeMinutos (la logica bajo prueba). Asi un bug en esa logica no se filtra al
-// esperado y el test si detecta regresiones (regla 20).
+// El esperado se registra A MANO desde la geometria del dia, sin ejecutar Discriminar, Consolidar ni
+// HorasLiquidables.DesdeMinutos: un bug en esa logica no se filtra al esperado.
 
 using Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegistroDeMarcacionCreado.EventHandler;
 using Bitakora.ControlAsistencia.ControlHoras.AsignarTurnosCuandoProgramacionTurnoEnFechasSolicitada.EventHandler;
@@ -40,9 +30,6 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 
 public class CrearDiaDepuradoConHorasDiscriminadasTests
 {
-    // Datos compartidos - el stream ID es determinista a partir de CodigoColaborador+Fecha.
-    // private static: las nested classes acceden a los miembros privados de la clase contenedora.
-    // ColaboradorProgramado (ControlHoras.DomainEvents) es el tipo que persiste TurnoDiarioAsignado.
     private static readonly ColaboradorProgramado Colaborador = new(
         "CC-1234567890", "EMP-001", "Luis Augusto Barreto");
 
@@ -56,10 +43,8 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
     private static readonly string StreamId = $"cd:{Colaborador.CodigoColaborador}:{Fecha:yyyyMMdd}";
     private static readonly Guid SolicitudId = Guid.Parse("019600d0-0000-7000-8000-000000000001");
 
-    // Franja unica 06:00-14:00 usada por los escenarios de turno. FranjaProgramada
-    // (ControlHoras.DomainEvents) es lo que el ControlDiario persiste; DetalleFranjaOrdinaria
-    // (PrivateEvents) es lo que trae el evento privado entrante.
-    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
+    // FranjaProgramada es lo que persiste el ControlDiario; DetalleFranjaOrdinaria, lo que trae el evento
+    // privado entrante. Descripcion es un dato derivado, irrelevante aqui: placeholder "".
     private static readonly FranjaProgramada Franja06_14 =
         new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "");
     private static readonly DetalleFranjaOrdinaria Franja06_14Detalle =
@@ -75,7 +60,7 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
     private static readonly FranjaProgramada Franja06_14ConSede =
         new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "", SedeEsperada);
 
-    // Marcaciones que completan la franja (entrada+salida) -> franja NO anomala (CA-4).
+    // Marcaciones que completan la franja (entrada+salida): franja NO anomala.
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
     private static readonly DateTime Timestamp15_00 = new(2026, 3, 15, 15, 0, 0);
 
@@ -214,10 +199,8 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
         private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(DateTime timestamp) =>
             new(Colaborador.CodigoColaborador, timestamp, "ENTRADA", "DEV-001");
 
-        // CA-4/CA-6 (sin turno): la marcacion crea el aggregate sin DetalleTurno -> Depurar() retorna
-        //       lista vacia -> no hay ControlesDeFranja que consolidar. CrearDiaDepurado() empaqueta el
-        //       payload plano con HorasPorConcepto vacio, NombreTurno null y Franjas vacia (dia sin
-        //       jornada valida); Marcaciones lleva la marcacion cruda.
+        // Sin turno: Depurar() retorna lista vacia y el payload sale con HorasPorConcepto vacio,
+        // NombreTurno null y Franjas vacia (dia sin jornada valida); Marcaciones lleva la marcacion cruda.
         [Fact]
         public async Task CrearDiaDepurado_LlevaHorasPorConceptoVacio_CuandoNoHayTurno()
         {
@@ -242,9 +225,9 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
                 [new MarcacionDelDia(Timestamp07_00, "ENTRADA")]);
         }
 
-        // Issue #1107 (CA-9): con ventana de entrada, FranjaDepurada reporta el horario efectivo (la
-        //       franja desplazada), no el de referencia. Turno 07:00-16:00 con amplitud 180 y entrada
-        //       10:20 -> el desplazamiento se acota al cierre de la ventana: 10:00-19:00.
+        // Con ventana de entrada, FranjaDepurada reporta el horario efectivo (la franja desplazada), no el
+        // de referencia. Turno 07:00-16:00 con amplitud 180 y entrada 10:20: el desplazamiento se acota al
+        // cierre de la ventana, 10:00-19:00.
         [Fact]
         public async Task CrearDiaDepurado_ReportaElHorarioEfectivo_CuandoTurnoTieneVentanaDeEntrada()
         {
@@ -269,8 +252,8 @@ public class CrearDiaDepuradoConHorasDiscriminadasTests
                 [new FranjaDepurada(new TimeOnly(10, 0), new TimeOnly(19, 0), 0, entrada, salida, false)]);
         }
 
-        // CA-4: sin turno, Colaborador queda null y CodigoColaborador solo puede salir del stream ID.
-        //       El consumidor (#425) arma "dc:{codigo}:{yyyyMMdd}" con el, asi que nunca puede faltar.
+        // Sin turno, Colaborador queda null y CodigoColaborador solo puede salir del stream ID; el
+        // consumidor arma "dc:{codigo}:{yyyyMMdd}" con el, asi que nunca puede faltar.
         [Fact]
         public async Task CrearDiaDepurado_LlevaCodigoColaboradorTopLevel_CuandoNoHayTurno()
         {

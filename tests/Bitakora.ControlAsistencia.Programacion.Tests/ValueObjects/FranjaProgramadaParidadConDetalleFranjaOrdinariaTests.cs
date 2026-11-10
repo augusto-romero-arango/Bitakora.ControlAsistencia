@@ -1,16 +1,9 @@
-// Issue #319 CA-1: guardrail de la duplicacion deliberada de payload por rol (tres islas,
-// MEF-ADR-0039 decision 2 y 6): FranjaProgramada (Programacion.DomainEvents) y
-// DetalleFranjaOrdinaria (PrivateEvents) declaran el mismo dato en dos ensamblados que no se
-// referencian entre si. A diferencia de SubFranjaProgramada, sus hijas (Descansos/Extras) tipan
-// DELIBERADAMENTE distinto (SubFranjaProgramada vs DetalleSubFranja) -- por eso la paridad se
-// verifica en dos pasos: nombres de propiedad iguales, y las dos propiedades de lista apuntando
-// al tipo hijo correcto de cada lado (cuya propia paridad la cubre
-// SubFranjaProgramadaParidadConDetalleSubFranjaTests).
-//
-// Issue #335 abrio una divergencia temporal deliberada (Sede solo en FranjaProgramada, el mapeo
-// hacia el bus interno quedaba fuera de alcance). Issue #341 la CIERRA: DetalleFranjaOrdinaria
-// gana su propio campo Sede (la sede EFECTIVA que resuelve la cascada) -- el guardrail vuelve a
-// exigir paridad EXACTA de nombres de campo en ambos lados, sin excepciones.
+// Guardrail de la duplicacion deliberada de payload por rol (tres islas, MEF-ADR-0039):
+// FranjaProgramada (Programacion.DomainEvents) y DetalleFranjaOrdinaria (PrivateEvents) declaran el
+// mismo dato en dos ensamblados que no se referencian entre si. Sus hijas (Descansos/Extras) tipan
+// DELIBERADAMENTE distinto (SubFranjaProgramada vs DetalleSubFranja), por eso la paridad se verifica
+// en dos pasos: nombres de propiedad iguales (paridad EXACTA, sin excepciones) y cada lista apuntando
+// al tipo hijo correcto de su lado (cuya paridad cubre SubFranjaProgramadaParidadConDetalleSubFranjaTests).
 
 using System.Reflection;
 using AwesomeAssertions;
@@ -52,9 +45,8 @@ public class FranjaProgramadaParidadConDetalleFranjaOrdinariaTests
             .Should().Be(typeof(DetalleFranjaOrdinaria).GetProperty(nameof(DetalleFranjaOrdinaria.Descripcion))!.PropertyType);
     }
 
-    // Issue #341: Sede tipa DELIBERADAMENTE distinto en cada lado (SedeProgramada vs DetalleSede,
-    // gemelos de payload por rol -- mismo criterio que Descansos/Extras con SubFranjaProgramada vs
-    // DetalleSubFranja).
+    // Sede tipa DELIBERADAMENTE distinto en cada lado (SedeProgramada vs DetalleSede, gemelos de
+    // payload por rol), como Descansos/Extras.
     [Fact]
     public void FranjaProgramada_TipaSedeComoSedeProgramadaYDetalleFranjaOrdinariaComoDetalleSede()
     {

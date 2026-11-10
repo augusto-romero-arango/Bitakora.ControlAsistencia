@@ -23,8 +23,8 @@ public class DiaSemanaMcpTests
         numeroIso.Should().Be(7);
     }
 
-    // CA-3: "Miércoles", "miercoles" y "3" son el mismo dia -- acentos no significativos aqui, a
-    // diferencia del nombre de turno/plantilla donde si lo son.
+    // "Miércoles", "miercoles" y "3" son el mismo dia: aqui los acentos no son significativos,
+    // a diferencia del nombre de turno/plantilla.
     [Fact]
     public void TryParsear_DevuelveTres_CuandoElValorTieneTildeYMayusculaInicial()
     {

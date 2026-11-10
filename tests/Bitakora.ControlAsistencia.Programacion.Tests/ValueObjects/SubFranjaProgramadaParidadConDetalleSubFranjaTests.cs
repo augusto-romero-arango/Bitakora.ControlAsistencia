@@ -1,10 +1,8 @@
-// Issue #319 CA-1: guardrail de la duplicacion deliberada de payload por rol (tres islas,
-// MEF-ADR-0039 decision 2 y 6): SubFranjaProgramada (Programacion.DomainEvents) y DetalleSubFranja
-// (PrivateEvents) declaran el mismo dato en dos ensamblados que no se referencian entre si. Sin
-// este campos-a-campos identicos, un campo nuevo se pierde en silencio al mapear
-// SubFranjaProgramada -> DetalleSubFranja para los eventos que cruzan el bus (CA-5).
-// SubFranjaProgramada no tiene campos anidados complejos, asi que la comparacion directa de
-// (Nombre, Tipo) alcanza -- a diferencia de FranjaProgramada/TurnoProgramado.
+// Guardrail de la duplicacion deliberada de payload por rol (tres islas, MEF-ADR-0039):
+// SubFranjaProgramada (Programacion.DomainEvents) y DetalleSubFranja (PrivateEvents) declaran el mismo
+// dato en dos ensamblados que no se referencian entre si. Sin este campos-a-campos identicos, un campo
+// nuevo se pierde en silencio al mapear SubFranjaProgramada -> DetalleSubFranja para el bus.
+// Sin campos anidados complejos, la comparacion directa de (Nombre, Tipo) alcanza.
 
 using System.Reflection;
 using AwesomeAssertions;

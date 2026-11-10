@@ -1,9 +1,8 @@
-// Guardrail de la duplicacion deliberada de payload por rol (tres islas,
-// MEF-ADR-0039 decision 2 y 6): TurnoProgramado (Programacion.DomainEvents) y DetalleTurno
-// (PrivateEvents) declaran el mismo dato en dos ensamblados que no se referencian entre si. Su
-// hija (FranjasOrdinarias) tipa DELIBERADAMENTE distinto (FranjaProgramada vs
-// DetalleFranjaOrdinaria) -- mismo criterio de verificacion en dos pasos que
-// FranjaProgramadaParidadConDetalleFranjaOrdinariaTests.
+// Guardrail de la duplicacion deliberada de payload por rol (tres islas, MEF-ADR-0039):
+// TurnoProgramado (Programacion.DomainEvents) y DetalleTurno (PrivateEvents) declaran el mismo dato
+// en dos ensamblados que no se referencian entre si. Su hija (FranjasOrdinarias) tipa
+// DELIBERADAMENTE distinto (FranjaProgramada vs DetalleFranjaOrdinaria): verificacion en dos pasos,
+// como en FranjaProgramadaParidadConDetalleFranjaOrdinariaTests.
 
 using System.Reflection;
 using AwesomeAssertions;

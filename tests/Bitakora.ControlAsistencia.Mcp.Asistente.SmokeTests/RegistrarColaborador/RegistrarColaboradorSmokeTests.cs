@@ -6,12 +6,11 @@ namespace Bitakora.ControlAsistencia.Mcp.Asistente.SmokeTests.RegistrarColaborad
 
 public class RegistrarColaboradorSmokeTests(McpFixture mcp)
 {
-    // Identificacion y codigo unicos por invocacion: la identidad del stream es
-    // Identificacion.ToString() ("CC-<numero>"), asi que reusar un numero fijo chocaria con 409 en
-    // la segunda corrida. Formato "N" en mayusculas (issue #586): el assert de numero_identificacion
-    // de abajo confirma que ArgumentosCrudosMcpMiddleware devuelve el texto exacto enviado, sin la
-    // coercion a Guid formato "D" minusculas que aplica DictionaryStringObjectJsonConverter
-    // (Azure/azure-functions-mcp-extension#129). Residuo inofensivo en tenant-smoke (precedente #547).
+    // Identificacion unica por invocacion: la identidad del stream es "CC-<numero>" y un numero fijo
+    // chocaria con 409 en la segunda corrida (deja residuo inofensivo en tenant-smoke). Formato "N" en
+    // mayusculas para probar que ArgumentosCrudosMcpMiddleware devuelve el texto exacto, sin la coercion
+    // a Guid "D" minusculas de DictionaryStringObjectJsonConverter
+    // (Azure/azure-functions-mcp-extension#129).
     private static Dictionary<string, object?> ArgumentosValidos(string fechaInicio = "2026-09-01") => new()
     {
         ["tipo_identificacion"] = "CC",
@@ -22,8 +21,6 @@ public class RegistrarColaboradorSmokeTests(McpFixture mcp)
         ["fecha_inicio"] = fechaInicio
     };
 
-    // Recorre la cadena completa: host MCP -> worker -> HttpClient tipado -> Function App de
-    // Colaboradores -> event store.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarColaborador_RegistraElColaborador_CuandoLosDatosSonValidos()
@@ -40,17 +37,14 @@ public class RegistrarColaboradorSmokeTests(McpFixture mcp)
         var texto = resultado.Content.OfType<TextContentBlock>().Single().Text;
 
         texto.Should().Contain(codigo);
-        // CA-1 (issue #586): el eco trae numero_identificacion EXACTAMENTE como se envio (GUID "N"
-        // mayusculas) -- si el middleware no restaura el texto original, la tool recibe el Guid ya
-        // coercionado a formato "D" minusculas y este assert no encuentra el texto.
+        // Si el middleware no restaura el texto original, la tool recibe el Guid en formato "D"
+        // minusculas y este assert no encuentra el texto.
         texto.Should().Contain(numeroIdentificacion);
     }
 
-    // CA-2 end-to-end: el 409 del dominio (ColaboradorYaRegistrado) tiene que llegar al asistente
-    // como TEXTO traducido, nunca como error del protocolo -- es la decision de CA-ADR-0030, y el
-    // unit test con handler falso no puede probar que el dominio real responda ese status ni ese
-    // texto exacto. Autocontenido (registra y repite la MISMA identificacion) para no depender del
-    // orden de los tests ni sembrar un colaborador extra.
+    // El 409 real del dominio (ColaboradorYaRegistrado) debe llegar como TEXTO, nunca como error del
+    // protocolo (CA-ADR-0030); el unit test con handler falso no puede probarlo. Autocontenido: registra
+    // y repite la MISMA identificacion para no depender del orden de los tests.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarColaborador_DevuelveElRechazoComoTexto_CuandoLaIdentificacionYaEstaRegistrada()
@@ -67,9 +61,8 @@ public class RegistrarColaboradorSmokeTests(McpFixture mcp)
             .Should().Contain("Ya existe un colaborador registrado con esa identificacion");
     }
 
-    // Error path que no toca el dominio: la validacion de formato de fecha_inicio corta en el
-    // worker y responde el mensaje del .resx FechaInvalida en produccion. Afirmar el texto exacto
-    // prueba que los recursos embebidos viajaron en el publish.
+    // Error path que no toca el dominio: el texto exacto del .resx (FechaInvalida) prueba que los
+    // recursos embebidos viajaron en el publish.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarColaborador_RespondeElMensajeDeValidacion_CuandoFechaInicioTieneFormatoInvalido()

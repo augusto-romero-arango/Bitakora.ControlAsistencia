@@ -1,41 +1,12 @@
-// Issue #250: instrumentar el worker de proyecciones con Application Insights.
-// Issue #263: fijar el recurso `service.name` para que el worker deje de aparecer en Application
-// Insights como `unknown_service:dotnet`. Guardrails al final de esta misma clase (CA-1 a CA-4 de
-// ese issue) -- misma familia de tests, no una clase nueva. Ojo al leer los "CA-N" de este archivo:
-// los de la mitad de arriba son del issue #250 y los de la ultima seccion, del #263.
+// El worker corre sin ingress (MEF-ADR-0034 seccion 8): su observabilidad depende solo de las trazas
+// OpenTelemetry. Este test de composicion, hermano del de MEF-ADR-0029, construye el
+// IServiceCollection que Program.cs compone y verifica que el TracerProvider se resuelve, sin
+// Postgres ni Container App desplegado.
 //
-// El worker corre sin ingress (MEF-ADR-0034 seccion 8): no hay endpoint HTTP que golpear para
-// diagnosticar el daemon HotCold, asi que la observabilidad depende exclusivamente de trazas
-// OpenTelemetry exportadas a Application Insights. Este test de composicion es hermano del que
-// exige MEF-ADR-0029: construye el mismo IServiceCollection que Program.cs compone (via el seam
-// ConfiguracionObservabilidadProjections.ConfigurarObservabilidad, CA-4) y verifica que el
-// TracerProvider se resuelve del contenedor (CA-2, CA-5), sin necesidad de Postgres real ni de
-// un Container App desplegado.
-//
-// El parsing del ratio de sampling (CA-3, CA-ADR-0009 Capa 2) se extrajo a un metodo interno
-// testeable (ResolverRatioDeSampling) en vez de leerse inline de Environment.GetEnvironmentVariable
-// dentro del seam: permite verificar el default (0.2) ante ausencia/valor invalido/fuera de rango
-// sin depender del entorno del proceso de test.
-//
-// Limites conocidos de esta clase (documentados, no huecos accidentales):
-//
-// 1. Que Program.cs invoque el seam (CA-4 del issue #250) no se verifica: Program.cs son
-//    top-level statements y el worker no tiene equivalente a WebApplicationFactory (limite que
-//    MEF-ADR-0029 ya reconoce). Lo mas cerca que llega esta clase es componer juntos los dos seams
-//    del worker (ConfigurarEventos + ConfigurarObservabilidad), que es lo que Program.cs encadena;
-//    el enlace literal queda cubierto por revision de codigo y por el arranque real post-deploy
-//    (MEF-ADR-0013).
-//
-// Issue #308: el limite "el sampler compuesto vive dentro de TracerProviderSdk, que OpenTelemetry
-// no expone publicamente" que este archivo declaraba antes resulto SUPERABLE -- ver el helper
-// SamplerEfectivo.De (reflection sobre la propiedad interna Sampler) y los tests
-// "ConfigurarObservabilidad_*ElSampler*" mas abajo. Es determinista (compara tipos y lee
-// Description, que es publica), no probabilistico: no hace falta muestrear actividades reales
-// contra un ratio fraccionario. La revision de codigo
-// NO detecto el hallazgo 1 del issue #308 (UseAzureMonitorExporter pisa el sampler por dentro)
-// precisamente porque el codigo visible de este seam era correcto -- el defecto estaba en la
-// implementacion interna del exporter. De ahi que el guardrail deje de asumir que ese limite es
-// permanente.
+// Limite conocido: que Program.cs invoque el seam no se verifica (top-level statements, sin
+// equivalente a WebApplicationFactory); lo mas cerca es componer juntos los dos seams del worker.
+// El enlace literal queda cubierto por revision de codigo y por el arranque real post-deploy
+// (MEF-ADR-0013).
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Globalization;
@@ -103,8 +74,6 @@ public class ConfiguracionObservabilidadProjectionsTests
         }
     }
 
-    // --- Composicion del seam (CA-2, CA-4, CA-5) ---
-
     [Fact]
     public void ConfigurarObservabilidad_ComponeElGrafoCompleto_CuandoSeValidaAlConstruir()
     {
@@ -161,18 +130,10 @@ public class ConfiguracionObservabilidadProjectionsTests
         provider.GetService<IControlHorasProjectionStore>().Should().NotBeNull();
     }
 
-    // --- Sampler efectivo del TracerProvider (issue #308 CA-1, CA-3) ---
-    //
-    // Hallazgo 1 del issue: UseAzureMonitorExporter llama SetSampler internamente
-    // (Azure.Monitor.OpenTelemetry.Exporter 1.8.1) con RateLimitedSampler cuando
-    // AzureMonitorExporterOptions.TracesPerSecond tiene valor (default 5.0, SIEMPRE lo tiene salvo
-    // que el codigo lo ponga en null explicitamente). Escrito en el orden actual de este seam
-    // (SetSampler ANTES de UseAzureMonitorExporter), ese SetSampler interno pisa al que el proyecto
-    // configura -- el ParentBasedSampler{TraceIdRatioBasedSampler{ratio}} que CA-ADR-0009 Capa 2
-    // describe nunca llega a instalarse. La correccion es de ORDEN (un segundo .WithTracing(...)
-    // despues de .UseAzureMonitorExporter()), no de contenido: por eso el guardrail verifica el
-    // sampler EFECTIVO del contenedor, no que el codigo "llame a SetSampler" (eso ya lo hacia el
-    // seam roto).
+    // UseAzureMonitorExporter llama SetSampler por dentro con RateLimitedSampler (TracesPerSecond
+    // tiene valor por defecto 5.0; Azure.Monitor.OpenTelemetry.Exporter 1.8.1) y pisa el sampler que
+    // el proyecto fije antes. La correccion es de orden, por eso se verifica el sampler EFECTIVO y no
+    // que el codigo llame a SetSampler.
     [Fact]
     public void ConfigurarObservabilidad_ResuelveElSamplerConfiguradoPorElProyecto_EnVezDeRateLimitedSampler()
     {
@@ -181,22 +142,15 @@ public class ConfiguracionObservabilidadProjectionsTests
 
         var samplerEfectivo = SamplerEfectivo.De(tracerProvider);
 
-        // Oraculo por nombre completo, no por referencia al tipo (es internal en otro ensamblado:
-        // Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler no se puede nombrar
-        // desde este proyecto). Verificado en runtime (issue #308) que este es exactamente el tipo
-        // que gana hoy con el wiring actual.
+        // Por nombre completo: RateLimitedSampler es internal en el ensamblado del exporter.
         samplerEfectivo.GetType().FullName.Should().NotBe(
             "Azure.Monitor.OpenTelemetry.Exporter.Internals.RateLimitedSampler");
         samplerEfectivo.Should().BeOfType<SamplerQueDescartaPollingDelDaemon>();
     }
 
-    // CA-3: complementa (no reemplaza) ResolverRatioDeSampling_* de mas abajo -- aquellos verifican
-    // solo el PARSING del valor de entorno; este verifica que el ratio resuelto efectivamente llega
-    // al sampler compuesto que el contenedor resuelve. Antes del issue #308 esto se declaraba como
-    // limite conocido (no observable sin acceder a TracerProviderSdk); dejo de serlo con
-    // SamplerEfectivo.De + Sampler.Description (propiedad publica, que el wrapper compone con la del
-    // sampler de ratio que envuelve:
-    // "SamplerQueDescartaPollingDelDaemon{ParentBased{TraceIdRatioBasedSampler{F6}}}").
+    // Complementa ResolverRatioDeSampling_*, que solo verifican el parsing: este verifica que el ratio
+    // llega al sampler efectivo. Description compone la del sampler envuelto:
+    // "SamplerQueDescartaPollingDelDaemon{ParentBased{TraceIdRatioBasedSampler{F6}}}".
     [Fact]
     public void ConfigurarObservabilidad_PropagaElRatioDeSamplingConfigurado_AlSamplerEfectivo()
     {
@@ -211,11 +165,9 @@ public class ConfiguracionObservabilidadProjectionsTests
         });
     }
 
-    // La otra mitad de CA-3, y la que mas importa hoy: TELEMETRY_SAMPLING_RATIO no esta puesta en
-    // ningun recurso desplegado (medido en el issue #308), asi que el camino que efectivamente corre
-    // en dev es el del DEFAULT. Sin este guardrail, el sampler efectivo podria quedar con un ratio
-    // distinto al que RatioSamplingPorDefecto declara y solo se veria como un volumen de ingestion
-    // inesperado -- el mismo modo de falla silenciosa que este issue corrige.
+    // TELEMETRY_SAMPLING_RATIO no esta puesta en ningun recurso desplegado, asi que en dev corre el
+    // default: un ratio distinto a RatioSamplingPorDefecto solo se veria como volumen de ingestion
+    // inesperado.
     [Fact]
     public void ConfigurarObservabilidad_PropagaElRatioPorDefecto_AlSamplerEfectivo_CuandoLaVariableEstaAusente()
     {
@@ -236,13 +188,11 @@ public class ConfiguracionObservabilidadProjectionsTests
     private static string FormatearRatio(double ratio) =>
         ratio.ToString("F6", CultureInfo.InvariantCulture);
 
-    // El patron de la fuente propia (CA-2) va sin punto antes del asterisco a proposito. Verificado
-    // contra OpenTelemetry 1.16.0: "X.*" se ancla como ^X\..*$ y descarta una ActivitySource
-    // nombrada exactamente "X", que es como se nombra al instrumentar con el nombre del ensamblado.
-    // Esta guarda evita que alguien "restaure la paridad" con ControlHoras ("...ControlHoras.*") y
-    // deje los spans del worker sin capturar EN SILENCIO. Construye su propio TracerProvider en vez
-    // de usar el del contenedor porque ese lleva el sampler de ratio 0.2 (CA-3), que volveria la
-    // asercion probabilistica; aca el sampler por defecto la vuelve determinista.
+    // El patron de la fuente propia va sin punto antes del asterisco: "X.*" se ancla como ^X\..*$ y
+    // descarta la ActivitySource llamada exactamente "X", el nombre del ensamblado (verificado contra
+    // OpenTelemetry 1.16.0). No "restaurar la paridad" con ControlHoras: los spans se perderian en
+    // silencio. Usa su propio TracerProvider porque el del contenedor lleva el sampler de ratio y
+    // volveria la asercion probabilistica.
     [Fact]
     public void PatronFuentePropia_CapturaLaActividad_CuandoLaFuenteSeLlamaComoElEnsambladoDelWorker()
     {
@@ -256,8 +206,6 @@ public class ConfiguracionObservabilidadProjectionsTests
 
         actividad.Should().NotBeNull();
     }
-
-    // --- Parsing del ratio de sampling (CA-3, CA-6, CA-ADR-0009 Capa 2) ---
 
     [Fact]
     public void ResolverRatioDeSampling_DevuelveElRatioPorDefecto_CuandoValorEsNull()
@@ -299,22 +247,11 @@ public class ConfiguracionObservabilidadProjectionsTests
         ratio.Should().Be(0.5);
     }
 
-    // --- Recurso de OpenTelemetry: service.name (issue #263, CA-1 a CA-4) ---
-    //
-    // Dos niveles, deliberadamente:
-    //
-    // a) ConfigurarObservabilidad_* compone el seam completo y lee el Resource que el TracerProvider
-    //    del contenedor termino usando (ProviderExtensions.GetResource, API publica de OpenTelemetry
-    //    1.16.0 -- la misma via por la que el exporter de Azure Monitor deriva cloud_RoleName). Es lo
-    //    que cubre CA-1 de punta a punta: que el enganche .ConfigureResource(...) sobre el
-    //    IOpenTelemetryBuilder efectivamente alcance la senal de trazas, y no solo que
-    //    ConfigurarRecurso haga lo correcto si alguien lo llama.
-    // b) ConfigurarRecurso_* invoca el metodo sobre un ResourceBuilder propio, para aislar la
-    //    precedencia frente al entorno (CA-4) sin construir el contenedor. CreateDefault() (no
-    //    CreateEmpty()) es deliberado: es lo que el SDK usa en produccion e incluye el fallback
-    //    `unknown_service:` y el detector de OTEL_SERVICE_NAME/OTEL_RESOURCE_ATTRIBUTES (verificado
-    //    contra el XML doc de OpenTelemetry 1.16.0) -- exactamente lo que CA-4 necesita para
-    //    demostrar que el nombre del codigo gana sobre ambos.
+    // Dos niveles: ConfigurarObservabilidad_* lee el Resource que termino usando el TracerProvider del
+    // contenedor (GetResource, la via por la que el exporter deriva cloud_RoleName), y
+    // ConfigurarRecurso_* aisla la precedencia frente al entorno sin construir el contenedor.
+    // CreateDefault() y no CreateEmpty(): es lo que usa el SDK e incluye el fallback `unknown_service:`
+    // y el detector de OTEL_SERVICE_NAME/OTEL_RESOURCE_ATTRIBUTES.
 
     [Fact]
     public void ConfigurarObservabilidad_FijaElServiceNameDelWorkerEnElRecursoDelTracerProvider()
@@ -344,9 +281,6 @@ public class ConfiguracionObservabilidadProjectionsTests
         atributos.Should().NotContainKey(AtributoServiceInstanceId);
     }
 
-    // CA-3: el nombre de servicio no puede divergir del nombre del ensamblado del worker -- es el
-    // mismo criterio (idiomatico) por el que PatronFuentePropia (issue #250, arriba) nombra su
-    // ActivitySource, y de ahi que una sola constante alimente a los dos.
     [Fact]
     public void NombreServicio_CoincideConElNombreDelEnsambladoDelWorker()
     {
@@ -355,11 +289,8 @@ public class ConfiguracionObservabilidadProjectionsTests
         ConfiguracionObservabilidadProjections.NombreServicio.Should().Be(nombreDelEnsamblado);
     }
 
-    // CA-3: PatronFuentePropia se deriva hoy de NombreServicio (`NombreServicio + "*"`), asi que
-    // mientras esa derivacion siga en pie esta guarda no puede fallar -- y eso es justamente lo que
-    // fija: impide que alguien vuelva a escribir el literal a mano en una de las dos constantes y las
-    // deje divergir en silencio (el modo de falla que este issue corrige). Es el guardrail de la
-    // derivacion, no una asercion sobre el valor: ese lo cubre el test anterior contra el ensamblado.
+    // No puede fallar mientras PatronFuentePropia se derive de NombreServicio: impide volver a escribir
+    // el literal a mano en una de las dos constantes y dejarlas divergir.
     [Fact]
     public void PatronFuentePropia_CoincideConNombreServicioMasAsterisco()
     {
@@ -367,10 +298,8 @@ public class ConfiguracionObservabilidadProjectionsTests
             .Be(ConfiguracionObservabilidadProjections.NombreServicio + "*");
     }
 
-    // CA-4: precedencia sobre OTEL_SERVICE_NAME. ResourceBuilder.CreateDefault() ya parsea esa
-    // variable (XML doc de OpenTelemetry 1.16.0); si ConfigurarRecurso corriera ANTES de que el
-    // detector de entorno se aplicara, o si AddService no sobrescribiera el atributo, este test lo
-    // detectaria. Reusa el helper ConVariableDeEntorno de arriba (seguro con tests en paralelo).
+    // CreateDefault() ya parsea OTEL_SERVICE_NAME: falla si ConfigurarRecurso corriera antes que el
+    // detector de entorno o si AddService no sobrescribiera el atributo.
     [Fact]
     public void ConfigurarRecurso_ConservaElServiceNameDelCodigo_CuandoOtelServiceNameApuntaAOtroValor()
     {
@@ -385,8 +314,6 @@ public class ConfiguracionObservabilidadProjectionsTests
                 .WhoseValue.Should().Be(ConfiguracionObservabilidadProjections.NombreServicio);
         });
     }
-
-    // --- Desacople del muestreo de logs del de trazas (MEF-ADR-0038 seccion 9) ---
 
     // Restriccion: sin el flip, el LogFilteringProcessor que instala el exporter descarta todo
     // LogRecord emitido bajo un span no grabado -- incluidos los LogError del HighWaterAgent, que
@@ -423,11 +350,10 @@ public class ConfiguracionObservabilidadProjectionsTests
         });
     }
 
-    // Restriccion: el flip de arriba habilita el paso de TODOS los LogRecord del daemon, incluidos
-    // sus Information rutinarios (min_replicas = 1, 24/7) -- presion sobre el daily cap
-    // (CA-ADR-0009 Capa 3). El filtro sube el piso de EXPORTACION de esas categorias a Warning
-    // conservando sus LogError. Se verifica el efecto observable (IsEnabled), no el mecanismo:
-    // AddFilter<T> es una eleccion del seam, el piso resultante es el contrato.
+    // Restriccion: el flip de arriba deja pasar tambien los Information rutinarios del daemon
+    // (min_replicas = 1, 24/7) contra el daily cap (CA-ADR-0009 Capa 3). El filtro sube a Warning el
+    // piso de exportacion de esas categorias conservando sus LogError. Se verifica el efecto
+    // observable (IsEnabled), no el mecanismo.
     [Fact]
     public void ConfigurarObservabilidad_SubeANivelWarningElPisoDeExportacion_CuandoLaCategoriaEsDelDaemonJasperFx() =>
         VerificarPisoDeExportacionEnWarning("JasperFx.Events.Daemon.HighWater.HighWaterAgent");
@@ -464,19 +390,10 @@ public class ConfiguracionObservabilidadProjectionsTests
         logger.IsEnabled(LogLevel.Warning).Should().BeTrue();
     }
 
-    // --- Supresion de metricas OTel salvo la familia GC (CA-ADR-0009) ---
-    //
-    // El guardrail no asume el mecanismo de supresion: fija el efecto observable, sumando al
-    // contenedor real un ConfigureOpenTelemetryMeterProvider adicional con un InMemoryExporter como
-    // segundo reader (se acumulan, no se pisan), sin red ni Azure Monitor. Un upgrade del exporter
-    // que reactive metricas por otra via lo rompe igual.
-    //
-    // El Meter de prueba se registra EXPLICITAMENTE via AddMeter: el MeterProviderBuilder solo
-    // escucha meters suscritos, y sin esa linea los tests pasarian en verde aun sin supresion.
-    //
-    // Los tres nombres GC van literales -- a diferencia del guardrail hermano de las Function Apps,
-    // que evita acoplarse a nombres que .NET puede renombrar: aqui esa familia ES el contrato que se
-    // conserva, no un detalle de implementacion.
+    // Se fija el efecto observable, no el mecanismo: un InMemoryExporter como segundo reader (se
+    // acumulan, no se pisan), sin red ni Azure Monitor. El Meter de prueba se registra con AddMeter:
+    // sin esa linea los tests pasarian en verde aun sin supresion. Los nombres GC van literales: esa
+    // familia es el contrato que se conserva.
     private const string NombreMeterDePrueba =
         "Bitakora.ControlAsistencia.Projections.Tests.MeterArbitrarioDePrueba";
 
@@ -529,9 +446,7 @@ public class ConfiguracionObservabilidadProjectionsTests
         metricasExportadas.Select(m => m.Name).Should().BeEquivalentTo([instrumentoGc]);
     }
 
-    // La supresion de metricas no debe apagar el tracing (CA-ADR-0009 Capa 2) como efecto
-    // colateral. Complementa a los tests de TracerProvider de mas arriba, que componen el seam solo:
-    // este lo compone junto al ConfigureOpenTelemetryMeterProvider del guardrail de metricas.
+    // La supresion de metricas no debe apagar el tracing (CA-ADR-0009 Capa 2) como efecto colateral.
     [Fact]
     public void ConfigurarObservabilidad_ConservaElTracerProviderDelContenedor_CuandoSeAgregaElGuardrailDeMetricas()
     {

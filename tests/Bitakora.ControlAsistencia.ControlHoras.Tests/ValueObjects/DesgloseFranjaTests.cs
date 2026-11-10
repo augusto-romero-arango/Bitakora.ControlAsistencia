@@ -1,26 +1,17 @@
-// HU-129: Crear estructuras agregadas DesgloseFranja y DesgloseHoras
-// CA-1: MinutosPorConcepto agrupa intervalos por concepto y suma sus duraciones correctamente
-// CA-2: MinutosPorConcepto omite los conceptos que no aparecen en Intervalos
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.ValueObjects;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.Tests.ValueObjects;
 
-/// <summary>
-/// Tests de DesgloseFranja - estructura agregada del desglose de una sola franja.
-/// Interfaz publica: constructor primario (Programada, Intervalos, Retardo), MinutosPorConcepto.
-/// </summary>
 public class DesgloseFranjaTests
 {
     private static IntervaloTemporal CrearIntervalo(TimeOnly inicio, TimeOnly fin) =>
         IntervaloTemporal.Crear(new MomentoDelDia(inicio), new MomentoDelDia(fin));
 
-    // Issue #288: Descripcion (dato derivado) es irrelevante para estos tests -> placeholder "".
+    // Descripcion es un dato derivado, irrelevante aqui: placeholder "".
     private static FranjaProgramada CrearFranjaProgramada() =>
         new FranjaProgramada(new TimeOnly(8, 0), new TimeOnly(17, 0), 0, [], [], "");
-
-    // ---------- CA-1: agrupa por concepto y suma duraciones ----------
 
     [Fact]
     public void MinutosPorConcepto_AgrupaPorConceptoYSuma_CuandoMismoConceptoEnVariosIntervalos()
@@ -88,12 +79,9 @@ public class DesgloseFranjaTests
         resultado[Concepto.OrdinariaDiurna].Should().Be(540);
     }
 
-    // ---------- CA-2: omite conceptos ausentes ----------
-
     [Fact]
     public void MinutosPorConcepto_OmiteConceptos_CuandoNoApareceEnIntervalos()
     {
-        // Solo OrdinariaDiurna en los intervalos; el resto de conceptos no deben figurar
         var intervalos = new List<IntervaloClasificado>
         {
             new(CrearIntervalo(new TimeOnly(8, 0), new TimeOnly(17, 0)), Concepto.OrdinariaDiurna)

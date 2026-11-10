@@ -6,11 +6,9 @@ using Npgsql;
 
 namespace Bitakora.ControlAsistencia.Programacion.SmokeTests.Fixtures;
 
-// Gemelo del PostgresFixture de ControlHoras.SmokeTests. Programacion tambien persiste
-// en el event store (CrearTurnoCommandHandler -> IEventStore.StartStream), asi que sus smoke tests
-// necesitan verificar ese efecto secundario y no solo el status code (MEF-ADR-0013, "Alcance de un
-// smoke test: cobertura completa de efectos secundarios"). turno_creado no cruza ningun bus: la
-// unica verificacion black-box posible de su contenido es leer mt_events.
+// Gemelo del PostgresFixture de ControlHoras.SmokeTests. Los smoke de Programacion verifican el
+// efecto en el event store y no solo el status code (MEF-ADR-0013): turno_creado no cruza ningun bus,
+// asi que la unica verificacion black-box de su contenido es leer mt_events.
 public class PostgresFixture : IAsyncLifetime
 {
     private string _connectionString = null!;

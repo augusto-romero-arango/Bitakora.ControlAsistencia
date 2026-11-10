@@ -1,16 +1,13 @@
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 using Bitakora.ControlAsistencia.PrivateEvents.ControlHoras;
-// Alias de tipo: ResumenColaborador existe homonimo en ControlHoras.DomainEvents (payload por
-// rol, MEF-ADR-0039 decision #6); este archivo publica por el bus, asi que usa el de PrivateEvents.
+// ResumenColaborador tiene homonimo en ControlHoras.DomainEvents; por el bus va el de PrivateEvents.
 using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradores.ResumenColaborador;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.CancelarAusenciaCuandoAusenciaDiariaCancelada;
 
-// Consumidor puro (ServiceBusTrigger, sin comando espejo): el Act publica en los topics de entrada
-// el mismo payload plano que emite Programacion, como el precedente
-// AsignarAusenciaCuandoAusenciaDiariaProgramada. Se verifican los dos efectos del handler:
-// persistencia de la cancelacion y publicacion de DiaDepurado sin motivo.
+// Consumidor puro, sin comando espejo: el smoke publica en los topics de entrada el payload plano
+// que emite Programacion.
 public class CancelarAusenciaCuandoAusenciaDiariaCanceladaSmokeTests(
     ServiceBusFixture serviceBus, PostgresFixture postgres)
 {
@@ -27,8 +24,6 @@ public class CancelarAusenciaCuandoAusenciaDiariaCanceladaSmokeTests(
     private static string ComputarStreamId(string codigoColaborador, DateOnly fecha) =>
         $"cd:{codigoColaborador}:{fecha:yyyyMMdd}";
 
-    // CA-7 (lado consumidor): el endpoint de cancelacion de Programacion (#744) aun no existe, asi
-    // que el smoke publica directamente en los topics que ese flujo alimenta.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AusenciaDiariaCancelada_LiberaElDiaYPublicaDiaDepuradoSinMotivo_CuandoLaAusenciaVigenteEsLaCancelada()

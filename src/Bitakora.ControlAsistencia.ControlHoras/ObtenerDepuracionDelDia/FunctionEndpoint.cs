@@ -8,10 +8,7 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ObtenerDepuracionDelDia;
 
-// Function GET via (b1) -- aggregate en vivo, sin proyeccion materializada
-// (skills/projections/read-apis.md, MEF-ADR-0035). Feature folder sin sufijo Function, un namespace
-// por query (skills/projections/naming.md): esta clase FunctionEndpoint no colisiona con las demas
-// del ensamblado porque cada una vive en su propio namespace.
+// Lee el aggregate en vivo, sin proyeccion materializada (MEF-ADR-0035).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     private const string FormatoFecha = "yyyy-MM-dd";
@@ -24,8 +21,6 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
         string fecha,
         CancellationToken ct)
     {
-        // Parseo tipado explicito ANTES de tocar Marten (MEF-ADR-0037 seccion 2): 400 con mensaje,
-        // nunca el BadRequestResult pelado.
         if (!DateOnly.TryParseExact(
                 fecha, FormatoFecha, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaParseada))
             return new BadRequestObjectResult(
@@ -33,8 +28,7 @@ public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext
 
         var streamId = DiaCalculadoAggregateRoot.ComputarStreamId(codigoColaborador, fechaParseada);
 
-        // La QuerySession se abre SIEMPRE acotada al tenant que resuelve ITenantContext -- nunca a
-        // un tenant id que llegara por ruta o query string (MEF-ADR-0028).
+        // Sesion acotada al tenant que resuelve ITenantContext, nunca a un dato de la request (MEF-ADR-0028).
         await using var session = store.QuerySession(tenantContext.TenantId);
         var dia = await session.Events.AggregateStreamAsync<DiaCalculadoAggregateRoot>(streamId, token: ct);
 

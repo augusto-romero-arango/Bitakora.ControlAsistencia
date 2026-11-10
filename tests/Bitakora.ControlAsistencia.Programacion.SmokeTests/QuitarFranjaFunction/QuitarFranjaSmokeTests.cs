@@ -40,7 +40,7 @@ public class QuitarFranjaSmokeTests(ApiFixture api, PostgresFixture postgres)
     }
 
     // franja_quitada no cruza ningun bus: mt_events es la unica ventana black-box a lo que quedo
-    // grabado. El segundo :quitar-franja sobre la misma hora cierra la regla de negocio -> 409.
+    // grabado.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task QuitarFranja_DebeRetornar204YPersistirLaFranjaQuitada_CuandoLaFranjaExiste()

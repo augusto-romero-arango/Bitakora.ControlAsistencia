@@ -1,36 +1,3 @@
-// Issue #373: smoke tests de ListarFichasColaborador, verbo QUERY (RFC 10008, MEF-ADR-0042) sobre
-// colaboradores/fichas -- mismo recurso que ObtenerFichaColaborador (#356), pero el listado EXCLUYE
-// no-vigentes a la fecha de referencia y agrega filtro AND por etiquetas + paginacion keyset. No hay
-// proyeccion ni read model nuevos (issue hermano de #356): esta clase consulta la MISMA vista
-// materializada FichaColaborador via (a') session.Query<FichaColaborador>().
-//
-// Arrange via API, nunca sembrando el event store por fuera de ella: cada colaborador se crea con
-// POST Colaboradores (#330), se etiqueta con PUT colaboradores/{id}/etiquetas/{categoria} (#355,
-// migrado de POST Colaboradores/Etiquetas a esta ruta por el issue #376) y se termina con POST
-// colaboradores/{id}/vinculaciones/{codigo}:terminar (#349/#379) -- los mismos comandos que la
-// proyeccion consume.
-//
-// Lifecycle Async (MEF-ADR-0034 seccion 3): el worker materializa/actualiza FichaColaborador
-// DESPUES de que Colaboradores persiste sus eventos. Los casos de exito envuelven la consulta en
-// Polling.WaitUntilAsync (timeout estandar 30s) -- unica excepcion documentada al "no usar Polling
-// directo en tests".
-//
-// Aislamiento de datos SIN cleanup, en un entorno que ACUMULA fichas de corridas anteriores (todas
-// las suites de este dominio registran colaboradores con NombreCompleto constante "[TEST] Smoke" y
-// jamas los borran): un listado sin filtro nunca es un oraculo confiable por si solo. Cada test de
-// aqui aisla SU propia fila de cualquier ruido historico con uno de estos dos mecanismos:
-//   (1) Un CodigoSede UNICO (un Guid embebido, vease NuevaSedeUnica) asignado al registrar -- el
-//       filtro plano por sede aisla la fila sin necesidad de ninguna etiqueta. Reemplaza desde #1000
-//       al cursor posicionado a mano en el nombre, imposible con el cursor opaco (CA-ADR-0039).
-//   (2) Un par de etiqueta discriminador con un Guid embebido en el VALOR -- nadie mas, en ninguna
-//       corrida pasada o futura, puede tener ese valor exacto.
-//
-// CA-6 (gate, MEF-ADR-0042 seccion 6): el primer verbo QUERY del consumidor. El test de paginacion
-// (ListarFichasColaborador_PaginaSinSaltarNiRepetir...) es el gate end-to-end: si el host de dev no
-// reenvia el verbo QUERY, o si Marten no traduce el predicado compuesto CompareTo sobre strings, ese
-// test falla -- nunca es un caso para Assert.Skip (fallo real, no ambiental). La colacion de la base
-// de dev (en_US.utf8 vs C, ver MEF-ADR-0042 seccion 6) no es observable via HTTP: se registra
-// manualmente en el resumen de esta corrida, fuera de este archivo.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -58,10 +25,8 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         PropertyNameCaseInsensitive = true
     };
 
-    // Formas locales DESACOPLADAS del read model de produccion (ReadModels.Colaboradores) y del DTO
-    // de respuesta de ObtenerFichaColaborador: replican solo el shape JSON de la respuesta HTTP de
-    // ESTE endpoint. El smoke test no referencia ReadModels ni el Function App (isla, MEF-ADR-0034
-    // seccion 5).
+    // Formas locales desacopladas del read model y del DTO de produccion: el smoke no referencia
+    // ReadModels ni el Function App (MEF-ADR-0034 seccion 5); solo replican el shape JSON.
     private sealed record EtiquetaFichaSmoke(string Categoria, string Valor);
 
     private sealed record FichaColaboradorRespuestaSmoke(
@@ -79,27 +44,23 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
 
     private static string NuevoNumeroIdentificacion() => Guid.CreateVersion7().ToString("N").ToUpperInvariant();
 
-    // Apellido con un Guid embebido -- garantiza que el NombreCompleto resultante ("[TEST]
-    // {apellido}") es unico frente a cualquier ficha creada en cualquier corrida, pasada o futura,
-    // de cualquier archivo de este dominio (todos los demas usan el literal constante "Smoke").
+    // Hace unico el NombreCompleto ("[TEST] {apellido}") frente al literal "Smoke" de las demas suites.
     private static string NuevoApellidoUnico(string prefijo) => $"{prefijo}-{Guid.CreateVersion7():N}";
 
     private static string NombreCompletoDe(string apellido) => $"[TEST] {apellido}";
 
+    // Sin cleanup el entorno acumula fichas de todas las corridas: cada test aisla su fila con una sede
+    // unica o con una etiqueta que lleva un Guid en el valor.
     private static string NuevaSedeUnica() => $"SEDE-1000-{Guid.CreateVersion7():N}";
 
-    // Mismo formato que ColaboradorAggregateRoot.ComputarStreamId (separador "-" desde #381),
-    // reconstruido localmente (oraculo independiente, MEF-ADR-0002): el smoke test no referencia el
-    // Function App.
+    // Oraculo independiente (MEF-ADR-0002), reconstruido a mano: el smoke no referencia el Function App.
     private static string ComputarStreamId(string numeroIdentificacion) =>
         $"{TipoIdentificacionCc}-{numeroIdentificacion}";
 
-    // Ruta migrada por el issue #376 (mismo template que Asignar/RetirarEtiquetaSmokeTests): la
-    // categoria viaja cruda en la URL (puede traer tildes) y se URL-encodea al construir la ruta.
+    // La categoria puede traer tildes y se escapa.
     private static string RutaEtiqueta(string id, string categoria) =>
         $"/api/colaboradores/{id}/etiquetas/{Uri.EscapeDataString(categoria)}";
 
-    // Filtro por sede unica y sin etiquetas -- el mecanismo de aislamiento (1) del encabezado.
     private static object FiltroPorSede(
         DateOnly fechaReferencia, string codigoSede, int? take = null, string? cursor = null) => new
         {
@@ -110,8 +71,7 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             codigoSede
         };
 
-    // Filtro AND por etiquetas, sin cursor (mecanismo de aislamiento (2) del encabezado: al menos
-    // una de las etiquetas trae un Guid embebido en el valor, unico para la corrida).
+    // Al menos una etiqueta debe traer un Guid en el valor para aislar la corrida.
     private static object FiltroPorEtiquetas(
         DateOnly fechaReferencia, params (string Categoria, string Valor)[] etiquetas) => new
         {
@@ -119,10 +79,8 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             etiquetas = etiquetas.Select(e => new { categoria = e.Categoria, valor = e.Valor }).ToArray()
         };
 
-    // Filtro combinado (issue #519 CA-4): una etiqueta discriminadora de la corrida MAS la sede
-    // opcional -- ejercita el AND real entre el containment JSONB de etiquetas y la igualdad plana
-    // por sede. Con codigoSede null el filtro es exactamente el de antes de #519 (no filtra por
-    // sede), que es la segunda mitad de CA-4.
+    // Ejercita el AND entre el containment JSONB de etiquetas y la igualdad plana por sede; con
+    // codigoSede null no filtra por sede.
     private static object FiltroPorEtiquetaYSede(
         DateOnly fechaReferencia, (string Categoria, string Valor) etiqueta, string? codigoSede) => new
         {
@@ -131,10 +89,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             codigoSede
         };
 
-    // Arrange comun: registra un colaborador con una vinculacion abierta -- via el comando que la
-    // origina (#330), nunca sembrando el event store por fuera del API. codigoSede es opcional
-    // (issue #519): RegistrarColaborador lo reenvia tal cual al VinculacionIniciada inicial, que la
-    // proyeccion asienta en FichaColaborador.CodigoSede.
     private async Task RegistrarColaboradorAsync(
         string numeroIdentificacion, DateOnly fechaInicio, string primerApellido,
         string codigoColaborador, CancellationToken ct, string? codigoSede = null)
@@ -156,9 +110,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que RegistrarColaborador funcione");
     }
 
-    // Arrange comun (CA-1): cierra la vinculacion vigente -- via el comando que la origina
-    // (#349/#379). Issue #379: la ruta gano el {codigo} -- ya no es
-    // "/api/Colaboradores/Terminaciones" con identificacion en el body.
     private async Task TerminarVinculacionAsync(
         string id, string codigo, DateOnly fechaEfectiva, CancellationToken ct)
     {
@@ -171,8 +122,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             "el arrange de este smoke test depende de que TerminarVinculacion funcione");
     }
 
-    // Arrange comun (CA-2): asigna una etiqueta dinamica -- via el comando que la origina (#355),
-    // migrado a PUT colaboradores/{id}/etiquetas/{categoria} por el issue #376.
     private async Task AsignarEtiquetaAsync(
         string numeroIdentificacion, string categoria, string valor, CancellationToken ct)
     {
@@ -204,10 +153,8 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
     private async Task<List<FichaColaboradorRespuestaSmoke>> ConsultarListaAsync(
         object filtro, CancellationToken ct) => (await ConsultarSobreAsync(filtro, ct)).Elementos;
 
-    // Reintenta la consulta hasta que la proyeccion asincrona satisfaga la condicion -- unica
-    // excepcion documentada al "no usar Polling directo en tests" (lifecycle Async, MEF-ADR-0034
-    // seccion 3). Si el timeout se agota es un fallo real (worker no desplegado, o el efecto del
-    // arrange nunca se materializo), Polling.WaitUntilAsync lanza TimeoutException.
+    // La proyeccion es Async (MEF-ADR-0034 seccion 3): un timeout agotado es un fallo real (worker no
+    // desplegado, o el arrange nunca se materializo).
     private Task<List<FichaColaboradorRespuestaSmoke>> ConsultarHastaQueAsync(
         object filtro, Func<List<FichaColaboradorRespuestaSmoke>, bool> condicion, CancellationToken ct) =>
         Polling.WaitUntilAsync(async () =>
@@ -226,11 +173,8 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1 (vigencia inclusive): el dia efectivo de terminacion es el ULTIMO dia vigente. Se
-    // confirma primero que la proyeccion ya aplico VinculacionTerminada (VigenteHasta == fechaEfectiva
-    // exacto, no el centinela todavia sin procesar) y LUEGO -- de forma deterministica, sin polling,
-    // porque la proyeccion ya esta al dia -- que al dia siguiente, sin ningun evento nuevo, la misma
-    // ficha desaparece del listado.
+    // Vigencia inclusive. Primero se espera VigenteHasta == fechaEfectiva (la terminacion ya proyectada,
+    // no el centinela); despues, sin polling, al dia siguiente la ficha ya no aparece.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_IncluyeElDiaEfectivoDeTerminacionYLoExcluyeAlDiaSiguiente_CuandoLaVigenciaEsInclusive()
@@ -264,10 +208,8 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             "la vinculacion terminada desaparece del listado al dia siguiente de su fecha efectiva, sin ningun evento nuevo (CA-1)");
     }
 
-    // CA-2 (filtro AND + normalizacion simetrica): filtrando con formas distintas (mayusculas,
-    // tildes) a las asignadas, el colaborador SI aparece -- Etiqueta.Crear normaliza ambos lados por
-    // igual (Tell-don't-Ask, MEF-ADR-0012). La categoria discriminadora lleva un Guid en el valor:
-    // si el colaborador aparece, es EL, sin ambiguedad con ninguna otra corrida.
+    // Etiqueta.Crear normaliza ambos lados por igual. El Guid en el valor de la etiqueta de la corrida
+    // hace inequivoca la fila.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_AplicaAndDeEtiquetasConNormalizacionSimetrica_CuandoElFiltroUsaFormasDistintasDeLasAsignadas()
@@ -295,8 +237,7 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         pagina.Should().ContainSingle(f => f.Id == streamId,
             "'área'/'tecnología' y 'Cargo'/'Desarrollador' deberian normalizar a las mismas claves que 'Área'/'Tecnología' y 'cargo'/'desarrollador'");
 
-        // AND estricto: cambiar SOLO el valor de una categoria (misma corridaId, unica) no debe
-        // encontrar nada -- nadie mas puede tener esa combinacion exacta.
+        // AND estricto: cambiar SOLO un valor no debe encontrar nada; nadie mas tiene esa combinacion.
         var filtroSinCoincidencia = FiltroPorEtiquetas(fechaReferencia,
             (categoriaCorrida, corridaId), ("cargo", "contador"));
 
@@ -306,9 +247,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             "el AND estricto no deberia devolver un colaborador cuyo cargo es 'desarrollador', no 'contador'");
     }
 
-    // CA-2 (sin filtro de etiquetas retorna todos los vigentes) + CA-4 (VigenteHasta vacio en
-    // vinculacion abierta): Etiquetas: null no aplica ningun containment -- la sede unica aisla la
-    // fila sin depender de ninguna etiqueta.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_IncluyeAlVigenteConVigenteHastaVacio_CuandoElFiltroNoTraeEtiquetas()
@@ -337,10 +275,9 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
             "el centinela de vigencia abierta (9999-12-31) jamas debe salir por la API (misma regla que #356 CA-6)");
     }
 
-    // CA-3 (paginacion keyset) + CA-6 (gate) + #519 CA-5 (convive con el filtro por sede) + #1000
-    // CA-2/CA-6: recorrido de dos paginas con el siguienteCursor opaco del servidor. Verifica end-to-end
-    // que Marten traduce el predicado compuesto CompareTo sobre strings contra el Postgres real de dev.
-    // La sede unica acota el filtro a A y B: la pagina 1 es A con cursor y la 2 es B sin cursor.
+    // Gate end-to-end del verbo QUERY (MEF-ADR-0042 seccion 6): falla si el host de dev no reenvia QUERY
+    // o si Marten no traduce el CompareTo compuesto sobre strings; nunca es caso de Skip. La sede unica
+    // acota el filtro a A y B.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_PaginaSinSaltarNiRepetir_CuandoSeUsaElSiguienteCursor()
@@ -379,7 +316,7 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         pagina2.SiguienteCursor.Should().BeNull("B es la ultima ficha del filtro");
     }
 
-    // CA-4: sin Content-Type: application/json -> 415, verificado ANTES de leer el body.
+    // El 415 se decide ANTES de leer el body.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_Retorna415_CuandoContentTypeNoEsJson()
@@ -396,7 +333,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.UnsupportedMediaType);
     }
 
-    // CA-4: body con Content-Type json pero sintacticamente invalido -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_Retorna400_CuandoElBodyEsJsonInvalido()
@@ -413,7 +349,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-4: body ausente (Content-Type json, cero bytes) -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_Retorna400_CuandoElBodyEstaVacio()
@@ -430,7 +365,7 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-4: JSON valido sin FechaReferencia -> 422 (obligatoria; el back jamas resuelve "hoy").
+    // FechaReferencia es obligatoria: el back jamas resuelve "hoy".
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_Retorna422_CuandoFechaReferenciaNoLlega()
@@ -442,7 +377,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // CA-4/CA-2: una etiqueta del filtro con categoria/valor vacios -> 422 (Etiqueta.Crear rechaza).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_Retorna422_CuandoUnaEtiquetaDelFiltroEsInvalida()
@@ -460,7 +394,7 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // #1000 CA-4: un cursor que no salio del servidor, tambien el objeto de la forma vieja -> 422.
+    // Un cursor que no salio del servidor -> 422; el siguiente test cubre el objeto de la forma vieja.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_Retorna422_CuandoElCursorNoEsValido()
@@ -491,8 +425,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
-    // CA-4: sin resultados -> 200 con lista vacia, nunca 404. Categoria/valor con un Guid embebido:
-    // nadie pudo haber asignado jamas esta combinacion exacta.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_Retorna200ConListaVacia_CuandoNingunVigenteCumpleElFiltroDeEtiquetas()
@@ -511,10 +443,8 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         lista.SiguienteCursor.Should().BeNull();
     }
 
-    // Issue #519 CA-4: el filtro por sede es un Where mas del mismo AND -- con la MISMA etiqueta
-    // discriminadora de la corrida, agregar la sede deja solo al colaborador de esa sede; quitarla
-    // devuelve a los dos (el comportamiento previo a #519 no cambia). El codigo de sede lleva un
-    // Guid embebido: nadie mas, en ninguna corrida pasada o futura, puede tener esa sede exacta.
+    // Con la MISMA etiqueta de la corrida, agregar la sede deja solo al colaborador de esa sede y quitarla
+    // devuelve a los dos.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task ListarFichasColaborador_DevuelveSoloLasFichasDeEsaSede_CuandoElFiltroTraeCodigoSede()
@@ -539,9 +469,8 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
         await AsignarEtiquetaAsync(numeroConSede, categoriaCorrida, corridaId, ct);
         await AsignarEtiquetaAsync(numeroSinSede, categoriaCorrida, corridaId, ct);
 
-        // Sin filtro de sede: los dos colaboradores de esta corrida (el comportamiento de antes de
-        // #519). Es ademas el punto de sincronizacion -- confirma que la proyeccion ya materializo
-        // ambas fichas antes de afirmar sobre la exclusion de abajo.
+        // Punto de sincronizacion: confirma que ambas fichas estan materializadas antes de afirmar la
+        // exclusion de abajo.
         var sinFiltroDeSede = await ConsultarHastaQueAsync(
             FiltroPorEtiquetaYSede(fechaReferencia, (categoriaCorrida, corridaId), codigoSede: null),
             lista => lista.Any(f => f.Id == idConSede) && lista.Any(f => f.Id == idSinSede),
@@ -549,8 +478,6 @@ public class ListarFichasColaboradorSmokeTests(ApiFixture api)
 
         sinFiltroDeSede.Should().HaveCount(2, "sin CodigoSede el filtro no cambia respecto de #373");
 
-        // Con filtro de sede: solo el colaborador de esa sede. La sincronizacion ya la garantizo el
-        // assert anterior, asi que un resultado incompleto aqui seria un fallo real del filtro.
         var conFiltroDeSede = await ConsultarHastaQueAsync(
             FiltroPorEtiquetaYSede(fechaReferencia, (categoriaCorrida, corridaId), codigoSede),
             lista => lista.Any(f => f.Id == idConSede),

@@ -1,5 +1,4 @@
-// DispositivoInstalado no cruza el bus: la unica verificacion black-box de los efectos del handler
-// es leer mt_events via PostgresFixture -- de ahi la ausencia de ServiceBusFixture.
+// DispositivoInstalado no cruza el bus: sus efectos se verifican leyendo mt_events.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -24,8 +23,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
     // mas holgada que Timeout, para no acoplar la espera del daemon a la de los efectos inline.
     private static readonly TimeSpan TimeoutProyeccion = TimeSpan.FromSeconds(120);
 
-    // Prefijo "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y esta sujeto al charset URL-safe,
-    // del que "[", "]" y el espacio quedan fuera.
+    // "TEST-" y no "[TEST] ": el Codigo viaja en la ruta y "[", "]" y el espacio no son URL-safe.
     private static string NuevoCodigoSede() => $"TEST-{Guid.CreateVersion7()}";
 
     private static string NuevoDispositivoId() => $"TEST-DISPOSITIVO-{Guid.CreateVersion7()}";
@@ -66,7 +64,6 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task InstalarDispositivo_Retorna201YPersisteDispositivoInstalado_CuandoDispositivoIdEsValido()
@@ -98,7 +95,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
         evento.GetProperty("DispositivoId").GetString().Should().Be(dispositivoId);
     }
 
-    // CA-2: declina sin persistir un segundo evento (CA-ADR-0030).
+    // Declina sin persistir un segundo evento (CA-ADR-0030).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task InstalarDispositivo_Retorna409YNoDuplicaEvento_CuandoDispositivoYaInstaladoEnEstaSede()
@@ -132,13 +129,10 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
             "el segundo intento se rechazo con 409: no debe haber escrito un segundo dispositivo_instalado");
     }
 
-    // Rechazo cross-sede. UbicacionDispositivo materializa de forma ASINCRONA (MEF-ADR-0034 seccion
-    // 3): la espera de infraestructura -- si el daemon ya materializo -- va separada de la asercion
-    // de negocio. Se espera el documento mt_doc_ubicaciondispositivo directo via PostgresFixture -- no
-    // hay Function GET sobre esta vista (issue #549) -- y solo despues se ejercita el POST al
-    // destino UNA sola vez. Sin loop con side-effects: reintentar el POST mientras la vista no
-    // materializa instalaria y retiraria un dispositivo fantasma en cada iteracion, agregando
-    // eventos reales al stream destino.
+    // UbicacionDispositivo materializa de forma asincrona: se espera el documento
+    // mt_doc_ubicaciondispositivo en Postgres (no hay Function GET sobre esta vista) y solo despues
+    // se hace el POST al destino, UNA sola vez. Reintentar el POST mientras la vista no materializa
+    // instalaria y retiraria un dispositivo fantasma en cada iteracion, con eventos reales.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task InstalarDispositivo_Retorna409YNoInstalaEnDestino_CuandoDispositivoYaEstaInstaladoEnOtraSede()
@@ -181,8 +175,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
             "el rechazo cross-sede ocurre antes de cargar el aggregate destino: el stream de la sede destino no debe recibir ningun dispositivo_instalado");
     }
 
-    // CA-6: reinstalar un dispositivo previamente retirado de esta sede procede -- no es la misma
-    // invariante de exclusividad que CA-2 (ese dispositivo ya no esta instalado en esta sede).
+    // No viola la exclusividad: el dispositivo retirado ya no esta instalado en esta sede.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task InstalarDispositivo_Retorna201YPersisteSegundoEvento_CuandoReinstalaDispositivoPreviamenteRetirado()
@@ -220,7 +213,6 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
             "instalar, retirar y reinstalar el mismo dispositivo agrega un segundo dispositivo_instalado");
     }
 
-    // CA-5
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task InstalarDispositivo_Retorna400_CuandoDispositivoIdEsVacio()
@@ -234,8 +226,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-5: mismo charset URL-safe de CodigoSede -- el DispositivoId se expone luego como segmento
-    // de ruta en el DELETE (MEF-ADR-0043 seccion 1.3).
+    // El DispositivoId viaja luego como segmento de ruta en el DELETE (MEF-ADR-0043 seccion 1.3).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task InstalarDispositivo_Retorna400_CuandoDispositivoIdNoEsUrlSafe()
@@ -249,8 +240,7 @@ public class InstalarDispositivoSmokeTests(ApiFixture api, PostgresFixture postg
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // El charset URL-safe del codigo tambien rige cuando viaja en la ruta: "!" queda fuera del set
-    // unreserved y se rechaza con 400, nunca con el 404 de un stream inexistente.
+    // "!" no es unreserved: 400, nunca el 404 de un stream inexistente.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task InstalarDispositivo_Retorna400_CuandoCodigoDeRutaNoEsUrlSafe()

@@ -12,15 +12,12 @@ using Cosmos.EventSourcing.Testing.Utilities;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.RetirarEtiquetaFunction;
 
-// El aggregate usa un stream ID compuesto (Identificacion.ToString(), "CC-79543210"), no el
-// GuidAggregateId del harness -- overloads explicitos de Given/Then/And (regla 18 del
-// test-writer, mismo criterio que el resto de la cadena #349-#354).
 public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<RetirarEtiqueta>
 {
     private const string NumeroValido = "79543210";
 
-    // Oraculo independiente de la clave de stream (MEF-ADR-0002 + MEF-ADR-0037): literal, no
-    // derivado de ColaboradorAggregateRoot.ComputarStreamId.
+    // Oraculo independiente: literal, nunca derivado de ComputarStreamId -- si se derivara, un cambio
+    // de formato de la clave se auto-validaria.
     private const string StreamIdEsperado = "CC-79543210";
 
     private const string CodigoVinculacionVigente = "COL-001";
@@ -49,20 +46,15 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
     private static VinculacionIniciada VinculacionIniciadaVigente() =>
         new(CodigoVinculacionVigente, FechaInicioVinculacionVigente);
 
-    // Precondicion: colaborador registrado con una vinculacion abierta y SIN etiquetas.
     private void DadoUnColaboradorConVinculacionAbierta() =>
         Given(StreamIdEsperado, ColaboradorRegistradoValido(), VinculacionIniciadaVigente());
 
-    // Precondicion: la vinculacion vigente ya tiene la etiqueta dada asignada.
     private void DadoUnColaboradorConEtiquetaAsignada(Etiqueta etiqueta) =>
         Given(StreamIdEsperado,
             ColaboradorRegistradoValido(),
             VinculacionIniciadaVigente(),
             new EtiquetaAsignada(etiqueta));
 
-    // Precondicion: la vinculacion vigente tiene la etiqueta dada Y una terminacion
-    // registrada -- incluye un preaviso con fecha futura, que bloquea igual sin distincion de
-    // estado.
     private void DadoUnColaboradorConEtiquetaYTerminacionRegistrada(
         Etiqueta etiqueta, DateOnly fechaEfectiva) =>
         Given(StreamIdEsperado,
@@ -71,9 +63,8 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
             new EtiquetaAsignada(etiqueta),
             new VinculacionTerminada(fechaEfectiva));
 
-    // Retirar por una forma distinta de la que se asigno ("área" retira lo asignado como
-    // "Area", misma categoria normalizada) -> el stream recibe EtiquetaRetirada con la categoria
-    // normalizada; el aggregate ya no la refleja.
+    // Retirar por otra forma ("área" sobre lo asignado como "Area") alcanza la misma categoria
+    // normalizada.
     [Fact]
     public async Task RetirarEtiqueta_EmiteEtiquetaRetirada_CuandoLaCategoriaExisteConFormaDistinta()
     {
@@ -85,9 +76,6 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
     }
 
-    // Borde de identidad (MEF-ADR-0037): "cc" en minusculas + numero con espacios sobre un
-    // colaborador ya registrado -> el retiro alcanza el MISMO stream ("CC-79543210") y emite el
-    // evento.
     [Fact]
     public async Task RetirarEtiqueta_EmiteEtiquetaRetirada_CuandoTipoYNumeroLleganSinNormalizar()
     {
@@ -104,8 +92,6 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
     }
 
-    // Categoria que nunca se asigno: termina sin lanzar y sin agregar eventos, el diccionario de
-    // etiquetas queda intacto (vacio).
     [Fact]
     public async Task RetirarEtiqueta_NoEmiteEvento_CuandoLaCategoriaNoExiste()
     {
@@ -117,9 +103,8 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
     }
 
-    // Repetir el MISMO retiro tras uno exitoso: el estado ya alcanzado canonico de un DELETE
-    // (MEF-ADR-0004). Ningun otro test cubre la secuencia asignar -> retirar -> retirar: los demas
-    // no-op parten de una categoria que nunca estuvo en la vinculacion vigente.
+    // Ningun otro test cubre asignar -> retirar -> retirar: los demas no-op parten de una categoria que
+    // nunca estuvo en la vinculacion vigente.
     [Fact]
     public async Task RetirarEtiqueta_NoEmiteEvento_CuandoLaCategoriaYaFueRetirada()
     {
@@ -149,8 +134,6 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 1);
     }
 
-    // Regla estricta de apertura: la ULTIMA vinculacion tiene terminacion registrada -> 409,
-    // ningun evento nuevo, la etiqueta existente queda intacta.
     [Fact]
     public async Task RetirarEtiqueta_LanzaReglaDeNegocioDeclinadaException_CuandoLaUltimaVinculacionTieneTerminacionRegistrada()
     {
@@ -165,8 +148,7 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 1);
     }
 
-    // Preaviso no vencido: un preaviso con fecha futura ya registrado bloquea igual -- las
-    // etiquetas describen la relacion laboral ACTIVA, sin importar si la fecha efectiva ya paso.
+    // Las etiquetas describen la relacion laboral activa: un preaviso sin vencer bloquea igual.
     [Fact]
     public async Task RetirarEtiqueta_LanzaReglaDeNegocioDeclinadaException_CuandoLaTerminacionEsUnPreavisoConFechaFutura()
     {
@@ -182,9 +164,8 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 1);
     }
 
-    // El retiro es por CATEGORIA, no un vaciado del diccionario: con dos categorias asignadas,
-    // retirar una deja la otra intacta. Es el unico test con dos categorias simultaneas -- sin el,
-    // un Apply que limpiara el diccionario entero pasaria en verde.
+    // Sin este test (el unico con dos categorias), un Apply que limpiara el diccionario entero pasaria
+    // en verde.
     [Fact]
     public async Task RetirarEtiqueta_ConservaLasDemasCategorias_CuandoRetiraUnaDeVarias()
     {
@@ -203,8 +184,7 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
             StreamIdEsperado, c => c.Etiquetas["sede"], etiquetaConservada);
     }
 
-    // El reingreso nace limpio: la etiqueta pertenecia a la vinculacion ANTERIOR (congelada tras la
-    // terminacion) y la vigente no la hereda, asi que retirarla es un no-op exitoso.
+    // El reingreso nace limpio: la vinculacion vigente no hereda la etiqueta de la anterior.
     [Fact]
     public async Task RetirarEtiqueta_NoEmiteEvento_CuandoLaEtiquetaPerteneceALaVinculacionAnteriorTrasUnReingreso()
     {
@@ -221,9 +201,7 @@ public class RetirarEtiquetaCommandHandlerTests : CommandHandlerAsyncTest<Retira
         And<ColaboradorAggregateRoot, int>(StreamIdEsperado, c => c.Etiquetas.Count, 0);
     }
 
-    // Colaborador inexistente -> 404 (RecursoNoEncontradoException). Sin Given: el stream no existe. Sin
-    // And<>: el aggregate no existe en el TestStore (GetAggregateRoot lanzaria
-    // ArgumentNullException) -- el Then vacio es lo que demuestra que no se escribio nada.
+    // Sin And<>: el aggregate no existe en el TestStore; el Then vacio demuestra que no se escribio nada.
     [Fact]
     public async Task RetirarEtiqueta_LanzaRecursoNoEncontradoException_CuandoColaboradorNoExiste()
     {

@@ -1,13 +1,3 @@
-// HU-105 / issue #270: Registrar marcacion de entrada o salida
-// CA-4: el handler publica RegistroDeMarcacionCreado (contrato de bus, PrivateEvents.ControlHoras)
-// empaquetado por el traductor del aggregate, tras StartStream. MarcacionRegistrada (evento de
-// dominio persistido en el stream) ya NO cruza el bus -- deja de implementar IPrivateEvent (CA-3).
-// Issue #275 CA-4: el handler ya no trunca segundos ni invoca "new MarcacionRegistrada(...)" --
-// llama al factory MarcacionRegistrada.Crear(...), que trunca y valida (patron TurnoCreado,
-// CrearTurnoCommandHandlerTests). El evento esperado en los tests tambien se construye con el
-// factory, con el mismo timestamp crudo que recibe el comando -- unica via posible ahora que el
-// ctor es privado.
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -22,47 +12,38 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.RegistrarMarcacionFuncti
 
 public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<RegistrarMarcacion>
 {
-    // Datos de prueba fijos
     private const string CodigoColaborador = "EMP-001";
 
-    // Timestamp crudo con segundos para verificar la normalizacion al minuto (CA-2)
+    // Timestamp crudo con segundos para verificar la normalizacion al minuto.
     private static readonly DateTime Timestamp = new DateTime(2026, 3, 15, 8, 9, 59);
 
-    // CA-2: 08:09:59 truncado al minuto -> 08:09:00
     private static readonly DateTime TimestampNormalizado = new DateTime(2026, 3, 15, 8, 9, 0);
 
-    // Issue #419 CA-1/CA-2: stream ID determinista "rdm:{CodigoColaborador}:{Timestamp:yyyyMMddTHHmmss}"
-    // -- armado a mano (no via ComputarStreamId) para que el test siga siendo un oraculo independiente
-    // de la logica bajo prueba (regla 20).
+    // Armado a mano, no via ComputarStreamId: oraculo independiente de la logica bajo prueba.
     private static readonly string StreamId = $"rdm:{CodigoColaborador}:{Timestamp:yyyyMMddTHHmmss}";
 
-    // Issue #275: el stream que el handler habria abierto si el factory no hubiera rechazado el
-    // CodigoColaborador vacio -- se afirma vacio para probar que el throw precede a cualquier escritura.
+    // El stream que el handler habria abierto con CodigoColaborador vacio: se afirma vacio para probar
+    // que el throw precede a cualquier escritura.
     private static readonly string StreamIdSinColaborador = $"rdm::{Timestamp:yyyyMMddTHHmmss}";
 
     protected override ICommandHandlerAsync<RegistrarMarcacion> Handler =>
         new RegistrarMarcacionCommandHandler(EventStore, PrivateEventSender);
 
-    // Issue #275: el ctor de MarcacionRegistrada es privado -- la unica via de construccion, tanto
-    // para el handler como para el oraculo del test, es Crear(...). Se le pasa el mismo timestamp
-    // CRUDO (con segundos) que recibe el comando: si el handler dejara de delegar la normalizacion
-    // al factory, este test lo detectaria porque el oraculo tambien pasa por el mismo truncamiento.
+    // Recibe el mismo timestamp CRUDO que el comando: si el handler dejara de delegar la normalizacion a
+    // Crear(...), el oraculo, que si pasa por ese truncamiento, lo detectaria.
     private static MarcacionRegistrada CrearMarcacionRegistrada(
         string? tipoMarcacion = "ENTRADA",
         string? dispositivoId = "DEV-001") =>
         MarcacionRegistrada.Crear(CodigoColaborador, Timestamp, tipoMarcacion, dispositivoId);
 
-    // Issue #270 CA-4: el contrato de bus que se espera publicado -- construido a mano como oraculo
-    // independiente (regla 20), con la misma paridad de campos que MarcacionRegistrada, sin invocar
-    // el traductor del aggregate (la logica bajo prueba).
+    // Oraculo armado a mano, sin invocar el traductor del aggregate (la logica bajo prueba).
     private static RegistroDeMarcacionCreado CrearRegistroDeMarcacionCreado(
         string? tipoMarcacion = "ENTRADA",
         string? dispositivoId = "DEV-001") =>
         new(CodigoColaborador, TimestampNormalizado, tipoMarcacion, dispositivoId);
 
-    // CA-1, CA-2, CA-5: marcacion nueva persiste MarcacionRegistrada en el stream y publica
-    // RegistroDeMarcacionCreado (no MarcacionRegistrada) via IPrivateEventSender.
-    // CA-2: verifica que 08:09:59 se normaliza a 08:09:00 en ambos tipos.
+    // Publica RegistroDeMarcacionCreado, no MarcacionRegistrada; 08:09:59 se normaliza a 08:09:00 en
+    // ambos tipos.
     [Fact]
     public async Task RegistrarMarcacion_EmiteMarcacionRegistradaYPublicaRegistroDeMarcacionCreado_CuandoMarcacionEsNueva()
     {
@@ -75,7 +56,6 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
             StreamId, r => r.TimestampNormalizado, TimestampNormalizado);
     }
 
-    // CA-3: TipoMarcacion y DispositivoId son opcionales - null es valido en ambos tipos.
     [Fact]
     public async Task RegistrarMarcacion_PropagaCamposOpcionalesNulos_CuandoElComandoNoLosTrae()
     {
@@ -87,9 +67,8 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
         And<RegistroDeMarcacionAggregateRoot, string?>(StreamId, r => r.DispositivoId, null);
     }
 
-    // CA-4, CA-9: duplicado exacto (mismo CodigoColaborador + mismo Timestamp crudo = mismo stream ID)
-    // Handler retorna silenciosamente: sin nuevos eventos en stream, sin eventos publicados (ninguno
-    // de los dos tipos).
+    // Duplicado exacto = mismo CodigoColaborador + mismo Timestamp crudo = mismo stream ID: el handler
+    // retorna en silencio, sin eventos nuevos ni publicados.
     [Fact]
     public async Task RegistrarMarcacion_NoPersisteNiPublica_CuandoStreamYaExiste()
     {
@@ -103,11 +82,8 @@ public class RegistrarMarcacionCommandHandlerTests : CommandHandlerAsyncTest<Reg
         And<RegistroDeMarcacionAggregateRoot, string>(StreamId, r => r.CodigoColaborador, CodigoColaborador);
     }
 
-    // Issue #275 CA-3/CA-4: el factory MarcacionRegistrada.Crear valida el CodigoColaborador; el throw
-    // ocurre en el borde del handler (MEF-ADR-0004), nunca dentro del aggregate. No es un evento de
-    // fallo del aggregate -- es un dato invalido que nunca deberia haber llegado hasta aqui.
-    // El throw ocurre ANTES de tocar el event store: ni se abre el stream ni se publica el contrato
-    // de bus, de modo que un dato invalido no deja rastro parcial.
+    // Crear(...) valida el CodigoColaborador: el throw ocurre en el borde del handler (MEF-ADR-0004), no
+    // como evento de fallo del aggregate, y antes del event store: ni stream ni publicacion parcial.
     [Fact]
     public async Task RegistrarMarcacion_PropagaArgumentExceptionSinPersistirNiPublicar_CuandoCodigoColaboradorEsVacio()
     {

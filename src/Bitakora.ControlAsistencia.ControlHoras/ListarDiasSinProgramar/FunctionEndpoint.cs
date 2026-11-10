@@ -8,8 +8,8 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.ControlHoras.ListarDiasSinProgramar;
 
-// Function QUERY (RFC 10008, MEF-ADR-0042) que compone al leer: cruza los dias de la ventana con los
-// TurnoVigente existentes (via (a') de MEF-ADR-0035). Keyset por CodigoColaborador, Take opcional (CA-ADR-0039).
+// Compone al leer: cruza los dias de la ventana con los TurnoVigente existentes. Keyset por
+// CodigoColaborador, Take opcional (CA-ADR-0039).
 public class FunctionEndpoint(IDocumentStore store, ITenantContext tenantContext)
 {
     [Function("ListarDiasSinProgramar")]

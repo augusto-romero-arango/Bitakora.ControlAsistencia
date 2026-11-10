@@ -6,20 +6,10 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 public class ServiceBusFixture : IAsyncLifetime
 {
-    // Issues #538 y #698: claves de wire verificadas por decompilacion (ilspycmd) de los ensamblados vigentes
-    // -- Wolverine 6.16.0 (EnvelopeMapper<> mapea Envelope.TenantId al header "tenant-id" sin prefijo,
-    // y AzureServiceBusEnvelopeMapper copia cada ApplicationProperty a Envelope.Headers tal cual) y
-    // Cosmos.MultiTenancy.CritterStack 2.3.0 (WolverineMessageContextTenantResolver lee UserId de
-    // Envelope.Headers["user_id"]). Issue #698 suma "organization_membership_id"
-    // (TenancyHeaders.OrganizationMembershipId de Cosmos 3.x), que viaja por el mismo camino que
-    // "user_id" y Cosmos 2.3.1 ignora. Son otro plano que los headers HTTP X-Tenant-Id/X-User-Id/
-    // X-Organization-Membership-Id de MEF-ADR-0028: viajan en ApplicationProperties del mensaje, no en la request.
-    //
-    // Advertencia para el flip a etapa (b): hoy los dominios NO montan un listener de Wolverine. Cada
-    // evento entra por [ServiceBusTrigger] de Azure Functions y se despacha con IPrivateEventRouter,
-    // que arma DeliveryOptions desde el ITenantContext del proceso -- nadie lee estas claves del
-    // mensaje entrante, asi que la metadata queda declarada pero inerte. Sirve para no romper la
-    // ventana el dia que exista ese puente; verificarlo al correr /install-auth.
+    // Claves de wire verificadas por decompilacion: Wolverine 6.16.0 mapea Envelope.TenantId a "tenant-id"
+    // y Cosmos.MultiTenancy.CritterStack lee "user_id" y "organization_membership_id" de Envelope.Headers.
+    // Viajan en ApplicationProperties, no en los headers HTTP. Hoy quedan inertes: los dominios entran por
+    // [ServiceBusTrigger] y nadie las lee del mensaje entrante.
     private const string TenantIdApplicationProperty = "tenant-id";
     private const string UserIdApplicationProperty = "user_id";
     private const string OrganizationMembershipIdApplicationProperty = "organization_membership_id";
@@ -43,12 +33,8 @@ public class ServiceBusFixture : IAsyncLifetime
 
     public ValueTask InitializeAsync()
     {
-        // Issue #183: el payload de DiaDepurado es ahora 100% primitivo (HorasDiscriminadas), asi que
-        // se deserializa con el serializador POR DEFECTO -- SIN registrar ConfigurarSerializacion de
-        // ningun VO rico. Esto demuestra la cura: el consumidor (incluido otro stack) ya no depende de
-        // nuestra serializacion interna de Marten. Si alguien reintroduce un tipo rico al payload, este
-        // smoke fallaria al deserializar (NotSupportedException) -- barrera de regresion end-to-end.
-        // PropertyNameCaseInsensitive: Wolverine publica en camelCase (ver regression test del issue #29).
+        // Serializador por defecto a proposito, sin ConfigurarSerializacion de VOs ricos: si un tipo rico
+        // vuelve al payload de DiaDepurado, el smoke falla al deserializar. Wolverine publica en camelCase.
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
@@ -185,9 +171,7 @@ public class ServiceBusFixture : IAsyncLifetime
 
     private const int TamanoPaginaDeadLetter = 100;
 
-    // Issue #223 CA-1: recorre el DLQ completo con peek iterativo (patron oficial de Microsoft Learn,
-    // "message-browsing#maximum-number-of-messages"), en vez del tope fijo anterior de 10 mensajes.
-    // El peek no completa mensajes, asi que iterar el DLQ entero es no destructivo.
+    // Peek iterativo sobre el DLQ completo; el peek no completa mensajes, asi que no es destructivo.
     public async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekDeadLetterMessagesAsync(
         string topicName,
         string subscriptionName)
@@ -215,10 +199,8 @@ public class ServiceBusFixture : IAsyncLifetime
         }
     }
 
-    // Issue #223 CA-2/CA-3: acota el assert a "hay un dead letter de ESTA corrida" en vez de
-    // "el DLQ esta globalmente vacio". T es una forma minima plana (ver DeadLetterMinimos.cs)
-    // que solo declara el identificador de correlacion, sin depender de la deserializacion
-    // custom de los value objects ricos del contrato (ADR-0025).
+    // Acota el assert a un dead letter de esta corrida, no a un DLQ globalmente vacio. T es una forma
+    // minima plana (DeadLetterMinimos.cs).
     public async Task<bool> ExisteDeadLetterDeEstaCorridaAsync<T>(
         string topicName,
         string subscriptionName,

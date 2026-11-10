@@ -1,5 +1,4 @@
-// Issue #335: tests del mapeo CrearTurno.ToDatosFranjas() -- traduce el contrato HTTP a la
-// entrada del factory de TurnoCreado. Cubre la propagacion (o no) de la sede prearmada por franja.
+// CrearTurno.ToDatosFranjas() traduce el contrato HTTP a la entrada del factory de TurnoCreado.
 
 using System.Text.Json;
 using AwesomeAssertions;
@@ -16,7 +15,6 @@ public class CrearTurnoTests
     // case-insensitive -- sin levantar el host.
     private static readonly JsonSerializerOptions OpcionesWeb = new(JsonSerializerDefaults.Web);
 
-    // CA-1: la sede prearmada de la franja del comando llega a DatosFranja.
     [Fact]
     public void ToDatosFranjas_PropagaLaSedeDeCadaFranja_CuandoComandoTraeSedes()
     {
@@ -29,7 +27,6 @@ public class CrearTurnoTests
         datos[0].Sede.Should().Be(sede);
     }
 
-    // CA-2: regresion -- una franja sin sede en el comando conserva el comportamiento actual.
     [Fact]
     public void ToDatosFranjas_DejaSedeNull_CuandoFranjaDelComandoNoTraeSede()
     {
@@ -41,7 +38,7 @@ public class CrearTurnoTests
         datos[0].Sede.Should().BeNull();
     }
 
-    // CA-5: un body sin la clave "ordinarias" llega con Ordinarias == null -- ToDatosFranjas() lo
+    // Un body sin la clave "ordinarias" llega con Ordinarias == null -- ToDatosFranjas() lo
     // trata como lista vacia, no como error.
     [Fact]
     public void ToDatosFranjas_DevuelveListaVacia_CuandoOrdinariasEsNull()

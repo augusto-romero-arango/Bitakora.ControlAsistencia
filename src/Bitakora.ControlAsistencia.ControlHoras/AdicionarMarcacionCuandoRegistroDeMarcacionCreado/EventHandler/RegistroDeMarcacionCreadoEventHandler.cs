@@ -8,8 +8,6 @@ namespace Bitakora.ControlAsistencia.ControlHoras.AdicionarMarcacionCuandoRegist
 
 // La marcacion se guarda solo en su dia calendario; RepartirMarcacionesCuandoDiaDepurado la entrega a
 // los vecinos cuya cobertura la contiene (CA-ADR-0042).
-// MEF-ADR-0024 (decision #8): se consume directo con IPrivateEventHandlerAsync, sin comando espejo.
-// MEF-ADR-0009: partial class para soportar clase Mensajes en archivo separado si se requiere.
 public partial class RegistroDeMarcacionCreadoEventHandler
     : IPrivateEventHandlerAsync<RegistroDeMarcacionCreado>
 {

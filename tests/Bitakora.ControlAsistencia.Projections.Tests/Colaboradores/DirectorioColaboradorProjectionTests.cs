@@ -180,8 +180,7 @@ public class DirectorioColaboradorProjectionTests
         vista.CodigoSede.Should().Be("SEDE-MED-02");
     }
 
-    // --- Issue #860 CA-2: JornadaId (Jornada asignada a la vinculacion vigente) ---
-
+    // JornadaId es la Jornada asignada a la vinculacion vigente.
     [Fact]
     public void Apply_DejaJornadaIdNulo_CuandoVinculacionIniciadaYNoSeAsignoJornada()
     {

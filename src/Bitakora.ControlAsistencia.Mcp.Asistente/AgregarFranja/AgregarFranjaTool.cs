@@ -4,10 +4,6 @@ using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
 
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.AgregarFranja;
 
-// Cliente HTTP puro que envuelve GET programacion/turnos/{id} (detalle del turno, via
-// ResolutorTurnoPorId) + GET sedes/fichas/{codigo} (solo si viene codigo_sede) + POST
-// programacion/turnos/{id}:agregar-franja (paso 4 MEF-ADR-0043). El 400/404/409 del POST se
-// traduce a texto, nunca a excepcion (CA-ADR-0030).
 public partial class AgregarFranjaTool(
     ProgramacionApi programacion, ResolutorTurnoPorId resolutor, ResolutorSedePorCodigo resolutorSedes)
 {
@@ -88,7 +84,7 @@ public partial class AgregarFranjaTool(
 }
 
 /// <summary>
-/// Eco compacto de agregar_franja hacia el asistente: el 202 del dominio no trae body, asi que la
-/// franja agregada se reconstruye con lo que se envio a la tool, en notacion compacta.
+/// Eco compacto de agregar_franja: la respuesta del dominio no trae body, asi que la franja
+/// agregada se reconstruye con lo que se envio a la tool, en notacion compacta.
 /// </summary>
 public sealed record FranjaAgregadaResumen(string Resultado, string Turno, string Franja, string Nota);

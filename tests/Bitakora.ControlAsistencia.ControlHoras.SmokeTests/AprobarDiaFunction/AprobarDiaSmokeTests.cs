@@ -1,16 +1,5 @@
-// Issue #489: smoke tests de POST control-horas/depuraciones/{codigoColaborador}/{fecha}:aprobar --
-// el acto de aprobar el dia completo (Provisional -> Aprobado). Sin consumidores downstream
-// (event-sourcing puro, CA-ADR-0030): el unico efecto verificable es dia_aprobado en mt_events; no
-// hay topic de salida ni suscripcion smoke-tests que consumir (MEF-ADR-0039, el evento nace sin
-// consumidor real).
-//
-// El arrange de los casos con precondicion Provisional publica DiaDepurado al topic dia-depurado
-// (mismo mecanismo que ObtenerDepuracionDelDiaSmokeTests/RecibirDepuracionViaSbSmokeTests) y espera a
-// que el consumidor persista depuracion_dia_recibida antes de invocar el POST bajo prueba -- esa
-// persistencia es asincrona, un POST inmediato podria caer sobre un stream que aun no existe.
-//
-// Queda rojo hasta que el deploy publique la ruta en dev. El CI de PR no lo ejecuta (solo corre
-// *.Tests); su veredicto real se lee despues del deploy.
+// Sin consumidores downstream (CA-ADR-0030): el unico efecto verificable es dia_aprobado en
+// mt_events; no hay topic de salida que consumir.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -36,8 +25,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
     private static string RutaAprobar(string codigoColaborador, DateOnly fecha) =>
         $"/api/control-horas/depuraciones/{codigoColaborador}/{fecha:yyyy-MM-dd}:aprobar";
 
-    // Payload SIN conflicto de sede: la franja no trae CodigoSedeProgramada ni las marcaciones
-    // CodigoSede -- DerivarSedeDeFranja no encuentra ninguna fuente, EnConflicto queda false.
+    // Sin conflicto de sede: ni la franja ni las marcaciones traen sede.
     private static object CrearDiaDepuradoSinConflicto(
         string codigoColaborador, DateOnly fecha, TimeOnly horaInicio, TimeOnly horaFin) => new
         {
@@ -74,9 +62,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
             }
         };
 
-    // Payload CON una franja en conflicto de sede: SEDE-01 programada vs SEDE-02 marcada en la
-    // entrada -- dos fuentes de codigo distinto para la misma franja (DiaCalculadoAggregateRoot.
-    // DerivarSedeDeFranja).
+    // Conflicto de sede: SEDE-01 programada vs SEDE-02 marcada en la entrada.
     private static object CrearDiaDepuradoConConflicto(
         string codigoColaborador, DateOnly fecha, TimeOnly horaInicio, TimeOnly horaFin) => new
         {
@@ -123,8 +109,8 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
             }
         };
 
-    // Arrange comun a los casos con precondicion Provisional: publica DiaDepurado y espera a que el
-    // consumidor persista depuracion_dia_recibida antes de que el test invoque el POST bajo prueba.
+    // El consumidor persiste depuracion_dia_recibida de forma asincrona: un POST inmediato podria
+    // caer sobre un stream que aun no existe.
     private async Task ArrangeDiaProvisionalAsync(string streamId, string codigoColaborador, object diaDepurado)
     {
         await serviceBus.PublishAsync(codigoColaborador, TopicDiaDepurado, diaDepurado, Guid.CreateVersion7().ToString());
@@ -146,8 +132,6 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: dia Provisional sin conflictos de sede, sin decisiones -> 204 + dia_aprobado con
-    // SedesDecididas vacia.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AprobarDia_Retorna204YPersisteDiaAprobado_CuandoElDiaNoTieneConflictosDeSede()
@@ -186,8 +170,6 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         eventoPersistido.GetProperty("SedesDecididas").GetArrayLength().Should().Be(0);
     }
 
-    // CA-2: franja en conflicto con decision valida -> 204 + dia_aprobado carga la candidata completa
-    // (codigo + nombre + CC del estampado de la MARCACION, que es la fuente elegida en este arrange).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AprobarDia_Retorna204YPersisteLaCandidataCompleta_CuandoLaDecisionResuelveElConflicto()
@@ -231,7 +213,6 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         sedeDecidida.GetProperty("CentroDeCostos").GetString().Should().Be("CC-200");
     }
 
-    // CA-3: quedan franjas en conflicto sin decidir (payload vacio) -> 409, sin evento persistido.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AprobarDia_Retorna409_CuandoHayConflictosDeSedeSinDecidir()
@@ -264,7 +245,6 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
             $"un 409 no deberia persistir {TipoEventoDiaAprobado} en el stream {streamId}");
     }
 
-    // #1158 CA-5: foto con una marcacion de Pertenencia "Ambigua" -> 409, sin dia_aprobado.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AprobarDia_Retorna409_CuandoLaFotoTraeMarcacionesAmbiguasSinResolver()
@@ -331,7 +311,6 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
             $"un 409 no deberia persistir {TipoEventoDiaAprobado} en el stream {streamId}");
     }
 
-    // CA-4: CodigoSede decidido que no esta entre las candidatas de la franja en conflicto -> 409.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AprobarDia_Retorna409_CuandoElCodigoSedeDecididoNoEsCandidata()
@@ -363,8 +342,6 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-5: decision para una franja SIN conflicto -> 409 (el payload afirma algo que el expediente
-    // contradice).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AprobarDia_Retorna409_CuandoLaDecisionEsParaUnaFranjaSinConflicto()
@@ -396,7 +373,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-6: aprobar un dia ya Aprobado -> 409, re-aprobar es error (las aprobaciones son definitivas).
+    // Las aprobaciones son definitivas: re-aprobar es error.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AprobarDia_Retorna409_CuandoElDiaYaFueAprobado()
@@ -414,9 +391,7 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         segundaRespuesta.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-7 (aval del vacio): aprobar un dia SIN stream previo es valido -- crea el stream con
-    // dia_aprobado como primer evento. Sin arrange de ServiceBus: el punto de esta CA es precisamente
-    // que nunca llego ninguna DepuracionDiaRecibida.
+    // Aval del vacio: sin arrange de ServiceBus a proposito, nunca llego una DepuracionDiaRecibida.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AprobarDia_Retorna204YCreaElStream_CuandoElDiaNoTieneStreamPrevio()
@@ -442,8 +417,6 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
             $"el aval del vacio deberia crear el stream {streamId} con {TipoEventoDiaAprobado} como primer evento");
     }
 
-    // CA-7 contracara: dia sin stream + payload con decisiones -> 409 (el expediente vacio no tiene
-    // ninguna franja que decidir, mismo caso que CA-5).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AprobarDia_Retorna409_CuandoElDiaNoTieneStreamYElPayloadTraeDecisiones()
@@ -464,10 +437,8 @@ public class AprobarDiaSmokeTests(ApiFixture api, ServiceBusFixture serviceBus, 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    // CA-8 (guarda minima): una DepuracionDiaRecibida (foto tardia) que llega DESPUES de aprobar no
-    // agrega evento nuevo al stream -- el timeout corto le da tiempo al consumidor de procesar el
-    // mensaje antes de afirmar la ausencia (ExisteEventoAsync agota el timeout y devuelve false si la
-    // condicion nunca se cumple, no lanza).
+    // ExisteEventoAsync agota el timeout y devuelve false sin lanzar: los 10 s le dan tiempo al
+    // consumidor de procesar la foto tardia antes de afirmar la ausencia.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task AprobarDia_IgnoraFotoTardia_CuandoDepuracionDiaRecibidaLlegaTrasLaAprobacion()

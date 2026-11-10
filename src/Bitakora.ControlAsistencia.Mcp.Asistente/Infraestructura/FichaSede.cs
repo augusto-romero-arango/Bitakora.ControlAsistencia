@@ -1,9 +1,6 @@
 namespace Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 
-/// <summary>
-/// Contrato upstream de GET sedes/fichas, redeclarado aqui (cero referencias a los ensamblados
-/// del BC, CA-1 del issue #502).
-/// </summary>
+/// <summary>Contrato upstream de GET sedes/fichas, redeclarado aqui (cero referencias al BC).</summary>
 public sealed record FichaSede(
     string Id,
     string Codigo,

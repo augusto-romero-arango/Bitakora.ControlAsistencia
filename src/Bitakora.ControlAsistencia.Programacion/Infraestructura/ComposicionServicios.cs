@@ -18,9 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Bitakora.ControlAsistencia.Programacion.Infraestructura;
 
-// Issue #221: composicion del contenedor DI extraida de Program.cs a un metodo testeable. Unica
-// fuente de verdad: Program.cs y el test de composicion (Programacion.Tests) invocan este mismo
-// metodo, asi que un wiring roto (p.ej. el hueco de ITenantContext de #219) no puede
+// Program.cs y el test de composicion invocan este mismo metodo: un wiring roto no puede
 // desincronizarse entre el host real y el guardrail de CI.
 public static class ComposicionServicios
 {
@@ -37,24 +35,15 @@ public static class ComposicionServicios
             isDev,
             options =>
             {
-                // Issue #309: apaga el polling de metricas de profundidad de cola de Wolverine
-                // (PersistenceMetrics.StartPolling, PeriodicTimer de 5s que llama
-                // store.Admin.FetchCountsAsync()). Este Function App aun no emite telemetria (no
-                // llama UseAzureMonitorExporter, issue #308) y esta frio, asi que el polling no
-                // aparece en Application Insights hoy, pero corre igual cada 5s y carga Postgres --
-                // se apaga aqui para que el dominio no quede con la regresion latente esperando a
-                // que se instrumente.
+                // Apaga el polling de metricas de profundidad de cola de Wolverine (PeriodicTimer de 5 s
+                // que llama store.Admin.FetchCountsAsync() y carga Postgres). La durabilidad real
+                // (recovery, scheduled jobs, dead letters) se conserva: DurabilityAgentEnabled y Mode no
+                // se tocan.
                 //
-                // Se conserva la durabilidad real -- recovery, scheduled jobs y dead letters, que
-                // corren en el mismo DurabilityAgent: DurabilityAgentEnabled y Mode no se tocan.
-                //
-                // Va en el callback de AgregarWolverineParaComandosServerless, y no despues de esa
-                // llamada, porque es el hook que el paquete expone sobre WolverineOptions:
-                // Cosmos.EventSourcing.CritterStack 2.3.1 lo corre PRIMERO y despues solo reasigna
-                // Durability.Mode = Solo -- esa reasignacion pisaria en silencio cualquier intento
-                // de tocar Mode desde aqui, pero no toca DurabilityMetricsEnabled (verificado
-                // descompilando el paquete). Que sobreviva no es contrato del paquete: lo sostiene
-                // el guardrail de ComposicionServiciosTests sobre el contenedor real.
+                // Va en este callback porque Cosmos.EventSourcing.CritterStack 2.3.1 lo corre PRIMERO y
+                // despues reasigna Durability.Mode = Solo (pisaria cualquier cambio de Mode hecho aqui),
+                // pero no toca DurabilityMetricsEnabled (verificado descompilando el paquete). Que
+                // sobreviva no es contrato del paquete: lo sostiene el guardrail de ComposicionServiciosTests.
                 options.Durability.DurabilityMetricsEnabled = false;
 
                 options.HabilitarAzureServiceBusParaServerLess(serviceBusConnectionString);
@@ -73,11 +62,10 @@ public static class ComposicionServicios
             });
 
         services.AgregarMartenEventStore();
-        // Tenancy (MEF-ADR-0028 etapa b): identidad ambiente por AsyncLocal, poblada por
-        // TenantContextMiddleware en Program.cs (patron de Cosmos.ControlPlane, MEF-ADR-0032). NO usar
-        // AgregarTenantContextHibrido(): su ProxyTenantContext decide la rama en el constructor
-        // segun IHttpContextAccessor.HttpContext, que es null cuando el grafo de DI lo construye en el
-        // worker aislado -- toda request HTTP caia en la rama de Wolverine y fallaba (hotfix 2026-09-01).
+        // Identidad ambiente por AsyncLocal, poblada por TenantContextMiddleware (Program.cs). NO usar
+        // AgregarTenantContextHibrido(): su ProxyTenantContext decide la rama en el constructor segun
+        // IHttpContextAccessor.HttpContext, que es null en el worker aislado, y toda request HTTP caia en
+        // la rama de Wolverine (CA-ADR-0032).
         services.AgregarTenantResolverControlAsistencia();
         services.AgregarWolverineCommandRouter();
         services.AgregarWolverineEventSender();
@@ -90,38 +78,27 @@ public static class ComposicionServicios
         services.AddScoped<IAlmacenPreferenciasProgramacion, AlmacenPreferenciasProgramacion>();
         services.AddScoped<IAseguradorJornadaPredeterminada, AseguradorJornadaPredeterminada>();
 
-        // Registrar serializacion custom para tipos con constructores privados.
-        // Issue #267: las tres columnas de metadata de evento que exige MEF-ADR-0034 seccion 7
-        // (CorrelationId/CausationId/Headers) ya no se habilitan aqui -- las fija
-        // AgregarConfiguracionMartenComandos desde Cosmos.EventSourcing.CritterStack v2.3.1, y
-        // ComposicionServiciosTests lo verifica sobre el store real del contenedor.
+        // CorrelationId/CausationId/Headers (MEF-ADR-0034 seccion 7) no se habilitan aqui: las fija
+        // AgregarConfiguracionMartenComandos (Cosmos.EventSourcing.CritterStack v2.3.1) y
+        // ComposicionServiciosTests lo verifica sobre el store real.
         services.ConfigureMarten(options =>
         {
-            // Issue #277: registra los tipos de evento persistidos en el EventGraph. No declara
-            // alias -- Marten lo sigue derivando del nombre de clase -- solo garantiza que el
-            // mapping exista antes de la primera lectura, en vez de depender de que un append lo
-            // haya poblado (issue #237 seccion "Consecuencia asumida").
             options.Events.AddEventTypes(IdentidadEventosProgramacion.TiposPersistidos);
 
-            // Par 2 de compatibilidad write-side/read-side (MEF-ADR-0034 seccion 6). Marten aplica
-            // ProjectionDocumentPolicy -- mt_version bigint, incondicional
-            // (https://martendb.io/documents/concurrency) -- a todo documento target de una
-            // proyeccion registrada. FichaTurnoProjection vive en el worker (CA-ADR-0029), asi que
-            // este store no puede registrarla y sin esta linea esperaria mt_version uuid sobre la
-            // MISMA tabla fisica: "alter column" en CADA request, rechazado por Postgres con 42804,
-            // y los GET en 500 permanente. El par de config-tests congela ambos literales.
+            // Par 2 de compatibilidad write-side/read-side (MEF-ADR-0034 seccion 6): Marten aplica
+            // ProjectionDocumentPolicy (mt_version bigint, https://martendb.io/documents/concurrency) a
+            // todo documento target de una proyeccion registrada. Las proyecciones viven en el worker, asi
+            // que sin estas lineas este store esperaria mt_version uuid sobre la MISMA tabla: "alter
+            // column" en cada request, rechazado por Postgres con 42804, y los GET en 500 permanente. El
+            // par de config-tests congela ambos literales.
             options.Schema.For<FichaTurno>().UseNumericRevisions(true);
 
-            // Issue #1286: par 2 para CuadroDeTurnos, mismo motivo.
             options.Schema.For<CuadroDeTurnos>().UseNumericRevisions(true);
 
-            // Issue #755: par 2 para AusenciaVigente (ListarAusenciasDelEquipo), mismo motivo.
             options.Schema.For<AusenciaVigente>().UseNumericRevisions(true);
 
-            // Issue #855: par 2 para LimitesDeJornada (ListarLimitesDeJornada), mismo motivo.
             options.Schema.For<LimitesDeJornada>().UseNumericRevisions(true);
 
-            // Par 2 para BorradorDeProgramacion (ListarBorradoresDeProgramacion), mismo motivo.
             options.Schema.For<BorradorDeProgramacion>().UseNumericRevisions(true);
 
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
@@ -141,18 +118,15 @@ public static class ComposicionServicios
                 .AddSource("Marten")
                 .AddSource("Bitakora.ControlAsistencia.Programacion.*"));
 
-        // Serializacion JSON global: camelCase hacia el cliente, case-insensitive en lectura
         services.Configure<JsonSerializerOptions>(options =>
         {
             options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.PropertyNameCaseInsensitive = true;
         });
 
-        // Validacion de requests
         services.AddScoped<IRequestValidator, RequestValidator>();
         services.AddValidatorsFromAssemblyContaining<IProgramacionAssemblyMarker>();
 
-        // Issue #399: readiness gate del event store, consumido por ReadyCheck (GET /api/ready).
         services.AddScoped<IEventStoreReadinessProbe, EventStoreReadinessProbe>();
 
         return services;

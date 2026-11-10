@@ -18,9 +18,8 @@ internal sealed record PlantillaCreada(
 
 internal sealed record ResultadoCreacion(string? Rechazo, PlantillaCreada? Plantilla);
 
-// Nucleo de creacion compartido por crear_plantilla y crear_plantilla_rotativa (MEF-ADR-0018): lee la
-// Jornada y resuelve turnos por id y franja en linea antes de escribir, hace el POST y un PUT por dia en
-// secuencia (tocan el mismo stream); el rechazo de un dia no detiene al resto (CA-ADR-0030).
+// Nucleo compartido por crear_plantilla y crear_plantilla_rotativa. Los PUT por dia van en secuencia
+// porque tocan el mismo stream; el rechazo de un dia no detiene al resto (CA-ADR-0030).
 internal sealed class CreadorDePlantillaTurnos(
     ProgramacionApi programacion, ResolutorTurnoPorId resolutorPorId, ResolutorTurnoPorNombre resolutor)
 {

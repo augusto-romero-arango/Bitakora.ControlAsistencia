@@ -30,7 +30,6 @@ public static class Polling
 
             await Task.Delay(remaining < delay ? remaining : delay);
 
-            // Backoff simple: incrementar 50% hasta max 5s
             if (delay < TimeSpan.FromSeconds(5))
                 delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * 1.5);
         }

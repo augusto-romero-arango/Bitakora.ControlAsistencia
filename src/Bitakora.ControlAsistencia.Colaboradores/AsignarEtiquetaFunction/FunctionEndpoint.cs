@@ -6,19 +6,8 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.AsignarEtiquetaFunction;
 
-// Issue #376 (MEF-ADR-0043 paso 2): endpoint HTTP PUT para asignar (o sobrescribir por completo)
-// la etiqueta de una categoria -- reemplazo del VO atomico Etiqueta, direccionable por categoria.
-// MEF-ADR-0006: [Function("AsignarEtiqueta")]; carpeta CON sufijo "Function" -- mismo criterio que
-// los demas comandos del ciclo de vida.
-// Route = "colaboradores/{id}/etiquetas/{categoria}" (kebab-case minusculo, MEF-ADR-0043 seccion 3):
-// {id} es Identificacion.ToString() ("CC-79543210", issue #381) -- se parsea UNA vez via
-// IdentificacionDeRuta.TryParsear (issue #395), el sitio unico que centraliza el par "parsear el
-// {id} de ruta + 400 explicito si falla" que MEF-ADR-0037 seccion 2 exige, compartido con los demas
-// endpoints del dominio que reciben {id}. {categoria} viaja crudo (sin normalizar en el endpoint
-// -- Etiqueta.Crear normaliza internamente, Tell-don't-Ask, mismo criterio que el resto del ciclo
-// de vida). El body se redujo a { "valor": "..." } (AsignarEtiquetaBody); el endpoint compone el
-// comando interno AsignarEtiqueta (que conserva sus 4 campos primitivos, MEF-ADR-0039 decision 6)
-// a partir de {id} + {categoria} + Valor.
+// PUT: reemplazo completo del VO atomico Etiqueta, direccionable por categoria (MEF-ADR-0043 paso 2).
+// {categoria} viaja cruda: la normaliza Etiqueta.Crear.
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AsignarEtiqueta")]
@@ -32,12 +21,8 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         if (!IdentificacionDeRuta.TryParsear(id, out var identificacion, out var errorDeId))
             return errorDeId;
 
-        // MEF-ADR-0004 capa 1 (forma en el borde -> 400): {categoria} llega cruda de la ruta y no la
-        // cubre ningun validator -- el body reducido solo trae Valor. Un segmento en blanco ("%20")
-        // SI hace match con la plantilla y, sin esta guarda, llegaria hasta Etiqueta.Crear, cuyo
-        // ArgumentException nadie traduce (500 en vez de 400). Es la regla NotEmpty que
-        // AsignarEtiquetaValidator tenia sobre Categoria, reubicada al unico sitio que ve la ruta;
-        // la normalizacion sigue viviendo en el VO (Tell-don't-Ask, MEF-ADR-0012).
+        // Ningun validator cubre {categoria}: un segmento en blanco ("%20") hace match con la ruta y,
+        // sin esta guarda, llega a Etiqueta.Crear, cuyo ArgumentException nadie traduce (500, no 400).
         if (string.IsNullOrWhiteSpace(categoria))
             return new BadRequestObjectResult("La categoria de la ruta no puede estar en blanco");
 

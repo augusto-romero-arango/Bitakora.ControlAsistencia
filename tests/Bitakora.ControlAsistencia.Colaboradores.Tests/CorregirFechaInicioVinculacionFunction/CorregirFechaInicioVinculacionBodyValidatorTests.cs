@@ -1,10 +1,3 @@
-// Issue #379 (MEF-ADR-0043 paso 4, CA-4): validacion de forma del body reducido (FechaCorregida)
-// en el borde. Reemplaza a CorregirFechaInicioVinculacionValidatorTests (eliminado junto con
-// CorregirFechaInicioVinculacionValidator, que vivia en CommandHandler/ y validaba el comando
-// completo): TipoIdentificacion/NumeroIdentificacion ya no llegan en el body -- se validan en el
-// FunctionEndpoint via Identificacion.Parsear (ver FunctionEndpointTests). Patron de referencia:
-// TerminarVinculacionBodyValidatorTests (issue #379).
-
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.CorregirFechaInicioVinculacionFunction;
 using FluentValidation.Results;
@@ -21,7 +14,6 @@ public class CorregirFechaInicioVinculacionBodyValidatorTests
     private Task<ValidationResult> Validar(CorregirFechaInicioVinculacionBody body) =>
         _validator.ValidateAsync(body, TestContext.Current.CancellationToken);
 
-    // Camino feliz -- el unico campo del body es correcto
     [Fact]
     public async Task Validar_Aprueba_CuandoFechaCorregidaEsValida()
     {
@@ -30,8 +22,7 @@ public class CorregirFechaInicioVinculacionBodyValidatorTests
         resultado.IsValid.Should().BeTrue();
     }
 
-    // CA-4: FechaCorregida con el valor default de DateOnly produce 400 -- REQUERIDA, sin default
-    // del servidor (doctrina bitemporal del BC: el tiempo de los hechos viene del cliente).
+    // Requerida, sin default del servidor: el tiempo de los hechos viene del cliente (doctrina bitemporal).
     [Fact]
     public async Task Validar_RechazaFechaCorregida_CuandoEsDefault()
     {
@@ -42,8 +33,7 @@ public class CorregirFechaInicioVinculacionBodyValidatorTests
             e.PropertyName == nameof(CorregirFechaInicioVinculacionBody.FechaCorregida));
     }
 
-    // FechaCorregida futura o pasada DEBE seguir siendo valida en la capa de forma -- las reglas
-    // de coherencia interna, no-solape y de codigo son del aggregate, nunca del validator.
+    // Las reglas de coherencia, no-solape y codigo son del aggregate, nunca del validator.
     [Fact]
     public async Task Validar_Aprueba_CuandoFechaCorregidaEsFutura()
     {

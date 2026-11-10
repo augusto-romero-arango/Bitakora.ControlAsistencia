@@ -1,12 +1,7 @@
-// Guards del borde HTTP (415/400/422) de la Function QUERY, la unica capa que corre en CI: el smoke
-// test que los cubre end-to-end depende del deploy y el test de composicion solo verifica wiring.
-//
-// A diferencia del precedente ListarAsistenciasDiarias, CodigosColaborador y SedeId son opcionales:
-// su ausencia no produce ningun 422 propio.
-//
-// El IDocumentStore se pasa null! a proposito: los tres guards deben retornar ANTES de abrir la
-// QuerySession, asi que mover la apertura de sesion por encima de ellos rompe estos tests con
-// NullReferenceException en vez de pasar inadvertido.
+// El IDocumentStore va null! a proposito: los guards (415/400/422) deben retornar antes de abrir la
+// QuerySession; si la apertura sube por encima de ellos, estos tests fallan con NullReferenceException.
+// CodigosColaborador y SedeId son opcionales (a diferencia de ListarAsistenciasDiarias): su ausencia
+// no produce ningun 422.
 
 using System.Text;
 using AwesomeAssertions;

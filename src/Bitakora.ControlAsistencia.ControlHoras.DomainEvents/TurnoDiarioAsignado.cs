@@ -4,20 +4,10 @@ using System.Text.Json.Serialization.Metadata;
 namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 
 /// <summary>
-/// Evento de event sourcing que registra la asignacion de un turno diario al ControlDiario.
-/// Se persiste en el stream de ControlDiarioAggregateRoot y no cruza el bus.
-/// ADR-0024: evento del aggregate (categoria event-sourcing), sin marker de bus.
+/// Asignacion de un turno diario al ControlDiario. Se persiste en el stream de
+/// ControlDiarioAggregateRoot y no cruza el bus.
 /// </summary>
-// HU-12: evento de event sourcing del aggregate ControlDiario
-// CA-5: contiene InformacionColaborador, Fecha, DetalleTurno y SolicitudId (trazabilidad)
-// Issue #322: InformacionColaborador y DetalleTurno dejan de ser tipos de PublicEvents/PrivateEvents
-// -- ahora son ColaboradorProgramado y TurnoDiario, propios de este ensamblado (payload por rol,
-// CA-ADR-0029 decision #5). Issue #340: ese payload paso de llamarse Empleado a
-// ColaboradorProgramado (termino proscrito por #330) -- solo el TIPO, sin tocar claves JSON.
-// Issue #401: la propiedad InformacionEmpleado paso a InformacionColaborador. Aqui SI cambia la
-// clave JSON persistida en mt_events, sin mapeo: los streams de dev se purgan en el mismo
-// despliegue que integra el cambio (MEF-ADR-0036 seccion 5). MEF-ADR-0036: el alias del evento
-// no se toca -- deriva del nombre de clase del EVENTO, que no se renombra.
+// El alias del evento deriva del nombre de esta clase, que no se renombra (MEF-ADR-0036).
 public sealed class TurnoDiarioAsignado
 {
     public string Id { get; private set; } = null!;
@@ -43,11 +33,9 @@ public sealed class TurnoDiarioAsignado
         Jornada = jornada;
     }
 
-    // Constructor para Marten/serializacion
+    // Solo para Marten/STJ: ConfigurarSerializacion lo invoca por reflexion.
     private TurnoDiarioAsignado() { }
 
-    // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
-    // y propiedades con private set. Ver ADR-0013 y TurnoCreadoSerializacionTests.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(TurnoDiarioAsignado)

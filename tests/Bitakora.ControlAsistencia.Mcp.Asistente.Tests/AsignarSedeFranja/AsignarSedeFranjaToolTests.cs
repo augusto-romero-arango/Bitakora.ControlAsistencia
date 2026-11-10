@@ -23,8 +23,6 @@ public class AsignarSedeFranjaToolTests
 
     private sealed record Fakes(AsignarSedeFranjaTool Tool, HandlerPorRuta Programacion, HandlerEnlatado Sedes);
 
-    // Composicion por defecto del camino feliz -- cada test sobreescribe unicamente el fixture que
-    // le interesa via argumentos nombrados, mismo patron de consolidacion que las demas tools.
     private static Fakes CrearTool(
         string? turnosJson = null,
         HttpStatusCode statusTurnos = HttpStatusCode.OK,
@@ -54,14 +52,12 @@ public class AsignarSedeFranjaToolTests
         CancellationToken ct = default) =>
         tool.Run(context: null!, turnoId: turnoId, franja: franja, codigoSede: codigoSede, ct: ct);
 
-    // CA-3: ningun rechazo local debe tocar ninguno de los 2 dominios.
     private static void AsegurarNingunaRequest(Fakes fakes)
     {
         fakes.Programacion.Requests.Should().BeEmpty();
         fakes.Sedes.UltimaRequest.Should().BeNull();
     }
 
-    // CA-1: con codigo_sede, la tool consulta Sedes, resuelve el turno y envia la sede resuelta.
     [Fact]
     public async Task AsignarSedeFranja_EnviaLaSedeResuelta_CuandoLlegaCodigoSede()
     {
@@ -85,7 +81,6 @@ public class AsignarSedeFranjaToolTests
         json["nota"]!.GetValue<string>().Should().Be(AsignarSedeFranjaTool.Mensajes.NotaVisibilidadEventual);
     }
 
-    // CA-2: sin codigo_sede, no se consulta Sedes y el body/eco viajan sin la clave sede.
     [Fact]
     public async Task AsignarSedeFranja_RetiraLaSedeSinConsultarSedes_CuandoNoLlegaCodigoSede()
     {
@@ -139,8 +134,6 @@ public class AsignarSedeFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-3: el detalle por identidad responde 404 -> frase con el id que remite a buscar_turnos,
-    // sin lista de nombres y sin invocar el comando.
     [Fact]
     public async Task AsignarSedeFranja_RespondeTurnoNoExisteSinPost_Cuando404EnElDetalle()
     {
@@ -153,8 +146,8 @@ public class AsignarSedeFranjaToolTests
         fakes.Programacion.Requests.Should().NotContain(r => r.Metodo == HttpMethod.Post);
     }
 
-    // CA-3: FranjaSinSede es el 409 propio del dominio al retirar una franja que ya no tiene sede
-    // prearmada -- la tool solo lo traduce a texto, sin logica propia.
+    // FranjaSinSede es el 409 propio del dominio al retirar una franja que ya no tiene sede prearmada:
+    // la tool solo lo traduce a texto.
     [Fact]
     public async Task AsignarSedeFranja_TraduceElRechazoDelDominio_Cuando409PorFranjaSinSede()
     {
@@ -189,7 +182,6 @@ public class AsignarSedeFranjaToolTests
             string.Format(AsignarSedeFranjaTool.Mensajes.RechazoDelDominio, Validacion400Json));
     }
 
-    // CA-2: un turno_id que no es GUID responde el mensaje del .resx con el valor recibido, sin backend.
     [Fact]
     public async Task AsignarSedeFranja_RechazaSinLlamarANingunDominio_CuandoTurnoIdNoEsUnGuidConNombre()
     {
@@ -214,7 +206,6 @@ public class AsignarSedeFranjaToolTests
         AsegurarNingunaRequest(fakes);
     }
 
-    // CA-5: la tool lee el detalle por identidad, nunca el catalogo completo.
     [Fact]
     public async Task AsignarSedeFranja_LeeElDetalleDelTurnoPorId_SinConsultarElCatalogo()
     {

@@ -1,21 +1,10 @@
-// HU-348: Value object de lista cerrada TipoIdentificacion (Resolucion 2388/2016, PILA).
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Colaboradores.DomainEvents;
 
 namespace Bitakora.ControlAsistencia.Colaboradores.Tests.ValueObjects;
 
-/// <summary>
-/// TipoIdentificacion es una lista cerrada de instancias estaticas (CC, CE, TI, PA, PT) -- NUNCA
-/// un enum C#: lo persistido y lo que compone claves de stream es siempre el codigo literal.
-/// Interfaz publica: instancias estaticas CC/CE/TI/PA/PT, Desde(codigo), ToString().
-/// Issue #371: Desde() ahora normaliza (trim + MAYUSCULAS invariante) antes del lookup -- el
-/// conocimiento de como normalizar la entrada pertenece al VO (Tell-don't-Ask, MEF-ADR-0012), no a
-/// los 16 callers de src/Colaboradores/ que antes repetian Trim().ToUpperInvariant().
-/// </summary>
 public class TipoIdentificacionTests
 {
-    // ---------- CA-2: Desde() rehidrata desde el codigo persistido ----------
-
     [Fact]
     public void Desde_RetornaInstanciaCC_CuandoCodigoEsCC()
     {
@@ -65,10 +54,8 @@ public class TipoIdentificacionTests
             .WithMessage($"*{TipoIdentificacion.Mensajes.CodigoNoReconocido}*");
     }
 
-    // Desde() es el boundary de rehidratacion desde el payload persistido: un "tipo": null en el
-    // JSON debe fallar con el mensaje de dominio, no con el ArgumentNullException que el
-    // diccionario lanzaria por su cuenta (que no dice nada del contrato roto). El null-check se
-    // evalua ANTES de normalizar -- no se puede invocar Trim() sobre null.
+    // Un null en el payload debe fallar con el mensaje de dominio, no con el ArgumentNullException
+    // del diccionario.
     [Fact]
     public void Desde_LanzaArgumentException_CuandoCodigoEsNull()
     {
@@ -78,8 +65,6 @@ public class TipoIdentificacionTests
             .WithMessage($"*{TipoIdentificacion.Mensajes.CodigoNoReconocido}*");
     }
 
-    // CA-2: la cadena vacia normaliza a "" (Trim() de "" sigue siendo ""), que no esta en la lista
-    // cerrada -- sigue rechazada, no colapsa a ninguna instancia por accidente.
     [Fact]
     public void Desde_LanzaArgumentException_CuandoCodigoEsVacio()
     {
@@ -89,8 +74,6 @@ public class TipoIdentificacionTests
             .WithMessage($"*{TipoIdentificacion.Mensajes.CodigoNoReconocido}*");
     }
 
-    // CA-2: solo espacios normaliza (Trim) a "" -- mismo resultado que la cadena vacia, sigue
-    // rechazada.
     [Fact]
     public void Desde_LanzaArgumentException_CuandoCodigoEsSoloEspacios()
     {
@@ -100,14 +83,7 @@ public class TipoIdentificacionTests
             .WithMessage($"*{TipoIdentificacion.Mensajes.CodigoNoReconocido}*");
     }
 
-    // ---------- Issue #371 (CA-1): Desde() normaliza -- supersede el racional de #348 ----------
-    // #348 argumentaba que aceptar "cc" abriria dos representaciones para la misma identidad y dos
-    // claves de stream distintas. Ese racional no se sostiene con el diseno actual: Desde() nunca
-    // almacena el input, siempre retorna la instancia canonica de la lista cerrada (_codigo es
-    // siempre "CC"), y la clave de stream se compone desde esa instancia canonica -- nunca desde el
-    // input crudo. Decision de planning (2026-08-11): un solo Desde() que normaliza, sin factory
-    // estricta/tolerante adicional.
-
+    // Normalizar no abre dos claves de stream: Desde() siempre retorna la instancia canonica.
     [Fact]
     public void Desde_RetornaInstanciaCC_CuandoCodigoTieneEspaciosYMinusculas()
     {
@@ -132,8 +108,7 @@ public class TipoIdentificacionTests
         resultado.Should().BeSameAs(TipoIdentificacion.PT);
     }
 
-    // ---------- ToString(): el codigo literal, contrato de persistencia y de clave de stream ----------
-
+    // ToString() es el codigo literal: contrato de persistencia y de la clave de stream.
     [Fact]
     public void ToString_RetornaCodigoLiteral_CuandoInstanciaEsCC()
     {

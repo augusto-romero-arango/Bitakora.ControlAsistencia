@@ -14,8 +14,6 @@ public partial class AsignarEtiquetaCommandHandler : ICommandHandlerAsync<Asigna
 
     public async Task HandleAsync(AsignarEtiqueta command, CancellationToken ct = default)
     {
-        // Parseo tipado unico del borde (MEF-ADR-0037 seccion 2), mismo criterio que
-        // CorregirFechaInicioVinculacionCommandHandler/IniciarVinculacionCommandHandler.
         var tipo = TipoIdentificacion.Desde(command.TipoIdentificacion);
         var identificacion = Identificacion.Crear(tipo, command.NumeroIdentificacion);
 

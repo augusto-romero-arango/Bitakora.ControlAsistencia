@@ -1,7 +1,5 @@
-// Issue #456: smoke tests del endpoint POST sedes (primer comando del ciclo de vida de
-// SedeAggregateRoot). Comando event-sourcing puro sin consumidores downstream (CA-ADR-0030):
-// SedeRegistrada no cruza el bus en este issue, asi que no hay ServiceBusFixture -- la unica
-// verificacion black-box de los efectos del handler es leer mt_events via PostgresFixture.
+// SedeRegistrada no cruza el bus (sin consumidores downstream, CA-ADR-0030): sus efectos se
+// verifican leyendo mt_events.
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -19,13 +17,11 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
     private const string TipoEventoSedeRegistrada = "sede_registrada";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
-    // Prefijo "TEST-" en vez de "[TEST] ": Codigo esta sujeto al charset URL-safe (CA-4) y "[", "]"
-    // y el espacio quedan fuera de ese set -- el prefijo de datos de prueba va en Nombre, que no
-    // tiene esa restriccion.
+    // "TEST-" y no "[TEST] ": "[", "]" y el espacio no son URL-safe en Codigo; el prefijo de datos de
+    // prueba va en Nombre, que no tiene esa restriccion.
     private static string NuevoCodigo() => $"TEST-{Guid.CreateVersion7()}";
 
-    // Recomputo local del streamId (oraculo independiente, MEF-ADR-0002): no se referencia
-    // SedeAggregateRoot.ComputarStreamId desde el smoke test.
+    // Recomputo local del streamId: oraculo independiente, sin referenciar ComputarStreamId.
     private static string ComputarStreamId(string codigo) => $"s:{codigo}";
 
     private static object PayloadRegistro(
@@ -48,8 +44,6 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // CA-1: codigo y nombre validos, con ciudad y direccion -> 201 con Location y SedeRegistrada
-    // persistido con los cuatro campos.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarSede_Retorna201YPersisteSedeRegistrada_CuandoCodigoYNombreSonValidos()
@@ -82,8 +76,6 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         evento.GetProperty("Direccion").GetString().Should().Be("Calle 1 # 2-3");
     }
 
-    // CA-2: Ciudad y Direccion son opcionales -- el registro sin ellas persiste el evento con esos
-    // campos nulos.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarSede_Retorna201YPersisteCiudadYDireccionNulos_CuandoNoLlegan()
@@ -112,8 +104,7 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         evento.GetProperty("Direccion").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
-    // CA-5: codigo ya registrado -> 409, sin un segundo sede_registrada en el stream (resultado
-    // declinado, CA-ADR-0030 -- ningun evento de fallo persistido).
+    // Resultado declinado (CA-ADR-0030): ningun evento de fallo persistido.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarSede_Retorna409YNoDuplicaEvento_CuandoCodigoYaExiste()
@@ -146,7 +137,6 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
             "el segundo registro se rechazo con 409: no debe haber escrito un segundo sede_registrada");
     }
 
-    // CA-3: Codigo vacio -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarSede_Retorna400_CuandoCodigoEsVacio()
@@ -159,7 +149,6 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-3: Nombre vacio -> 400.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarSede_Retorna400_CuandoNombreEsVacio()
@@ -172,8 +161,8 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-4: ":" esta explicitamente fuera del set permitido -- es el separador de la anatomia del
-    // stream (CA-ADR-0031, "s:{codigo}"). Un codigo con ":" rompe el split de esa anatomia.
+    // ":" es el separador de la anatomia del stream (CA-ADR-0031, "s:{codigo}"): un codigo con ":"
+    // rompe su split.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarSede_Retorna400_CuandoCodigoContieneDosPuntos()
@@ -186,8 +175,7 @@ public class RegistrarSedeSmokeTests(ApiFixture api, PostgresFixture postgres)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    // CA-4: cualquier otro caracter fuera del set unreserved (espacio, aqui) -> 400, nunca
-    // normalizacion silenciosa (MEF-ADR-0043 seccion 1.2).
+    // Fuera del set unreserved -> 400, nunca normalizacion silenciosa (MEF-ADR-0043 seccion 1.2).
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RegistrarSede_Retorna400_CuandoCodigoContieneEspacio()

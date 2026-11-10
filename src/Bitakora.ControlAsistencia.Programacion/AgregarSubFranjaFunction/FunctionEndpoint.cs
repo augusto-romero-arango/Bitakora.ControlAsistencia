@@ -6,9 +6,8 @@ using Microsoft.Azure.Functions.Worker;
 
 namespace Bitakora.ControlAsistencia.Programacion.AgregarSubFranjaFunction;
 
-// Accion de negocio con verbo propio: la sub-franja es un VO sin identidad propia, direccionada
-// por franja + hora de inicio (MEF-ADR-0043 paso 4) -- POST "{recurso}:{verbo}". El {id} de ruta
-// se valida a mano (MEF-ADR-0037 seccion 2); el body lo valida IRequestValidator.
+// POST "{recurso}:{verbo}": la sub-franja es un VO sin identidad propia, direccionada por franja + hora
+// de inicio (MEF-ADR-0043 paso 4).
 public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter commandRouter)
 {
     [Function("AgregarSubFranja")]
@@ -25,10 +24,8 @@ public class FunctionEndpoint(IRequestValidator requestValidator, ICommandRouter
         if (error is not null)
             return error;
 
-        // Enum.Parse lanzaria fuera del try (500) si el body llegara con un tipo no parseable:
-        // el 400 canonico de este caso lo produce AgregarSubFranjaBodyValidator, y esta guarda
-        // reemite su mismo mensaje .resx para que el borde nunca dependa de que el validator este
-        // registrado (MEF-ADR-0037 seccion 2: parseo tipado con 400 explicito).
+        // Enum.Parse lanzaria fuera del try (500): esta guarda reemite el 400 del validator para que el
+        // borde no dependa de que el validator este registrado.
         if (!Enum.TryParse<TipoSubFranja>(body!.Tipo, ignoreCase: true, out var tipo))
             return new BadRequestObjectResult(AgregarSubFranjaBodyValidator.Mensajes.TipoDesconocido);
 

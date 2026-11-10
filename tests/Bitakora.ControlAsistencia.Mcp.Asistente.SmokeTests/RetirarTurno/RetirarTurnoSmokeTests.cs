@@ -25,8 +25,7 @@ public class RetirarTurnoSmokeTests(McpFixture mcp)
             .Should().StartWith("turno_id debe ser el id del turno");
     }
 
-    // CA-3: turno_id inexistente -> TurnoNoExiste (404 del detalle real de Programacion, sin DELETE),
-    // remite a buscar_turnos.
+    // 404 del detalle real de Programacion, sin DELETE.
     [Fact]
     [Trait("Category", "Smoke")]
     public async Task RetirarTurno_RespondeTurnoNoExiste_CuandoElTurnoIdNoExiste()

@@ -7,7 +7,6 @@ namespace Bitakora.ControlAsistencia.ControlHoras.DomainEvents;
 // exacto de esa foto porque la evidencia vale por lo que la foto decia, no solo por haber llegado.
 // Se persiste en el mismo stream que DiaAprobado y el aggregate no la incorpora -- Estado y valores
 // decididos quedan intactos.
-// MEF-ADR-0024: evento del aggregate, sin marker de bus -- consumidores: ninguno todavia.
 public sealed class DepuracionPosAprobacionRecibida
 {
     // Id es el stream key de DiaCalculado, tal como lo computa DiaCalculadoAggregateRoot.ComputarStreamId.
@@ -49,8 +48,6 @@ public sealed class DepuracionPosAprobacionRecibida
     // Constructor privado para Marten/serializacion
     private DepuracionPosAprobacionRecibida() { }
 
-    // Configuracion de serializacion STJ/Marten: permite deserializar con constructor privado
-    // y propiedades con private set. Ver MEF-ADR-0012 y DepuracionPosAprobacionRecibidaSerializacionTests.
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var ctor = typeof(DepuracionPosAprobacionRecibida)

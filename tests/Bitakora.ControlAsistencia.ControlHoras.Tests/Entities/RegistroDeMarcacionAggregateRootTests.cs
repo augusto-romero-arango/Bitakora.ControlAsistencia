@@ -1,7 +1,5 @@
-// Issue #419: renotacion del stream ID de RegistroDeMarcacionAggregateRoot a "rdm:{codigo}:{timestamp}",
-// aplicando la heuristica de anatomia de CA-ADR-0031 seccion 2. Tests directos sobre los dos metodos
-// estaticos puros del aggregate -- sin harness de event sourcing, porque ninguno de los dos requiere
-// stream ni evento.
+// Tests directos sobre los dos metodos estaticos puros del aggregate: ninguno requiere stream ni
+// evento, asi que no usan el harness de event sourcing.
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.ControlHoras.Entities;
@@ -10,7 +8,6 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.Entities;
 
 public class RegistroDeMarcacionAggregateRootTests
 {
-    // CA-1: ejemplo exacto del issue.
     [Fact]
     public void ComputarStreamId_ProduceNotacionConPrefijoRdmYTimestampBasico()
     {
@@ -20,8 +17,8 @@ public class RegistroDeMarcacionAggregateRootTests
         streamId.Should().Be("rdm:ABC123:20260819T143005");
     }
 
-    // CA-2 / CA-ADR-0031 seccion 2 paso 5: la clave vigente (ISO extendido) falla este test porque la
-    // hora aporta sus propios ':'; la notacion objetivo (ISO basico) lo pasa por construccion.
+    // CA-ADR-0031 seccion 2 paso 5: en ISO extendido la hora aportaria sus propios ':'; el ISO basico
+    // lo evita por construccion.
     [Fact]
     public void ComputarStreamId_ProduceClaveDivisibleEnTresPartes_AlHacerSplitPorElSeparador()
     {
@@ -36,8 +33,6 @@ public class RegistroDeMarcacionAggregateRootTests
         partes[2].Should().Be("20260315T080900");
     }
 
-    // CA-3: el comportamiento de EsComponenteValidoDeStreamId no cambia con la renotacion -- sigue
-    // rechazando codigos que contengan ':', el separador vigente.
     [Fact]
     public void EsComponenteValidoDeStreamId_Rechaza_CuandoCodigoContieneSeparador()
     {

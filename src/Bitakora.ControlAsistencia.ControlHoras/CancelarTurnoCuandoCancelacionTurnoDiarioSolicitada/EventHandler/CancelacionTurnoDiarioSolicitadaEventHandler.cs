@@ -9,10 +9,8 @@ using ResumenColaborador = Bitakora.ControlAsistencia.PrivateEvents.Colaboradore
 
 namespace Bitakora.ControlAsistencia.ControlHoras.CancelarTurnoCuandoCancelacionTurnoDiarioSolicitada.EventHandler;
 
-// El evento privado es espejo directo del hecho a registrar: se consume sin comando intermedio
-// (MEF-ADR-0024 decision #8). A diferencia del handler de asignacion, el ramal "stream no existe"
-// NO inicia stream -- es no-op silencioso, sin evento de constancia: la auditoria del acto quedo
-// en Programacion.
+// A diferencia del handler de asignacion, si el stream no existe no se inicia: es no-op silencioso,
+// sin evento de constancia, porque la auditoria del acto quedo en Programacion.
 public class CancelacionTurnoDiarioSolicitadaEventHandler
     : IPrivateEventHandlerAsync<CancelacionTurnoDiarioSolicitada>
 {
@@ -37,9 +35,8 @@ public class CancelacionTurnoDiarioSolicitadaEventHandler
 
         var control = (await _eventStore.GetAggregateRootAsync<ControlDiarioAggregateRoot>(streamId, ct))!;
 
-        // El evento llega con los tipos de PrivateEvents y TurnoDiarioCancelado persiste los de
-        // ControlHoras.DomainEvents. El mapeo vive aqui porque esta Function App es el unico
-        // proyecto que ve las tres islas de eventos (CA-ADR-0029 decision #5, payload por rol).
+        // El mapeo PrivateEvents -> DomainEvents vive aqui porque esta Function App es el unico
+        // proyecto que ve las islas de eventos (CA-ADR-0029 decision #5).
         var evento = TurnoDiarioCancelado.Crear(
             streamId, MapearColaboradorProgramado(@event.Colaborador), @event.Fecha, @event.SolicitudId);
 

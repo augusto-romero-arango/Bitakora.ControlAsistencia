@@ -1,7 +1,5 @@
-// Issue #319: Tests de contrato IEquatable para TurnoProgramado (record propio de
-// Programacion.DomainEvents, tres islas). Equals/GetHashCode propios comparan FranjasOrdinarias
-// POR VALOR (SequenceEqual) y EXCLUYEN Descripcion (dato derivado, no identidad del turno) --
-// mismo criterio que DetalleTurno (issue #288).
+// Equals/GetHashCode propios comparan FranjasOrdinarias POR VALOR (SequenceEqual) y EXCLUYEN
+// Descripcion (dato derivado, no identidad del turno).
 
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
@@ -31,8 +29,6 @@ public class TurnoProgramadoIgualdadTests : IgualdadTestBase<TurnoProgramado>
             new TurnoProgramado("Turno Manana", [FranjaOrdinaria()], "Turno Manana (06:00-14:00)", 0, true));
     }
 
-    // CA-1: dos instancias que difieren SOLO en Descripcion son iguales (dato derivado, no identidad).
-
     [Fact]
     public void Equals_RetornaTrue_CuandoSoloDescripcionEsDiferente()
     {
@@ -50,9 +46,6 @@ public class TurnoProgramadoIgualdadTests : IgualdadTestBase<TurnoProgramado>
 
         a.GetHashCode().Should().Be(b.GetHashCode());
     }
-
-    // Bug latente evitado (mismo patron que DetalleTurno, issue #129/#288): dos TurnoProgramado
-    // con franjas EQUIVALENTES en listas DISTINTAS son iguales -- SequenceEqual, no referencia.
 
     [Fact]
     public void Equals_RetornaTrue_CuandoFranjasSonInstanciasDeListaDiferentesConMismoContenido()
