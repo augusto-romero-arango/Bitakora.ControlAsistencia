@@ -5,8 +5,6 @@ using Bitakora.ControlAsistencia.Programacion.ListarAusenciasColaborador;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.ListarAusenciasColaborador;
 
-// Los tramos tras cancelaciones parciales (CA-1) dependen de AusenciaCancelada (#744), que aun no
-// existe en el aggregate: aqui se cubre la forma de la vista con los eventos disponibles.
 public class AusenciasColaboradorListarAusenciasVigentesTests
 {
     private static readonly ColaboradorProgramado Ana = new("CC-1", "E001", "Ana");

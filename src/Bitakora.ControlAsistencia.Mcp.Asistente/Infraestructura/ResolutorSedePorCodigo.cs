@@ -53,9 +53,9 @@ public sealed record ResultadoResolucionSede(
 {
     /// <summary>
     /// El mensaje que la tool debe devolver por el motivo del rechazo, o null si la sede se
-    /// resolvio. Recibe las plantillas del .resx de la tool (MEF-ADR-0009) en vez de tenerlas:
-    /// asi el mapeo motivo -> mensaje es exhaustivo en un solo lugar, y un motivo nuevo rompe la
-    /// compilacion de cada consumidora en vez de caer en el mensaje equivocado.
+    /// resolvio. Recibe las plantillas del .resx de la tool (MEF-ADR-0009) en vez de tenerlas.
+    /// Un motivo nuevo sin rama aqui tambien devuelve null, como si la sede se hubiera resuelto:
+    /// agregale su rama y su plantilla.
     /// </summary>
     public string? MensajeDelMotivo(string codigo, string noExiste, string inactiva) =>
         Motivo switch

@@ -6,10 +6,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 public class ServiceBusFixture : IAsyncLifetime
 {
-    // Claves de wire verificadas por decompilacion: Wolverine 6.16.0 mapea Envelope.TenantId a "tenant-id"
-    // y Cosmos.MultiTenancy.CritterStack lee "user_id" y "organization_membership_id" de Envelope.Headers.
-    // Viajan en ApplicationProperties, no en los headers HTTP. Hoy quedan inertes: los dominios entran por
-    // [ServiceBusTrigger] y nadie las lee del mensaje entrante.
+    // Deben casar con las claves que TenantContextMiddleware lee de ApplicationProperties: "tenant-id"
+    // (la de Wolverine para Envelope.TenantId) y TenancyHeaders.UserId/OrganizationMembershipId.
     private const string TenantIdApplicationProperty = "tenant-id";
     private const string UserIdApplicationProperty = "user_id";
     private const string OrganizationMembershipIdApplicationProperty = "organization_membership_id";

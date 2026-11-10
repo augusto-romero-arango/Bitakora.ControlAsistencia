@@ -97,7 +97,6 @@ public class ProgramarAusenciaCommandHandlerTests : CommandHandlerAsyncTest<Prog
         And<AusenciasColaborador, int>(StreamId, a => a.Ausencias.Count, 2);
     }
 
-    // CA-2: el rango previo termina antes de que empiece el nuevo, del otro lado.
     [Fact]
     public async Task ProgramarAusencia_AgregaAlMismoStream_CuandoElRangoNuevoTerminaJustoAntesDeLaPrevia()
     {

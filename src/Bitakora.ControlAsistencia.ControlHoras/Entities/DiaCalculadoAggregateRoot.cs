@@ -21,8 +21,6 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
 {
     public EstadoDiaCalculado Estado { get; private set; }
 
-    // Sin consumidor todavia en este repo -- no es codigo muerto: la consumiran la invariante de
-    // AprobarDia (aun no existe) y la guarda de resolucion del conflicto (#483).
     public bool TieneConflictoDeSedePendiente =>
         _franjas.Any(franja => DerivarSedeDeFranja(franja, _marcaciones).EnConflicto);
 
@@ -117,11 +115,9 @@ public partial class DiaCalculadoAggregateRoot : AggregateRoot
         Estado = EstadoDiaCalculado.Aprobado;
     }
 
-    // Cierre del acto de aprobar. CA-ADR-0030 -- declina con resultado, nunca lanza; el
-    // handler traduce cada valor distinto de Aprobado a InvalidOperationException. streamId,
-    // codigoColaborador y fecha viajan como parametros (no se leen de _codigoColaborador/_fecha)
-    // porque el aval del vacio (CA-7) llama este mismo metodo sobre un aggregate recien construido,
-    // sin ninguna DepuracionDiaRecibida previa que los haya fijado.
+    // Declina con resultado, nunca lanza (CA-ADR-0030). streamId, codigoColaborador y fecha llegan
+    // por parametro (no de _codigoColaborador/_fecha) porque el aval del dia vacio llama este metodo
+    // sobre un aggregate recien construido, sin DepuracionDiaRecibida previa que los fije.
     internal ResultadoAprobacion Aprobar(
         string streamId, string codigoColaborador, DateOnly fecha,
         IReadOnlyList<DecisionDeSede> decisiones)

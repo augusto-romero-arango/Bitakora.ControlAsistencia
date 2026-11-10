@@ -6,14 +6,8 @@ namespace Bitakora.ControlAsistencia.Sedes.SmokeTests.Fixtures;
 
 public class ServiceBusFixture : IAsyncLifetime
 {
-    // Claves de wire verificadas por decompilacion: Wolverine 6.16.0 mapea Envelope.TenantId al
-    // header "tenant-id" sin prefijo y copia cada ApplicationProperty a Envelope.Headers, de donde
-    // Cosmos.MultiTenancy.CritterStack lee "user_id" y "organization_membership_id". Viajan en el
-    // mensaje, no son los headers HTTP X-Tenant-Id/X-User-Id de MEF-ADR-0028.
-    //
-    // Hoy son inertes: los dominios no montan un listener de Wolverine (entran por
-    // [ServiceBusTrigger] y IPrivateEventRouter arma DeliveryOptions desde el ITenantContext del
-    // proceso), asi que nadie las lee. Verificarlo el dia que exista ese puente (/install-auth).
+    // Deben casar con las claves que TenantContextMiddleware lee de ApplicationProperties: "tenant-id"
+    // (la de Wolverine para Envelope.TenantId) y TenancyHeaders.UserId/OrganizationMembershipId.
     private const string TenantIdApplicationProperty = "tenant-id";
     private const string UserIdApplicationProperty = "user_id";
     private const string OrganizationMembershipIdApplicationProperty = "organization_membership_id";

@@ -1,7 +1,7 @@
 namespace Bitakora.ControlAsistencia.TenantResolver.Tests;
 
 /// <summary>
-/// Reproduce el escenario real (MEF-ADR-0032): el middleware de Functions puebla la identidad en el scope
+/// Reproduce el escenario real (CA-ADR-0032): el middleware de Functions puebla la identidad en el scope
 /// de la invocacion, pero Wolverine reconstruye el resolver en un IServiceScope propio (hijo de la
 /// raiz) al generar los handlers -> es OTRA instancia. La identidad debe cruzar ese limite de scope,
 /// por eso el estado vive en un AsyncLocal ambiente y no en campos de instancia.

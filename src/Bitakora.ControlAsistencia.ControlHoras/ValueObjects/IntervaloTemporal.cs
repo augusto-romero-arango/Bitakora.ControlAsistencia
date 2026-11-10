@@ -97,9 +97,8 @@ public sealed partial class IntervaloTemporal : IEquatable<IntervaloTemporal>, I
 
     public override int GetHashCode() => HashCode.Combine(_inicio, _fin);
 
-    // Issue #143: Registro en el resolver de Marten (ADR-0015).
-    // Debe llamarse desde ConfiguracionSerializacionControlHoras.ConfigurarResolver.
-    // Sin este registro, Marten no puede deserializar IntervaloTemporal (ctor privado + readonly fields).
+    // Lo invoca ConfiguracionSerializacionCalculoHoras. Sin este registro, Marten no puede
+    // deserializar IntervaloTemporal (ctor privado + campos readonly).
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {
         var fInicio = typeof(IntervaloTemporal)

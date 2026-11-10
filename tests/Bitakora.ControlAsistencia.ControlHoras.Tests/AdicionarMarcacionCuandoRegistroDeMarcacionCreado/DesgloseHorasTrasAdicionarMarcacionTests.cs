@@ -27,7 +27,6 @@ public class DesgloseHorasTrasAdicionarMarcacionTests : PrivateEventHandlerAsync
     private static readonly FranjaProgramada Franja14_18 =
         new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "");
 
-    // Fuera de ventana nocturna (>= 04:00).
     private static readonly DateTime Timestamp07_00 = new(2026, 3, 15, 7, 0, 0);
     private static readonly DateTime Timestamp08_00 = new(2026, 3, 15, 8, 0, 0);
     private static readonly DateTime Timestamp12_05 = new(2026, 3, 15, 12, 5, 0);

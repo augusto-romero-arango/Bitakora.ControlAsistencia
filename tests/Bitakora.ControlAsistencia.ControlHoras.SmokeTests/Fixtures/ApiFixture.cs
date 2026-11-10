@@ -5,7 +5,7 @@ namespace Bitakora.ControlAsistencia.ControlHoras.SmokeTests.Fixtures;
 
 public class ApiFixture : IAsyncLifetime
 {
-    // Nombres canonicos que lee TrustedHeadersTenantResolver (fijados por decompilacion, MEF-ADR-0028).
+    // Deben casar con los headers que lee TenantContextMiddleware.
     private const string HeaderTenantId = "X-Tenant-Id";
     private const string HeaderUserId = "X-User-Id";
     private const string HeaderOrganizationMembershipId = "X-Organization-Membership-Id";

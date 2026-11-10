@@ -1,20 +1,10 @@
-// Guardrail de CI que compone el contenedor DI real del dominio (el mismo metodo que invoca
-// Program.cs, ComposicionServicios.AgregarServiciosProgramacion) y valida que el grafo completo es
-// resoluble, sin infra desplegada (connection strings dummy): ni "dotnet build" ni los tests
-// unitarios construyen el grafo de DI del host, y un registro faltante solo se veia DESPUES del
-// deploy (HTTP 500 en toda funcion).
+// Compone el contenedor DI real del dominio (el mismo metodo que invoca Program.cs) sin infra
+// desplegada: ni el build ni los demas tests unitarios construyen el grafo, y un registro faltante
+// solo se veria despues del deploy (HTTP 500 en toda funcion).
 //
-// Programacion no registra IPrivateEventRouter ni IQueryRouter hoy (ver Notas tecnicas del
-// issue #221): solo se resuelve explicitamente ICommandRouter, el unico router critico
-// efectivamente registrado en este dominio.
-//
-// Marten deja deshabilitadas por defecto las tres columnas de metadata de evento
-// (CorrelationId/CausationId/Headers) -- sin opt-in explicito la columna ni siquiera se crea en la
-// tabla de eventos. Este test verifica el opt-in sobre el IDocumentStore
-// resuelto del contenedor real (sin Postgres: el DocumentStore no abre conexion en bootstrap,
-// solo en la primera operacion real -- Marten 7+). La cadena de lectura es de solo lectura y sin
-// downcast: IDocumentStore.Options (IReadOnlyStoreOptions) -> Events (IReadOnlyEventStoreOptions)
-// -> MetadataConfig (IReadonlyMetadataConfig).
+// Marten deshabilita por defecto las columnas de metadata de evento (CorrelationId/CausationId/
+// Headers); sin opt-in la columna ni se crea. Se verifica sin Postgres porque el DocumentStore no
+// abre conexion hasta la primera operacion (Marten 7+).
 
 using System.Text;
 using AwesomeAssertions;
@@ -423,9 +413,6 @@ public class ComposicionServiciosTests
         opciones.Durability.Mode.Should().Be(DurabilityMode.Solo);
     }
 
-    // Issue #399: test de composicion del tercer endpoint HTTP de operacion (mismo patron que las
-    // guardas de arriba para las Functions GET de lectura) -- ReadyCheck depende de
-    // IEventStoreReadinessProbe, hoy sin registrar en AgregarServiciosProgramacion.
     [Fact]
     public async Task AgregarServiciosProgramacion_ResuelveElEndpointDeReady_CuandoElContenedorEstaCompuesto()
     {

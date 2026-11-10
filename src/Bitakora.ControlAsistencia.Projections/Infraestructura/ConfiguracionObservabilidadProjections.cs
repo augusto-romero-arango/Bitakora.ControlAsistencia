@@ -68,11 +68,6 @@ public static class ConfiguracionObservabilidadProjections
             // bajo un span no grabado, incluidos los LogError del HighWaterAgent dentro del span de
             // polling que el sampler dropea (medido: 35/35 perdidos). NO revertir a
             // UseAzureMonitorExporter() sin argumentos ni volverlo opcion del consumidor.
-            //
-            // El overload con callback no registra DefaultAzureMonitorExporterOptions:
-            // APPLICATIONINSIGHTS_CONNECTION_STRING solo llega via IConfiguration (variables de entorno
-            // de Host.CreateApplicationBuilder). Un host sin ese proveedor apagaria la exportacion en
-            // silencio.
             .UseAzureMonitorExporter(o => o.EnableTraceBasedLogsSampler = false)
             .WithTracing(tracing => tracing
                 .SetSampler(new SamplerQueDescartaPollingDelDaemon(

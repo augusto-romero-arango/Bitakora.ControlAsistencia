@@ -5,8 +5,7 @@ namespace Bitakora.ControlAsistencia.Colaboradores.SmokeTests.Fixtures;
 
 public class ApiFixture : IAsyncLifetime
 {
-    // Nombres canonicos que lee TrustedHeadersTenantResolver, fijados por decompilacion de
-    // Cosmos.MultiTenancy.AspNetCore en MEF-ADR-0028. Los valores salen de IdentidadDePrueba.
+    // Deben casar con los headers que lee TenantContextMiddleware. Los valores salen de IdentidadDePrueba.
     private const string HeaderTenantId = "X-Tenant-Id";
     private const string HeaderUserId = "X-User-Id";
     private const string HeaderOrganizationMembershipId = "X-Organization-Membership-Id";

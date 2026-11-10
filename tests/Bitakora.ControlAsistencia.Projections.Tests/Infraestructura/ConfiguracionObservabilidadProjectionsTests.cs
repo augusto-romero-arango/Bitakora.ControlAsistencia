@@ -330,12 +330,9 @@ public class ConfiguracionObservabilidadProjectionsTests
         opciones.EnableTraceBasedLogsSampler.Should().BeFalse();
     }
 
-    // Restriccion (MEF-ADR-0038 seccion 9): el overload con callback -- el que exige el flip de
-    // arriba -- NO registra DefaultAzureMonitorExporterOptions, que es quien lee
-    // APPLICATIONINSIGHTS_CONNECTION_STRING directo del entorno. La connection string pasa a llegar
-    // por un unico camino: IConfiguration, poblada por el proveedor de variables de entorno del
-    // Host.CreateApplicationBuilder del worker. Un host sin ese proveedor apagaria la exportacion
-    // completa EN SILENCIO, y los guardrails de TracerProvider de arriba seguirian verdes.
+    // Con el overload con callback la connection string del entorno debe seguir llegando a las
+    // opciones, y el fallback dummy de PostConfigure no debe pisarla: si falla, la exportacion se
+    // apaga en silencio y los guardrails de TracerProvider de arriba siguen verdes.
     [Fact]
     public void ConfigurarObservabilidad_ResuelveLaConnectionStringDelEntorno_EnLasOpcionesDelExporter()
     {

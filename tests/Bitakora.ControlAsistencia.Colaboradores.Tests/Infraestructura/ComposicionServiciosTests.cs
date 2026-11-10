@@ -396,10 +396,10 @@ public class ComposicionServiciosTests
 
         scope.ServiceProvider.GetService<IValidator<TerminarVinculacionBody>>()
             .Should().NotBeNull(
-                "sin el validator registrado, un body sin FechaEfectiva responderia 202 en vez de 400");
+                "sin el validator registrado, un body sin FechaEfectiva responderia 204 en vez de 400");
         scope.ServiceProvider.GetService<IValidator<CorregirFechaInicioVinculacionBody>>()
             .Should().NotBeNull(
-                "sin el validator registrado, un body sin FechaCorregida responderia 202 en vez de 400");
+                "sin el validator registrado, un body sin FechaCorregida responderia 204 en vez de 400");
     }
 
     [Fact]

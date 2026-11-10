@@ -13,7 +13,7 @@ public partial class QuitarSubFranjaTool(ProgramacionApi programacion, Resolutor
         [McpToolTrigger(
             NombreTool,
             "Quita de una franja ordinaria de un turno el descanso o extra que empieza a la hora "
-            + "indicada. Indica el turno por su nombre, la franja por su hora de inicio, el tipo "
+            + "indicada. Indica el turno por su id, la franja por su hora de inicio, el tipo "
             + "(descanso o extra) y la hora de inicio de la sub-franja. Para corregir un horario, "
             + "quita y agrega de nuevo.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": true}""")]

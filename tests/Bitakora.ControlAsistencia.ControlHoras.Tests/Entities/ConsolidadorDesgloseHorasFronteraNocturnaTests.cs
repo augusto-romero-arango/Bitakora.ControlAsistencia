@@ -1,4 +1,4 @@
-// Familia 2 - Compensacion cruzando la frontera nocturna (21:00 segun #135).
+// Familia 2 - Compensacion cruzando la frontera nocturna (19:00).
 // F1 08:00-12:00 y F2 14:00-18:00 con salida prolongada hasta 19:30: el excedente se reparte en
 // ExtraDiurna + ExtraNocturna.
 

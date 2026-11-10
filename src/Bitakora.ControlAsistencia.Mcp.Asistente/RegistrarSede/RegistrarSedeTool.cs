@@ -59,7 +59,7 @@ public partial class RegistrarSedeTool(SedesApi api)
 }
 
 /// <summary>
-/// El 202 del dominio no trae body y la ficha se materializa asincronicamente: el eco se reconstruye
+/// El 201 del dominio no trae body y la ficha se materializa asincronicamente: el eco se reconstruye
 /// con lo que entro a la tool.
 /// </summary>
 public sealed record SedeRegistradaResumen(

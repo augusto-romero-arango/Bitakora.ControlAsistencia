@@ -293,7 +293,6 @@ public class RegistrarMarcacionSmokeTests(
         // Purga antes del Act: cualquier mensaje recibido despues es de este test.
         await serviceBus.PurgeAsync(TopicDiaDepurado, SuscripcionSmokeTests);
 
-        // Fuera de ventana nocturna: el handler procesa una sola fecha.
         var timestamp = new DateTime(fecha, new TimeOnly(8, 0, 0), DateTimeKind.Utc);
         var payload = new
         {
