@@ -4,7 +4,11 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1442 y desglose #1488-#1489: semana sin dia de
+# Ultima actualizacion: 2026-11-10 (sesion planner, re-refinar #1442 sobre el motor de reglas de ley: el
+#   descanso semanal es el tipo de regla DescansoSemanal, uno para todos los sujetos; la marca de Descanso
+#   acumulado lo quita de la lista vigente; #1489 solo copia la marca a la plantilla. Tocada: Descanso
+#   acumulado.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1442 y desglose #1488-#1489: semana sin dia de
 #   descanso (172) solo sin marca; deuda del Descanso acumulado medida por racha, aparte. Tocada: Descanso
 #   acumulado.)
 # Actualizacion previa: 2026-11-08 (sesion planner, refinar #1441 y desglose #1486: la plantilla copia la
@@ -1464,6 +1468,11 @@ terms:
       del 184 se mide por RACHA de dias de trabajo seguidos: un dia de descanso por cada 7 dias de racha, en
       los 7 dias siguientes al fin de la racha (20x10 y 14x14 pagan; 21x1 no). Cruza semanas: #1488. Plantilla:
       #1489 (copia la marca).
+      RE-REFINAMIENTO DE #1442 (2026-11-10, motor unico #1499): la regla es el tipo DescansoSemanal
+      (por semana, dias no trabajados, no menos de 1), fila de todas las modalidades; la marca lo quita de
+      la lista vigente de la Jornada (la estampa ya viaja filtrada). Lo advierten la semana programada y
+      la plantilla como DescansoSemanalDeLaModalidad (reemplaza a SemanaSinDiaDeDescanso); la Jornada no
+      (con 0 descansos pactados el dia no se juzga). #1489 se reduce a copiar la marca a la plantilla.
 
   - name: Advertencias de la Jornada
     definition: >
