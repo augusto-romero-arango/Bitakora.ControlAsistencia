@@ -1483,6 +1483,21 @@ terms:
       #1442). Se distinguen de las Advertencias de plantilla y de las de la programacion semanal: juzgan el
       diseno de la Jornada, no dias. Advierten, no certifican. Asistente: #1477.
 
+  - name: Periodo de promedio
+    definition: >
+      Largo, en dias, de la ventana sobre la que una Modalidad de jornada juzga el promedio semanal de
+      horas (en Colombia, art. 165 CST: 21 dias, con techo de 42 h por la Ley 2101/2021 art. 5). Es un
+      DATO de la modalidad, no de la ley codificada: otra modalidad puede promediar en 14 o en 28 dias sin
+      tocar el motor. Viaja como la regla PeriodoDePromedio, par de TechoSemanalPromedio. Se juzga movil:
+      cada ventana de n dias consecutivos, y se advierte la peor.
+    context: Programacion
+    date_added: 2026-11-10
+    note: >
+      Principio del experto (refinamiento de #1444): las reglas del modelador no son la legislacion
+      colombiana. Rechazado el periodo fijo desde una fecha (exige un dato que no existe). El promedio
+      diario de 8 h del art. 165 queda sin modelar hasta verificar su divisor (#1494). Se mide en la
+      plantilla y la Jornada; la programacion semanal, en #1505.
+
   - name: Jornada predeterminada
     definition: >
       La Jornada que se estampa cuando una solicitud de programacion no indica una (la
