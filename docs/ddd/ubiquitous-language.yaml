@@ -1396,6 +1396,12 @@ terms:
       UNICIDAD (2026-11-07, refinamiento de #1435): la identidad es limites + modalidad + marca; dos
       Jornadas 36/6, una Ordinaria y otra Turnos sucesivos, conviven (difieren en descanso dominical y
       recargos). Asignar o quitar modalidad o marca que colisione responde 409 (#1436, #1437).
+      PERIODO DE PROMEDIO PACTADO (2026-11-10, refinamiento de #1504/#1509, CA-ADR-0046 decision 16 por
+      #1507): la Jornada puede declarar el par opcional periodoDePromedioEnDias (8 a 84) +
+      diasDescansoPorPeriodo (0 a n-1); con el, las horas semanales son PROMEDIO en cada ventana movil de
+      n dias y los descansos se pactan POR PERIODO (exactos en cada ventana), y diasDescansoPorSemana = 0.
+      Ej.: 6x2 = 42 h en promedio cada 8 dias, 2 descansos cada 8 dias. Sin el par, todo por semana exacta.
+      El par entra en la unicidad. Lo pactado se evalua con el motor de reglas (#1508).
 
   - name: Modalidad de jornada
     definition: >
