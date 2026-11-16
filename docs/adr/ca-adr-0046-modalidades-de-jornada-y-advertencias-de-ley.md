@@ -2,10 +2,53 @@
 
 ## Estado
 
-Aceptado (sesion planner 2026-11-01, refinada el 2026-11-07; implementacion en #1436-#1444).
+**Retirado (2026-11-16, #1519).** Ningun ADR lo reemplaza todavia; por eso es Retirado y no Superado. El cuerpo
+se conserva como historia (precedente: CA-ADR-0028).
 
-Enmienda CA-ADR-0034 (la autoauditoria de la plantilla gana la capa de ley, decision 8) y el principio de la
-Jornada ("no impone modalidades legales ni certifica cumplimiento", decision 4).
+Estado original: Aceptado (sesion planner 2026-11-01, refinada el 2026-11-07; implementacion en #1436-#1444).
+Enmendaba CA-ADR-0034 (decision 8) y el principio de la Jornada (decision 4); ambas enmiendas quedan sin efecto.
+
+### Retiro
+
+**Razon.** El diseno tenia tres incompatibilidades de fondo:
+
+- La advertencia se modelo como **dato derivado del read-side** (`CalculadorAdvertencias` en
+  `ReadModels/ControlHoras/Advertencias.cs`, recalculado por una proyeccion del worker, #865), no como hecho de
+  dominio.
+- La ley de Programacion (motor de reglas, #1499) se evaluaria en el read-side de ControlHoras (#1440).
+- Calcular "como quedaria" sobre el borrador (#1411) exigia compartir codigo entre procesos por referencias de
+  proyecto, o acoplar la Function App de ControlHoras al event store de Programacion.
+
+El experto decidio retirar todo lo desarrollado y planeado sobre advertencias y modalidades de jornada y
+redisenar desde cero. Se cerraron como not planned 26 issues abiertos (#1411, #1440-#1445, #1481, #1486, #1488,
+#1489, #1492-#1500, #1504, #1505, #1507-#1509, #1513).
+
+**Que se retira** (el codigo va en #1520-#1524):
+
+- Las advertencias de la programacion semanal (`CalculadorAdvertencias` y su proyeccion).
+- La autoauditoria de la plantilla de turnos y la sincronizacion de los limites de su Jornada.
+- Las advertencias de ley de la Jornada.
+- Las modalidades de jornada y la marca de descanso acumulado como dato.
+
+**Que se conserva:**
+
+- La investigacion `docs/referencia/modalidades_jornada_colombia.md` (#1290), insumo del rediseno.
+- La Jornada con sus limites pactados: catalogo, asignacion y estampa basica.
+- La asociacion plantilla-Jornada y la copia sincronizada del turno en la plantilla (CA-ADR-0034 decision 2).
+
+**Premisa del rediseno.** La advertencia es un **hecho de dominio** (evento), no un calculo del read-side. El
+diseno nuevo se registrara en un ADR futuro; este ADR no se reactiva.
+
+**Decisiones operativas:**
+
+- **Purga** de los stores de dev de Programacion y Colaboradores en el mismo despliegue que #1521 y que #1524
+  (MEF-ADR-0036 seccion 5), porque se retiran tipos de evento persistidos. Colaboradores se purga porque sus
+  vinculaciones guardan el `JornadaId` de Jornadas que desaparecen.
+- La tabla del read model `AdvertenciasProgramacionSemanal` queda **huerfana, sin SQL** (precedente: plantilla
+  semanal retirada, CA-ADR-0034).
+- El topico `limites-de-jornada-actualizados` se retira (#1522).
+- CA-ADR-0039 no cambia: la senal `conAdvertencias` (decision 16) es un ejemplo de senal booleana, no doctrina
+  de advertencias.
 
 ## Contexto
 
@@ -174,3 +217,6 @@ Este ADR registra **decisiones de dominio y de arquitectura**, sin nombres de ti
   plantilla y la Jornada se auditan a si mismas en Programacion (#1438).
 - 2026-11-08: decision 9 precisada: se estampa la ficha vigente, sin vigencias por fecha (con su costo aceptado),
   sin volver a estampar al publicar; los topes de horas extra quedan fuera de la estampa hasta #1443 (#1439).
+- 2026-11-16: **retirado** (#1519; sesion planner 2026-11-16, refinamiento de #1411). Cuerpo conservado como
+  historia. Se retiran advertencias y modalidades de jornada (codigo en #1520-#1524); se conserva la
+  investigacion #1290 y la Jornada con limites pactados. Enmiendas a CA-ADR-0034 (#1519) y CA-ADR-0045 (#1519).

@@ -49,9 +49,10 @@ arquitectura**, sin detalles de implementacion: los nombres se fijan al refinar 
 9. **Lo aprobado no cambia.** Publicar sobre un dia Aprobado no lo mueve (CA-ADR-0036 decision 9).
 10. **Las ausencias siguen en firme** y el borrador las respeta: programar sobre una Ausencia no la
     sobrescribe, como hoy.
-11. **Lo que ve el Programador.** La malla semanal de turnos y las advertencias de la programacion semanal
-    muestran como quedaria (dias en firme + dias en borrador) y marcan los dias en borrador; una vista de
-    borradores pendientes muestra que falta publicar, incluidos los vencidos.
+11. **Lo que ve el Programador.** La malla semanal de turnos muestra como quedaria (dias en firme + dias en
+    borrador) y marca los dias en borrador; una vista de borradores pendientes muestra que falta publicar,
+    incluidos los vencidos. Enmienda 2026-11-16 (#1519): se retiran las advertencias de la programacion semanal
+    (CA-ADR-0046, Retirado); el borrador no las calcula.
 12. **Fuera de alcance:** notificar al colaborador o mostrarle su programacion. La publicacion es el hecho del
     que se colgara; despues de publicar, cada correccion en firme le seria visible al instante (aceptado por el
     experto).
@@ -148,3 +149,5 @@ arquitectura**, sin detalles de implementacion: los nombres se fijan al refinar 
 
 - 2026-10-31: creado (exploracion del planner; registro en #1404).
 - 2026-11-02: decision 15 (lo programado antes no cuenta como en firme) segun el refinamiento de #1421.
+- 2026-11-16: decision 11 enmendada (#1519): se queda con la malla semanal y la vista de borradores pendientes,
+  sin las advertencias de la programacion semanal (retiro de CA-ADR-0046).
