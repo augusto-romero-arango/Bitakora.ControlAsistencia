@@ -61,8 +61,8 @@ Enmienda 2026-10-27 (#1302). Reemplaza la decision original (molde semanal de 1.
   `PlantillaDeTurnosCreada`, `DiaDePlantillaDeTurnosAsignado`, `PlantillaDeTurnosRetirada`; mas los de Jornada y
   sincronizacion (`JornadaDePlantillaDeTurnosAsignada`/`Quitada`, `TurnoDePlantillaDeTurnosSincronizado`).
   Enmienda 2026-11-16 (#1519): `AdvertenciasDePlantillaDeTurnosCalculadas` y
-  `LimitesDeJornadaDePlantillaDeTurnosSincronizados` salen del inventario. Ninguno cruza bus. No hay evento de quitar dia (#1282,
-  decision 4).
+  `LimitesDeJornadaDePlantillaDeTurnosSincronizados` salen del inventario. Ninguno cruza bus. No hay evento de
+  quitar dia (#1282, decision 4).
 
 ### 2. Referencia por identidad + copia de valor sincronizada
 
@@ -82,12 +82,11 @@ Enmienda 2026-10-06 (#886). Reescribe la decision original ("referencia viva, no
   plantilla son todos de Programacion. La frontera que obliga a sincronizar es la del **aggregate** (cada turno
   es su stream, cada Jornada el suyo): consistencia eventual entre aggregates del mismo dominio.
 - **Mecanica**:
-  - **Disparo**: los eventos de diseno del turno y `TurnoRetirado` (#883) y el cambio de limites de la Jornada
-    (#884) publican un evento privado **plano** (CA-ADR-0025) con el estado completo resultante y la version
-    del stream; la reaccion reinstancia el VO con sus factories y envia el comando de sincronizacion a cada
-    plantilla que lo usa. Es reaccion + comando + evento propio por plantilla: `Apply()` solo rehidrata desde
-    el propio stream (MEF-ADR-0004 intacto). Sigue **rechazado** el "evento gordo" que todas las plantillas
-    escuchan en el `Apply`.
+  - **Disparo**: los eventos de diseno del turno y `TurnoRetirado` (#883) publican un evento privado **plano**
+    (CA-ADR-0025) con el estado completo resultante y la version del stream; la reaccion reinstancia el VO con
+    sus factories y envia el comando de sincronizacion a cada plantilla que lo usa. Es reaccion + comando +
+    evento propio por plantilla: `Apply()` solo rehidrata desde el propio stream (MEF-ADR-0004 intacto).
+    Sigue **rechazado** el "evento gordo" que todas las plantillas escuchan en el `Apply`.
   - **Desorden del bus**: la plantilla ignora una version menor o igual a la de su copia.
   - **Borrados**: `TurnoRetirado` llega como sincronizacion con `Retirado`; la plantilla queda **incompleta**,
     sin bloqueo ni cascada (se conserva).
@@ -95,8 +94,8 @@ Enmienda 2026-10-06 (#886). Reescribe la decision original ("referencia viva, no
     #888 (MEF-ADR-0036).
   - **Drift por el indice eventual**: la reaccion busca las plantillas en `CuadroDeTurnos` (proyeccion
     `Async`); una asignacion aun no proyectada puede quedar fuera. **Autocorreccion**: reasignar el mismo
-    `TurnoId` (o reasociar la misma Jornada) es no-op (CA-ADR-0035) **solo si la copia esta al dia**; si la
-    version del catalogo es mayor, actualiza la copia. El handler de asignar dia ya carga `CatalogoTurnos`
+    `TurnoId` es no-op (CA-ADR-0035) **solo si la copia esta al dia**; si la version del catalogo es mayor,
+    actualiza la copia. El handler de asignar dia ya carga `CatalogoTurnos`
     (`EvaluarAsignabilidad`): no agrega lecturas. Ventana corta aceptada por el experto.
 - Se conserva: retirar un turno referenciado **no se bloquea ni cascadea** (la plantilla queda **incompleta**,
   espejo de *Turno incompleto*: existe, se ve, se edita, y quien la use recibe 409 hasta que se reemplace el
@@ -198,14 +197,16 @@ Enmienda 2026-10-27 (#1302; #1288, #1300). Las tools componen sobre el ciclo (ME
 - "Semana Cocina" se crea una vez y se reutiliza; el patron queda nombrado y auditable en el store.
 - ControlHoras no cambia: la asignacion futura seguira produciendo un turno por fecha.
 - Un solo lugar donde se edita un turno; la plantilla lo copia y se mantiene al dia por sincronizacion
-  (consistencia eventual con autocorreccion, decision 2) y puede auditarse a si misma al decidir (#868/#889).
+  (consistencia eventual con autocorreccion, decision 2). (La autoauditoria al decidir, #868/#889, se retiro
+  en #1519.)
 - El GET del cuadro lee un solo documento, sin composicion (#882).
 - Un solo molde cubre semanas y rotaciones de cualquier largo hasta 42 dias (enmienda 2026-10-27); el
   vocabulario de cada interfaz vive en el asistente, no en el dominio.
 
 ### Negativas
 - Tipos de evento persistidos y comandos nuevos en Programacion, mas los artefactos de sincronizacion
-  (evento privado plano, reaccion, comando y evento por plantilla; #883, #884, #888).
+  (evento privado plano, reaccion, comando y evento por plantilla; #883, #888; la sincronizacion de los limites
+  de la Jornada, #884, se retira en #1519).
 - Verificaciones best-effort entre streams (turno existe/activo, nombre unico) sin atomicidad -- mismo
   perfil que #497.
 - La decision del 2026-08-29 queda parcialmente revertida: el glosario debe leerse con esta enmienda.
@@ -306,4 +307,6 @@ Enmienda 2026-10-27 (#1302; ejecutado en #1289).
   `AdvertenciasDePlantillaDeTurnosCalculadas` y `LimitesDeJornadaDePlantillaDeTurnosSincronizados`. Decision 2: la
   plantilla deja de guardar la copia de `LimitesJornada` y su sincronizacion; se retira la autoauditoria
   (advertencias en la misma transaccion, capa de ley, peor ventana circular de 7 dias); se conservan la
-  asociacion plantilla-Jornada y la copia del turno. La enmienda del 2026-11-07 queda sin efecto.
+  asociacion plantilla-Jornada y la copia del turno. La mecanica de la decision 2 pierde el disparo por el
+  cambio de limites de la Jornada (#884) y la autocorreccion al reasociar la misma Jornada. La enmienda del
+  2026-11-07 queda sin efecto.
