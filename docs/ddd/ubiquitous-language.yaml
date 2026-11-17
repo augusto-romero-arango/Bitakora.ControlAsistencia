@@ -4,7 +4,11 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1442 y desglose #1488-#1489: semana sin dia de
+# Ultima actualizacion: 2026-11-16 (sesion planner, refinar #1411 -> retiro de advertencias y modalidades:
+#   se retiran para redisenar la advertencia como hecho de dominio (#1519-#1524). HISTORICAS: Advertencias
+#   de plantilla, Modalidad de jornada, Descanso acumulado, Advertencias de la Jornada, Advertencias de la
+#   programacion semanal. Tocadas: Jornada, Jornada predeterminada, Descanso entre turnos.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1442 y desglose #1488-#1489: semana sin dia de
 #   descanso (172) solo sin marca; deuda del Descanso acumulado medida por racha, aparte. Tocada: Descanso
 #   acumulado.)
 # Actualizacion previa: 2026-11-08 (sesion planner, refinar #1441 y desglose #1486: la plantilla copia la
@@ -724,6 +728,8 @@ terms:
 
   - name: Advertencias de plantilla
     definition: >
+      HISTORICA (retirada en #1521; decision del 2026-11-16, #1519 -- CA-ADR-0046 Retirado): se retira para redisenar
+      las advertencias como hechos de dominio. Se conserva como registro de lo que fue.
       Juicio que la Plantilla de turnos hace de su propio diseno contra la Jornada asociada.
       Sin Jornada, la unica advertencia es PlantillaSinJornada (ningun otro control corre). Con Jornada,
       los controles DIARIOS se aplican siempre, este completa o no: DiaSinTurno (dia vacio, o con turno
@@ -1349,10 +1355,11 @@ terms:
       coincidir con la ley: el sistema no impone modalidades legales ni certifica cumplimiento.
       NO TIENE NOMBRE: una Jornada es sus limites; se identifica por su Id y se muestra con la
       descripcion de sus limites (LimitesJornada.ToString()). No puede haber dos Jornadas activas
-      con los mismos limites, Modalidad de jornada y marca de Descanso acumulado (409 que nombra la
-      existente, #890; ampliada por CA-ADR-0046).
+      con los mismos limites (409 que nombra la existente, #890; la ampliacion a modalidad y marca de
+      CA-ADR-0046 se retira en #1524).
       La Jornada ACOTA, la programacion DECIDE: no fija dias habiles ni descansos. Se asigna a la
-      Vinculacion (Colaboradores, referencia opaca como SedeAsignada) y se ESTAMPA (copia de id y
+      Vinculacion (Colaboradores, referencia opaca como SedeAsignada). HISTORICO (retirado en #1520): se
+      ESTAMPABA (copia de id y
       valores, sin nombre) al programar, por colaborador: el cliente manda solo el JornadaId asignado
       y el servidor arma la copia desde su catalogo; sin JornadaId estampa la predeterminada;
       editarla nunca cambia lo programado. Se desactiva (no se retira) y no se puede desactivar en
@@ -1360,7 +1367,7 @@ terms:
       vinculaciones lo verifica el cliente (enmienda 2026-10-10, #869). Desactivada sigue editable,
       bloquea la unicidad de limites y, si una vinculacion la tiene, se estampa tal cual.
       Sus limites se modifican como un todo (ModificarLimitesJornada).
-      Una plantilla referencia una Jornada solo para auditar su diseno.
+      Una plantilla referencia una Jornada por su id; la auditoria de su diseno se retira en #1521.
     context: Programacion
     date_updated: 2026-10-10
     rejected_synonyms: [Configuracion de jornada, Perfil de jornada, Esquema de jornada, Jornada pactada (como parametro), Topes]
@@ -1396,9 +1403,15 @@ terms:
       UNICIDAD (2026-11-07, refinamiento de #1435): la identidad es limites + modalidad + marca; dos
       Jornadas 36/6, una Ordinaria y otra Turnos sucesivos, conviven (difieren en descanso dominical y
       recargos). Asignar o quitar modalidad o marca que colisione responde 409 (#1436, #1437).
+      RETIRO 2026-11-16 (sesion planner, #1519): se retiran las advertencias, la Modalidad de jornada, el
+      Descanso acumulado y la estampa de la Jornada al programar, para redisenar las advertencias como
+      hechos de dominio. La Jornada vuelve a ser sus limites pactados; la unicidad vuelve a #890
+      (#1520, #1521, #1523, #1524).
 
   - name: Modalidad de jornada
     definition: >
+      HISTORICA (retirada en #1523 y #1524; decision del 2026-11-16, #1519 -- CA-ADR-0046 Retirado): se retira para redisenar
+      las advertencias como hechos de dominio. Se conserva como registro de lo que fue.
       Marco legal bajo el que se pacto una Jornada, de un catalogo CERRADO que el sistema codifica (como
       el Festivo colombiano) con las reglas medibles de la ley: tope diario, minimo diario, techo
       semanal y descansos. Atributo OPCIONAL de la Jornada (sin ella = pactada libre, solo advertencias
@@ -1442,6 +1455,8 @@ terms:
 
   - name: Descanso acumulado
     definition: >
+      HISTORICA (retirado en #1523 y #1524; decision del 2026-11-16, #1519 -- CA-ADR-0046 Retirado): se retira para redisenar
+      las advertencias como hechos de dominio. Se conserva como registro de lo que fue.
       Marca opcional de la Jornada, independiente de su modalidad, para operaciones cuyo descanso no
       cae cada semana sino que se acumula (art. 184 CST; ciclos 14x14, 20x10). Cambia la medicion de la
       semana sin dia de descanso: se debe un dia de descanso por cada semana de trabajo seguido, tomados
@@ -1467,6 +1482,8 @@ terms:
 
   - name: Advertencias de la Jornada
     definition: >
+      HISTORICA (retiradas en #1523 y #1524; decision del 2026-11-16, #1519 -- CA-ADR-0046 Retirado): se retira para redisenar
+      las advertencias como hechos de dominio. Se conserva como registro de lo que fue.
       Capa de ley sobre los PROPIOS parametros de una Jornada con modalidad: su tope diario, horas
       semanales y minimo diario se juzgan contra la ficha de ley de la Modalidad de jornada (Ordinaria:
       tope = techo / 5 = 8 h 24, techo 42 h; Flexible: tope 9 h, minimo 4 h, techo 42 h; Turnos
@@ -1485,7 +1502,8 @@ terms:
 
   - name: Jornada predeterminada
     definition: >
-      La Jornada que se estampa cuando una solicitud de programacion no indica una (la
+      Desde #1520 la programacion ya no estampa Jornada; la predeterminada sigue existiendo como
+      referencia del catalogo. Antes: la Jornada que se estampaba cuando una solicitud no indicaba una (la
       Vinculacion no tiene asignada). Se MATERIALIZA LA PRIMERA VEZ QUE SE NECESITA (listar
       Jornadas, programar sin JornadaId, crear o comparar limites, asignar la predeterminada):
       en una sola transaccion nace una Jornada con Guid generado al vuelo y los valores iniciales
@@ -1534,6 +1552,8 @@ terms:
 
   - name: Advertencias de la programacion semanal
     definition: >
+      HISTORICA (retiradas en #1520; decision del 2026-11-16, #1519 -- CA-ADR-0046 Retirado): se retira para redisenar
+      las advertencias como hechos de dominio. Se conserva como registro de lo que fue.
       Reporte read-side para el Programador: las ADVERTENCIAS de la programacion de cada semana
       lunes-domingo de un colaborador contra la Jornada de la semana (la ultima no nula recibida;
       un dia sin Jornada no la sobrescribe y se mide contra ella; semana sin ninguna Jornada = sin
@@ -1579,6 +1599,8 @@ terms:
 
   - name: Descanso entre turnos
     definition: >
+      La advertencia PorDebajoDelDescansoEntreTurnos se retira con las Advertencias de la programacion
+      semanal (#1520, decision del 2026-11-16); el concepto queda como insumo del rediseno.
       Tiempo entre el fin de un turno y el inicio del turno del dia siguiente del mismo
       colaborador. Por debajo del minimo (la suma de los margenes de la Cobertura de marcacion,
       hoy 6 h) las coberturas de los dos turnos se solapan y las marcaciones de ese lapso quedan
