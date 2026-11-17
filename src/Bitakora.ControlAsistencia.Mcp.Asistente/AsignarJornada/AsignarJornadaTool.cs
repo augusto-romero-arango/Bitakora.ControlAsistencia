@@ -14,8 +14,8 @@ public partial class AsignarJornadaTool(
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Asigna una Jornada a colaboradores concretos: es la Jornada contra la que se estampa y se "
-            + "verifica su programacion. Recibe identificaciones completas, tal como las devuelve "
+            "Asigna una Jornada a colaboradores concretos: es la Jornada que les rige. Recibe "
+            + "identificaciones completas, tal como las devuelve "
             + "buscar_colaboradores. Para un grupo por sede o etiquetas usa asignar_jornada_por_grupo.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}""")]
         ToolInvocationContext context,

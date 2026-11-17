@@ -28,7 +28,7 @@ public partial class ConsultarMallaTurnosTool(
             + "programar y dias fuera de la vinculacion. Sin fecha revisa la PROXIMA semana. Filtra por sede, "
             + "etiquetas (pares categoria:valor) o codigos de colaborador. Pagina por colaborador completo: "
             + "usa cursor para la pagina siguiente. Para el detalle del turno y sus bloques de un dia, usa "
-            + "consultar_programacion; para lo que se sale de la Jornada, consultar_advertencias_programacion. "
+            + "consultar_programacion. "
             + "Los dias en borrador (programados y aun sin publicar) van marcados; se ponen en vigor con publicar_programacion.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,

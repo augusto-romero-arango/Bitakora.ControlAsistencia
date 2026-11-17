@@ -59,7 +59,6 @@ public static class ConfiguracionMartenProjectionsControlHoras
 
                 opts.Projections.Add<TurnoVigenteProjection>(ProjectionLifecycle.Async);
                 opts.Projections.Add<AsistenciaDiariaProjection>(ProjectionLifecycle.Async);
-                opts.Projections.Add<AdvertenciasProgramacionSemanalProjection>(ProjectionLifecycle.Async);
             })
             .AddAsyncDaemon(DaemonMode.HotCold);
 

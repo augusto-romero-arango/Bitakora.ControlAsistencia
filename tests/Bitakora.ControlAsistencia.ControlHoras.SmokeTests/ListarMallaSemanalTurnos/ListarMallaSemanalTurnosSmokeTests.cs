@@ -53,7 +53,6 @@ public class ListarMallaSemanalTurnosSmokeTests(ApiFixture api, ServiceBusFixtur
             SolicitudId = solicitudId,
             Colaborador = new ResumenColaborador("CC-444555888", codigoColaborador, "[TEST] Smoke Malla Semanal"),
             Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
-            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[TEST] Turno Malla Semanal",

@@ -29,15 +29,9 @@ public class BorradorDeProgramacionProjectionTests
             [new FranjaProgramada(new TimeOnly(22, 0), new TimeOnly(6, 0), 1, [], [], "(22:00-06:00)")],
             "Turno Noche: (22:00-06:00)");
 
-    private static JornadaProgramada Jornada() =>
-        new(Guid.Parse("019600a0-0000-7000-8000-000000000001"), LimitesJornadaDePrueba());
-
-    private static LimitesJornada LimitesJornadaDePrueba() => LimitesJornada.Crear(
-        HorasYMinutos.Crear(44, 0), HorasYMinutos.Crear(10, 0), HorasYMinutos.Crear(0, 0), 1);
-
     private static ProgramacionTurnoAgregadaAlBorrador Agregar(
         TurnoProgramado turno, SedeProgramada? sede, params DateOnly[] fechas) =>
-        new(Guid.NewGuid(), Ana(), fechas, turno, sede, Jornada());
+        new(Guid.NewGuid(), Ana(), fechas, turno, sede);
 
     private static DiaDeBorrador DiaManana(DateOnly fecha, string? sedeId = null, string? sede = null) =>
         new(fecha, "Turno Manana", "Turno Manana: (06:00-14:00)",

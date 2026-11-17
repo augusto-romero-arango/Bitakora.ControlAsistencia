@@ -139,7 +139,6 @@ public class ListarTurnosVigentesSmokeTests(ApiFixture api, ServiceBusFixture se
             Colaborador = new ResumenColaborador(
                 "CC-444555666", codigoColaborador, NombreCompletoSembrado),
             Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
-            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = nombreTurno,

@@ -6,7 +6,6 @@ using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction;
 using Bitakora.ControlAsistencia.Programacion.SolicitarProgramacionTurnoFunction.CommandHandler;
-using Bitakora.ControlAsistencia.Programacion.Tests.CrearJornadaFunction;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
@@ -20,7 +19,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
     private static readonly Guid TurnoId = Guid.Parse("018e4c1a-4f2b-7000-8000-aabbccddeeff");
     private static readonly Guid TurnoIncompletoId = Guid.Parse("018e4c1a-4f2b-7000-8000-99aabbccddee");
-    private static readonly Guid JornadaPorDefectoId = Guid.Parse("018e4c1a-4f2b-7000-8000-00000000861a");
 
     private static readonly DateOnly Dia1 = new(2026, 10, 1);
     private static readonly DateOnly Dia2 = new(2026, 10, 2);
@@ -78,12 +76,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         }.AsReadOnly(),
         "06:00-14:00");
 
-    private static LimitesJornada Limites42() => LimitesJornada.Crear(
-        HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1);
-
-    private static readonly JornadaProgramada JornadaEsperada = new(JornadaPorDefectoId, Limites42());
-    private static readonly DetalleJornada DetalleJornadaEsperado = new(JornadaPorDefectoId, 2520, 510, 240, 1);
-
     private static readonly Guid TurnoDescansoId = Guid.Parse("018e4c1a-4f2b-7000-8000-aabbcc001122");
     private static readonly Guid TurnoRetiradoSinFranjasId = Guid.Parse("018e4c1a-4f2b-7000-8000-aabbcc003344");
     private static readonly Guid TurnoConSedePrearmadaId = Guid.Parse("018e4c1a-4f2b-7000-8000-778899aabbcc");
@@ -120,20 +112,17 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     private static VentanaDeEntradaModificada VentanaDeTresHoras() =>
         VentanaDeEntradaModificada.Crear(TurnoId, HorasYMinutos.Crear(3, 0));
 
-    private FakeAseguradorJornadaPredeterminada _asegurador = new(JornadaPorDefectoId);
-
     public SolicitarProgramacionTurnoCommandHandlerTests()
     {
-        Given(JornadaPorDefectoId.ToString(), JornadaCreada.Crear(JornadaPorDefectoId, Limites42()));
         Given(StreamBorradorOctubre,
             new ProgramacionTurnoAgregadaAlBorrador(
                 Guid.NewGuid(), ColaboradorProgramadoEsperado, [Dia1, Dia2, Dia3, Dia4, Dia5],
-                TurnoProgramadoEsperado, null, JornadaEsperada),
+                TurnoProgramadoEsperado, null),
             new ProgramacionPublicada(ColaboradorProgramadoEsperado, [Dia1, Dia2, Dia3, Dia4, Dia5]));
     }
 
     protected override ICommandHandlerAsync<SolicitarProgramacionTurno, ResultadoSolicitudProgramacion> Handler =>
-        new SolicitarProgramacionTurnoCommandHandler(EventStore, PrivateEventSender, _asegurador);
+        new SolicitarProgramacionTurnoCommandHandler(EventStore, PrivateEventSender);
 
     private static TurnoCreado CrearEventoTurno() =>
         TurnoCreado.Crear(
@@ -154,11 +143,10 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2, Dia3, Dia4, Dia5]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia4, Dia5], TurnoProgramadoEsperado,
-            jornada: JornadaEsperada));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia4, Dia5], TurnoProgramadoEsperado));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1, Dia4, Dia5], DetalleEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1, Dia4, Dia5], DetalleEsperado));
         PrivateEventSender.PublishedWithOptions.SelectMany(p => p.Events).Should().ContainSingle()
             .Which.Should().BeOfType<ProgramacionTurnoEnFechasSolicitada>();
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 3);
@@ -178,11 +166,10 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2], TurnoProgramadoEsperado,
-            jornada: JornadaEsperada));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2], TurnoProgramadoEsperado));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
         resultado.FechasRespetadas.Should().BeEmpty();
     }
@@ -197,30 +184,11 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoConSedeAplicadaEsperado,
-            SedePrincipal, JornadaEsperada));
+            SedePrincipal));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleConSedeAplicadaEsperado,
-                DetalleJornadaEsperado, SedePrincipalDetalle));
+                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleConSedeAplicadaEsperado, SedePrincipalDetalle));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
-    }
-
-    [Fact]
-    public async Task SolicitarProgramacionTurno_AseguraLaJornadaPredeterminada_CuandoNoTraeJornadaId()
-    {
-        Given(TurnoId.ToString(), CrearEventoTurno());
-
-        await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Colaborador, [Dia1]));
-
-        Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado,
-            jornada: JornadaEsperada));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
-            new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado, DetalleJornadaEsperado));
-        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
-        _asegurador.Invocaciones.Should().Be(1);
     }
 
     [Fact]
@@ -248,8 +216,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                         [new SubFranjaProgramada(new TimeOnly(13, 0), new TimeOnly(14, 0), 0, 0, "13:00-14:00")],
                         descripcion)
                 }.AsReadOnly(),
-                descripcion),
-            jornada: JornadaEsperada));
+                descripcion)));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1],
@@ -262,8 +229,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                             [new DetalleSubFranja(new TimeOnly(13, 0), new TimeOnly(14, 0), 0, 0, "13:00-14:00")],
                             descripcion)
                     }.AsReadOnly(),
-                    descripcion),
-                DetalleJornadaEsperado));
+                    descripcion)));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
 
@@ -272,8 +238,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
         Given(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado,
-            jornada: JornadaEsperada));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado));
 
         var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
@@ -328,21 +293,6 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurno_LanzaRecursoNoEncontradoException_CuandoLaJornadaNoExiste()
-    {
-        Given(TurnoId.ToString(), CrearEventoTurno());
-
-        var act = async () => await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Colaborador, [Dia1], JornadaId: Guid.NewGuid()));
-
-        await act.Should().ThrowExactlyAsync<RecursoNoEncontradoException>()
-            .WithMessage($"*{SolicitarProgramacionTurnoCommandHandler.Mensajes.JornadaNoEncontrada}*");
-        Then(GuidAggregateId.ToString());
-        ThenIsPublishedPrivately();
-        PrivateEventSender.PublishedWithOptions.Should().BeEmpty();
-    }
-
-    [Fact]
     public async Task SolicitarProgramacionTurno_LanzaReglaDeNegocioDeclinadaException_CuandoTodasLasFechasTienenAusencia()
     {
         Given(TurnoId.ToString(), CrearEventoTurno());
@@ -369,11 +319,11 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2],
-            TurnoProgramadoEsperado with { AmplitudVentanaEntradaEnMinutos = 180 }, jornada: JornadaEsperada));
+            TurnoProgramadoEsperado with { AmplitudVentanaEntradaEnMinutos = 180 }));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1, Dia2],
-                DetalleEsperado with { AmplitudVentanaEntradaEnMinutos = 180 }, DetalleJornadaEsperado));
+                DetalleEsperado with { AmplitudVentanaEntradaEnMinutos = 180 }));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.DetalleTurno!.AmplitudVentanaEntradaEnMinutos, 180);
     }
 
@@ -386,10 +336,10 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado, jornada: JornadaEsperada));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.DetalleTurno!.AmplitudVentanaEntradaEnMinutos, 0);
     }
 
@@ -404,12 +354,11 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1],
             TurnoConSedeAplicadaEsperado with { AmplitudVentanaEntradaEnMinutos = 180 },
-            SedePrincipal, JornadaEsperada));
+            SedePrincipal));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1],
-                DetalleConSedeAplicadaEsperado with { AmplitudVentanaEntradaEnMinutos = 180 },
-                DetalleJornadaEsperado, SedePrincipalDetalle));
+                DetalleConSedeAplicadaEsperado with { AmplitudVentanaEntradaEnMinutos = 180 }, SedePrincipalDetalle));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.DetalleTurno!.AmplitudVentanaEntradaEnMinutos, 180);
     }
 
@@ -423,10 +372,10 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2],
-            TurnoAbiertoProgramadoEsperado, jornada: JornadaEsperada));
+            TurnoAbiertoProgramadoEsperado));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleAbiertoEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleAbiertoEsperado));
         And<SolicitudProgramacionAggregateRoot, bool>(s => s.DetalleTurno!.EsHorarioAbierto, true);
     }
 
@@ -439,10 +388,10 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, TurnoId, Colaborador, [Dia1]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado, jornada: JornadaEsperada));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, bool>(s => s.DetalleTurno!.EsHorarioAbierto, false);
     }
 
@@ -463,7 +412,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                     new(new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00", SedePrincipal)
                 }.AsReadOnly()
             },
-            SedePrincipal, JornadaEsperada));
+            SedePrincipal));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1],
@@ -473,8 +422,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                     {
                         new(new TimeOnly(4, 0), new TimeOnly(10, 0), 0, [], [], "04:00-10:00", SedePrincipalDetalle)
                     }.AsReadOnly()
-                },
-                DetalleJornadaEsperado, SedePrincipalDetalle));
+                }, SedePrincipalDetalle));
         And<SolicitudProgramacionAggregateRoot, bool>(s => s.DetalleTurno!.EsHorarioAbierto, true);
     }
 
@@ -502,7 +450,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                     new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "14:00-18:00", SedePrincipal)
                 }.AsReadOnly(),
                 "06:00-10:00, 14:00-18:00"),
-            SedePrincipal, JornadaEsperada));
+            SedePrincipal));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1],
@@ -513,8 +461,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                         new(new TimeOnly(6, 0), new TimeOnly(10, 0), 0, [], [], "06:00-10:00", SedeSubaDetalle),
                         new(new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "14:00-18:00", SedePrincipalDetalle)
                     }.AsReadOnly(),
-                    "06:00-10:00, 14:00-18:00"),
-                DetalleJornadaEsperado, SedePrincipalDetalle));
+                    "06:00-10:00, 14:00-18:00"), SedePrincipalDetalle));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede, SedeSuba);
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
@@ -531,10 +478,10 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado,
-            sede: null, jornada: JornadaEsperada));
+            sede: null));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(s => s.Sede, null);
     }
 
@@ -558,7 +505,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                     new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00", SedeSuba)
                 }.AsReadOnly(),
                 "06:00-14:00"),
-            sede: null, jornada: JornadaEsperada));
+            sede: null));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1],
@@ -568,8 +515,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                     {
                         new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00", SedeSubaDetalle)
                     }.AsReadOnly(),
-                    "06:00-14:00"),
-                DetalleJornadaEsperado));
+                    "06:00-14:00")));
         And<SolicitudProgramacionAggregateRoot, SedeProgramada?>(
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede, SedeSuba);
     }
@@ -591,7 +537,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                     new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00", SedeConCentroDeCostos)
                 }.AsReadOnly(),
                 "06:00-14:00"),
-            SedeConCentroDeCostos, JornadaEsperada));
+            SedeConCentroDeCostos));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1],
@@ -601,8 +547,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
                     {
                         new(new TimeOnly(6, 0), new TimeOnly(14, 0), 0, [], [], "06:00-14:00", SedeConCentroDeCostosDetalle)
                     }.AsReadOnly(),
-                    "06:00-14:00"),
-                DetalleJornadaEsperado, SedeConCentroDeCostosDetalle));
+                    "06:00-14:00"), SedeConCentroDeCostosDetalle));
         And<SolicitudProgramacionAggregateRoot, string?>(s => s.Sede!.CentroDeCostos, "CC-100");
         And<SolicitudProgramacionAggregateRoot, string?>(
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, "CC-100");
@@ -618,11 +563,11 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1],
-            TurnoConSedeAplicadaEsperado, SedePrincipal, JornadaEsperada));
+            TurnoConSedeAplicadaEsperado, SedePrincipal));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1],
-                DetalleConSedeAplicadaEsperado, DetalleJornadaEsperado, SedePrincipalDetalle));
+                DetalleConSedeAplicadaEsperado, SedePrincipalDetalle));
         And<SolicitudProgramacionAggregateRoot, string?>(s => s.Sede!.CentroDeCostos, null);
         And<SolicitudProgramacionAggregateRoot, string?>(
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, null);
@@ -638,11 +583,11 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1],
-            TurnoConSedeAplicadaEsperado, SedePrincipal, JornadaEsperada));
+            TurnoConSedeAplicadaEsperado, SedePrincipal));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1],
-                DetalleConSedeAplicadaEsperado, DetalleJornadaEsperado, SedePrincipalDetalle));
+                DetalleConSedeAplicadaEsperado, SedePrincipalDetalle));
         And<SolicitudProgramacionAggregateRoot, string?>(s => s.Sede!.CentroDeCostos, null);
         And<SolicitudProgramacionAggregateRoot, string?>(
             s => s.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, null);
@@ -658,13 +603,11 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
 
         Then(new ProgramacionTurnoSolicitada(
             GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1],
-            new TurnoProgramado("Descanso Compensatorio", new List<FranjaProgramada>().AsReadOnly(), "(descanso)"),
-            jornada: JornadaEsperada));
+            new TurnoProgramado("Descanso Compensatorio", new List<FranjaProgramada>().AsReadOnly(), "(descanso)")));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
                 GuidAggregateId, ColaboradorResumen, [Dia1],
-                new DetalleTurno("Descanso Compensatorio", new List<DetalleFranjaOrdinaria>().AsReadOnly(), "(descanso)"),
-                DetalleJornadaEsperado));
+                new DetalleTurno("Descanso Compensatorio", new List<DetalleFranjaOrdinaria>().AsReadOnly(), "(descanso)")));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
     }
 
@@ -697,11 +640,10 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2], TurnoProgramadoEsperado,
-            jornada: JornadaEsperada));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2], TurnoProgramadoEsperado));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
         resultado.FechasRespetadas.Should().BeEmpty();
     }
@@ -715,42 +657,19 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
             GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2, Dia3]));
 
         Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2, Dia3], TurnoProgramadoEsperado,
-            jornada: JornadaEsperada));
+            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2, Dia3], TurnoProgramadoEsperado));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2, Dia3], DetalleEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2, Dia3], DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 3);
         resultado.FechasRespetadas.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task SolicitarProgramacionTurno_EstampaLaJornadaExplicitaYNoConsultaAlAsegurador_CuandoTraeJornadaId()
-    {
-        var jid = Guid.Parse("018e4c1a-4f2b-7000-8000-00000000861b");
-        Given(TurnoId.ToString(), CrearEventoTurno());
-        Given(jid.ToString(), JornadaCreada.Crear(jid, Limites42()));
-
-        await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Colaborador, [Dia1, Dia2], JornadaId: jid));
-
-        Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1, Dia2], TurnoProgramadoEsperado,
-            jornada: new JornadaProgramada(jid, Limites42())));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
-            new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado,
-                new DetalleJornada(jid, 2520, 510, 240, 1)));
-        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
-        _asegurador.Invocaciones.Should().Be(0);
-    }
-
-
     private ProgramacionTurnoAgregadaAlBorrador BorradorEsperado(params DateOnly[] fechas) =>
-        new(GuidAggregateId, ColaboradorProgramadoEsperado, fechas, TurnoProgramadoEsperado, null, JornadaEsperada);
+        new(GuidAggregateId, ColaboradorProgramadoEsperado, fechas, TurnoProgramadoEsperado, null);
 
     private ProgramacionTurnoSolicitada SolicitadaEsperada(params DateOnly[] fechas) =>
-        new(GuidAggregateId, ColaboradorProgramadoEsperado, fechas, TurnoProgramadoEsperado, jornada: JornadaEsperada);
+        new(GuidAggregateId, ColaboradorProgramadoEsperado, fechas, TurnoProgramadoEsperado);
 
     [Fact]
     public async Task SolicitarProgramacionTurno_EnviaTodasLasFechasAlBorradorYRegistraSolicitudVacia_CuandoElMesNoTieneBorrador()
@@ -781,7 +700,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         Then(StreamBorradorOctubre, BorradorEsperado(Octubre10));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado));
         And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 2);
         And<BorradorMensual, int>(StreamBorradorOctubre, b => b.FechasEnBorrador.Count, 1);
         resultado.FechasEnBorrador.Should().Equal(Octubre10);
@@ -799,7 +718,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         Then(StreamBorradorOctubre);
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1, Dia2], DetalleEsperado));
         And<BorradorMensual, int>(StreamBorradorOctubre, b => b.FechasEnBorrador.Count, 0);
         resultado.FechasEnBorrador.Should().BeEmpty();
     }
@@ -817,7 +736,7 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         Then(StreamBorradorNoviembre, BorradorEsperado(Noviembre2));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador,
             new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado, DetalleJornadaEsperado));
+                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado));
         And<BorradorMensual, int>(StreamBorradorNoviembre, b => b.FechasEnBorrador.Count, 1);
         resultado.FechasEnBorrador.Should().Equal(Octubre31, Noviembre2);
     }
@@ -867,55 +786,4 @@ public class SolicitarProgramacionTurnoCommandHandlerTests
         propiedades.Select(p => (string?)p.GetValue(null)).Should().AllSatisfy(m => m.Should().NotBeNullOrWhiteSpace());
     }
 
-    private static readonly Guid JornadaConModalidadId = Guid.Parse("018e4c1a-4f2b-7000-8000-00000000861c");
-
-    private static JornadaProgramada JornadaOrdinariaEstampada() => new(
-        JornadaConModalidadId, Limites42(), ModalidadJornada.Ordinaria, true, new FichaDeLey(504, null, 2520));
-
-    private static DetalleJornada DetalleOrdinariaEstampado() => new(
-        JornadaConModalidadId, 2520, 510, 240, 1, "Ordinaria", true, 504, null, 2520);
-
-    private void GivenJornadaConModalidadYMarca() =>
-        Given(JornadaConModalidadId.ToString(),
-            JornadaCreada.Crear(JornadaConModalidadId, Limites42()),
-            ModalidadDeJornadaAsignada.Crear(JornadaConModalidadId, ModalidadJornada.Ordinaria),
-            DescansoAcumuladoDeJornadaMarcado.Crear(JornadaConModalidadId));
-
-    [Fact]
-    public async Task SolicitarProgramacionTurno_LlevaLaEstampaCompletaEnLaSolicitudEnFirme_CuandoLaJornadaTieneModalidadYMarca()
-    {
-        Given(TurnoId.ToString(), CrearEventoTurno());
-        GivenJornadaConModalidadYMarca();
-
-        await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Colaborador, [Dia1], JornadaId: JornadaConModalidadId));
-
-        Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [Dia1], TurnoProgramadoEsperado,
-            jornada: JornadaOrdinariaEstampada()));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
-            new ProgramacionTurnoEnFechasSolicitada(
-                GuidAggregateId, ColaboradorResumen, [Dia1], DetalleEsperado, DetalleOrdinariaEstampado()));
-        And<SolicitudProgramacionAggregateRoot, int>(s => s.Fechas.Count, 1);
-    }
-
-    [Fact]
-    public async Task SolicitarProgramacionTurno_LlevaLaEstampaCompletaAlBorrador_CuandoLaJornadaTieneModalidadYMarca()
-    {
-        Given(TurnoId.ToString(), CrearEventoTurno());
-        GivenJornadaConModalidadYMarca();
-
-        await WhenAsync(new SolicitarProgramacionTurno(
-            GuidAggregateId, TurnoId, Colaborador, [Noviembre2], JornadaId: JornadaConModalidadId));
-
-        Then(new ProgramacionTurnoSolicitada(
-            GuidAggregateId, ColaboradorProgramadoEsperado, [], TurnoProgramadoEsperado,
-            jornada: JornadaOrdinariaEstampada()));
-        Then(StreamBorradorNoviembre,
-            new ProgramacionTurnoAgregadaAlBorrador(
-                GuidAggregateId, ColaboradorProgramadoEsperado, [Noviembre2], TurnoProgramadoEsperado,
-                null, JornadaOrdinariaEstampada()));
-        ThenIsPublishedPrivately();
-        And<BorradorMensual, int>(StreamBorradorNoviembre, b => b.FechasEnBorrador.Count, 1);
-    }
 }

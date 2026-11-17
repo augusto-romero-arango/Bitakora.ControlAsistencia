@@ -8,8 +8,8 @@ namespace Bitakora.ControlAsistencia.ControlHoras.Tests.AsignarTurnosCuandoProgr
 public class ProgramacionTurnoEnFechasSolicitadaDeserializacionTests
 {
     private static readonly Guid SolicitudId = Guid.Parse("019600b0-0000-7000-8000-000000000001");
-    private static readonly Guid JornadaId = Guid.Parse("019600b0-0000-7000-8000-0000000000aa");
 
+    // La clave "jornada" es de los mensajes publicados antes de #1520: STJ la ignora.
     private const string JsonFormatoWolverine = """
         {
           "solicitudId": "019600b0-0000-7000-8000-000000000001",
@@ -60,8 +60,6 @@ public class ProgramacionTurnoEnFechasSolicitadaDeserializacionTests
         evento.DetalleTurno.FranjasOrdinarias.Should().HaveCount(1);
         evento.DetalleTurno.FranjasOrdinarias[0].HoraInicio.Should().Be(new TimeOnly(8, 0));
         evento.DetalleTurno.FranjasOrdinarias[0].HoraFin.Should().Be(new TimeOnly(16, 0));
-        evento.Jornada.JornadaId.Should().Be(JornadaId);
-        evento.Jornada.TopeDiarioEnMinutos.Should().Be(600);
     }
 
     [Fact]

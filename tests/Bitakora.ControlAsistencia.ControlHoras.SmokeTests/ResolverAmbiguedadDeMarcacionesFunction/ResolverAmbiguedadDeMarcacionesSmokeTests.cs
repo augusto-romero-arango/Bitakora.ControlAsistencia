@@ -67,7 +67,6 @@ public class ResolverAmbiguedadDeMarcacionesSmokeTests(ApiFixture api, ServiceBu
                 NombreCompleto = "[TEST] Smoke Resolver Ambiguedad"
             },
             Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
-            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new { Nombre = "[TEST] Turno Resolver Ambiguedad", FranjasOrdinarias = new[] { franja } }
         };
     }

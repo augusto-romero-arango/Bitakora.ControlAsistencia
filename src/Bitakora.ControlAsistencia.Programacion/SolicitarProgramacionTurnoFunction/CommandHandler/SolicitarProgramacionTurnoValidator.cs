@@ -20,8 +20,6 @@ public class SolicitarProgramacionTurnoValidator
 
         RuleFor(x => x.Fechas).NotEmpty();
 
-        RuleFor(x => x.JornadaId).NotEqual(Guid.Empty);
-
         When(x => x.Sede is not null, () =>
         {
             RuleFor(x => x.Sede!.Id).NotEmpty();

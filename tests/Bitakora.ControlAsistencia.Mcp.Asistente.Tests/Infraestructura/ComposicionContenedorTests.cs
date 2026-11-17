@@ -1,6 +1,5 @@
 using System.Reflection;
 using AwesomeAssertions;
-using Bitakora.ControlAsistencia.Mcp.Asistente.ConsultarAdvertenciasProgramacion;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Bitakora.ControlAsistencia.Mcp.Asistente.SolicitarProgramacionTurno;
 using Microsoft.Azure.Functions.Worker;
@@ -53,17 +52,6 @@ public class ComposicionContenedorTests
             var activar = () => ActivatorUtilities.CreateInstance(alcance.ServiceProvider, tipo);
             activar.Should().NotThrow($"la tool {tipo.Name} debe poder activarse desde el contenedor");
         }
-    }
-
-    [Fact]
-    public void ConfigurarServiciosMcp_ActivaConsultarAdvertenciasProgramacionTool()
-    {
-        using var proveedor = ConstruirProveedor();
-        using var alcance = proveedor.CreateScope();
-
-        var activar = () => ActivatorUtilities.CreateInstance<ConsultarAdvertenciasProgramacionTool>(alcance.ServiceProvider);
-
-        activar.Should().NotThrow();
     }
 
     [Fact]

@@ -29,15 +29,14 @@ public partial class BorradorMensual : AggregateRoot
         ColaboradorProgramado colaborador,
         IReadOnlyList<DateOnly> fechas,
         TurnoProgramado turno,
-        SedeProgramada? sede,
-        JornadaProgramada jornada)
+        SedeProgramada? sede)
     {
         var enFirme = fechas.Where(_enFirme.Contains).ToList();
         var nuevas = fechas.Where(f => !_enFirme.Contains(f)).ToList();
         if (nuevas.Count > 0)
         {
             var evento = new ProgramacionTurnoAgregadaAlBorrador(
-                solicitudId, colaborador, nuevas, turno, sede, jornada);
+                solicitudId, colaborador, nuevas, turno, sede);
             _uncommittedEvents.Add(evento);
         }
 
@@ -47,7 +46,7 @@ public partial class BorradorMensual : AggregateRoot
     public void Apply(ProgramacionTurnoAgregadaAlBorrador e)
     {
         Id = ComputarStreamId(e.Colaborador.CodigoColaborador, e.Fechas[0]);
-        var entrada = new EntradaBorrador(e.SolicitudId, e.Colaborador, e.DetalleTurno, e.Sede, e.Jornada);
+        var entrada = new EntradaBorrador(e.SolicitudId, e.Colaborador, e.DetalleTurno, e.Sede);
         var entradas = new Dictionary<DateOnly, EntradaBorrador>(_entradas);
         foreach (var fecha in e.Fechas)
             entradas[fecha] = entrada;
@@ -91,7 +90,7 @@ public partial class BorradorMensual : AggregateRoot
             {
                 var entrada = _entradas[g.First()];
                 return new LotePublicado(
-                    g.Key, entrada.Colaborador, [.. g], entrada.DetalleTurno, entrada.Sede, entrada.Jornada);
+                    g.Key, entrada.Colaborador, [.. g], entrada.DetalleTurno, entrada.Sede);
             })
             .ToList();
 
@@ -105,6 +104,5 @@ public partial class BorradorMensual : AggregateRoot
         Guid SolicitudId,
         ColaboradorProgramado Colaborador,
         TurnoProgramado DetalleTurno,
-        SedeProgramada? Sede,
-        JornadaProgramada Jornada);
+        SedeProgramada? Sede);
 }

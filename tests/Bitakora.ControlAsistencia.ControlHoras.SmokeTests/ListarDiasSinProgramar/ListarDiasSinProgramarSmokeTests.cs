@@ -50,7 +50,6 @@ public class ListarDiasSinProgramarSmokeTests(ApiFixture api, ServiceBusFixture 
             SolicitudId = solicitudId,
             Colaborador = new ResumenColaborador("CC-444555777", codigoColaborador, "[TEST] Smoke Dias Sin Programar"),
             Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
-            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[TEST] Turno Dias Sin Programar",

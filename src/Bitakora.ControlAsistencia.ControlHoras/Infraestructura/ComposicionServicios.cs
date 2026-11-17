@@ -92,10 +92,6 @@ public static class ComposicionServicios
             // ListarResumenesAsistencia responden 500 por el "alter column" 42804.
             options.Schema.For<AsistenciaDiaria>().UseNumericRevisions(true);
 
-            // Mismo caso que TurnoVigente: sin esta linea ListarAdvertenciasProgramacionSemanal
-            // responde 500 por el "alter column" 42804.
-            options.Schema.For<AdvertenciasProgramacionSemanal>().UseNumericRevisions(true);
-
             if (options.Serializer() is Marten.Services.SystemTextJsonSerializer stj)
             {
                 stj.Configure(jsonOptions =>

@@ -116,25 +116,4 @@ public class SolicitarProgramacionTurnoValidatorTests
         resultado.IsValid.Should().BeFalse();
         resultado.Errors.Should().Contain(e => e.PropertyName.Contains(nameof(SedeProgramada.Nombre)));
     }
-
-    [Fact]
-    public void Validar_EsValido_CuandoNoTraeJornadaId()
-    {
-        _validator.Validate(Valido() with { JornadaId = null }).IsValid.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Validar_EsValido_CuandoTraeJornadaIdConValor()
-    {
-        _validator.Validate(Valido() with { JornadaId = Guid.NewGuid() }).IsValid.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Validar_Falla_CuandoJornadaIdEsGuidVacio()
-    {
-        var resultado = _validator.Validate(Valido() with { JornadaId = Guid.Empty });
-
-        resultado.IsValid.Should().BeFalse();
-        resultado.Errors.Should().Contain(e => e.PropertyName == nameof(SolicitarProgramacionTurno.JornadaId));
-    }
 }

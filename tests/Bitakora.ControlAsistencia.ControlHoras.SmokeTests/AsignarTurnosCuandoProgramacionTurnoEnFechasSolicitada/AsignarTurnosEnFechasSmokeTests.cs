@@ -142,8 +142,7 @@ public class AsignarTurnosEnFechasSmokeTests(ServiceBusFixture serviceBus, Postg
     }
 
     private static Dictionary<string, object?> EventoEnLote(
-        Guid solicitudId, string codigoColaborador, string identificacion, DateOnly fecha, object detalleTurno,
-        object? jornada = null) =>
+        Guid solicitudId, string codigoColaborador, string identificacion, DateOnly fecha, object detalleTurno) =>
         new()
         {
             ["SolicitudId"] = solicitudId,
@@ -154,8 +153,7 @@ public class AsignarTurnosEnFechasSmokeTests(ServiceBusFixture serviceBus, Postg
                 NombreCompleto = "[TEST] Smoke Lote Asignacion"
             },
             ["Fechas"] = new[] { fecha.ToString("yyyy-MM-dd") },
-            ["DetalleTurno"] = detalleTurno,
-            ["Jornada"] = jornada ?? ProgramacionEnLote.Jornada
+            ["DetalleTurno"] = detalleTurno
         };
 
     private static object FranjaOcho(object? sede = null) =>
@@ -251,48 +249,6 @@ public class AsignarTurnosEnFechasSmokeTests(ServiceBusFixture serviceBus, Postg
 
     [Fact]
     [Trait("Category", "Smoke")]
-    public async Task ProgramacionTurnoEnFechasSolicitada_PersisteLaJornadaEstampada_CuandoElEventoLaTrae()
-    {
-        Assert.SkipWhen(!serviceBus.IsConfigured,
-            "ServiceBus no configurado. Usa appsettings.local.json o variable ServiceBus__ConnectionString.");
-        Assert.SkipWhen(!postgres.IsConfigured, postgres.SkipReason ?? "Postgres no disponible.");
-
-        var solicitudId = Guid.CreateVersion7();
-        var codigoColaborador = Guid.CreateVersion7().ToString();
-        var fecha = new DateOnly(2026, 4, 12);
-        var jornadaId = Guid.CreateVersion7();
-        var detalleTurno = new { Nombre = "[TEST] Turno Jornada Lote", FranjasOrdinarias = new[] { FranjaOcho() } };
-        var jornada = new
-        {
-            JornadaId = jornadaId,
-            HorasSemanalesEnMinutos = 2520,
-            TopeDiarioEnMinutos = 510,
-            MinimoDiarioEnMinutos = 240,
-            DiasDescansoPorSemana = 1,
-            Modalidad = "Flexible",
-            DescansoAcumulado = true,
-            TopeDiarioDeLeyEnMinutos = 540,
-            MinimoDiarioDeLeyEnMinutos = 240,
-            HorasSemanalesDeLeyEnMinutos = 2520
-        };
-
-        var persistido = await PublicarYLeerAsync(codigoColaborador, solicitudId, fecha,
-            EventoEnLote(solicitudId, codigoColaborador, "CC-555666777", fecha, detalleTurno, jornada));
-
-        persistido.GetProperty("Jornada").Deserialize<JornadaProgramada>()
-            .Should().Be(new JornadaProgramada(
-                jornadaId, 2520, 510, 240, 1,
-                Modalidad: "Flexible",
-                DescansoAcumulado: true,
-                TopeDiarioDeLeyEnMinutos: 540,
-                MinimoDiarioDeLeyEnMinutos: 240,
-                HorasSemanalesDeLeyEnMinutos: 2520));
-
-        await AfirmarSinDeadLetterAsync(codigoColaborador);
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
     public async Task ProgramacionTurnoEnFechasSolicitada_PersisteLaAmplitudDeLaVentanaDeEntrada_CuandoElEventoLaTrae()
     {
         Assert.SkipWhen(!serviceBus.IsConfigured,
@@ -377,14 +333,6 @@ public class AsignarTurnosEnFechasSmokeTests(ServiceBusFixture serviceBus, Postg
                         descansos = Array.Empty<object>(), extras = Array.Empty<object>()
                     }
                 }
-            },
-            jornada = new
-            {
-                jornadaId = ProgramacionEnLote.JornadaId,
-                horasSemanalesEnMinutos = 2880,
-                topeDiarioEnMinutos = 1440,
-                minimoDiarioEnMinutos = 0,
-                diasDescansoPorSemana = 1
             }
         };
 

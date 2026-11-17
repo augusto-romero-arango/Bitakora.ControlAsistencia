@@ -16,7 +16,6 @@ public class DescartarBorradorDeProgramacionCommandHandlerTests : CommandHandler
 
     private static readonly Guid Solicitud1 = Guid.Parse("019600a0-0000-7000-8000-000000001405");
     private static readonly Guid AusenciaId = Guid.Parse("019600a0-0000-7000-8000-000000001407");
-    private static readonly Guid JornadaId = Guid.Parse("018e4c1a-4f2b-7000-8000-00000000861a");
 
     private static readonly ColaboradorProgramado Colaborador = new("CC-12345678", Codigo, "Juan Perez");
 
@@ -28,10 +27,6 @@ public class DescartarBorradorDeProgramacionCommandHandlerTests : CommandHandler
         }.AsReadOnly(),
         "06:00-14:00");
 
-    private static readonly JornadaProgramada Jornada = new(
-        JornadaId,
-        LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1));
-
     protected override ICommandHandlerAsync<DescartarBorradorDeProgramacion> Handler =>
         new DescartarBorradorDeProgramacionCommandHandler(EventStore);
 
@@ -41,7 +36,7 @@ public class DescartarBorradorDeProgramacionCommandHandlerTests : CommandHandler
     private static DescartarBorradorDeProgramacion Comando(DateOnly desde, DateOnly hasta) => new(Codigo, desde, hasta);
 
     private static ProgramacionTurnoAgregadaAlBorrador Agregada(params DateOnly[] fechas) =>
-        new(Solicitud1, Colaborador, fechas, TurnoManana, null, Jornada);
+        new(Solicitud1, Colaborador, fechas, TurnoManana, null);
 
     private static BorradorDeProgramacionDescartado Descartado(params DateOnly[] fechas) => new(Colaborador, fechas);
 

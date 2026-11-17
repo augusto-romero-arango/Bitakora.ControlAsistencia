@@ -107,15 +107,11 @@ public class CancelarProgramacionCommandHandlerTests
         }.AsReadOnly(),
         "06:00-14:00");
 
-    private static readonly JornadaProgramada Jornada = new(
-        Guid.Parse("018e4c1a-4f2b-7000-8000-00000000861a"),
-        LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1));
-
     private static DateOnly Oct(int dia) => new(2026, 10, dia);
     private static DateOnly Nov(int dia) => new(2026, 11, dia);
 
     private static ProgramacionTurnoAgregadaAlBorrador EnBorrador(params DateOnly[] fechas) =>
-        new(SolicitudOrigen, ColaboradorProgramadoEsperado, fechas, TurnoManana, null, Jornada);
+        new(SolicitudOrigen, ColaboradorProgramadoEsperado, fechas, TurnoManana, null);
 
     private static BorradorDeProgramacionDescartado Descartado(params DateOnly[] fechas) =>
         new(ColaboradorProgramadoEsperado, fechas);

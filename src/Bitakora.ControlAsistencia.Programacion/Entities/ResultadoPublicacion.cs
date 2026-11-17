@@ -9,5 +9,4 @@ internal sealed record LotePublicado(
     ColaboradorProgramado Colaborador,
     IReadOnlyList<DateOnly> Fechas,
     TurnoProgramado DetalleTurno,
-    SedeProgramada? Sede,
-    JornadaProgramada Jornada);
+    SedeProgramada? Sede);

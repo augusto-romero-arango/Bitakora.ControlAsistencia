@@ -22,7 +22,6 @@ public class PublicarProgramacionCommandHandlerTests : CommandHandlerAsyncTest<P
     private static readonly Guid Solicitud1 = Guid.Parse("019600a0-0000-7000-8000-000000001405");
     private static readonly Guid Solicitud2 = Guid.Parse("019600a0-0000-7000-8000-000000001406");
     private static readonly Guid AusenciaId = Guid.Parse("019600a0-0000-7000-8000-000000001407");
-    private static readonly Guid JornadaId = Guid.Parse("018e4c1a-4f2b-7000-8000-00000000861a");
 
     private static readonly ColaboradorProgramado Colaborador = new("CC-12345678", Codigo, "Juan Perez");
     private static readonly ResumenColaborador Resumen = new("CC-12345678", Codigo, "Juan Perez");
@@ -62,12 +61,6 @@ public class PublicarProgramacionCommandHandlerTests : CommandHandlerAsyncTest<P
     private static readonly SedeProgramada Sede = new("SEDE-01", "Sede Principal");
     private static readonly DetalleSede SedeDetalle = new("SEDE-01", "Sede Principal");
 
-    private static readonly JornadaProgramada Jornada = new(
-        JornadaId,
-        LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1));
-
-    private static readonly DetalleJornada DetalleJornadaEsperado = new(JornadaId, 2520, 510, 240, 1);
-
     protected override ICommandHandlerAsync<PublicarProgramacion> Handler =>
         new PublicarProgramacionCommandHandler(EventStore, PrivateEventSender);
 
@@ -78,7 +71,7 @@ public class PublicarProgramacionCommandHandlerTests : CommandHandlerAsyncTest<P
 
     private static ProgramacionTurnoAgregadaAlBorrador Agregada(
         Guid solicitud, TurnoProgramado turno, SedeProgramada? sede, params DateOnly[] fechas) =>
-        new(solicitud, Colaborador, fechas, turno, sede, Jornada);
+        new(solicitud, Colaborador, fechas, turno, sede);
 
     private static ProgramacionPublicada Publicada(params DateOnly[] fechas) => new(Colaborador, fechas);
 
@@ -86,7 +79,7 @@ public class PublicarProgramacionCommandHandlerTests : CommandHandlerAsyncTest<P
 
     private static ProgramacionTurnoEnFechasSolicitada Lote(
         Guid solicitud, DetalleTurno turno, DetalleSede? sede, params DateOnly[] fechas) =>
-        new(solicitud, Resumen, fechas, turno, DetalleJornadaEsperado, sede);
+        new(solicitud, Resumen, fechas, turno, sede);
 
     private static int EnBorrador(BorradorMensual b) => b.FechasEnBorrador.Count;
 
@@ -314,24 +307,6 @@ public class PublicarProgramacionCommandHandlerTests : CommandHandlerAsyncTest<P
 
         Then(StreamOctubre, Publicada(Oct(5), Oct(8)));
         ThenIsPublishedPrivately(OpcionesGrupoColaborador, Lote(Solicitud1, DetalleManana, null, Oct(5), Oct(8)));
-        And<BorradorMensual, int>(StreamOctubre, EnBorrador, 0);
-    }
-
-    [Fact]
-    public async Task PublicarProgramacion_EnviaLaEstampaDelBorradorSinReestamparla_CuandoLaJornadaTeniaModalidad()
-    {
-        var estampada = new JornadaProgramada(
-            JornadaId, Jornada.Limites, ModalidadJornada.Flexible, true, new FichaDeLey(540, 240, 2520));
-        Given(StreamOctubre,
-            new ProgramacionTurnoAgregadaAlBorrador(Solicitud1, Colaborador, [Oct(5)], TurnoManana, null, estampada));
-
-        await WhenAsync(Comando(Oct(1), Oct(31)));
-
-        Then(StreamOctubre, Publicada(Oct(5)));
-        ThenIsPublishedPrivately(OpcionesGrupoColaborador,
-            new ProgramacionTurnoEnFechasSolicitada(
-                Solicitud1, Resumen, [Oct(5)], DetalleManana,
-                new DetalleJornada(JornadaId, 2520, 510, 240, 1, "Flexible", true, 540, 240, 2520)));
         And<BorradorMensual, int>(StreamOctubre, EnBorrador, 0);
     }
 }

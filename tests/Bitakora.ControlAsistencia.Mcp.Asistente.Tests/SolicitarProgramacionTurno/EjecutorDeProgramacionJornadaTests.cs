@@ -49,16 +49,15 @@ public class EjecutorDeProgramacionJornadaTests
     private static string Identificacion(JsonNode post) =>
         post["colaborador"]!["identificacion"]!.GetValue<string>();
 
+    // Programar ya no estampa la Jornada (#1520): el candidato la conserva para asignar_jornada,
+    // pero la solicitud no la envia.
     [Fact]
-    public async Task EjecutarAsync_EnviaLaJornadaDeCadaCandidato_CuandoUnoLaTieneYOtroNo()
+    public async Task EjecutarAsync_NoEnviaJornadaId_AunqueElCandidatoTengaJornada()
     {
         var (_, posts) = await Ejecutar([Candidato("CC-A", J1), Candidato("CC-B", null)]);
 
-        var deA = posts.Single(p => Identificacion(p) == "CC-A");
-        var deB = posts.Single(p => Identificacion(p) == "CC-B");
-        deA["jornadaId"]!.GetValue<Guid>().Should().Be(J1);
-        deB.AsObject().ContainsKey("jornadaId").Should().BeTrue();
-        deB["jornadaId"].Should().BeNull();
+        posts.Should().HaveCount(2)
+            .And.OnlyContain(p => !p.AsObject().ContainsKey("jornadaId"));
     }
 
     [Fact]
@@ -67,12 +66,12 @@ public class EjecutorDeProgramacionJornadaTests
         var (resultado, _) = await Ejecutar(
             [Candidato("CC-A", J1), Candidato("CC-B", null)],
             p => Identificacion(p) == "CC-A"
-                ? new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("jornada no encontrada", Encoding.UTF8) }
+                ? new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("turno no encontrado", Encoding.UTF8) }
                 : new HttpResponseMessage(HttpStatusCode.Created) { Content = new StringContent("") });
 
         var fallido = resultado.Fallidos.Should().ContainSingle().Subject;
         fallido.Identificacion.Should().Be("CC-A");
-        fallido.Motivo.Should().Be("jornada no encontrada");
+        fallido.Motivo.Should().Be("turno no encontrado");
         resultado.Programados.Should().ContainSingle().Which.Identificacion.Should().Be("CC-B");
     }
 }

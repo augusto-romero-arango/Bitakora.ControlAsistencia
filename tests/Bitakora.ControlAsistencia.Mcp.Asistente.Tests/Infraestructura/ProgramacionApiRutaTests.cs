@@ -16,7 +16,6 @@ public class ProgramacionApiRutaTests
         Guid.Parse("8f14e45f-ceea-4b3c-8f0a-000000000001"),
         new ColaboradorSolicitado("1111", "C-1", "Ana Perez"),
         [new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 2)],
-        null,
         null);
 
     private static async Task<HandlerEnlatado> EnviarDesdeElHostCompuesto(string? valorSetting)

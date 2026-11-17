@@ -9,7 +9,6 @@ public sealed class ProgramacionTurnoEnFechasSolicitada : IPrivateEvent
     public ResumenColaborador Colaborador { get; private set; } = null!;
     public IReadOnlyList<DateOnly> Fechas { get; private set; } = null!;
     public DetalleTurno DetalleTurno { get; private set; } = null!;
-    public DetalleJornada Jornada { get; private set; } = null!;
     public DetalleSede? Sede { get; private set; }
 
     public ProgramacionTurnoEnFechasSolicitada(
@@ -17,14 +16,12 @@ public sealed class ProgramacionTurnoEnFechasSolicitada : IPrivateEvent
         ResumenColaborador colaborador,
         IReadOnlyList<DateOnly> fechas,
         DetalleTurno detalleTurno,
-        DetalleJornada jornada,
         DetalleSede? sede = null)
     {
         SolicitudId = solicitudId;
         Colaborador = colaborador;
         Fechas = fechas;
         DetalleTurno = detalleTurno;
-        Jornada = jornada;
         Sede = sede;
     }
 

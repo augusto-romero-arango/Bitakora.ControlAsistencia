@@ -18,7 +18,6 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
 
     private static readonly Guid SolicitudId = Guid.Parse("019600b0-0000-7000-8000-000000000001");
     private static readonly Guid SolicitudPrevia = Guid.Parse("019600b0-0000-7000-8000-000000000002");
-    private static readonly Guid JornadaId = Guid.Parse("019600b0-0000-7000-8000-0000000000aa");
 
     private static readonly DateOnly Dia20 = new(2026, 4, 20);
     private static readonly DateOnly Dia21 = new(2026, 4, 21);
@@ -42,9 +41,6 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
     private static readonly TurnoDiario TurnoNocturno = new("Turno Noche",
         [new FranjaProgramada(new TimeOnly(22, 0), new TimeOnly(6, 0), 1, [], [], "")], "");
 
-    private static readonly DetalleJornada JornadaBus = new(JornadaId, 2880, 600, 0, 1);
-    private static readonly JornadaProgramada Jornada = new(JornadaId, 2880, 600, 0, 1);
-
     // Nombre de sede largo para inflar cada foto y forzar la particion por tamano.
     private static readonly string SedePesada = new('S', 1000);
 
@@ -52,11 +48,11 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
         new ProgramacionTurnoEnFechasSolicitadaEventHandler(EventStore, PrivateEventSender);
 
     private static ProgramacionTurnoEnFechasSolicitada Solicitud(DetalleTurno turno, params DateOnly[] fechas) =>
-        new(SolicitudId, ColaboradorResumen, fechas, turno, JornadaBus);
+        new(SolicitudId, ColaboradorResumen, fechas, turno);
 
     private static TurnoDiarioAsignado Asignado(
-        string streamId, DateOnly fecha, TurnoDiario turno, Guid solicitudId, JornadaProgramada? jornada = null) =>
-        new(streamId, Colaborador, fecha, turno, solicitudId, jornada);
+        string streamId, DateOnly fecha, TurnoDiario turno, Guid solicitudId) =>
+        new(streamId, Colaborador, fecha, turno, solicitudId);
 
     private static MarcacionAdicionada Marcacion(string streamId, DateTime timestamp, string tipo = "ENTRADA") =>
         new(streamId, CodigoColaborador, timestamp, tipo, Dispositivo);
@@ -87,9 +83,9 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
 
         await WhenAsync(Solicitud(TurnoDiurnoBus, Dia20, Dia21));
 
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId));
         Then(Stream21,
-            Asignado(Stream21, Dia21, TurnoDiurno, SolicitudId, Jornada),
+            Asignado(Stream21, Dia21, TurnoDiurno, SolicitudId),
             Cierre(Stream21, new DateTime(2026, 4, 20, 16, 0, 0)));
         And<ControlDiarioAggregateRoot, Guid>(Stream20, c => c.UltimaSolicitudId, SolicitudId);
         And<ControlDiarioAggregateRoot, Guid>(Stream21, c => c.UltimaSolicitudId, SolicitudId);
@@ -99,13 +95,13 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
     [Fact]
     public async Task ProgramacionTurnoEnFechasSolicitada_NoEmiteEventosEnElDia_CuandoYaTieneLaMismaSolicitudYElMismoTurno()
     {
-        Given(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId, Jornada));
+        Given(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId));
 
         await WhenAsync(Solicitud(TurnoDiurnoBus, Dia20, Dia21));
 
         Then(Stream20);
         Then(Stream21,
-            Asignado(Stream21, Dia21, TurnoDiurno, SolicitudId, Jornada),
+            Asignado(Stream21, Dia21, TurnoDiurno, SolicitudId),
             Cierre(Stream21, new DateTime(2026, 4, 20, 16, 0, 0)));
         And<ControlDiarioAggregateRoot, Guid>(Stream20, c => c.UltimaSolicitudId, SolicitudId);
         Publicados<DiasDepurados>().Single().Dias.Select(d => d.Fecha).Should().Equal(Dia20, Dia21);
@@ -114,11 +110,11 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
     [Fact]
     public async Task ProgramacionTurnoEnFechasSolicitada_AsignaDeNuevo_CuandoLaMismaSolicitudTraeOtroTurno()
     {
-        Given(Stream20, Asignado(Stream20, Dia20, TurnoNocturno, SolicitudId, Jornada));
+        Given(Stream20, Asignado(Stream20, Dia20, TurnoNocturno, SolicitudId));
 
         await WhenAsync(Solicitud(TurnoDiurnoBus, Dia20));
 
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId));
         And<ControlDiarioAggregateRoot, string?>(Stream20, c => c.DetalleTurno!.Nombre, "Turno Manana");
     }
 
@@ -133,10 +129,10 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
         await WhenAsync(Solicitud(TurnoNocturnoBus, Dia20, Dia21));
 
         Then(Stream20,
-            Asignado(Stream20, Dia20, TurnoNocturno, SolicitudId, Jornada),
+            Asignado(Stream20, Dia20, TurnoNocturno, SolicitudId),
             Marcacion(Stream20, salida, "SALIDA"));
         Then(Stream21,
-            Asignado(Stream21, Dia21, TurnoNocturno, SolicitudId, Jornada),
+            Asignado(Stream21, Dia21, TurnoNocturno, SolicitudId),
             Cierre(Stream21, new DateTime(2026, 4, 21, 6, 0, 0)));
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 2);
     }
@@ -147,7 +143,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
         var entrada = new DateTime(2026, 4, 20, 21, 55, 0);
         var salida = new DateTime(2026, 4, 21, 6, 5, 0);
         Given(Stream20,
-            Asignado(Stream20, Dia20, TurnoNocturno, SolicitudPrevia, Jornada),
+            Asignado(Stream20, Dia20, TurnoNocturno, SolicitudPrevia),
             Marcacion(Stream20, entrada));
         Given(Stream21, Marcacion(Stream21, salida, "SALIDA"));
 
@@ -155,7 +151,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
 
         Then(Stream20, Marcacion(Stream20, salida, "SALIDA"));
         Then(Stream21,
-            Asignado(Stream21, Dia21, TurnoNocturno, SolicitudId, Jornada),
+            Asignado(Stream21, Dia21, TurnoNocturno, SolicitudId),
             Cierre(Stream21, new DateTime(2026, 4, 21, 6, 0, 0)));
         Publicados<DiaDepurado>().Should().ContainSingle().Which.Fecha.Should().Be(Dia20);
         OpcionesDe<DiaDepurado>().Should().ContainSingle().Which.GroupId.Should().Be(CodigoColaborador);
@@ -166,13 +162,13 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
     [Fact]
     public async Task ProgramacionTurnoEnFechasSolicitada_NoPublicaNiCreaVecinos_CuandoElRepartoNoLosCambia()
     {
-        Given(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudPrevia, Jornada));
+        Given(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudPrevia));
 
         await WhenAsync(Solicitud(TurnoDiurnoBus, Dia21));
 
         Then(Stream20);
         Then(Stream21,
-            Asignado(Stream21, Dia21, TurnoDiurno, SolicitudId, Jornada),
+            Asignado(Stream21, Dia21, TurnoDiurno, SolicitudId),
             Cierre(Stream21, new DateTime(2026, 4, 20, 16, 0, 0)));
         Publicados<DiaDepurado>().Should().BeEmpty();
         PrivateEventSender.PublishedWithOptions.Should().ContainSingle();
@@ -190,7 +186,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
         mensaje.Dias.Should().OnlyContain(d => d.NombreTurno == "Turno Manana");
         OpcionesDe<DiasDepurados>().Should().ContainSingle().Which.GroupId.Should().Be(CodigoColaborador);
         Publicados<DiaDepurado>().Should().BeEmpty();
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId));
         And<ControlDiarioAggregateRoot, Guid>(Stream22, c => c.UltimaSolicitudId, SolicitudId);
     }
 
@@ -206,7 +202,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
         mensajes.Should().HaveCount(2);
         mensajes.Select(m => m.Dias.Single().Fecha).Should().Equal(Dia20, Dia21);
         And<ControlDiarioAggregateRoot, int>(Stream20, c => c.Marcaciones.Count, 250);
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId));
     }
 
     [Fact]
@@ -224,14 +220,14 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
         await WhenAsync(Solicitud(TurnoNocturnoBus, Dia20, Dia21, Dia22));
 
         Then(Stream20,
-            Asignado(Stream20, Dia20, TurnoNocturno, SolicitudId, Jornada),
+            Asignado(Stream20, Dia20, TurnoNocturno, SolicitudId),
             Marcacion(Stream20, salida21, "SALIDA"));
         Then(Stream21,
-            Asignado(Stream21, Dia21, TurnoNocturno, SolicitudId, Jornada),
+            Asignado(Stream21, Dia21, TurnoNocturno, SolicitudId),
             Cierre(Stream21, new DateTime(2026, 4, 21, 6, 0, 0)),
             Marcacion(Stream21, salida22, "SALIDA"));
         Then(Stream22,
-            Asignado(Stream22, Dia22, TurnoNocturno, SolicitudId, Jornada),
+            Asignado(Stream22, Dia22, TurnoNocturno, SolicitudId),
             Cierre(Stream22, new DateTime(2026, 4, 22, 6, 0, 0)));
         var franjas = Publicados<DiasDepurados>().Single().Dias
             .ToDictionary(d => d.Fecha, d => d.Franjas.Single());
@@ -254,7 +250,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
         mensajes.SelectMany(m => m.Dias).Select(d => d.Fecha).Should().Equal(Dia20, Dia21, Dia22);
         OpcionesDe<DiasDepurados>().Should().OnlyContain(o => o.GroupId == CodigoColaborador);
         Then(Stream22,
-            Asignado(Stream22, Dia22, TurnoDiurno, SolicitudId, Jornada),
+            Asignado(Stream22, Dia22, TurnoDiurno, SolicitudId),
             Cierre(Stream22, new DateTime(2026, 4, 21, 16, 0, 0)));
         And<ControlDiarioAggregateRoot, int>(Stream22, c => c.Marcaciones.Count, 70);
     }
@@ -265,7 +261,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
         await WhenAsync(Solicitud(TurnoDiurnoBus with { AmplitudVentanaEntradaEnMinutos = 180 }, Dia20));
 
         Then(Stream20, Asignado(Stream20, Dia20,
-            TurnoDiurno with { AmplitudVentanaEntradaEnMinutos = 180 }, SolicitudId, Jornada));
+            TurnoDiurno with { AmplitudVentanaEntradaEnMinutos = 180 }, SolicitudId));
         And<ControlDiarioAggregateRoot, int>(
             Stream20, c => c.DetalleTurno!.AmplitudVentanaEntradaEnMinutos, 180);
     }
@@ -275,7 +271,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
     {
         await WhenAsync(Solicitud(TurnoDiurnoBus with { EsHorarioAbierto = true }, Dia20));
 
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno with { EsHorarioAbierto = true }, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno with { EsHorarioAbierto = true }, SolicitudId));
         And<ControlDiarioAggregateRoot, bool>(Stream20, c => c.DetalleTurno!.EsHorarioAbierto, true);
     }
 
@@ -284,7 +280,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
     {
         await WhenAsync(Solicitud(TurnoDiurnoBus, Dia20));
 
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId));
         And<ControlDiarioAggregateRoot, bool>(Stream20, c => c.DetalleTurno!.EsHorarioAbierto, false);
     }
 
@@ -314,7 +310,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
                     "(22:00-06:00+1)")
             ],
             "Turno Nocturno (22:00-06:00+1)");
-        Then(Stream20, Asignado(Stream20, Dia20, turnoPersistidoEsperado, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, turnoPersistidoEsperado, SolicitudId));
         And<ControlDiarioAggregateRoot, TurnoDiario?>(Stream20, c => c.DetalleTurno, turnoPersistidoEsperado);
     }
 
@@ -344,7 +340,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
                     new TimeOnly(14, 0), new TimeOnly(18, 0), 0, [], [], "(14:00-18:00)")
             ],
             "Turno Partido");
-        Then(Stream20, Asignado(Stream20, Dia20, turnoPersistidoEsperado, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, turnoPersistidoEsperado, SolicitudId));
         And<ControlDiarioAggregateRoot, SedeProgramada?>(
             Stream20, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede, sedeSubaEsperada);
         And<ControlDiarioAggregateRoot, SedeProgramada?>(
@@ -356,7 +352,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
     {
         await WhenAsync(Solicitud(TurnoDiurnoBus, Dia20));
 
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId));
         And<ControlDiarioAggregateRoot, SedeProgramada?>(
             Stream20, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede, null);
     }
@@ -379,7 +375,7 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
                 new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)",
                 new SedeProgramada("SEDE-SUBA", "Suba", "CC-100"))],
             "Turno Manana (08:00-16:00)");
-        Then(Stream20, Asignado(Stream20, Dia20, turnoPersistidoEsperado, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, turnoPersistidoEsperado, SolicitudId));
         And<ControlDiarioAggregateRoot, string?>(
             Stream20, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, "CC-100");
     }
@@ -402,61 +398,8 @@ public class ProgramacionTurnoEnFechasSolicitadaEventHandlerTests
                 new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "(08:00-16:00)",
                 new SedeProgramada("SEDE-SUBA", "Suba"))],
             "Turno Manana (08:00-16:00)");
-        Then(Stream20, Asignado(Stream20, Dia20, turnoPersistidoEsperado, SolicitudId, Jornada));
+        Then(Stream20, Asignado(Stream20, Dia20, turnoPersistidoEsperado, SolicitudId));
         And<ControlDiarioAggregateRoot, string?>(
             Stream20, c => c.DetalleTurno!.FranjasOrdinarias[0].Sede!.CentroDeCostos, null);
-    }
-
-    private static readonly Guid JornadaAId = Guid.Parse("019600b0-0000-7000-8000-0000000000a1");
-    private static readonly Guid JornadaBId = Guid.Parse("019600b0-0000-7000-8000-0000000000b2");
-
-    [Fact]
-    public async Task ProgramacionTurnoEnFechasSolicitada_EstampaLaJornada_CuandoElEventoLaTrae()
-    {
-        await WhenAsync(new ProgramacionTurnoEnFechasSolicitada(
-            SolicitudId, ColaboradorResumen, [Dia20], TurnoDiurnoBus,
-            new DetalleJornada(JornadaAId, 2520, 510, 240, 1)));
-
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId,
-            new JornadaProgramada(JornadaAId, 2520, 510, 240, 1)));
-        And<ControlDiarioAggregateRoot, string>(Stream20, c => c.Id, Stream20);
-    }
-
-    [Fact]
-    public async Task ProgramacionTurnoEnFechasSolicitada_EstampaLaJornadaNueva_CuandoReprogramaElMismoDia()
-    {
-        Given(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudPrevia,
-            new JornadaProgramada(JornadaAId, 2520, 510, 240, 1)));
-
-        await WhenAsync(new ProgramacionTurnoEnFechasSolicitada(
-            SolicitudId, ColaboradorResumen, [Dia20], TurnoDiurnoBus,
-            new DetalleJornada(JornadaBId, 2880, 480, 120, 2)));
-
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId,
-            new JornadaProgramada(JornadaBId, 2880, 480, 120, 2)));
-        And<ControlDiarioAggregateRoot, Guid>(Stream20, c => c.UltimaSolicitudId, SolicitudId);
-    }
-
-    [Fact]
-    public async Task ProgramacionTurnoEnFechasSolicitada_DejaJornadaNula_CuandoElEventoNoLaTrae()
-    {
-        await WhenAsync(new ProgramacionTurnoEnFechasSolicitada(
-            SolicitudId, ColaboradorResumen, [Dia20], TurnoDiurnoBus, null!));
-
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId, null));
-        And<ControlDiarioAggregateRoot, Guid>(Stream20, c => c.UltimaSolicitudId, SolicitudId);
-    }
-
-    [Fact]
-    public async Task ProgramacionTurnoEnFechasSolicitada_PersisteLaEstampaDeLeyEnLaJornada_CuandoElEventoLaTrae()
-    {
-        var estampa = new DetalleJornada(JornadaId, 2520, 540, 240, 1, "Flexible", true, 540, 240, 2520);
-
-        await WhenAsync(new ProgramacionTurnoEnFechasSolicitada(
-            SolicitudId, ColaboradorResumen, [Dia20], TurnoDiurnoBus, estampa));
-
-        Then(Stream20, Asignado(Stream20, Dia20, TurnoDiurno, SolicitudId,
-            new JornadaProgramada(JornadaId, 2520, 540, 240, 1, "Flexible", true, 540, 240, 2520)));
-        And<ControlDiarioAggregateRoot, Guid>(Stream20, c => c.UltimaSolicitudId, SolicitudId);
     }
 }

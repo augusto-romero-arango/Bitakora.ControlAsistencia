@@ -372,32 +372,23 @@ public class ProgramacionTurnoSolicitadaSerializacionTests
         evento.Sede!.CentroDeCostos.Should().BeNull();
     }
 
+    // Los eventos persistidos antes de #1520 traen la clave "Jornada": STJ ignora por defecto la
+    // propiedad que el tipo ya no declara, asi que esos streams se leen sin purga.
     [Fact]
-    public void Deserializar_DejaJornadaEnNull_CuandoElJsonPersistidoNoLlevaEseCampo()
+    public void Deserializar_IgnoraLaJornada_CuandoElJsonPersistidoLaTrae()
     {
-        var evento = Deserializar(JsonConLaFormaPersistidaEnMtEvents());
+        var nodo = JsonNode.Parse(JsonConLaFormaPersistidaEnMtEvents())!.AsObject();
+        nodo["Jornada"] = JsonNode.Parse("""
+            {"JornadaId":"019600a0-0000-7000-8000-000000000861",
+             "Limites":{"HorasSemanales":"42:00","TopeDiario":"08:30","MinimoDiario":"04:00","DiasDescansoPorSemana":1},
+             "Modalidad":null,"DescansoAcumulado":false,"Ficha":null}
+            """);
 
-        evento.Jornada.Should().BeNull();
-    }
+        var evento = Deserializar(nodo.ToJsonString());
 
-    [Fact]
-    public void RoundTrip_PreservaLaJornada_CuandoLaJornadaEstaPoblada()
-    {
-        var jornadaId = Guid.Parse("019600a0-0000-7000-8000-000000000861");
-        var limites = LimitesJornada.Crear(
-            HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1);
-        var evento = new ProgramacionTurnoSolicitada(
-            Id, ColaboradorEsperado, [Fecha1], TurnoEsperado, jornada: new JornadaProgramada(jornadaId, limites));
-        var opciones = ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
-
-        var json = JsonSerializer.Serialize(evento, opciones);
-        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoSolicitada>(json, opciones);
-
-        restaurado.Should().NotBeNull();
-        restaurado!.Jornada.Should().NotBeNull();
-        restaurado.Jornada!.JornadaId.Should().Be(jornadaId);
-        restaurado.Jornada.Limites.Should().Be(
-            LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1));
-        restaurado.Jornada.Limites.ToString().Should().Be(limites.ToString());
+        evento.Id.Should().Be(Id);
+        evento.Colaborador.Should().Be(ColaboradorEsperado);
+        evento.Fechas.Should().Equal(Fecha1, Fecha2);
+        evento.DetalleTurno.Should().Be(TurnoEsperado);
     }
 }

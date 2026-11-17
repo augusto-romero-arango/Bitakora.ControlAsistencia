@@ -13,8 +13,7 @@ public partial class ModificarLimitesJornadaTool(ProgramacionApi api)
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Reemplaza los cuatro limites de una Jornada. No cambia lo ya programado: cada dia "
-            + "programado conserva la copia que se estampo.")]
+            "Reemplaza los cuatro limites de una Jornada. No cambia lo ya programado.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("jornada_id", "Identificador de la Jornada, tal como lo da listar_jornadas.", isRequired: true)]

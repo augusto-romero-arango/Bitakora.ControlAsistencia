@@ -139,8 +139,7 @@ public class FunctionEndpointTests
         var evento = new ProgramacionTurnoEnFechasSolicitada(
             Id, Resumen, [new DateOnly(2026, 3, 15), new DateOnly(2026, 3, 16)],
             new DetalleTurno("Turno Manana",
-                [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "")], ""),
-            new DetalleJornada(Id, 2880, 600, 0, 1));
+                [new DetalleFranjaOrdinaria(new TimeOnly(8, 0), new TimeOnly(16, 0), 0, [], [], "")], ""));
 
         await esc.Ejecutar(CrearMensaje(Ns + "Programacion.ProgramacionTurnoEnFechasSolicitada", Json(evento)));
 
