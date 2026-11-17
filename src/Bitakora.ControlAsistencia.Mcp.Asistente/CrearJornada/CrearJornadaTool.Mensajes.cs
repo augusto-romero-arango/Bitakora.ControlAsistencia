@@ -13,14 +13,10 @@ public partial class CrearJornadaTool
         public static string RechazoDelDominio =>
             ResourceManager.GetString(nameof(RechazoDelDominio))!;
 
-        public static string ModalidadInvalida =>
-            ResourceManager.GetString(nameof(ModalidadInvalida))!;
-
         public static string DuracionInvalida =>
             ResourceManager.GetString(nameof(DuracionInvalida))!;
 
         public static string DiasDescansoInvalido =>
             ResourceManager.GetString(nameof(DiasDescansoInvalido))!;
-
     }
 }

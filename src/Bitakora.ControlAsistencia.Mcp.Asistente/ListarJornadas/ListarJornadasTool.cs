@@ -17,9 +17,7 @@ public partial class ListarJornadasTool(ProgramacionApi api)
             "Lista el catalogo de Jornadas: los limites de tiempo de trabajo pactados (horas semanales, "
             + "tope diario, minimo diario y dias de descanso por semana). "
             + "Cada Jornada se identifica por su jornada_id y se describe por sus limites; marca cual es la "
-            + "predeterminada, la que rige a quien no tiene una asignada. "
-            + "Cada Jornada con modalidad trae sus advertencias contra la ley de esa modalidad; una Jornada sin "
-            + "advertencias se lee 'sin advertencias contra la modalidad', nunca 'conforme a la ley'.")]
+            + "predeterminada, la que rige a quien no tiene una asignada.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
