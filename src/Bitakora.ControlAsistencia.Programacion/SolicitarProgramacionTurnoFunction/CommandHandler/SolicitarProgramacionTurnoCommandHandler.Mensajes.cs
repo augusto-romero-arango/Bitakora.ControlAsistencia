@@ -22,9 +22,6 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         public static string TodasLasFechasConAusencia =>
             ResourceManager.GetString(nameof(TodasLasFechasConAusencia))!;
 
-        public static string JornadaNoEncontrada =>
-            ResourceManager.GetString(nameof(JornadaNoEncontrada))!;
-
         public static string ColisionBorradorMensual =>
             ResourceManager.GetString(nameof(ColisionBorradorMensual))!;
 

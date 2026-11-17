@@ -263,7 +263,6 @@ public class RegistrarMarcacionSmokeTests(
             SolicitudId = solicitudId,
             Colaborador = colaborador,
             Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
-            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[TEST] Turno HU108",
@@ -370,7 +369,6 @@ public class RegistrarMarcacionSmokeTests(
             Colaborador = new ResumenColaborador(
                 "CC-777666555", codigoColaborador, "[TEST] Smoke Desglose Real"),
             Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
-            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[TEST] Turno HU181",

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 
@@ -7,7 +8,6 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.Eventos;
 public class ProgramacionTurnoAgregadaAlBorradorSerializacionTests
 {
     private static readonly Guid SolicitudId = Guid.Parse("019600a0-0000-7000-8000-000000001405");
-    private static readonly Guid JornadaId = Guid.Parse("018e4c1a-4f2b-7000-8000-00000000861a");
 
     private static JsonSerializerOptions CrearOpcionesMarten() =>
         ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
@@ -24,16 +24,12 @@ public class ProgramacionTurnoAgregadaAlBorradorSerializacionTests
                     [], "(06:00-14:00)[Descansos:(12:00-12:30)]")
             }.AsReadOnly(),
             "Turno Manana (06:00-14:00)");
-        var jornada = new JornadaProgramada(
-            JornadaId,
-            LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1));
         var evento = new ProgramacionTurnoAgregadaAlBorrador(
             SolicitudId,
             new ColaboradorProgramado("CC-12345678", "E001", "Juan Perez"),
             [new DateOnly(2026, 10, 28), new DateOnly(2026, 10, 29)],
             turno,
-            new SedeProgramada("SEDE-01", "Sede Principal", "CC-01"),
-            jornada);
+            new SedeProgramada("SEDE-01", "Sede Principal", "CC-01"));
         var opciones = CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
@@ -46,7 +42,6 @@ public class ProgramacionTurnoAgregadaAlBorradorSerializacionTests
         restaurado.DetalleTurno.Should().Be(turno);
         restaurado.DetalleTurno.FranjasOrdinarias[0].Descansos.Should().HaveCount(1);
         restaurado.Sede.Should().Be(new SedeProgramada("SEDE-01", "Sede Principal", "CC-01"));
-        restaurado.Jornada.Should().Be(jornada);
     }
 
     [Fact]
@@ -57,10 +52,7 @@ public class ProgramacionTurnoAgregadaAlBorradorSerializacionTests
             new ColaboradorProgramado("CC-12345678", "E001", "Juan Perez"),
             [new DateOnly(2026, 10, 28)],
             new TurnoProgramado("T", new List<FranjaProgramada>().AsReadOnly(), "T"),
-            null,
-            new JornadaProgramada(
-                JornadaId,
-                LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1)));
+            null);
         var opciones = CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
@@ -71,56 +63,33 @@ public class ProgramacionTurnoAgregadaAlBorradorSerializacionTests
         restaurado.Fechas.Should().Equal(new DateOnly(2026, 10, 28));
     }
 
+    // Los eventos persistidos antes de #1520 traen la clave "Jornada": STJ ignora por defecto la
+    // propiedad que el tipo ya no declara, asi que esos streams se leen sin purga.
     [Fact]
-    public void RoundTrip_ConservaLaEstampaDeLaJornada_ConDatosCompletos()
+    public void Deserializar_IgnoraLaJornada_CuandoElJsonPersistidoLaTrae()
     {
-        var jornada = new JornadaProgramada(
-            JornadaId,
-            LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1),
-            ModalidadJornada.Flexible, true, new FichaDeLey(540, 240, 2520));
+        var turno = new TurnoProgramado("T", new List<FranjaProgramada>().AsReadOnly(), "T");
         var evento = new ProgramacionTurnoAgregadaAlBorrador(
             SolicitudId,
             new ColaboradorProgramado("CC-12345678", "E001", "Juan Perez"),
             [new DateOnly(2026, 10, 28)],
-            new TurnoProgramado("T", new List<FranjaProgramada>().AsReadOnly(), "T"),
-            null,
-            jornada);
+            turno,
+            null);
         var opciones = CrearOpcionesMarten();
-
-        var json = JsonSerializer.Serialize(evento, opciones);
-        var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoAgregadaAlBorrador>(json, opciones);
-
-        restaurado.Should().NotBeNull();
-        restaurado!.Jornada.Modalidad.Should().Be(ModalidadJornada.Flexible);
-        restaurado.Jornada.DescansoAcumulado.Should().BeTrue();
-        restaurado.Jornada.Ficha.Should().Be(new FichaDeLey(540, 240, 2520));
-    }
-
-    [Fact]
-    public void Deserializar_DejaModalidadNulaMarcaFalsaYFichaNula_CuandoLaJornadaPersistidaNoTraeLosCamposNuevos()
-    {
-        var evento = new ProgramacionTurnoAgregadaAlBorrador(
-            SolicitudId,
-            new ColaboradorProgramado("CC-12345678", "E001", "Juan Perez"),
-            [new DateOnly(2026, 10, 28)],
-            new TurnoProgramado("T", new List<FranjaProgramada>().AsReadOnly(), "T"),
-            null,
-            new JornadaProgramada(
-                JornadaId,
-                LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1)));
-        var opciones = CrearOpcionesMarten();
-        var nodo = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(evento, opciones))!.AsObject();
-        var jornadaNodo = nodo["Jornada"]!.AsObject();
-        jornadaNodo.Remove("Modalidad");
-        jornadaNodo.Remove("DescansoAcumulado");
-        jornadaNodo.Remove("Ficha");
+        var nodo = JsonNode.Parse(JsonSerializer.Serialize(evento, opciones))!.AsObject();
+        nodo["Jornada"] = JsonNode.Parse("""
+            {"JornadaId":"018e4c1a-4f2b-7000-8000-00000000861a",
+             "Limites":{"HorasSemanales":"42:00","TopeDiario":"08:30","MinimoDiario":"04:00","DiasDescansoPorSemana":1},
+             "Modalidad":null,"DescansoAcumulado":false,"Ficha":null}
+            """);
 
         var restaurado = JsonSerializer.Deserialize<ProgramacionTurnoAgregadaAlBorrador>(nodo.ToJsonString(), opciones);
 
         restaurado.Should().NotBeNull();
-        restaurado!.Jornada.JornadaId.Should().Be(JornadaId);
-        restaurado.Jornada.Modalidad.Should().BeNull();
-        restaurado.Jornada.DescansoAcumulado.Should().BeFalse();
-        restaurado.Jornada.Ficha.Should().BeNull();
+        restaurado!.SolicitudId.Should().Be(SolicitudId);
+        restaurado.Colaborador.Should().Be(new ColaboradorProgramado("CC-12345678", "E001", "Juan Perez"));
+        restaurado.Fechas.Should().Equal(new DateOnly(2026, 10, 28));
+        restaurado.DetalleTurno.Should().Be(turno);
+        restaurado.Sede.Should().BeNull();
     }
 }

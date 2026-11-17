@@ -14,16 +14,13 @@ public partial class SolicitarProgramacionTurnoCommandHandler
 {
     private readonly IEventStore _eventStore;
     private readonly IPrivateEventSender _privateEventSender;
-    private readonly IAseguradorJornadaPredeterminada _asegurador;
 
     public SolicitarProgramacionTurnoCommandHandler(
         IEventStore eventStore,
-        IPrivateEventSender privateEventSender,
-        IAseguradorJornadaPredeterminada asegurador)
+        IPrivateEventSender privateEventSender)
     {
         _eventStore = eventStore;
         _privateEventSender = privateEventSender;
-        _asegurador = asegurador;
     }
 
     public async Task<ResultadoSolicitudProgramacion> HandleAsync(SolicitarProgramacionTurno command, CancellationToken ct = default)
@@ -53,12 +50,6 @@ public partial class SolicitarProgramacionTurnoCommandHandler
         // resuelto. Con sede null es identidad.
         var turnoProgramado = catalogo.ObtenerDetalle().ConSedePorDefecto(sedeSolicitada);
 
-        var jornadaId = command.JornadaId ?? await _asegurador.AsegurarAsync(ct);
-        var jornada = await _eventStore.GetAggregateRootAsync<Jornada>(jornadaId, ct);
-        if (jornada is null)
-            throw new RecursoNoEncontradoException(Mensajes.JornadaNoEncontrada);
-        var jornadaProgramada = jornada.Estampar();
-
         var ausencias = await _eventStore.GetAggregateRootAsync<AusenciasColaborador>(
             AusenciasColaborador.ComputarStreamId(command.Colaborador.CodigoColaborador), ct);
         var clasificacion = ausencias?.ClasificarFechas(command.Fechas)
@@ -81,20 +72,20 @@ public partial class SolicitarProgramacionTurnoCommandHandler
             if (borrador is null)
             {
                 var inicial = new ProgramacionTurnoAgregadaAlBorrador(
-                    command.Id, colaboradorDominio, fechasMes, turnoProgramado, sedeSolicitada, jornadaProgramada);
+                    command.Id, colaboradorDominio, fechasMes, turnoProgramado, sedeSolicitada);
                 _eventStore.StartStream(BorradorMensual.Iniciar(inicial));
                 enBorrador.AddRange(fechasMes);
                 continue;
             }
 
             var firmes = borrador.Programar(
-                command.Id, colaboradorDominio, fechasMes, turnoProgramado, sedeSolicitada, jornadaProgramada);
+                command.Id, colaboradorDominio, fechasMes, turnoProgramado, sedeSolicitada);
             enFirme.AddRange(firmes);
             enBorrador.AddRange(fechasMes.Except(firmes));
         }
 
         var evento = new ProgramacionTurnoSolicitada(
-            command.Id, colaboradorDominio, enFirme, turnoProgramado, sedeSolicitada, jornadaProgramada);
+            command.Id, colaboradorDominio, enFirme, turnoProgramado, sedeSolicitada);
         var solicitud = SolicitudProgramacionAggregateRoot.Iniciar(evento);
 
         _eventStore.StartStream(solicitud);
@@ -105,7 +96,7 @@ public partial class SolicitarProgramacionTurnoCommandHandler
             // Los mapeos viven aqui: esta Function App es el unico proyecto que ve ambos ensamblados.
             var eventoPrivado = new ProgramacionTurnoEnFechasSolicitada(
                 command.Id, colaborador, enFirme.AsReadOnly(), MapearTurno(turnoProgramado),
-                DetalleJornadaMapeo.Mapear(jornadaProgramada), MapearSede(sedeSolicitada));
+                MapearSede(sedeSolicitada));
 
             await _privateEventSender.PublishAsync(new PublishOptions { GroupId = colaborador.CodigoColaborador }, eventoPrivado);
         }

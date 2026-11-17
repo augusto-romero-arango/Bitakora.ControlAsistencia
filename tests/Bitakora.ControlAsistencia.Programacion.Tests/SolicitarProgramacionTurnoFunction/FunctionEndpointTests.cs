@@ -66,21 +66,6 @@ public class FunctionEndpointTests
     }
 
     [Fact]
-    public async Task SolicitarProgramacionTurno_Retorna201SinLocation_CuandoElComandoTraeJornadaId()
-    {
-        var comando = ComandoValido() with { JornadaId = Guid.NewGuid() };
-        var function = new FunctionEndpoint(
-            new FakeSolicitudRequestValidator(comando),
-            new FakeSolicitudCommandRouter(resultado: new ResultadoSolicitudProgramacion([], [])));
-
-        var result = await function.Run(FakeHttpRequest(), CancellationToken.None);
-
-        result.Should().BeAssignableTo<IStatusCodeActionResult>()
-            .Which.StatusCode.Should().Be(StatusCodes.Status201Created);
-        result.Should().BeAssignableTo<CreatedResult>().Which.Location.Should().BeNull();
-    }
-
-    [Fact]
     public async Task SolicitarProgramacionTurno_PropagaInvalidOperationException_CuandoFallaLaInfraestructura()
     {
         var fallo = new InvalidOperationException("Fallo de infraestructura");

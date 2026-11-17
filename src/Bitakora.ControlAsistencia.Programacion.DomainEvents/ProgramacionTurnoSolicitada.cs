@@ -19,22 +19,18 @@ public sealed class ProgramacionTurnoSolicitada
     // deja null.
     public SedeProgramada? Sede { get; private set; }
 
-    public JornadaProgramada? Jornada { get; private set; }
-
     public ProgramacionTurnoSolicitada(
         Guid id,
         ColaboradorProgramado colaborador,
         IReadOnlyList<DateOnly> fechas,
         TurnoProgramado detalleTurno,
-        SedeProgramada? sede = null,
-        JornadaProgramada? jornada = null)
+        SedeProgramada? sede = null)
     {
         Id = id;
         Colaborador = colaborador;
         Fechas = fechas;
         DetalleTurno = detalleTurno;
         Sede = sede;
-        Jornada = jornada;
     }
 
     // Constructor para Marten/serializacion

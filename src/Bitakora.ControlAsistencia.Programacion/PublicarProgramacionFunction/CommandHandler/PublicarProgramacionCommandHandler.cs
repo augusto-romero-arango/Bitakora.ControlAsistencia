@@ -2,7 +2,6 @@ using Bitakora.ControlAsistencia.PrivateEvents.Colaboradores;
 using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.Entities;
-using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 
@@ -58,7 +57,6 @@ public partial class PublicarProgramacionCommandHandler : ICommandHandlerAsync<P
             new ResumenColaborador(lote.Colaborador.Identificacion, lote.Colaborador.CodigoColaborador, lote.Colaborador.NombreCompleto),
             fechas,
             MapearTurno(lote.DetalleTurno),
-            DetalleJornadaMapeo.Mapear(lote.Jornada),
             MapearSede(lote.Sede));
 
     private static DetalleTurno MapearTurno(TurnoProgramado turno) =>

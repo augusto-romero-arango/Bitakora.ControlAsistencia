@@ -12,8 +12,7 @@ public partial class AsignarJornadaPredeterminadaTool(ProgramacionApi api)
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Marca una Jornada como la predeterminada: la que se estampa al programar a un colaborador "
-            + "sin Jornada asignada.")]
+            "Marca una Jornada como la predeterminada: la que rige a un colaborador sin Jornada asignada.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty("jornada_id", "Identificador de la Jornada, tal como lo da listar_jornadas.", isRequired: true)]

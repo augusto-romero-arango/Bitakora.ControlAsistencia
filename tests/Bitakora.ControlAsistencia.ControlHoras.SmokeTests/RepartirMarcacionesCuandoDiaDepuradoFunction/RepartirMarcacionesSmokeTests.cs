@@ -61,7 +61,6 @@ public class RepartirMarcacionesSmokeTests(ApiFixture api, ServiceBusFixture ser
                 NombreCompleto = "[TEST] Smoke Reparto"
             },
             Fechas = new[] { vispera.ToString("yyyy-MM-dd") },
-            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[TEST] Turno Nocturno Reparto",

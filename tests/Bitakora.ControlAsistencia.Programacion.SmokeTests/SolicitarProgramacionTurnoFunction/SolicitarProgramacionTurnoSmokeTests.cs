@@ -188,15 +188,14 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
     };
 
     private static object PayloadSolicitud(
-        Guid solicitudId, Guid turnoId, string[] fechas, object? sede = null, Guid? jornadaId = null,
+        Guid solicitudId, Guid turnoId, string[] fechas, object? sede = null,
         string? codigoColaborador = null) => new
         {
             id = solicitudId,
             turnoId,
             colaborador = ColaboradorPayload(codigoColaborador ?? CodigoColaboradorUnico()),
             fechas,
-            sede,
-            jornadaId
+            sede
         };
 
     private static object AusenciaPayload(string fechaInicio, string fechaFin) => new
@@ -440,40 +439,6 @@ public class SolicitarProgramacionTurnoSmokeTests(ApiFixture api, ServiceBusFixt
         persistido.DetalleTurno.FranjasOrdinarias[0].Sede.Should().Be(sedeSuba);
         persistido.DetalleTurno.FranjasOrdinarias[1].Sede.Should().Be(sedePrincipal);
         persistido.Sede.Should().Be(sedePrincipal);
-    }
-
-    [Fact]
-    [Trait("Category", "Smoke")]
-    public async Task SolicitarProgramacionTurno_EstampaLaJornada_CuandoTraeJornadaId()
-    {
-        SaltarSiNoHayPostgres(postgres);
-        SaltarSiNoHayServiceBus(serviceBus);
-        var firma = LimitesDePrueba.SolicitarProgramacionEnFechas;
-        var ct = TestContext.Current.CancellationToken;
-        await serviceBus.PurgeAsync(TopicSalida, Suscripcion);
-
-        var jornadaId = Guid.CreateVersion7();
-        (await _client.PostAsJsonAsync("/api/programacion/jornadas", firma.PayloadCrear(jornadaId), ct))
-            .StatusCode.Should().Be(HttpStatusCode.Created);
-        var turnoId = await CrearTurnoDePayloadAsync(id => TurnoSimplePayload(id, "[TEST] Turno Smoke En Fechas Jornada"), ct);
-        var solicitudId = Guid.CreateVersion7();
-        var codigo = CodigoColaboradorUnico();
-
-        (await _client.PostAsJsonAsync(Ruta,
-            PayloadSolicitud(solicitudId, turnoId, ["2026-11-02"], jornadaId: jornadaId, codigoColaborador: codigo), ct))
-            .StatusCode.Should().Be(HttpStatusCode.Created);
-        await PublicarBorradorAsync(codigo, "2026-11-02", "2026-11-02", ct);
-
-        var mensaje = await serviceBus.WaitForMessageAsync<ProgramacionTurnoEnFechasSolicitada>(
-            TopicSalida, Suscripcion, e => e.SolicitudId == solicitudId, Timeout);
-        mensaje.Jornada.Should().NotBeNull();
-        mensaje.Jornada!.JornadaId.Should().Be(jornadaId);
-        mensaje.Jornada.HorasSemanalesEnMinutos.Should().Be(firma.HorasSemanalesEnMinutos);
-        mensaje.Jornada.TopeDiarioEnMinutos.Should().Be(firma.TopeDiarioEnMinutos);
-        mensaje.Jornada.MinimoDiarioEnMinutos.Should().Be(firma.MinimoDiarioEnMinutos);
-        mensaje.Jornada.DiasDescansoPorSemana.Should().Be(firma.DiasDescansoPorSemana);
-        (await postgres.ContarEventosAsync(
-            SchemaProgramacion, solicitudId.ToString(), TipoEventoProgramacionSolicitada)).Should().Be(1);
     }
 
     [Fact]

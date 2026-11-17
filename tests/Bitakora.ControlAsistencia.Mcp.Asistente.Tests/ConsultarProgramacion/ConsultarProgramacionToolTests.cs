@@ -107,7 +107,7 @@ public class ConsultarProgramacionToolTests
     [Fact]
     public async Task ConsultarProgramacion_ResuelveElGrupoConDesdeYEnviaSusCodigos_CuandoSePasaSede()
     {
-        var fakes = Armar(jsonFichas: Fixtures.Leer("ConsultarAdvertenciasProgramacion", "fichas-grupo.json"));
+        var fakes = Armar(jsonFichas: Fixtures.Leer("ConsultarProgramacion", "fichas-grupo.json"));
 
         await Ejecutar(fakes.Tool, desde: "2026-07-06", sede: "NORTE");
 
@@ -121,7 +121,7 @@ public class ConsultarProgramacionToolTests
     [Fact]
     public async Task ConsultarProgramacion_ResuelveElGrupoYEnviaSusCodigos_CuandoSePasanEtiquetas()
     {
-        var fakes = Armar(jsonFichas: Fixtures.Leer("ConsultarAdvertenciasProgramacion", "fichas-grupo.json"));
+        var fakes = Armar(jsonFichas: Fixtures.Leer("ConsultarProgramacion", "fichas-grupo.json"));
 
         await Ejecutar(fakes.Tool, etiquetas: "turno:noche");
 
@@ -132,7 +132,7 @@ public class ConsultarProgramacionToolTests
     [Fact]
     public async Task ConsultarProgramacion_EnviaSoloLaInterseccion_CuandoSePasanSedeYCodigos()
     {
-        var fakes = Armar(jsonFichas: Fixtures.Leer("ConsultarAdvertenciasProgramacion", "fichas-grupo.json"));
+        var fakes = Armar(jsonFichas: Fixtures.Leer("ConsultarProgramacion", "fichas-grupo.json"));
 
         await Ejecutar(fakes.Tool, sede: "NORTE", codigos: "C-103, C-999");
 
@@ -154,7 +154,7 @@ public class ConsultarProgramacionToolTests
     [Fact]
     public async Task ConsultarProgramacion_RespondeFraseSinLlamarATurnos_CuandoLaInterseccionEsVacia()
     {
-        var fakes = Armar(jsonFichas: Fixtures.Leer("ConsultarAdvertenciasProgramacion", "fichas-grupo.json"));
+        var fakes = Armar(jsonFichas: Fixtures.Leer("ConsultarProgramacion", "fichas-grupo.json"));
 
         var resultado = await Ejecutar(fakes.Tool, sede: "NORTE", codigos: "C-999");
 
@@ -231,7 +231,7 @@ public class ConsultarProgramacionToolTests
     [Fact]
     public async Task ConsultarProgramacion_CombinaSujetosYSedeTrabajoEnAnd_CuandoVienenAmbos()
     {
-        var fakes = Armar(jsonFichas: Fixtures.Leer("ConsultarAdvertenciasProgramacion", "fichas-grupo.json"));
+        var fakes = Armar(jsonFichas: Fixtures.Leer("ConsultarProgramacion", "fichas-grupo.json"));
 
         await Ejecutar(fakes.Tool, sede: "NORTE", sedeTrabajo: "NORTE");
 

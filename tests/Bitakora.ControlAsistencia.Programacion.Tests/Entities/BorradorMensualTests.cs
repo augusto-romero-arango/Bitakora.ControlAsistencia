@@ -16,12 +16,8 @@ public class BorradorMensualTests
         }.AsReadOnly(),
         "06:00-14:00");
 
-    private static readonly JornadaProgramada Jornada = new(
-        Guid.Parse("018e4c1a-4f2b-7000-8000-00000000861a"),
-        LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 30), HorasYMinutos.Crear(4, 0), 1));
-
     private static ProgramacionTurnoAgregadaAlBorrador Agregada(Guid solicitudId, params DateOnly[] fechas) =>
-        new(solicitudId, Colaborador, fechas, Turno, null, Jornada);
+        new(solicitudId, Colaborador, fechas, Turno, null);
 
     [Fact]
     public void ComputarStreamId_ArmaPrefijoBmCodigoYMes()
@@ -135,7 +131,7 @@ public class BorradorMensualTests
         borrador.Apply(new ProgramacionPublicada(Colaborador, [new DateOnly(2026, 10, 5)]));
 
         var enFirme = borrador.Programar(
-            Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 7)], Turno, null, Jornada);
+            Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 7)], Turno, null);
 
         enFirme.Should().Equal(new DateOnly(2026, 10, 5));
         borrador.FechasEnBorrador.Should().Equal(new DateOnly(2026, 10, 6));
@@ -148,7 +144,7 @@ public class BorradorMensualTests
         borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 10, 5)));
         borrador.Apply(new ProgramacionPublicada(Colaborador, [new DateOnly(2026, 10, 5)]));
 
-        var enFirme = borrador.Programar(Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5)], Turno, null, Jornada);
+        var enFirme = borrador.Programar(Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5)], Turno, null);
 
         enFirme.Should().Equal(new DateOnly(2026, 10, 5));
         borrador.FechasEnBorrador.Should().BeEmpty();
@@ -160,7 +156,7 @@ public class BorradorMensualTests
         var borrador = new BorradorMensual();
         borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 10, 5)));
 
-        var enFirme = borrador.Programar(Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5)], Turno, null, Jornada);
+        var enFirme = borrador.Programar(Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5)], Turno, null);
 
         enFirme.Should().BeEmpty();
         borrador.FechasEnBorrador.Should().Equal(new DateOnly(2026, 10, 5));
@@ -173,7 +169,7 @@ public class BorradorMensualTests
         borrador.Apply(Agregada(Guid.NewGuid(), new DateOnly(2026, 10, 5)));
         borrador.Publicar(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31), null);
 
-        var enFirme = borrador.Programar(Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5)], Turno, null, Jornada);
+        var enFirme = borrador.Programar(Guid.NewGuid(), Colaborador, [new DateOnly(2026, 10, 5)], Turno, null);
 
         enFirme.Should().Equal(new DateOnly(2026, 10, 5));
         borrador.FechasEnBorrador.Should().BeEmpty();

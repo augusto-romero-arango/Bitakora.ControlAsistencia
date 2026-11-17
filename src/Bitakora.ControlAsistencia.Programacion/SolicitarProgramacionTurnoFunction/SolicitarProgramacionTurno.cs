@@ -7,5 +7,4 @@ public record SolicitarProgramacionTurno(
     Guid TurnoId,
     ColaboradorSolicitado Colaborador,
     List<DateOnly> Fechas,
-    SedeProgramada? Sede = null,
-    Guid? JornadaId = null);
+    SedeProgramada? Sede = null);

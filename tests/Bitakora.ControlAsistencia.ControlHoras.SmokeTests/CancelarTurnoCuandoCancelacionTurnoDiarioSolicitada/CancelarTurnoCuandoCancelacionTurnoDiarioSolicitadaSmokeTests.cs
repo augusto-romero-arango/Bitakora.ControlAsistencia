@@ -65,7 +65,6 @@ public class CancelarTurnoCuandoCancelacionTurnoDiarioSolicitadaSmokeTests(
             SolicitudId = solicitudId,
             Colaborador = colaborador,
             Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
-            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = nombreTurno,

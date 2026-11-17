@@ -70,8 +70,6 @@ events:
         note: "Fechas libres de la solicitud"
       - field: DetalleTurno
         type: DetalleTurno
-      - field: Jornada
-        type: DetalleJornada
       - field: Sede
         type: DetalleSede?
         note: "Sede de programacion, opcional"

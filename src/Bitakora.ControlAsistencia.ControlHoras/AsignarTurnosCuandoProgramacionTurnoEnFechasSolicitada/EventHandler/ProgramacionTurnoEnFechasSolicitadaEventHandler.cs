@@ -120,8 +120,7 @@ public partial class ProgramacionTurnoEnFechasSolicitadaEventHandler
         var streamId = ControlDiarioAggregateRoot.ComputarStreamId(solicitud.Colaborador.CodigoColaborador, fecha);
         var evento = new TurnoDiarioAsignado(
             streamId, MapearColaboradorProgramado(solicitud.Colaborador), fecha,
-            MapearTurnoDiario(solicitud.DetalleTurno), solicitud.SolicitudId,
-            MapearJornada(solicitud.Jornada));
+            MapearTurnoDiario(solicitud.DetalleTurno), solicitud.SolicitudId);
 
         var existente = await CargarAsync(solicitud.Colaborador.CodigoColaborador, fecha, ct);
         if (existente is not null)
@@ -159,14 +158,6 @@ public partial class ProgramacionTurnoEnFechasSolicitadaEventHandler
 
     private static SedeProgramada? MapearSede(DetalleSede? sede) =>
         sede is null ? null : new SedeProgramada(sede.Id, sede.Nombre, sede.CentroDeCostos);
-
-    private static JornadaProgramada? MapearJornada(DetalleJornada? jornada) =>
-        jornada is null
-            ? null
-            : new JornadaProgramada(jornada.JornadaId, jornada.HorasSemanalesEnMinutos,
-                jornada.TopeDiarioEnMinutos, jornada.MinimoDiarioEnMinutos, jornada.DiasDescansoPorSemana,
-                jornada.Modalidad, jornada.DescansoAcumulado, jornada.TopeDiarioDeLeyEnMinutos,
-                jornada.MinimoDiarioDeLeyEnMinutos, jornada.HorasSemanalesDeLeyEnMinutos);
 
     private static SubFranjaProgramada MapearSubFranja(DetalleSubFranja sub) =>
         new(sub.HoraInicio, sub.HoraFin, sub.DiaOffsetInicio, sub.DiaOffsetFin, sub.Descripcion);

@@ -76,7 +76,6 @@ public class WarmupFixture : IAsyncLifetime
             Colaborador = new ResumenColaborador(
                 "CC-000000000", codigoColaborador, "[WARMUP] Cebado cadena SB"),
             Fechas = new[] { fecha.ToString("yyyy-MM-dd") },
-            Jornada = ProgramacionEnLote.Jornada,
             DetalleTurno = new
             {
                 Nombre = "[WARMUP] Turno cebado",
