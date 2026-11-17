@@ -123,8 +123,8 @@ public class CrearJornadaToolTests
         await tool.Run(null!, "42:00", "8:00", "0:00", 1, TestContext.Current.CancellationToken);
 
         var body = JsonNode.Parse(handler.Requests.First(r => r.Metodo == HttpMethod.Post).Cuerpo!)!.AsObject();
-        body.ContainsKey("modalidad").Should().BeFalse();
-        body.ContainsKey("descansoAcumulado").Should().BeFalse();
+        body.Select(p => p.Key).Should().BeEquivalentTo(
+            ["jornadaId", "horasSemanales", "topeDiario", "minimoDiario", "diasDescansoPorSemana"]);
     }
 
     [Fact]
