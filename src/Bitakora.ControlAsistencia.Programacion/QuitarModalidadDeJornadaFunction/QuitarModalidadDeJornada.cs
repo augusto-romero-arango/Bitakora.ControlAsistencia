@@ -1,3 +1,0 @@
-namespace Bitakora.ControlAsistencia.Programacion.QuitarModalidadDeJornadaFunction;
-
-public record QuitarModalidadDeJornada(Guid JornadaId);

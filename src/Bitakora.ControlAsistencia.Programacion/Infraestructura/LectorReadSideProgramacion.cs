@@ -54,15 +54,7 @@ public class LectorReadSideProgramacion(IDocumentStore store, ITenantContext ten
     {
         await using var session = store.QuerySession(tenantContext.TenantId);
         var catalogo = await LeerCatalogoAsync(session, predeterminadaId, ct);
-
-        var conModalidad = new List<JornadaDelCatalogo>();
-        foreach (var jornada in catalogo.Where(j => j.Limites.Equals(limites)))
-        {
-            var stream = await session.Events.AggregateStreamAsync<Jornada>(jornada.JornadaId.ToString(), token: ct);
-            conModalidad.Add(jornada with { Modalidad = stream?.Modalidad, DescansoAcumulado = stream?.DescansoAcumulado ?? false });
-        }
-
-        return conModalidad;
+        return catalogo.Where(j => j.Limites.Equals(limites)).ToList();
     }
 
     private static async Task<IReadOnlyList<JornadaDelCatalogo>> LeerCatalogoAsync(
