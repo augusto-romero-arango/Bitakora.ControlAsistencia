@@ -1,3 +1,0 @@
-namespace Bitakora.ControlAsistencia.Programacion.DesmarcarDescansoAcumuladoDeJornadaFunction;
-
-public record DesmarcarDescansoAcumuladoDeJornada(Guid JornadaId);
