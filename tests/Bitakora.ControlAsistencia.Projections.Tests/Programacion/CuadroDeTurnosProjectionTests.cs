@@ -22,16 +22,11 @@ public class CuadroDeTurnosProjectionTests
         IReadOnlyList<DiaDelCuadroDeTurnos> dias,
         int diasDelCiclo = 3,
         bool completa = false,
-        Guid? jornadaId = null,
-        LimitesDelCuadro? limites = null,
-        IReadOnlyList<AdvertenciaDelCuadroDeTurnos>? advertencias = null) =>
-        new("plantilla-001", "Ciclo Cocina", diasDelCiclo, dias, completa, jornadaId, limites, advertencias ?? []);
+        Guid? jornadaId = null) =>
+        new("plantilla-001", "Ciclo Cocina", diasDelCiclo, dias, completa, jornadaId);
 
     private static DiaDelCuadroDeTurnos DiaCompleto(int dia, Guid turnoId) =>
         new(dia, turnoId.ToString("D"), "Turno Manana", "06:00-14:00", true, false);
-
-    private static LimitesJornada LimitesDeEjemplo() =>
-        LimitesJornada.Crear(HorasYMinutos.Crear(44, 0), HorasYMinutos.Crear(10, 0), HorasYMinutos.Crear(4, 0), 1);
 
     private static DiaDePlantillaDeTurnosAsignado Asignar(int dia, Guid turnoId, Turno turno) =>
         DiaDePlantillaDeTurnosAsignado.Crear(Guid.NewGuid(), dia, turnoId, turno, 1);
@@ -50,7 +45,7 @@ public class CuadroDeTurnosProjectionTests
         var vista = CuadroDeTurnosProjection.Create(evento);
 
         vista.Should().BeEquivalentTo(new CuadroDeTurnos(
-            "plantilla-001", "Ciclo Cocina", 6, [], false, null, null, []));
+            "plantilla-001", "Ciclo Cocina", 6, [], false, null));
     }
 
     [Fact]
@@ -131,46 +126,23 @@ public class CuadroDeTurnosProjectionTests
     }
 
     [Fact]
-    public void Apply_LlenaJornadaYLimites_CuandoJornadaDePlantillaDeTurnosAsignada()
+    public void Apply_LlenaJornadaId_CuandoJornadaDePlantillaDeTurnosAsignada()
     {
-        var limites = LimitesDeEjemplo();
-        var evento = JornadaDePlantillaDeTurnosAsignada.Crear(Guid.NewGuid(), JornadaId, limites, 1);
+        var evento = JornadaDePlantillaDeTurnosAsignada.Crear(Guid.NewGuid(), JornadaId);
 
         var vista = CuadroDeTurnosProjection.Apply(evento, Vista([]));
 
         vista.JornadaId.Should().Be(JornadaId);
-        vista.Limites.Should().BeEquivalentTo(new LimitesDelCuadro(2640, 600, 240, 1, limites.ToString()));
     }
 
     [Fact]
-    public void Apply_DejaJornadaYLimitesEnNull_CuandoJornadaDePlantillaDeTurnosQuitada()
+    public void Apply_DejaJornadaIdEnNull_CuandoJornadaDePlantillaDeTurnosQuitada()
     {
-        var previa = Vista([], jornadaId: JornadaId, limites: new LimitesDelCuadro(2640, 600, 240, 1, "x"));
+        var previa = Vista([], jornadaId: JornadaId);
 
         var vista = CuadroDeTurnosProjection.Apply(JornadaDePlantillaDeTurnosQuitada.Crear(Guid.NewGuid()), previa);
 
         vista.JornadaId.Should().BeNull();
-        vista.Limites.Should().BeNull();
-    }
-
-    [Fact]
-    public void Apply_ReemplazaLaListaCompleta_CuandoAdvertenciasDePlantillaDeTurnosCalculadas()
-    {
-        var previa = Vista([], advertencias: [new AdvertenciaDelCuadroDeTurnos("DiaSinTurno", 3, 0)]);
-        var evento = AdvertenciasDePlantillaDeTurnosCalculadas.Crear(Guid.NewGuid(),
-        [
-            AdvertenciaPlantillaTurnos.PlantillaSinJornada(),
-            AdvertenciaPlantillaTurnos.SuperaTopeDiario(2, 30),
-        ]);
-
-        var vista = CuadroDeTurnosProjection.Apply(evento, previa);
-
-        vista.Advertencias.Should().BeEquivalentTo(
-            [
-                new AdvertenciaDelCuadroDeTurnos("PlantillaSinJornada", null, 0),
-                new AdvertenciaDelCuadroDeTurnos("SuperaTopeDiario", 2, 30),
-            ],
-            o => o.WithStrictOrdering());
     }
 
     [Fact]
@@ -326,21 +298,5 @@ public class CuadroDeTurnosProjectionTests
 
         dia.EsDescanso.Should().BeFalse();
         dia.HorarioAbierto.Should().BeNull();
-    }
-
-    [Fact]
-    public void Apply_ActualizaLimites_CuandoLimitesDeJornadaDePlantillaDeTurnosSincronizados()
-    {
-        var nuevos = LimitesJornada.Crear(
-            HorasYMinutos.Crear(40, 30), HorasYMinutos.Crear(9, 0), HorasYMinutos.Crear(2, 0), 2);
-        var dias = new[] { DiaCompleto(1, TurnoA) };
-        var previa = Vista(dias, jornadaId: JornadaId, limites: new LimitesDelCuadro(2640, 600, 240, 1, "x"));
-        var evento = LimitesDeJornadaDePlantillaDeTurnosSincronizados.Crear(Guid.NewGuid(), JornadaId, nuevos, 5);
-
-        var vista = CuadroDeTurnosProjection.Apply(evento, previa);
-
-        vista.Limites.Should().BeEquivalentTo(new LimitesDelCuadro(2430, 540, 120, 2, nuevos.ToString()));
-        vista.JornadaId.Should().Be(JornadaId);
-        vista.Dias.Should().BeEquivalentTo(dias);
     }
 }

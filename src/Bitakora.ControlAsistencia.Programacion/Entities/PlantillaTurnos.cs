@@ -23,42 +23,23 @@ public partial class PlantillaTurnos : AggregateRoot
 
     public void Apply(PlantillaDeTurnosRetirada evento) => _estaActiva = false;
 
-    public void Apply(JornadaDePlantillaDeTurnosAsignada evento)
-    {
-        JornadaId = evento.JornadaId;
-        Limites = evento.Limites;
-        VersionJornada = evento.VersionJornada;
-    }
+    public void Apply(JornadaDePlantillaDeTurnosAsignada evento) => JornadaId = evento.JornadaId;
 
-    public void Apply(JornadaDePlantillaDeTurnosQuitada evento)
-    {
-        JornadaId = null;
-        Limites = null;
-        VersionJornada = 0;
-    }
-
-    public void Apply(AdvertenciasDePlantillaDeTurnosCalculadas evento) => Advertencias = evento.Advertencias;
-
-    internal IReadOnlyList<AdvertenciaPlantillaTurnos> Advertencias { get; private set; } = [];
+    public void Apply(JornadaDePlantillaDeTurnosQuitada evento) => JornadaId = null;
 
     internal Guid? JornadaId { get; private set; }
 
-    internal LimitesJornada? Limites { get; private set; }
-
-    internal long VersionJornada { get; private set; }
-
-    internal ResultadoAsignarJornada AsignarJornada(Guid jornadaId, LimitesJornada limites, long version)
+    internal ResultadoAsignarJornada AsignarJornada(Guid jornadaId)
     {
         if (!_estaActiva)
             return ResultadoAsignarJornada.PlantillaRetirada;
 
-        if (JornadaId == jornadaId && VersionJornada >= version)
+        if (JornadaId == jornadaId)
             return ResultadoAsignarJornada.SinCambios;
 
-        var evento = JornadaDePlantillaDeTurnosAsignada.Crear(Guid.Parse(Id), jornadaId, limites, version);
+        var evento = JornadaDePlantillaDeTurnosAsignada.Crear(Guid.Parse(Id), jornadaId);
         _uncommittedEvents.Add(evento);
         Apply(evento);
-        Auditar();
         return ResultadoAsignarJornada.Asignada;
     }
 
@@ -73,7 +54,6 @@ public partial class PlantillaTurnos : AggregateRoot
         var evento = JornadaDePlantillaDeTurnosQuitada.Crear(Guid.Parse(Id));
         _uncommittedEvents.Add(evento);
         Apply(evento);
-        Auditar();
         return ResultadoQuitarJornada.Quitada;
     }
 
@@ -101,30 +81,7 @@ public partial class PlantillaTurnos : AggregateRoot
         var evento = TurnoDePlantillaDeTurnosSincronizado.Crear(Guid.Parse(Id), turnoId, copia, version, retirado);
         _uncommittedEvents.Add(evento);
         Apply(evento);
-        Auditar();
         return ResultadoSincronizarTurno.Sincronizado;
-    }
-
-    public void Apply(LimitesDeJornadaDePlantillaDeTurnosSincronizados evento)
-    {
-        Limites = evento.Limites;
-        VersionJornada = evento.VersionJornada;
-    }
-
-    internal ResultadoSincronizarLimitesDeJornada SincronizarLimitesDeJornada(
-        Guid jornadaId, LimitesJornada limites, long version)
-    {
-        if (!_estaActiva)
-            return ResultadoSincronizarLimitesDeJornada.PlantillaRetirada;
-
-        if (JornadaId != jornadaId || VersionJornada >= version)
-            return ResultadoSincronizarLimitesDeJornada.SinCambios;
-
-        var evento = LimitesDeJornadaDePlantillaDeTurnosSincronizados.Crear(Guid.Parse(Id), jornadaId, limites, version);
-        _uncommittedEvents.Add(evento);
-        Apply(evento);
-        Auditar();
-        return ResultadoSincronizarLimitesDeJornada.Sincronizado;
     }
 
     internal ResultadoRetiroPlantilla Retirar()
@@ -136,20 +93,6 @@ public partial class PlantillaTurnos : AggregateRoot
         _uncommittedEvents.Add(evento);
         Apply(evento);
         return ResultadoRetiroPlantilla.Retirada;
-    }
-
-    private void Auditar()
-    {
-        var calculadas = AuditoriaPlantillaTurnos.Auditar(
-            _diasDelCiclo,
-            _dias.Select(d => new DiaDePlantillaTurnosAuditado(d.Key, d.Value.Turno, d.Value.Retirado)),
-            Limites);
-        if (calculadas.SequenceEqual(Advertencias))
-            return;
-
-        var evento = AdvertenciasDePlantillaDeTurnosCalculadas.Crear(Guid.Parse(Id), calculadas);
-        _uncommittedEvents.Add(evento);
-        Apply(evento);
     }
 
     // Mismo turno con copia atrasada no es no-op: reasignar autocorrige la copia (CA-ADR-0034, enmienda #886).
@@ -168,20 +111,15 @@ public partial class PlantillaTurnos : AggregateRoot
         var evento = DiaDePlantillaDeTurnosAsignado.Crear(Guid.Parse(Id), dia, turnoId, copia, versionTurno);
         _uncommittedEvents.Add(evento);
         Apply(evento);
-        Auditar();
         return ResultadoAsignarDiaDePlantillaTurnos.Asignado;
     }
 
-    internal static PlantillaTurnos IniciarConJornada(
-        PlantillaDeTurnosCreada evento, Guid jornadaId, LimitesJornada limites, long version)
+    internal static PlantillaTurnos IniciarConJornada(PlantillaDeTurnosCreada evento, Guid jornadaId)
     {
-        var plantilla = new PlantillaTurnos();
-        plantilla._uncommittedEvents.Add(evento);
-        plantilla.Apply(evento);
-        var asignada = JornadaDePlantillaDeTurnosAsignada.Crear(evento.PlantillaId, jornadaId, limites, version);
+        var plantilla = Iniciar(evento);
+        var asignada = JornadaDePlantillaDeTurnosAsignada.Crear(evento.PlantillaId, jornadaId);
         plantilla._uncommittedEvents.Add(asignada);
         plantilla.Apply(asignada);
-        plantilla.Auditar();
         return plantilla;
     }
 
@@ -190,7 +128,6 @@ public partial class PlantillaTurnos : AggregateRoot
         var plantilla = new PlantillaTurnos();
         plantilla._uncommittedEvents.Add(evento);
         plantilla.Apply(evento);
-        plantilla.Auditar();
         return plantilla;
     }
 }

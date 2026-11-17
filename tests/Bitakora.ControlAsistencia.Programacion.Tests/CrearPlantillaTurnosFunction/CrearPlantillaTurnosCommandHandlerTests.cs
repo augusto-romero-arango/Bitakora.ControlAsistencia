@@ -6,7 +6,6 @@ using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
-using static Bitakora.ControlAsistencia.Programacion.Tests.Entities.AdvertenciasEsperadasPlantillaTurnos;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.CrearPlantillaTurnosFunction;
 
@@ -25,8 +24,7 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
         Given();
         await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8));
 
-        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8),
-            EventoSinJornada(GuidAggregateId));
+        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8));
         And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -37,8 +35,7 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
         await WhenAsync(new CrearPlantillaTurnos(
             GuidAggregateId, NombrePlantilla, PlantillaDeTurnosCreada.MaximoDiasDelCiclo));
 
-        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 42),
-            EventoSinJornada(GuidAggregateId));
+        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 42));
         And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -69,22 +66,19 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
 
     private static readonly Guid JornadaId = Guid.Parse("019600a0-0000-7000-8000-000000000b02");
 
-    private const long VersionEnElHarness = 0;
-
     private static LimitesJornada Limites(int semanales) =>
         LimitesJornada.Crear(HorasYMinutos.Crear(semanales, 0), HorasYMinutos.Crear(8, 0),
             HorasYMinutos.Crear(0, 0), 1);
 
     [Fact]
-    public async Task CrearPlantillaTurnos_EmiteCreadaJornadaAsignadaYUnaAuditoria_CuandoLaJornadaExiste()
+    public async Task CrearPlantillaTurnos_EmiteCreadaYJornadaAsignada_CuandoLaJornadaExiste()
     {
         Given(JornadaId.ToString(), JornadaCreada.Crear(JornadaId, Limites(42)));
 
         await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8, JornadaId));
 
         Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8),
-            JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId, Limites(42), VersionEnElHarness),
-            EventoDiasSinTurno(GuidAggregateId, 8));
+            JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId));
         And<PlantillaTurnos, Guid?>(p => p.JornadaId, JornadaId);
     }
 
@@ -163,8 +157,7 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
 
         await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, "Ciclo Noché", 8));
 
-        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, "Ciclo Noché", 8),
-            EventoSinJornada(GuidAggregateId));
+        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, "Ciclo Noché", 8));
         And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 
@@ -176,8 +169,7 @@ public class CrearPlantillaTurnosCommandHandlerTests : CommandHandlerAsyncTest<C
 
         await WhenAsync(new CrearPlantillaTurnos(GuidAggregateId, NombrePlantilla, 8));
 
-        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8),
-            EventoSinJornada(GuidAggregateId));
+        Then(PlantillaDeTurnosCreada.Crear(GuidAggregateId, NombrePlantilla, 8));
         And<PlantillaTurnos, string>(p => p.Id, GuidAggregateId.ToString());
     }
 

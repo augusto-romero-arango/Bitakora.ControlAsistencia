@@ -6,7 +6,6 @@ using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
-using static Bitakora.ControlAsistencia.Programacion.Tests.Entities.AdvertenciasEsperadasPlantillaTurnos;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.AsignarTurnoADiaDePlantillaTurnosFunction;
 
@@ -44,7 +43,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaTurnos_EmiteDiaAsignado_CuandoElTurnoEstaCompleto()
     {
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId));
+        Given(CrearEventoPlantilla());
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
 
         await WhenAsync(new AsignarTurnoADiaDePlantillaTurnos(GuidAggregateId, 3, TurnoId));
@@ -57,7 +56,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaTurnos_EmiteDiaAsignado_CuandoElTurnoEsDescanso()
     {
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId));
+        Given(CrearEventoPlantilla());
         Given(TurnoId.ToString(), CrearEventoTurnoDescanso());
 
         await WhenAsync(new AsignarTurnoADiaDePlantillaTurnos(GuidAggregateId, 3, TurnoId));
@@ -71,7 +70,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     public async Task AsignarTurnoADiaDePlantillaTurnos_EmiteDiaAsignado_CuandoElDiaTieneOtroTurno()
     {
         var otroTurnoId = Guid.Parse("019600a0-0000-7000-8000-000000001282");
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId),
+        Given(CrearEventoPlantilla(),
             DiaDePlantillaDeTurnosAsignado.Crear(
                 GuidAggregateId, 3, otroTurnoId, CopiaTurnoDescanso, VersionEnElHarness));
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
@@ -86,7 +85,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaTurnos_EmiteDiaAsignado_CuandoElDiaEsElUltimoDelCiclo()
     {
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId));
+        Given(CrearEventoPlantilla());
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
 
         await WhenAsync(new AsignarTurnoADiaDePlantillaTurnos(GuidAggregateId, DiasDelCiclo, TurnoId));
@@ -99,7 +98,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaTurnos_NoEmiteEvento_CuandoElMismoTurnoYaEstaAsignadoAEseDia()
     {
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId),
+        Given(CrearEventoPlantilla(),
             DiaDePlantillaDeTurnosAsignado.Crear(
                 GuidAggregateId, 3, TurnoId, CopiaTurnoCompleto, VersionEnElHarness));
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
@@ -128,7 +127,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaTurnos_LanzaRecursoNoEncontradoException_CuandoElTurnoNoExiste()
     {
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId));
+        Given(CrearEventoPlantilla());
 
         var act = async () => await WhenAsync(
             new AsignarTurnoADiaDePlantillaTurnos(GuidAggregateId, 3, TurnoId));
@@ -142,7 +141,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaTurnos_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEstaRetirado()
     {
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId));
+        Given(CrearEventoPlantilla());
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto(), TurnoRetirado.Crear(TurnoId));
 
         var act = async () => await WhenAsync(
@@ -157,7 +156,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaTurnos_LanzaReglaDeNegocioDeclinadaException_CuandoElTurnoEstaIncompleto()
     {
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId));
+        Given(CrearEventoPlantilla());
         Given(TurnoId.ToString(), CrearEventoTurnoIncompleto());
 
         var act = async () => await WhenAsync(
@@ -172,7 +171,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaTurnos_LanzaReglaDeNegocioDeclinadaException_CuandoElDiaSuperaElCiclo()
     {
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId));
+        Given(CrearEventoPlantilla());
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
 
         var act = async () => await WhenAsync(
@@ -187,7 +186,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaTurnos_LanzaReglaDeNegocioDeclinada_CuandoLaPlantillaEstaRetirada()
     {
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId), PlantillaDeTurnosRetirada.Crear(GuidAggregateId));
+        Given(CrearEventoPlantilla(), PlantillaDeTurnosRetirada.Crear(GuidAggregateId));
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
 
         var act = async () => await WhenAsync(
@@ -202,7 +201,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task AsignarTurnoADiaDePlantillaTurnos_LanzaReglaDeNegocioDeclinadaPorRetiro_CuandoLaPlantillaEstaRetiradaYElDiaFueraDelCiclo()
     {
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId), PlantillaDeTurnosRetirada.Crear(GuidAggregateId));
+        Given(CrearEventoPlantilla(), PlantillaDeTurnosRetirada.Crear(GuidAggregateId));
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());
 
         var act = async () => await WhenAsync(
@@ -218,7 +217,7 @@ public class AsignarTurnoADiaDePlantillaTurnosCommandHandlerTests
     public async Task AsignarTurnoADiaDePlantillaTurnos_QuitaLaMarcaDeRetirado_CuandoElDiaSeReasignaConOtroTurno()
     {
         var retiradoId = Guid.Parse("019600a0-0000-7000-8000-000000001283");
-        Given(CrearEventoPlantilla(), EventoSinJornada(GuidAggregateId),
+        Given(CrearEventoPlantilla(),
             DiaDePlantillaDeTurnosAsignado.Crear(GuidAggregateId, 3, retiradoId, CopiaTurnoDescanso, VersionEnElHarness),
             TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, retiradoId, CopiaTurnoDescanso, 2, true));
         Given(TurnoId.ToString(), CrearEventoTurnoCompleto());

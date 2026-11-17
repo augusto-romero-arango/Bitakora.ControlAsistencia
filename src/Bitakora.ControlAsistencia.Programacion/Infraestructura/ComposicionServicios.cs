@@ -55,8 +55,6 @@ public static class ComposicionServicios
                     "ausencia-diaria-programada");
                 options.PublicarEventoServerless<AusenciaDiariaCancelada>(
                     "ausencia-diaria-cancelada");
-                options.PublicarEventoServerless<LimitesDeJornadaActualizados>(
-                    "limites-de-jornada-actualizados");
                 options.PublicarEventoServerless<DisenoDeTurnoActualizado>(
                     "diseno-de-turno-actualizado");
             });

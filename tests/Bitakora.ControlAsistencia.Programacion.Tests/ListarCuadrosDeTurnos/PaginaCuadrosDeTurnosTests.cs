@@ -7,7 +7,7 @@ namespace Bitakora.ControlAsistencia.Programacion.Tests.ListarCuadrosDeTurnos;
 public class PaginaCuadrosDeTurnosTests
 {
     private static CuadroDeTurnos Cuadro(string id, string nombre) =>
-        new(id, nombre, 7, [], true, null, null, []);
+        new(id, nombre, 7, [], true, null);
 
     private static readonly CuadroDeTurnos A = Cuadro("id-a", "Ciclo A");
     private static readonly CuadroDeTurnos B = Cuadro("id-b", "Ciclo B");

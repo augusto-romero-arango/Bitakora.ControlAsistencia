@@ -37,9 +37,10 @@ public class ListarPlantillasSmokeTests(McpFixture mcp)
             plantilla.GetProperty("nombre").GetString().Should().NotBeNullOrWhiteSpace();
             plantilla.GetProperty("diasDelCiclo").GetInt32().Should().BeGreaterThan(0);
 
-            foreach (var senal in new[] { "incompleta", "conAdvertencias" })
-                if (plantilla.TryGetProperty(senal, out var valor))
-                    valor.GetBoolean().Should().BeTrue($"{senal} solo viaja cuando es true");
+            if (plantilla.TryGetProperty("incompleta", out var incompleta))
+                incompleta.GetBoolean().Should().BeTrue("incompleta solo viaja cuando es true");
+            plantilla.TryGetProperty("conAdvertencias", out _).Should()
+                .BeFalse("la plantilla ya no se audita contra su Jornada");
         }
     }
 }

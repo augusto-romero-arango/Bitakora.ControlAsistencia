@@ -6,7 +6,6 @@ using Bitakora.ControlAsistencia.Programacion.QuitarJornadaDePlantillaTurnosFunc
 using Bitakora.ControlAsistencia.Programacion.QuitarJornadaDePlantillaTurnosFunction.CommandHandler;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Cosmos.EventSourcing.Testing.Utilities;
-using static Bitakora.ControlAsistencia.Programacion.Tests.Entities.AdvertenciasEsperadasPlantillaTurnos;
 
 namespace Bitakora.ControlAsistencia.Programacion.Tests.QuitarJornadaDePlantillaTurnosFunction;
 
@@ -18,32 +17,27 @@ public class QuitarJornadaDePlantillaTurnosCommandHandlerTests
     protected override ICommandHandlerAsync<QuitarJornadaDePlantillaTurnos> Handler =>
         new QuitarJornadaDePlantillaTurnosCommandHandler(EventStore);
 
-    private static LimitesJornada Limites() =>
-        LimitesJornada.Crear(HorasYMinutos.Crear(42, 0), HorasYMinutos.Crear(8, 0),
-            HorasYMinutos.Crear(0, 0), 1);
-
     private PlantillaDeTurnosCreada PlantillaCreada() =>
         PlantillaDeTurnosCreada.Crear(GuidAggregateId, "Ciclo Cocina", 8);
 
     private JornadaDePlantillaDeTurnosAsignada JornadaAsignada() =>
-        JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId, Limites(), 1);
+        JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId);
 
     [Fact]
     public async Task QuitarJornadaDePlantillaTurnos_EmiteJornadaQuitada_CuandoLaPlantillaTieneJornada()
     {
-        Given(PlantillaCreada(), EventoSinJornada(GuidAggregateId), JornadaAsignada(),
-            EventoDiasSinTurno(GuidAggregateId, 8));
+        Given(PlantillaCreada(), JornadaAsignada());
 
         await WhenAsync(new QuitarJornadaDePlantillaTurnos(GuidAggregateId));
 
-        Then(JornadaDePlantillaDeTurnosQuitada.Crear(GuidAggregateId), EventoSinJornada(GuidAggregateId));
+        Then(JornadaDePlantillaDeTurnosQuitada.Crear(GuidAggregateId));
         And<PlantillaTurnos, Guid?>(p => p.JornadaId, null);
     }
 
     [Fact]
     public async Task QuitarJornadaDePlantillaTurnos_NoEmiteEventos_CuandoLaPlantillaNoTieneJornada()
     {
-        Given(PlantillaCreada(), EventoSinJornada(GuidAggregateId));
+        Given(PlantillaCreada());
 
         await WhenAsync(new QuitarJornadaDePlantillaTurnos(GuidAggregateId));
 

@@ -6,8 +6,7 @@ public sealed record CuadroDeTurnos(
     int DiasDelCiclo,
     bool Completa,
     IReadOnlyList<DiaDelCuadroDeTurnos> Dias,
-    JornadaDelCuadroDeTurnos? Jornada = null,
-    IReadOnlyList<AdvertenciaDelCuadroDeTurnos>? Advertencias = null);
+    string? JornadaId = null);
 
 public sealed record DiaDelCuadroDeTurnos(int Dia, TurnoDelCuadroDeTurnos Turno);
 
@@ -21,10 +20,3 @@ public sealed record TurnoDelCuadroDeTurnos(
     HorarioAbiertoDelCuadroDeTurnos? HorarioAbierto = null);
 
 public sealed record HorarioAbiertoDelCuadroDeTurnos(string Duracion);
-
-public sealed record JornadaDelCuadroDeTurnos(string Id, string Descripcion)
-{
-    public JornadaDescritaResumen Resumir() => new(Id, Descripcion);
-}
-
-public sealed record AdvertenciaDelCuadroDeTurnos(string Descripcion);

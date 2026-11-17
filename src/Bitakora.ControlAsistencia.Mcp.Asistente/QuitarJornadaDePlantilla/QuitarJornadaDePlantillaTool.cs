@@ -13,8 +13,8 @@ public partial class QuitarJornadaDePlantillaTool(
     public async Task<string> Run(
         [McpToolTrigger(
             NombreTool,
-            "Quita la Jornada de una plantilla de turnos (por su id): la plantilla deja de auditarse "
-            + "contra limites. Si no tenia Jornada, no cambia nada.")]
+            "Quita la Jornada de una plantilla de turnos (por su id). Si no tenia Jornada, no cambia "
+            + "nada.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(

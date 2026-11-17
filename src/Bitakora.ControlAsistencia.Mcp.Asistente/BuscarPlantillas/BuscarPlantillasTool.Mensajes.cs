@@ -28,7 +28,6 @@ public partial class BuscarPlantillasTool
 
         public static string CoincidePorIncompleta => ResourceManager.GetString(nameof(CoincidePorIncompleta))!;
 
-        public static string CoincidePorConAdvertencias => ResourceManager.GetString(nameof(CoincidePorConAdvertencias))!;
 
         public static string PalabraAproximada => ResourceManager.GetString(nameof(PalabraAproximada))!;
 

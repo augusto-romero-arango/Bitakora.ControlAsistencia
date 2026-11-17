@@ -12,7 +12,6 @@ public partial class BuscarPlantillasTool(ProgramacionApi api)
     private const int MinimoDias = 1;
     private const int MaximoDias = 42;
     private const string EstadoIncompleta = "incompleta";
-    private const string EstadoConAdvertencias = "con_advertencias";
 
     [Function("BuscarPlantillas")]
     public async Task<string> Run(
@@ -22,10 +21,9 @@ public partial class BuscarPlantillasTool(ProgramacionApi api)
             + "nombra de forma aproximada. Por nombre: palabras en cualquier orden, sin importar acentos "
             + "ni mayusculas, tambien incompletas o con una letra de diferencia. Por turno: plantillas "
             + "que usan en algun dia un turno con ese nombre aproximado. Por dias del ciclo: numero "
-            + "exacto (1 a 42). Por estado: incompleta (algun dia sin turno) o con_advertencias (no "
-            + "cumple su Jornada o no tiene Jornada). Combina los criterios. Devuelve hasta 20 "
-            + "candidatas con el motivo de la coincidencia; si hay mas de una plausible, pregunta al "
-            + "usuario antes de actuar. Para ver todo el catalogo usa listar_plantillas; para el "
+            + "exacto (1 a 42). Por estado: incompleta (algun dia sin turno). Combina los criterios. "
+            + "Devuelve hasta 20 candidatas con el motivo de la coincidencia; si hay mas de una "
+            + "plausible, pregunta al usuario antes de actuar. Para ver todo el catalogo usa listar_plantillas; para el "
             + "cuadro, obtener_plantilla.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
@@ -35,7 +33,7 @@ public partial class BuscarPlantillasTool(ProgramacionApi api)
         string? turno,
         [McpToolProperty("dias_del_ciclo", "Numero de dias del ciclo de la plantilla, de 1 a 42.")]
         string? diasDelCiclo,
-        [McpToolProperty("estado", "incompleta o con_advertencias.")]
+        [McpToolProperty("estado", "incompleta.")]
         string? estado,
         CancellationToken ct)
     {
@@ -57,7 +55,7 @@ public partial class BuscarPlantillasTool(ProgramacionApi api)
         }
 
         var estadoNormalizado = estadoPedido?.ToLowerInvariant();
-        if (estadoNormalizado is not (null or EstadoIncompleta or EstadoConAdvertencias))
+        if (estadoNormalizado is not (null or EstadoIncompleta))
             return string.Format(Mensajes.EstadoDesconocido, estadoPedido);
 
         var respuesta = await api.ListarPlantillasTurnos(ct);
@@ -136,18 +134,9 @@ public partial class BuscarPlantillasTool(ProgramacionApi api)
 
             motivos.Add(Mensajes.CoincidePorIncompleta);
         }
-        else if (estado == EstadoConAdvertencias)
-        {
-            if (NumeroDeAdvertencias(plantilla) == 0)
-                return null;
-
-            motivos.Add(Mensajes.CoincidePorConAdvertencias);
-        }
 
         return new Candidata(plantilla, motivos, palabrasNombre, calidadNombre, palabrasTurno, calidadTurno);
     }
-
-    private static int NumeroDeAdvertencias(CuadroDeTurnos plantilla) => plantilla.Advertencias?.Count ?? 0;
 
     private static string Describir(PalabraCoincidente c) =>
         c.Tipo == TipoCoincidenciaDePalabra.Exacta ? c.Pedida : string.Format(Mensajes.PalabraAproximada, c.Pedida, c.Encontrada);
@@ -172,17 +161,12 @@ public partial class BuscarPlantillasTool(ProgramacionApi api)
         int PalabrasTurno,
         int CalidadTurno)
     {
-        public PlantillaEncontrada Remodelar()
-        {
-            var advertencias = NumeroDeAdvertencias(Plantilla);
-            return new PlantillaEncontrada(
-                Plantilla.Id,
-                Plantilla.Nombre,
-                Plantilla.DiasDelCiclo,
-                Motivos,
-                Plantilla.Completa ? null : true,
-                advertencias > 0 ? advertencias : null);
-        }
+        public PlantillaEncontrada Remodelar() => new(
+            Plantilla.Id,
+            Plantilla.Nombre,
+            Plantilla.DiasDelCiclo,
+            Motivos,
+            Plantilla.Completa ? null : true);
     }
 }
 
@@ -196,5 +180,4 @@ public sealed record PlantillaEncontrada(
     string Nombre,
     int DiasDelCiclo,
     IReadOnlyList<string> CoincidePor,
-    bool? Incompleta,
-    int? Advertencias);
+    bool? Incompleta);

@@ -15,8 +15,7 @@ public partial class AsignarJornadaAPlantillaTool(
         [McpToolTrigger(
             NombreTool,
             "Asocia una Jornada a una plantilla de turnos (por su id) o la reemplaza si ya tenia otra. "
-            + "La plantilla se audita contra los limites de esa Jornada; las advertencias se ven con "
-            + "obtener_plantilla en unos segundos. El jornada_id sale de listar_jornadas.")]
+            + "El jornada_id sale de listar_jornadas.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
@@ -53,7 +52,7 @@ public partial class AsignarJornadaAPlantillaTool(
             Mensajes.ResultadoJornadaAsignada,
             plantilla.Nombre,
             jornada.Resumir(),
-            Mensajes.NotaAdvertenciasEventuales));
+            Mensajes.NotaVisibilidadEventual));
     }
 }
 

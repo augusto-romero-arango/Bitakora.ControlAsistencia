@@ -25,7 +25,7 @@ public partial class AsignarJornadaAPlantillaTurnosCommandHandler
         if (plantilla.JornadaId != command.JornadaId && !jornada.Activa)
             throw new ReglaDeNegocioDeclinadaException(Mensajes.JornadaDesactivada);
 
-        var resultado = plantilla.AsignarJornada(command.JornadaId, jornada.Limites, jornada.Version);
+        var resultado = plantilla.AsignarJornada(command.JornadaId);
         if (resultado == ResultadoAsignarJornada.PlantillaRetirada)
             throw new ReglaDeNegocioDeclinadaException(Mensajes.PlantillaRetirada);
     }

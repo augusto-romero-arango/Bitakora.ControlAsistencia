@@ -15,7 +15,7 @@ public partial class ListarPlantillasTool(ProgramacionApi api)
         [McpToolTrigger(
             NombreTool,
             "Lista las plantillas de turnos del catalogo: nombre, dias del ciclo y si esta lista para "
-            + "usarse. Las incompletas y las que no cumplen su Jornada aparecen marcadas. Muestra 50 "
+            + "usarse. Las incompletas aparecen marcadas. Muestra 50 "
             + "por pagina; si trae siguienteCursor, pasalo como cursor. Para ubicar una plantilla que "
             + "el usuario nombra de forma aproximada usa buscar_plantillas; para su cuadro, "
             + "obtener_plantilla.")]
@@ -41,8 +41,7 @@ public partial class ListarPlantillasTool(ProgramacionApi api)
                 c.Id,
                 c.Nombre.Trim(),
                 c.DiasDelCiclo,
-                Incompleta: c.Completa ? null : true,
-                ConAdvertencias: c.Advertencias is { Count: > 0 } ? true : null))
+                Incompleta: c.Completa ? null : true))
             .ToList();
 
         return RespuestaJson.Serializar(new CatalogoDePlantillas(
@@ -65,5 +64,4 @@ public sealed record PlantillaResumida(
     string Id,
     string Nombre,
     int DiasDelCiclo,
-    bool? Incompleta,
-    bool? ConAdvertencias);
+    bool? Incompleta);

@@ -12,7 +12,7 @@ public sealed partial class CuadroDeTurnosProjection
     private const int MinutosPorHora = 60;
 
     public static CuadroDeTurnos Create(IEvent<PlantillaDeTurnosCreada> e) =>
-        new(e.StreamKey!, e.Data.Nombre, e.Data.DiasDelCiclo, [], false, null, null, []);
+        new(e.StreamKey!, e.Data.Nombre, e.Data.DiasDelCiclo, [], false, null);
 
     public static CuadroDeTurnos Apply(DiaDePlantillaDeTurnosAsignado e, CuadroDeTurnos vista)
     {
@@ -48,21 +48,10 @@ public sealed partial class CuadroDeTurnosProjection
     }
 
     public static CuadroDeTurnos Apply(JornadaDePlantillaDeTurnosAsignada e, CuadroDeTurnos vista) =>
-        vista with { JornadaId = e.JornadaId, Limites = ALimites(e.Limites) };
+        vista with { JornadaId = e.JornadaId };
 
     public static CuadroDeTurnos Apply(JornadaDePlantillaDeTurnosQuitada e, CuadroDeTurnos vista) =>
-        vista with { JornadaId = null, Limites = null };
-
-    public static CuadroDeTurnos Apply(AdvertenciasDePlantillaDeTurnosCalculadas e, CuadroDeTurnos vista) =>
-        vista with
-        {
-            Advertencias = e.Advertencias
-                .Select(a => new AdvertenciaDelCuadroDeTurnos(a.Tipo.ToString(), a.Dia, a.Magnitud))
-                .ToList()
-        };
-
-    public static CuadroDeTurnos Apply(LimitesDeJornadaDePlantillaDeTurnosSincronizados e, CuadroDeTurnos vista) =>
-        vista with { Limites = ALimites(e.Limites) };
+        vista with { JornadaId = null };
 
     public static bool ShouldDelete(PlantillaDeTurnosRetirada e) => true;
 
@@ -76,10 +65,4 @@ public sealed partial class CuadroDeTurnosProjection
 
     private static bool EstaCompleta(IReadOnlyCollection<DiaDelCuadroDeTurnos> dias, int diasDelCiclo) =>
         dias.Count == diasDelCiclo && dias.All(d => d.Completo && !d.Retirado);
-
-    private static LimitesDelCuadro ALimites(LimitesJornada l) => new(
-        EnMinutos(l.HorasSemanales), EnMinutos(l.TopeDiario), EnMinutos(l.MinimoDiario),
-        l.DiasDescansoPorSemana, l.ToString());
-
-    private static int EnMinutos(HorasYMinutos t) => t.Horas * MinutosPorHora + t.Minutos;
 }

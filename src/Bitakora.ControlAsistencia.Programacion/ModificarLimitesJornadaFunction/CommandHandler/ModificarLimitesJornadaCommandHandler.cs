@@ -2,15 +2,14 @@ using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.Entities;
 using Bitakora.ControlAsistencia.Programacion.Infraestructura;
-using Cosmos.EventDriven.Abstractions;
 using Cosmos.EventSourcing.Abstractions.Commands;
 using Comando = Bitakora.ControlAsistencia.Programacion.ModificarLimitesJornadaFunction.ModificarLimitesJornada;
 
 namespace Bitakora.ControlAsistencia.Programacion.ModificarLimitesJornadaFunction.CommandHandler;
 
 public partial class ModificarLimitesJornadaCommandHandler(
-    IEventStore eventStore, IAseguradorJornadaPredeterminada asegurador, ILectorLimitesJornada lector,
-    IPrivateEventSender privateEventSender) : ICommandHandlerAsync<Comando>
+    IEventStore eventStore, IAseguradorJornadaPredeterminada asegurador, ILectorLimitesJornada lector)
+    : ICommandHandlerAsync<Comando>
 {
     public async Task HandleAsync(Comando command, CancellationToken ct = default)
     {
@@ -27,7 +26,6 @@ public partial class ModificarLimitesJornadaCommandHandler(
                 Mensajes.LimitesDuplicados, DescripcionJornada.Componer(limites, igual.Modalidad, igual.DescansoAcumulado),
                 igual.JornadaId));
 
-        if (jornada.ModificarLimites(limites) == ResultadoModificarLimites.Modificados)
-            await privateEventSender.PublishAsync(jornada.ComoLimitesActualizados());
+        jornada.ModificarLimites(limites);
     }
 }

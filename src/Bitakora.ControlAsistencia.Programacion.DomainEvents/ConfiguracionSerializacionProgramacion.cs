@@ -52,9 +52,6 @@ public static class ConfiguracionSerializacionProgramacion
         JornadaCreada.ConfigurarSerializacion(resolver);
         LimitesJornadaModificados.ConfigurarSerializacion(resolver);
         VentanaDeEntradaModificada.ConfigurarSerializacion(resolver);
-        AdvertenciaPlantillaTurnos.ConfigurarSerializacion(resolver);
-        AdvertenciasDePlantillaDeTurnosCalculadas.ConfigurarSerializacion(resolver);
         TurnoDePlantillaDeTurnosSincronizado.ConfigurarSerializacion(resolver);
-        LimitesDeJornadaDePlantillaDeTurnosSincronizados.ConfigurarSerializacion(resolver);
     }
 }

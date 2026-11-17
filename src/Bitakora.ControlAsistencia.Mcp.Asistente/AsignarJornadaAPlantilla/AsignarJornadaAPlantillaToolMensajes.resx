@@ -38,7 +38,7 @@
   <data name="ResultadoJornadaAsignada" xml:space="preserve">
     <value>Jornada asignada a la plantilla</value>
   </data>
-  <data name="NotaAdvertenciasEventuales" xml:space="preserve">
-    <value>Las advertencias de la plantilla contra esta Jornada se ven con obtener_plantilla unos segundos despues.</value>
+  <data name="NotaVisibilidadEventual" xml:space="preserve">
+    <value>El cambio se refleja en obtener_plantilla unos segundos despues.</value>
   </data>
 </root>

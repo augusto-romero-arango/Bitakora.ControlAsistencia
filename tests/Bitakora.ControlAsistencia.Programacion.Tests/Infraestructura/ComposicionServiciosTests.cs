@@ -47,7 +47,6 @@ public class ComposicionServiciosTests
         (typeof(CancelacionTurnoDiarioSolicitada), "cancelacion-turno-diario-solicitada"),
         (typeof(AusenciaDiariaProgramada), "ausencia-diaria-programada"),
         (typeof(AusenciaDiariaCancelada), "ausencia-diaria-cancelada"),
-        (typeof(LimitesDeJornadaActualizados), "limites-de-jornada-actualizados"),
         (typeof(DisenoDeTurnoActualizado), "diseno-de-turno-actualizado")
     ];
 
@@ -144,8 +143,7 @@ public class ComposicionServiciosTests
              typeof(CancelacionProgramacionSolicitada), typeof(FranjaAgregada),
              typeof(DescansoAgregado), typeof(ExtraAgregado), typeof(FranjaQuitada),
              typeof(DescansoQuitado), typeof(ExtraQuitado), typeof(SedeDeFranjaAsignada),
-             typeof(SedeDeFranjaRetirada), typeof(PlantillaDeTurnosCreada), typeof(VentanaDeEntradaModificada),
-             typeof(AdvertenciasDePlantillaDeTurnosCalculadas)]);
+             typeof(SedeDeFranjaRetirada), typeof(PlantillaDeTurnosCreada), typeof(VentanaDeEntradaModificada)]);
     }
 
     // Registrar el tipo solo sirve si el alias sigue siendo el que las
@@ -175,8 +173,7 @@ public class ComposicionServiciosTests
             [typeof(SedeDeFranjaAsignada)] = "sede_de_franja_asignada",
             [typeof(SedeDeFranjaRetirada)] = "sede_de_franja_retirada",
             [typeof(PlantillaDeTurnosCreada)] = "plantilla_de_turnos_creada",
-            [typeof(DiaDePlantillaDeTurnosAsignado)] = "dia_de_plantilla_de_turnos_asignado",
-            [typeof(AdvertenciasDePlantillaDeTurnosCalculadas)] = "advertencias_de_plantilla_de_turnos_calculadas"
+            [typeof(DiaDePlantillaDeTurnosAsignado)] = "dia_de_plantilla_de_turnos_asignado"
         });
     }
 
@@ -685,19 +682,6 @@ public class ComposicionServiciosTests
         var lector = scope.ServiceProvider.GetRequiredService<ILectorLimitesJornada>();
 
         lector.Should().BeOfType<LectorReadSideProgramacion>();
-    }
-
-    [Fact]
-    public async Task AgregarServiciosProgramacion_CongelaElAliasDeLimitesDeJornadaDePlantillaDeTurnosSincronizados()
-    {
-        await using var provider = ComponerServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
-
-        var store = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
-        var alias = store.Options.Events.AllKnownEventTypes()
-            .Single(e => e.EventType == typeof(LimitesDeJornadaDePlantillaDeTurnosSincronizados)).Alias;
-
-        alias.Should().Be("limites_de_jornada_de_plantilla_de_turnos_sincronizados");
     }
 
     [Fact]

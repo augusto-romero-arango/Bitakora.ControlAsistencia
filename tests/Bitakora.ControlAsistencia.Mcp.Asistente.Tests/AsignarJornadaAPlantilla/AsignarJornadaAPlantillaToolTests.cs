@@ -61,7 +61,7 @@ public class AsignarJornadaAPlantillaToolTests
         json["plantilla"]!.GetValue<string>().Should().Be("Ciclo Cocina");
         json["jornada"]!["jornada_id"]!.GetValue<string>().Should().Be(JornadaId);
         json["jornada"]!["descripcion"]!.GetValue<string>().Should().Be(DescripcionJornada);
-        json["nota"]!.GetValue<string>().Should().Be(AsignarJornadaAPlantillaTool.Mensajes.NotaAdvertenciasEventuales);
+        json["nota"]!.GetValue<string>().Should().Be(AsignarJornadaAPlantillaTool.Mensajes.NotaVisibilidadEventual);
     }
 
     [Fact]
