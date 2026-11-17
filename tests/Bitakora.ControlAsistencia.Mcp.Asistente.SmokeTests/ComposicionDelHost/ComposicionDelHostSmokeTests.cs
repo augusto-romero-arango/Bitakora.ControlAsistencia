@@ -25,9 +25,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         "quitar_jornada_de_plantilla", "retirar_plantilla",
         "asignar_jornada", "asignar_jornada_por_grupo", "desactivar_jornada",
         "modificar_ventana_de_entrada", "crear_turno_de_horario_abierto",
-        "asignar_etiqueta", "retirar_etiqueta",
-        "asignar_modalidad_a_jornada", "quitar_modalidad_de_jornada",
-        "marcar_descanso_acumulado_de_jornada", "desmarcar_descanso_acumulado_de_jornada"
+        "asignar_etiqueta", "retirar_etiqueta"
     ];
 
     private static readonly Dictionary<string, string[]> RequeridasPorTool = new()
@@ -80,10 +78,6 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
         ["descartar_borrador_de_programacion_por_grupo"] = [],
         ["listar_jornadas"] = [],
         ["crear_jornada"] = ["horas_semanales", "tope_diario", "minimo_diario", "dias_descanso_por_semana"],
-        ["asignar_modalidad_a_jornada"] = ["jornada_id", "modalidad"],
-        ["quitar_modalidad_de_jornada"] = ["jornada_id"],
-        ["marcar_descanso_acumulado_de_jornada"] = ["jornada_id"],
-        ["desmarcar_descanso_acumulado_de_jornada"] = ["jornada_id"],
         ["modificar_limites_jornada"] =
             ["jornada_id", "horas_semanales", "tope_diario", "minimo_diario", "dias_descanso_por_semana"],
         ["asignar_jornada_predeterminada"] = ["jornada_id"],
@@ -156,9 +150,7 @@ public class ComposicionDelHostSmokeTests(McpFixture mcp)
                 or "quitar_jornada_de_plantilla" or "retirar_plantilla"
                 or "asignar_jornada" or "asignar_jornada_por_grupo" or "desactivar_jornada"
                 or "modificar_ventana_de_entrada" or "crear_turno_de_horario_abierto"
-                or "asignar_etiqueta" or "retirar_etiqueta"
-                or "asignar_modalidad_a_jornada" or "quitar_modalidad_de_jornada"
-                or "marcar_descanso_acumulado_de_jornada" or "desmarcar_descanso_acumulado_de_jornada";
+                or "asignar_etiqueta" or "retirar_etiqueta";
             (meta!["readOnlyHint"]?.GetValue<bool>()).Should().Be(!esEscritura, $"{nombre} debe publicar readOnlyHint");
         }
     }
