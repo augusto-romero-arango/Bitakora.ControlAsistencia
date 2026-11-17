@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using Bitakora.ControlAsistencia.Mcp.Asistente.Infraestructura;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Mcp;
@@ -16,8 +17,8 @@ public partial class ObtenerPlantillaTool(ProgramacionApi api)
             NombreTool,
             "Devuelve el cuadro de una plantilla de turnos por su id (ubicala con buscar_plantillas): "
             + "por cada dia del ciclo, del 1 al N, el horario del turno y su turnoId, los dias sin turno "
-            + "y los turnos retirados o incompletos; la Jornada asociada y las advertencias de la "
-            + "plantilla contra sus limites. Para el nombre y las franjas de un turno usa obtener_turno con ese turnoId.")]
+            + "y los turnos retirados o incompletos, y el jornada_id de la Jornada asociada. Para el "
+            + "nombre y las franjas de un turno usa obtener_turno con ese turnoId.")]
         [McpMetadata("""{"readOnlyHint": true}""")]
         ToolInvocationContext context,
         [McpToolProperty(
@@ -48,8 +49,7 @@ public partial class ObtenerPlantillaTool(ProgramacionApi api)
 
         return RespuestaJson.Serializar(new PlantillaDetallada(
             detalle.Id, detalle.Nombre.Trim(), detalle.DiasDelCiclo, detalle.Completa, dias,
-            detalle.Jornada?.Resumir(),
-            (detalle.Advertencias ?? []).Select(a => a.Descripcion).ToList()));
+            detalle.JornadaId));
     }
 
     // Retirado gana sobre incompleto: sin ficha en el catalogo, Completo llega false por construccion.
@@ -69,7 +69,6 @@ public sealed record PlantillaDetallada(
     int DiasDelCiclo,
     bool Completa,
     IReadOnlyList<DiaDeLaPlantilla> Dias,
-    JornadaDescritaResumen? Jornada,
-    IReadOnlyList<string> Advertencias);
+    [property: JsonPropertyName("jornada_id")] string? JornadaId);
 
 public sealed record DiaDeLaPlantilla(int Dia, string? TurnoId, string Turno);

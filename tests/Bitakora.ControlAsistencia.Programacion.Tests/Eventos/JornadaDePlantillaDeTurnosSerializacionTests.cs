@@ -13,14 +13,10 @@ public class JornadaDePlantillaDeTurnosSerializacionTests
     private static JsonSerializerOptions CrearOpcionesMarten() =>
         ConfiguracionSerializacionProgramacion.CrearOpcionesMarten();
 
-    private static LimitesJornada Limites() =>
-        LimitesJornada.Crear(HorasYMinutos.Crear(42, 30), HorasYMinutos.Crear(9, 0),
-            HorasYMinutos.Crear(4, 0), 2);
-
     [Fact]
-    public void RoundTrip_ReconstruyeJornadaAsignada_ConLimitesYVersion()
+    public void RoundTrip_ReconstruyeJornadaAsignada_ConDatosCompletos()
     {
-        var evento = JornadaDePlantillaDeTurnosAsignada.Crear(PlantillaId, JornadaId, Limites(), 7);
+        var evento = JornadaDePlantillaDeTurnosAsignada.Crear(PlantillaId, JornadaId);
         var opciones = CrearOpcionesMarten();
 
         var json = JsonSerializer.Serialize(evento, opciones);
@@ -29,8 +25,26 @@ public class JornadaDePlantillaDeTurnosSerializacionTests
         restaurado.Should().NotBeNull();
         restaurado!.PlantillaId.Should().Be(PlantillaId);
         restaurado.JornadaId.Should().Be(JornadaId);
-        restaurado.Limites.Should().Be(Limites());
-        restaurado.VersionJornada.Should().Be(7);
+    }
+
+    // Los streams ya escritos guardan la copia de los limites y la version de la Jornada; STJ
+    // ignora por defecto las propiedades que el tipo ya no declara.
+    [Fact]
+    public void Deserializar_ReconstruyeJornadaAsignada_CuandoElJsonPersistidoTraeLimitesYVersionJornada()
+    {
+        var opciones = CrearOpcionesMarten();
+        var limites = JsonSerializer.Serialize(
+            LimitesJornada.Crear(HorasYMinutos.Crear(42, 30), HorasYMinutos.Crear(9, 0), HorasYMinutos.Crear(4, 0), 2),
+            opciones);
+        var json = $$"""
+            {"PlantillaId":"{{PlantillaId}}","JornadaId":"{{JornadaId}}","Limites":{{limites}},"VersionJornada":7}
+            """;
+
+        var restaurado = JsonSerializer.Deserialize<JornadaDePlantillaDeTurnosAsignada>(json, opciones);
+
+        restaurado.Should().NotBeNull();
+        restaurado!.PlantillaId.Should().Be(PlantillaId);
+        restaurado.JornadaId.Should().Be(JornadaId);
     }
 
     [Fact]
@@ -51,7 +65,7 @@ public class JornadaDePlantillaDeTurnosSerializacionTests
     {
         var opciones = new JsonSerializerOptions { TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
         var json = JsonSerializer.Serialize(
-            JornadaDePlantillaDeTurnosAsignada.Crear(PlantillaId, JornadaId, Limites(), 7), opciones);
+            JornadaDePlantillaDeTurnosAsignada.Crear(PlantillaId, JornadaId), opciones);
 
         var act = () => JsonSerializer.Deserialize<JornadaDePlantillaDeTurnosAsignada>(json, opciones);
 

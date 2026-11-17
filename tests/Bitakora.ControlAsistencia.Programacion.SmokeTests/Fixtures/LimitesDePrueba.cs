@@ -56,10 +56,6 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites ModificarDestino = Firma(31, 4);
     public static readonly FirmaDeLimites ModificarConflictoA = Firma(30, 5);
     public static readonly FirmaDeLimites ModificarConflictoB = Firma(31, 5);
-    public static readonly FirmaDeLimites ModificarPublicaOrigen = Firma(30, 6);
-    public static readonly FirmaDeLimites ModificarPublicaDestino = Firma(31, 6);
-    public static readonly FirmaDeLimites ModificarNoPublicaOrigen = Firma(30, 7);
-    public static readonly FirmaDeLimites ModificarNoPublicaDestino = Firma(31, 7);
     public static readonly FirmaDeLimites ModificarTopeInvalido = Firma(30, 8);
     public static readonly FirmaDeLimites QuitarJornadaPersiste = Firma(30, 9);
     public static readonly FirmaDeLimites QuitarJornadaSinNuevosEventos = Firma(30, 19);
@@ -68,8 +64,6 @@ public static class LimitesDePrueba
     public static readonly FirmaDeLimites ListarCuadros = Firma(30, 12);
     public static readonly FirmaDeLimites AsignarAPlantillaPersiste = Firma(30, 13);
     public static readonly FirmaDeLimites AsignarAPlantillaRepite = Firma(30, 15);
-    public static readonly FirmaDeLimites AsignarAPlantillaAutocorrigeOrigen = Firma(30, 14);
-    public static readonly FirmaDeLimites AsignarAPlantillaAutocorrigeDestino = Firma(33, 14);
     public static readonly FirmaDeLimites AsignarAPlantillaJornadaNoExiste = Firma(30, 16);
     public static readonly FirmaDeLimites AsignarAPlantillaPlantillaNoExiste = Firma(30, 17);
     public static readonly FirmaDeLimites AsignarAPlantillaPlantillaRetirada = Firma(30, 18);

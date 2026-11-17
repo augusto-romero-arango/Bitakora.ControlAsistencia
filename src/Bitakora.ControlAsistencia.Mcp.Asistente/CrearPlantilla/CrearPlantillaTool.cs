@@ -30,9 +30,8 @@ public partial class CrearPlantillaTool(
             + "Si algun turno no existe, no crea nada y te dice cuales faltan. Los dias que el dominio "
             + "rechace quedan sin turno y la plantilla incompleta; corrigelos con "
             + "asignar_turno_a_dia_de_plantilla. El nombre es unico en el catalogo. Con jornada_id "
-            + "(miralo con listar_jornadas) la plantilla nace asociada a esa Jornada y se audita "
-            + "contra sus limites. Aparece en listar_plantillas en unos segundos. Para aplicarla usa "
-            + "aplicar_plantilla.")]
+            + "(miralo con listar_jornadas) la plantilla nace asociada a esa Jornada. Aparece en "
+            + "listar_plantillas en unos segundos. Para aplicarla usa aplicar_plantilla.")]
         [McpMetadata("""{"readOnlyHint": false, "destructiveHint": false}""")]
         ToolInvocationContext context,
         [McpToolProperty("nombre", "Nombre unico de la plantilla de turnos en el catalogo.", isRequired: true)]

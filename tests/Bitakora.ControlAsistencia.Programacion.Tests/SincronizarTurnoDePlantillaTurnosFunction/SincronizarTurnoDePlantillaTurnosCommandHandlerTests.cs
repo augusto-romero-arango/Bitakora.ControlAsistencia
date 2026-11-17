@@ -15,7 +15,6 @@ public class SincronizarTurnoDePlantillaTurnosCommandHandlerTests
     private const int DiasDelCiclo = 4;
     private static readonly Guid TurnoId = Guid.Parse("019600a0-0000-7000-8000-000000001285");
     private static readonly Guid OtroTurnoId = Guid.Parse("019600a0-0000-7000-8000-000000001286");
-    private static readonly Guid JornadaId = Guid.Parse("019600a0-0000-7000-8000-000000001a01");
 
     protected override ICommandHandlerAsync<SincronizarTurnoDePlantillaTurnos> Handler =>
         new SincronizarTurnoDePlantillaTurnosCommandHandler(EventStore);
@@ -29,84 +28,39 @@ public class SincronizarTurnoDePlantillaTurnosCommandHandlerTests
     private static readonly Turno TurnoOtro = Turno.Crear("Turno Tarde", false,
         [FranjaOrdinaria.Crear(new TimeOnly(14, 0), new TimeOnly(22, 0))]);
 
-    private static LimitesJornada Limites() =>
-        LimitesJornada.Crear(HorasYMinutos.Crear(40, 0), topeDiario: HorasYMinutos.Crear(8, 0),
-            minimoDiario: HorasYMinutos.Crear(0, 0), 1);
-
     private PlantillaDeTurnosCreada PlantillaCreada() =>
         PlantillaDeTurnosCreada.Crear(GuidAggregateId, "Ciclo Cocina", DiasDelCiclo);
-
-    private JornadaDePlantillaDeTurnosAsignada JornadaAsignada() =>
-        JornadaDePlantillaDeTurnosAsignada.Crear(GuidAggregateId, JornadaId, Limites(), 1);
 
     private DiaDePlantillaDeTurnosAsignado Dia(int dia, Guid turnoId, Turno turno, long version) =>
         DiaDePlantillaDeTurnosAsignado.Crear(GuidAggregateId, dia, turnoId, turno, version);
 
-    private AdvertenciasDePlantillaDeTurnosCalculadas Advertencias(params AdvertenciaPlantillaTurnos[] advertencias) =>
-        AdvertenciasDePlantillaDeTurnosCalculadas.Crear(GuidAggregateId, advertencias);
-
-    private static AdvertenciaPlantillaTurnos[] SinTurno(params int[] dias) =>
-        dias.Select(AdvertenciaPlantillaTurnos.DiaSinTurno).ToArray();
-
     private void GivenPlantillaConTurnoEnDosDias(long version = 1) =>
-        Given(PlantillaCreada(), JornadaAsignada(),
+        Given(PlantillaCreada(),
             Dia(1, TurnoId, TurnoDeOchoHoras, version),
-            Dia(2, TurnoId, TurnoDeOchoHoras, version),
-            Advertencias(SinTurno(3, 4)));
+            Dia(2, TurnoId, TurnoDeOchoHoras, version));
 
     [Fact]
-    public async Task SincronizarTurnoDePlantillaTurnos_EmiteSincronizadoYAdvertencias_CuandoLaVersionEsMayorYCambianLasAdvertencias()
+    public async Task SincronizarTurnoDePlantillaTurnos_EmiteSincronizado_CuandoLaVersionEsMayor()
     {
         GivenPlantillaConTurnoEnDosDias();
 
         await WhenAsync(new SincronizarTurnoDePlantillaTurnos(GuidAggregateId, TurnoId, TurnoDeDiezHoras, 2, false));
 
-        AdvertenciaPlantillaTurnos[] esperadas =
-        [
-            AdvertenciaPlantillaTurnos.SuperaTopeDiario(1, 120),
-            AdvertenciaPlantillaTurnos.SuperaTopeDiario(2, 120),
-            .. SinTurno(3, 4)
-        ];
-        Then(
-            TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeDiezHoras, 2, false),
-            Advertencias(esperadas));
-        And<PlantillaTurnos, bool>(p => p.Advertencias.SequenceEqual(esperadas), true);
+        Then(TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeDiezHoras, 2, false));
         And<PlantillaTurnos, long>(p => p.VersionDelTurno(TurnoId), 2);
         And<PlantillaTurnos, bool>(p => p.DiaEstaRetirado(1), false);
     }
 
     [Fact]
-    public async Task SincronizarTurnoDePlantillaTurnos_EmiteSoloSincronizado_CuandoLasAdvertenciasNoCambian()
-    {
-        GivenPlantillaConTurnoEnDosDias();
-        var otroNombre = Turno.Crear("Turno Manana Renombrado", false,
-            [FranjaOrdinaria.Crear(new TimeOnly(7, 0), new TimeOnly(15, 0))]);
-
-        await WhenAsync(new SincronizarTurnoDePlantillaTurnos(GuidAggregateId, TurnoId, otroNombre, 2, false));
-
-        Then(TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, TurnoId, otroNombre, 2, false));
-        And<PlantillaTurnos, long>(p => p.VersionDelTurno(TurnoId), 2);
-    }
-
-    [Fact]
     public async Task SincronizarTurnoDePlantillaTurnos_NoToca_LosDiasDeOtroTurno()
     {
-        Given(PlantillaCreada(), JornadaAsignada(),
+        Given(PlantillaCreada(),
             Dia(1, TurnoId, TurnoDeOchoHoras, 1),
-            Dia(2, OtroTurnoId, TurnoOtro, 1),
-            Advertencias(SinTurno(3, 4)));
+            Dia(2, OtroTurnoId, TurnoOtro, 1));
 
         await WhenAsync(new SincronizarTurnoDePlantillaTurnos(GuidAggregateId, TurnoId, TurnoDeDiezHoras, 2, false));
 
-        AdvertenciaPlantillaTurnos[] esperadas =
-        [
-            AdvertenciaPlantillaTurnos.SuperaTopeDiario(1, 120),
-            .. SinTurno(3, 4)
-        ];
-        Then(
-            TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeDiezHoras, 2, false),
-            Advertencias(esperadas));
-        And<PlantillaTurnos, bool>(p => p.Advertencias.SequenceEqual(esperadas), true);
+        Then(TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeDiezHoras, 2, false));
         And<PlantillaTurnos, long>(p => p.VersionDelTurno(OtroTurnoId), 1);
     }
 
@@ -144,29 +98,22 @@ public class SincronizarTurnoDePlantillaTurnosCommandHandlerTests
     }
 
     [Fact]
-    public async Task SincronizarTurnoDePlantillaTurnos_MarcaLosDiasYLosReportaSinTurno_CuandoElTurnoVieneRetirado()
+    public async Task SincronizarTurnoDePlantillaTurnos_MarcaLosDiasComoRetirados_CuandoElTurnoVieneRetirado()
     {
-        Given(PlantillaCreada(), JornadaAsignada(),
-            Dia(1, TurnoId, TurnoDeOchoHoras, 1),
-            Advertencias(SinTurno(2, 3, 4)));
+        Given(PlantillaCreada(), Dia(1, TurnoId, TurnoDeOchoHoras, 1));
 
         await WhenAsync(new SincronizarTurnoDePlantillaTurnos(GuidAggregateId, TurnoId, TurnoDeOchoHoras, 2, true));
 
-        var esperadas = SinTurno(1, 2, 3, 4);
-        Then(
-            TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeOchoHoras, 2, true),
-            Advertencias(esperadas));
-        And<PlantillaTurnos, bool>(p => p.Advertencias.SequenceEqual(esperadas), true);
+        Then(TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeOchoHoras, 2, true));
         And<PlantillaTurnos, bool>(p => p.DiaEstaRetirado(1), true);
     }
 
     [Fact]
     public async Task SincronizarTurnoDePlantillaTurnos_NoEmiteEventos_CuandoLaVersionYaFueSincronizadaComoRetirada()
     {
-        Given(PlantillaCreada(), JornadaAsignada(),
+        Given(PlantillaCreada(),
             Dia(1, TurnoId, TurnoDeOchoHoras, 1),
-            TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeOchoHoras, 2, true),
-            Advertencias(SinTurno(1, 2, 3, 4)));
+            TurnoDePlantillaDeTurnosSincronizado.Crear(GuidAggregateId, TurnoId, TurnoDeOchoHoras, 2, true));
 
         await WhenAsync(new SincronizarTurnoDePlantillaTurnos(GuidAggregateId, TurnoId, TurnoDeOchoHoras, 2, true));
 
@@ -177,7 +124,7 @@ public class SincronizarTurnoDePlantillaTurnosCommandHandlerTests
     [Fact]
     public async Task SincronizarTurnoDePlantillaTurnos_NoEmiteEventos_CuandoLaPlantillaEstaRetirada()
     {
-        Given(PlantillaCreada(), JornadaAsignada(),
+        Given(PlantillaCreada(),
             Dia(1, TurnoId, TurnoDeOchoHoras, 1),
             PlantillaDeTurnosRetirada.Crear(GuidAggregateId));
 

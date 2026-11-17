@@ -14,9 +14,9 @@ public class BuscarPlantillasToolTests
         Plantilla("id-p1", "Ciclo Vigilancia Norte", 14, true,
             [Dia(1, Turno("Vigilancia Diurno"))]),
         Plantilla("id-p2", "Ciclo Vigilancia Nocturna", 28, false,
-            [Dia(2, Turno("Cocina Manana")), Dia(3, Turno("Vigilancia Diurno"))], advertencias: 2),
+            [Dia(2, Turno("Cocina Manana")), Dia(3, Turno("Vigilancia Diurno"))]),
         Plantilla("id-p3", "Cocina Rotativa", 7, true,
-            [Dia(1, Turno("Cocina Manana"))], advertencias: 1, conJornada: false)
+            [Dia(1, Turno("Cocina Manana"))], conJornada: false)
     ]);
 
     private static async Task<(string Texto, HandlerEnlatado Handler)> EjecutarTexto(
@@ -94,14 +94,12 @@ public class BuscarPlantillasToolTests
     }
 
     [Fact]
-    public async Task BuscarPlantillas_DejaLasQueTienenAdvertencias_CuandoElEstadoEsConAdvertencias()
+    public async Task BuscarPlantillas_RespondeConFraseSinLlamarAlServidor_CuandoElEstadoEsConAdvertencias()
     {
-        var (texto, _) = await EjecutarTexto(Catalogo, estado: "con_advertencias");
-        var json = Parsear(texto);
+        var (texto, handler) = await EjecutarTexto(Catalogo, estado: "con_advertencias");
 
-        Nombres(json).Should().Equal("Ciclo Vigilancia Nocturna", "Cocina Rotativa");
-        Motivos(Plantilla_(json, "Cocina Rotativa")).Should().Contain(
-            BuscarPlantillasTool.Mensajes.CoincidePorConAdvertencias);
+        texto.Should().Be(string.Format(BuscarPlantillasTool.Mensajes.EstadoDesconocido, "con_advertencias"));
+        handler.UltimaRequest.Should().BeNull();
     }
 
     [Fact]
@@ -128,7 +126,7 @@ public class BuscarPlantillasToolTests
 
         var marcada = Plantilla_(json, "Ciclo Vigilancia Nocturna");
         marcada["incompleta"]!.GetValue<bool>().Should().BeTrue();
-        marcada["advertencias"]!.GetValue<int>().Should().Be(2);
+        marcada.ContainsKey("advertencias").Should().BeFalse();
 
         json["mostrando"]!.GetValue<int>().Should().Be(2);
         json.ContainsKey("nota").Should().BeFalse();

@@ -40,7 +40,7 @@ public partial class CrearPlantillaTurnosCommandHandler : ICommandHandlerAsync<C
         var evento = PlantillaDeTurnosCreada.Crear(command.PlantillaId, command.Nombre, command.DiasDelCiclo);
         var plantilla = jornada is null
             ? PlantillaTurnos.Iniciar(evento)
-            : PlantillaTurnos.IniciarConJornada(evento, command.JornadaId!.Value, jornada.Limites, jornada.Version);
+            : PlantillaTurnos.IniciarConJornada(evento, command.JornadaId!.Value);
         _eventStore.StartStream(plantilla);
     }
 }

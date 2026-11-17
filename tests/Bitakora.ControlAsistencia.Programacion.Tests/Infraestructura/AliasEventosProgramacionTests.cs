@@ -183,15 +183,6 @@ public class AliasEventosProgramacionTests
     }
 
     [Fact]
-    public void AdvertenciasDePlantillaDeTurnosCalculadas_TieneAliasAdvertenciasDePlantillaDeTurnosCalculadas()
-    {
-        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
-
-        AliasDe<AdvertenciasDePlantillaDeTurnosCalculadas>(options)
-            .Should().Be("advertencias_de_plantilla_de_turnos_calculadas");
-    }
-
-    [Fact]
     public void JornadaDePlantillaDeTurnosAsignada_TieneAliasJornadaDePlantillaDeTurnosAsignada()
     {
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();
@@ -213,15 +204,6 @@ public class AliasEventosProgramacionTests
         var options = CrearOpcionesConEventosDeProgramacionRegistrados();
 
         AliasDe<TurnoDePlantillaDeTurnosSincronizado>(options).Should().Be("turno_de_plantilla_de_turnos_sincronizado");
-    }
-
-    [Fact]
-    public void LimitesDeJornadaDePlantillaDeTurnosSincronizados_TieneAliasLimitesDeJornadaDePlantillaDeTurnosSincronizados()
-    {
-        var options = CrearOpcionesConEventosDeProgramacionRegistrados();
-
-        AliasDe<LimitesDeJornadaDePlantillaDeTurnosSincronizados>(options)
-            .Should().Be("limites_de_jornada_de_plantilla_de_turnos_sincronizados");
     }
 
     [Fact]

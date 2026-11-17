@@ -7,22 +7,17 @@ public sealed class JornadaDePlantillaDeTurnosAsignada
 {
     public Guid PlantillaId { get; private set; }
     public Guid JornadaId { get; private set; }
-    public LimitesJornada Limites { get; private set; } = null!;
-    public long VersionJornada { get; private set; }
 
     private JornadaDePlantillaDeTurnosAsignada() { }
 
-    private JornadaDePlantillaDeTurnosAsignada(Guid plantillaId, Guid jornadaId, LimitesJornada limites, long versionJornada)
+    private JornadaDePlantillaDeTurnosAsignada(Guid plantillaId, Guid jornadaId)
     {
         PlantillaId = plantillaId;
         JornadaId = jornadaId;
-        Limites = limites;
-        VersionJornada = versionJornada;
     }
 
-    public static JornadaDePlantillaDeTurnosAsignada Crear(
-        Guid plantillaId, Guid jornadaId, LimitesJornada limites, long versionJornada) =>
-        new(plantillaId, jornadaId, limites, versionJornada);
+    public static JornadaDePlantillaDeTurnosAsignada Crear(Guid plantillaId, Guid jornadaId) =>
+        new(plantillaId, jornadaId);
 
     public static void ConfigurarSerializacion(DefaultJsonTypeInfoResolver resolver)
     {

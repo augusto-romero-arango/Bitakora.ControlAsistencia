@@ -22,7 +22,7 @@ public class ObtenerPlantillaToolTests
             Dia(6, Turno("Abierto 2h", descripcion: "04:00-06:00", duracionHorarioAbierto: "2 h")),
             Dia(7, Turno("Libre", descripcion: "(descanso)", esDescanso: true))
         ],
-        advertencias: 2, conJornada: conJornada);
+        conJornada: conJornada);
 
     private static (ObtenerPlantillaTool Tool, HandlerPorRuta Handler) CrearTool(
         string cuerpo, HttpStatusCode status = HttpStatusCode.OK)
@@ -151,15 +151,14 @@ public class ObtenerPlantillaToolTests
     }
 
     [Fact]
-    public async Task ObtenerPlantilla_ResumeLaJornadaYDescribeLasAdvertencias_CuandoLaPlantillaLasTiene()
+    public async Task ObtenerPlantilla_ExponeElJornadaIdSinAdvertencias_CuandoLaPlantillaTieneJornada()
     {
         var (tool, _) = CrearTool(Detalle());
 
-        var json = JsonNode.Parse(await Ejecutar(tool))!;
+        var json = JsonNode.Parse(await Ejecutar(tool))!.AsObject();
 
-        json["jornada"]!["descripcion"]!.GetValue<string>().Should().Be("Jornada de prueba");
-        json["advertencias"]!.AsArray().Select(a => a!.GetValue<string>())
-            .Should().Equal("Advertencia 1", "Advertencia 2");
+        json["jornada_id"]!.GetValue<string>().Should().Be("j1");
+        json.ContainsKey("advertencias").Should().BeFalse();
     }
 
     [Fact]
@@ -169,7 +168,7 @@ public class ObtenerPlantillaToolTests
 
         var json = JsonNode.Parse(await Ejecutar(tool))!.AsObject();
 
-        json.ContainsKey("jornada").Should().BeFalse();
+        json.ContainsKey("jornada_id").Should().BeFalse();
     }
 
     [Fact]

@@ -16,11 +16,10 @@ public static class CatalogoDePlantillasTurnosFalso
     public static string Dia(int dia, string turnoJson) => $$"""{"dia":{{dia}},"turno":{{turnoJson}}}""";
 
     public static string Plantilla(
-        string id, string nombre, int diasDelCiclo, bool completa, string[] dias, int advertencias = 0, bool conJornada = true)
+        string id, string nombre, int diasDelCiclo, bool completa, string[] dias, bool conJornada = true)
     {
-        var adv = string.Join(",", Enumerable.Range(1, advertencias).Select(i => $$"""{"descripcion":"Advertencia {{i}}"}"""));
-        var cuerpo = $$"""{"id":"{{id}}","nombre":"{{nombre}}","diasDelCiclo":{{diasDelCiclo}},"completa":{{completa.ToString().ToLowerInvariant()}},"dias":[{{string.Join(",", dias)}}],"advertencias":[{{adv}}]""";
-        cuerpo += conJornada ? ""","jornada":{"id":"j1","descripcion":"Jornada de prueba"}}""" : "}";
+        var cuerpo = $$"""{"id":"{{id}}","nombre":"{{nombre}}","diasDelCiclo":{{diasDelCiclo}},"completa":{{completa.ToString().ToLowerInvariant()}},"dias":[{{string.Join(",", dias)}}]""";
+        cuerpo += conJornada ? ""","jornadaId":"j1"}""" : "}";
         return cuerpo;
     }
 

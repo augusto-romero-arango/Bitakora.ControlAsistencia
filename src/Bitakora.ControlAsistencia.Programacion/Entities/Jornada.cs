@@ -1,7 +1,6 @@
 using Bitakora.ControlAsistencia.Programacion.CrearJornadaFunction;
 using Bitakora.ControlAsistencia.Programacion.DomainEvents;
 using Bitakora.ControlAsistencia.Programacion.ObtenerJornada;
-using Bitakora.ControlAsistencia.PrivateEvents.Programacion;
 using Bitakora.ControlAsistencia.ReadModels.Programacion;
 using Cosmos.EventSourcing.Abstractions;
 
@@ -11,14 +10,12 @@ public partial class Jornada : AggregateRoot
 {
     private Guid _jornadaId;
     private LimitesJornada _limites = null!;
-    private long _version;
     private bool _activa;
     private ModalidadJornada? _modalidad;
     private bool _descansoAcumulado;
 
     public void Apply(JornadaCreada evento)
     {
-        _version++;
         _jornadaId = evento.JornadaId;
         Id = _jornadaId.ToString();
         _limites = evento.Limites;
@@ -53,11 +50,7 @@ public partial class Jornada : AggregateRoot
         return ResultadoDesactivarJornada.Desactivada;
     }
 
-    public void Apply(LimitesJornadaModificados evento)
-    {
-        _version++;
-        _limites = evento.Limites;
-    }
+    public void Apply(LimitesJornadaModificados evento) => _limites = evento.Limites;
 
     public void Apply(ModalidadDeJornadaAsignada evento) => _modalidad = evento.Modalidad;
 
@@ -164,14 +157,6 @@ public partial class Jornada : AggregateRoot
         _activa,
         _modalidad?.Nombre,
         _descansoAcumulado);
-
-    internal LimitesDeJornadaActualizados ComoLimitesActualizados() => new(
-        _jornadaId,
-        _version,
-        _limites.HorasSemanales.TotalMinutos(),
-        _limites.TopeDiario.TotalMinutos(),
-        _limites.MinimoDiario.TotalMinutos(),
-        _limites.DiasDescansoPorSemana);
 
     internal static Jornada Iniciar(JornadaCreada evento, ModalidadJornada? modalidad = null, bool descansoAcumulado = false)
     {

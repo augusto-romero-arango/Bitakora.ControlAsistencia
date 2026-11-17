@@ -15,7 +15,7 @@ public class ListarPlantillasToolTests
     private static string Catalogo(string? siguienteCursor = null) => Sobre(
     [
         Plantilla("id-p1", "  Ciclo   Cocina ", 14, true, [Dia(1, Turno("Cocina Manana"))]),
-        Plantilla("id-p2", "Ciclo Aseo", 7, false, [], advertencias: 1)
+        Plantilla("id-p2", "Ciclo Aseo", 7, false, [])
     ], siguienteCursor);
 
     private static async Task<(string Texto, HandlerEnlatado Handler)> Ejecutar(
@@ -45,7 +45,7 @@ public class ListarPlantillasToolTests
 
         var segunda = json["plantillas"]![1]!.AsObject();
         segunda["incompleta"]!.GetValue<bool>().Should().BeTrue();
-        segunda["conAdvertencias"]!.GetValue<bool>().Should().BeTrue();
+        segunda.ContainsKey("conAdvertencias").Should().BeFalse();
         json.ContainsKey("siguienteCursor").Should().BeFalse();
         json.ContainsKey("total").Should().BeFalse();
     }

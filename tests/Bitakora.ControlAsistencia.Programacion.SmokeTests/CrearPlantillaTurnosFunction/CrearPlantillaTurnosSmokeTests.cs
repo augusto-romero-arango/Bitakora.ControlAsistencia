@@ -107,10 +107,6 @@ public class CrearPlantillaTurnosSmokeTests(ApiFixture api, PostgresFixture post
             SchemaProgramacion, plantillaId.ToString(), "jornada_de_plantilla_de_turnos_asignada", Timeout,
             campoJson: "JornadaId", valorJson: jornadaId.ToString()))
             .Should().BeTrue("la plantilla nace con la Jornada asignada en el mismo stream");
-        (await postgres.ExisteEventoAsync(
-            SchemaProgramacion, plantillaId.ToString(), "advertencias_de_plantilla_de_turnos_calculadas", Timeout,
-            campoJson: "PlantillaId", valorJson: plantillaId.ToString()))
-            .Should().BeTrue("la plantilla creada con Jornada emite las advertencias del estado final");
     }
 
     [Fact]

@@ -583,6 +583,16 @@ public class ComposicionDelServidorTests
     }
 
     [Fact]
+    public void BuscarPlantillas_DescribeEstadoSoloComoIncompleta_CuandoSeInspeccionaLaTool()
+    {
+        var descripcion = ParametrosDeTool("buscar_plantillas")
+            .Single(p => p.GetCustomAttribute<McpToolPropertyAttribute>()!.PropertyName == "estado")
+            .GetCustomAttribute<McpToolPropertyAttribute>()!.Description;
+
+        descripcion.Should().Contain("incompleta").And.NotContain("con_advertencias");
+    }
+
+    [Fact]
     public void CrearPlantillaSemanal_DescribeUnCicloDeSieteDiasYRemiteACrearPlantilla_CuandoSeInspeccionaSuDescripcion()
     {
         var descripcion = ParametroTrigger(MetodoDe("crear_plantilla_semanal"))!

@@ -28,7 +28,7 @@ public partial class AsignarJornadaAPlantillaTool
         public static string ResultadoJornadaAsignada =>
             ResourceManager.GetString(nameof(ResultadoJornadaAsignada))!;
 
-        public static string NotaAdvertenciasEventuales =>
-            ResourceManager.GetString(nameof(NotaAdvertenciasEventuales))!;
+        public static string NotaVisibilidadEventual =>
+            ResourceManager.GetString(nameof(NotaVisibilidadEventual))!;
     }
 }
