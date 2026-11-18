@@ -4,7 +4,10 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1442 y desglose #1488-#1489: semana sin dia de
+# Ultima actualizacion: 2026-11-13 (sesion planner, refinar #1445: se ACUNA Borrador de programacion a
+#   evaluar, vista aparte de la de pendientes con el plan completo de cada dia del borrador para que
+#   ControlHoras calcule las advertencias de como quedaria. Nuevo: Borrador de programacion a evaluar.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1442 y desglose #1488-#1489: semana sin dia de
 #   descanso (172) solo sin marca; deuda del Descanso acumulado medida por racha, aparte. Tocada: Descanso
 #   acumulado.)
 # Actualizacion previa: 2026-11-08 (sesion planner, refinar #1441 y desglose #1486: la plantilla copia la
@@ -983,6 +986,27 @@ terms:
     context: Programacion
     date_added: 2026-10-31
     note: "CA-ADR-0045 (#1404), #1405 (colaborador), #1409 (grupo y todo lo pendiente)."
+
+  - name: Borrador de programacion a evaluar
+    definition: >
+      Vista de Programacion con el plan completo de cada dia del Borrador de programacion de un
+      colaborador: el turno con sus franjas, descansos, extras, ventana de entrada y sede efectiva, y la
+      copia de la Jornada estampada al programar (limites, modalidad, descanso acumulado, techos de ley).
+      Es lo que la publicacion enviaria a ControlHoras. La lee la tool de advertencias de la programacion
+      semanal para pasarle a ControlHoras los dias del borrador como dias propuestos y mostrar las
+      advertencias de como quedaria antes de publicar. El Programador no la ve directamente: ve las
+      advertencias. Distinta de la vista de borradores pendientes (resumen legible para la malla, lo que
+      falta publicar y el "sin rango"): misma identidad y mismos eventos, otra necesidad, como TurnoVigente
+      y AdvertenciasProgramacionSemanal del lado publicado.
+    context: Programacion
+    date_added: 2026-11-13
+    rejected_synonyms: [BorradorProgramacion, PlanDelBorrador, programacion propuesta]
+    rejection_reason: >
+      BorradorProgramacion casi homonimo de la vista BorradorDeProgramacion (#1408); "plan" ya nombra
+      al Turno (plan del dia) y al eje Plan de ControlHoras; "programacion propuesta" es sinonimo
+      rechazado del Borrador de programacion. "Dias propuestos" es vocabulario de ControlHoras, que no
+      conoce el borrador (CA-ADR-0045 #13).
+    note: "Refinamiento #1445 (2026-11-13): read model BorradorProgramacionAEvaluar (N2 por colaborador, Async), QUERY programacion/borradores/a-evaluar con Colaboradores obligatoria y rango hasta 366 dias, sin Take (CA-ADR-0038). Insumo de #1411."
 
   - name: Ausencia
     definition: >
