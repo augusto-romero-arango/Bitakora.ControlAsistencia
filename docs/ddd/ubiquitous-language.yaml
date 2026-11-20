@@ -4,7 +4,12 @@
 # Actualizado por el agente `event-stormer` al cerrar cada sesion de knowledge crunching.
 # Consumido por el agente `planner` antes de crear issues.
 #
-# Ultima actualizacion: 2026-11-08 (sesion planner, refinar #1442 y desglose #1488-#1489: semana sin dia de
+# Ultima actualizacion: 2026-11-10 (sesion planner, replanteo de #1443: Modalidad de jornada pasa a ser
+#   DATOS de un catalogo declarativo por pais (nombre, texto visible y Reglas de ley); se ACUNA Regla de ley
+#   (tipo + valor; tipos = codigo, valores = configuracion) evaluada por un motor unico; advertencias de ley
+#   nombradas {TipoRegla}DeLaModalidad. CA-ADR-0046 enmendado por #1495. Tocadas: Modalidad de jornada,
+#   Regla de ley.)
+# Actualizacion previa: 2026-11-08 (sesion planner, refinar #1442 y desglose #1488-#1489: semana sin dia de
 #   descanso (172) solo sin marca; deuda del Descanso acumulado medida por racha, aparte. Tocada: Descanso
 #   acumulado.)
 # Actualizacion previa: 2026-11-08 (sesion planner, refinar #1441 y desglose #1486: la plantilla copia la
@@ -1399,15 +1404,14 @@ terms:
 
   - name: Modalidad de jornada
     definition: >
-      Marco legal bajo el que se pacto una Jornada, de un catalogo CERRADO que el sistema codifica (como
-      el Festivo colombiano) con las reglas medibles de la ley: tope diario, minimo diario, techo
-      semanal y descansos. Atributo OPCIONAL de la Jornada (sin ella = pactada libre, solo advertencias
-      contra lo pactado). Primer catalogo: Ordinaria (161 inc. 1), Flexible (161 lit. a), Turnos
-      sucesivos (161 lit. d), Sin solucion de continuidad (166), Excluidos (162). Fuera por ahora:
-      Menores (franja y edad), Turnos con promedio (165, requiere periodo de medicion, #1444) e
-      Insalubres (161 lit. b, sin cifras). Viaja estampada al programar con los techos vigentes a la
-      fecha del dia. Las advertencias de ley orientan: "sin advertencias contra la modalidad X", nunca
-      "conforme a la ley".
+      Marco legal bajo el que se pacto una Jornada. Es solo DATOS: nombre, texto visible y su lista de
+      Reglas de ley, en un catalogo DECLARATIVO por pais (hoy Colombia) que se edita y se despliega. El
+      sistema no trata a ninguna modalidad como especial: evalua reglas. Atributo OPCIONAL de la Jornada
+      (sin ella = pactada libre, solo advertencias contra lo pactado). Toda modalidad verificada en
+      fuente primaria entra con las reglas cuyos tipos existen y se completa al llegar tipos nuevos; lo
+      no verificado no entra. Un regimen sectorial (seguridad privada, salud) es una modalidad propia
+      para sus trabajadores misionales. Viaja estampada al programar con su lista de reglas. Las
+      advertencias de ley orientan: "sin advertencias contra la modalidad X", nunca "conforme a la ley".
     context: Programacion
     date_added: 2026-11-01
     rejected_synonyms: [Regimen de jornada, Jornada especial, Tipo de jornada]
@@ -1439,6 +1443,29 @@ terms:
       estampado. Se estampa la ficha VIGENTE (42 h), sin vigencias por fecha: una solicitud lleva una sola
       estampa y no hay dias reales anteriores al 15-jul-2026 (solo dev). Los topes de extras (167A) entran
       con #1443.
+      DATOS (sesion 2026-11-10, CA-ADR-0046 enmendado por #1495): la ficha de 3 campos pasa a una lista de
+      Reglas de ley (#1492); lo estampado con 3 campos se lee sin reglas. El texto visible es dato del
+      catalogo, no .resx (configuracion por pais, no traduccion). Ningun componente mantiene una lista
+      propia de modalidades (#1496, #1497). ALCANCE: direccion, confianza y manejo quedan fuera del control
+      de asistencia; ExcluidaDeJornadaMaxima representa a los excluidos del 162 que si se controlan. "Dos
+      turnos el mismo dia" no es regla: una regla que no se puede incumplir no advierte.
+
+  - name: Regla de ley
+    definition: >
+      Elemento de la ficha de una Modalidad de jornada: un tipo de regla y un valor entero obligatorio
+      (minutos, dias o minuto del dia). "No aplica" = la modalidad no tiene esa regla. Los TIPOS de regla
+      son codigo (TopeDiario, MinimoDiario, TechoSemanal; luego DescansoSemanal, topes de extras, franja
+      permitida...); los VALORES y que reglas tiene cada modalidad son configuracion del catalogo. Un solo
+      motor puro e idempotente en Programacion las evalua sobre cualquier sujeto (la Jornada, la plantilla,
+      la semana programada): cada tipo es una composicion de granularidad, medida, filtro y limite, sin
+      logica por tipo. La advertencia de ley que produce se nombra {TipoRegla}DeLaModalidad (p. ej.
+      TopeDiarioDeLaModalidad), distinta de las pactadas.
+    context: Programacion
+    date_added: 2026-11-10
+    note: >
+      Reglas de dos valores (franja) son dos reglas independientes (inicio >= X, fin <= Y). Issues #1492
+      (lista y catalogo), #1499 (motor), #1440/#1441 (sujetos semana y plantilla), #1442/#1489, #1443,
+      #1493 (tipos nuevos).
 
   - name: Descanso acumulado
     definition: >
